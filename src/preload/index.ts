@@ -123,6 +123,7 @@ const api = {
     prepare: (id: string, revision: number): Promise<import('../shared/feedback').FeedbackReview> => ipcRenderer.invoke('feedback:prepare', id, revision),
     duplicate: (id: string, revision: number, match: import('../shared/feedback').FeedbackMatch): Promise<import('../shared/feedback').FeedbackSnapshot> => ipcRenderer.invoke('feedback:duplicate', id, revision, match),
     submit: (id: string, revision: number, reviewId: string, distinct: boolean): Promise<import('../shared/feedback').FeedbackSnapshot> => ipcRenderer.invoke('feedback:submit', id, revision, reviewId, distinct),
+    copyIssueBody: (id: string, revision: number): Promise<void> => ipcRenderer.invoke('feedback:copyIssueBody', id, revision),
     reconcile: (id: string, revision: number, returnToDraft?: boolean): Promise<import('../shared/feedback').FeedbackSnapshot> => ipcRenderer.invoke('feedback:reconcile', id, revision, returnToDraft)
   },
   safety: {

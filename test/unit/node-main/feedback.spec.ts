@@ -277,30 +277,30 @@ describe('public GitHub browser handoff', () => {
     const rows: RemoteIssue[] = [];
     const find = vi.fn(async () => ({ target: github, issues: rows.slice() }));
     const { options } = fixture({ create, find, history: find });
-    const openIssue = vi.fn<(url: string, clipboardBody?: string) => Promise<void>>(async () => {});
-    const browserOptions = { ...options, openIssue };
+    const openIssue = vi.fn<(url: string) => Promise<void>>(async () => {});
+    const copyBody = vi.fn<(body: string) => Promise<void>>(async () => {});
+    const browserOptions = { ...options, issuePage: { open: openIssue, copyBody } };
     const service = new FeedbackService(browserOptions);
     const propose = async (input: FeedbackDraft) => {
       const history = await service.history('worker-a');
       const [result] = await service.proposeChecked([input], 'worker-a', 'worker-a', history.checkId);
       return result!.id;
     };
-    return { service, create, rows, openIssue, browserOptions, propose };
+    return { service, create, rows, openIssue, copyBody, browserOptions, propose };
   }
 
   it('requires the exact review, prefills the Issue and keeps it opened after restart', async () => {
-    const { service, create, openIssue, rows, browserOptions, propose } = handoffFixture();
+    const { service, create, openIssue, copyBody, rows, browserOptions, propose } = handoffFixture();
     const id = await propose(draft('Title & #tag'));
     const review = await service.prepare(id, 1);
     await expect(service.submit(id, 1, 'unreviewed', false)).rejects.toThrow('审核已失效');
     expect(openIssue).not.toHaveBeenCalled();
     await expect(service.submit(id, 1, review.reviewId, false)).resolves.toMatchObject({ entries: [{ status: 'opened', submissionTarget: github }] });
-    const [, clipboardBody] = openIssue.mock.calls[0]!;
     const url = new URL(openIssue.mock.calls[0]![0]);
     expect(url.origin + url.pathname).toBe(github.repository + '/issues/new');
     expect(url.searchParams.get('title')).toBe('Title & #tag');
     expect(url.searchParams.get('body')).toBe(review.body);
-    expect(clipboardBody).toBeUndefined();
+    expect(copyBody).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
     const reopened = new FeedbackService(browserOptions);
     await expect(reopened.reconcile(id, 2)).rejects.toThrow('还没有找到这条 Issue');
@@ -309,18 +309,42 @@ describe('public GitHub browser handoff', () => {
     await expect(reopened.reconcile(id, 2, true)).resolves.toMatchObject({ entries: [{ status: 'submitted', issueUrl: github.repository + '/issues/27' }] });
   });
 
-  it('copies a long body intact and restores a closed unsubmitted page to a draft', async () => {
-    const { service, openIssue, propose } = handoffFixture();
+  it('copies a long body intact and can copy it again after a restart', async () => {
+    const { service, openIssue, copyBody, browserOptions, propose } = handoffFixture();
     const id = await propose({ ...draft(), actual: '长内容'.repeat(600) });
     const review = await service.prepare(id, 1);
     expect(review.copyBody).toBe(true);
+    await expect(service.copyIssueBody(id, 1)).rejects.toThrow('只有已打开 GitHub');
+    expect(copyBody).not.toHaveBeenCalled();
     await service.submit(id, 1, review.reviewId, false);
-    const [url, copied] = openIssue.mock.calls[0]!;
+    const [url] = openIssue.mock.calls[0]!;
     expect(url.length).toBeLessThanOrEqual(2000);
     expect(new URL(url).searchParams.has('body')).toBe(false);
-    expect(copied).toBe(review.body);
-    expect(copied).toContain(`<!-- muster-feedback:${id} -->`);
-    await expect(service.reconcile(id, 2, true)).resolves.toMatchObject({ entries: [{ status: 'pending', aiChecked: false }] });
+    expect(copyBody).toHaveBeenCalledWith(review.body);
+    expect(review.body).toContain(`<!-- muster-feedback:${id} -->`);
+
+    const reopened = new FeedbackService(browserOptions);
+    copyBody.mockClear();
+    await expect(reopened.copyIssueBody(id, 1)).rejects.toThrow('反馈已变化');
+    expect(copyBody).not.toHaveBeenCalled();
+    copyBody.mockRejectedValueOnce(new Error('Clipboard unavailable'));
+    await expect(reopened.copyIssueBody(id, 2)).rejects.toThrow('无法复制 Issue 正文');
+    await reopened.copyIssueBody(id, 2);
+    expect(copyBody).toHaveBeenLastCalledWith(review.body);
+    expect(openIssue).toHaveBeenCalledOnce();
+    expect(reopened.snapshot().entries[0]).toMatchObject({ status: 'opened', revision: 2 });
+    await expect(reopened.reconcile(id, 2, true)).resolves.toMatchObject({ entries: [{ status: 'pending', aiChecked: false }] });
+  });
+
+  it('keeps a long draft reviewable when its body cannot be copied before opening GitHub', async () => {
+    const { service, openIssue, copyBody, propose } = handoffFixture();
+    const id = await propose({ ...draft(), actual: '长内容'.repeat(600) });
+    const review = await service.prepare(id, 1);
+    copyBody.mockRejectedValueOnce(new Error('Clipboard unavailable'));
+    await expect(service.submit(id, 1, review.reviewId, false)).rejects.toThrow('检查默认浏览器或剪贴板后重试');
+    expect(openIssue).not.toHaveBeenCalled();
+    expect(service.snapshot().entries[0]).toMatchObject({ status: 'pending', revision: 2 });
+    await expect(service.prepare(id, 2)).resolves.toMatchObject({ revision: 2, copyBody: true });
   });
 
   it('leaves the draft reviewable when the default browser cannot open', async () => {

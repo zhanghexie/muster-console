@@ -34,5 +34,6 @@ export function registerFeedbackIpc(ctx: AppContext): void {
   handle('feedback:prepare', (event, id: string, revision: number) => service(event).prepare(id, revision));
   handle('feedback:duplicate', (event, id: string, revision: number, match: FeedbackMatch) => service(event).markDuplicate(id, revision, match));
   handle('feedback:submit', (event, id: string, revision: number, reviewId: string, distinct: boolean) => service(event).submit(id, revision, reviewId, distinct));
+  handle('feedback:copyIssueBody', (event, id: string, revision: number) => service(event).copyIssueBody(id, revision));
   handle('feedback:reconcile', (event, id: string, revision: number, returnToDraft?: boolean) => service(event).reconcile(id, revision, returnToDraft));
 }
