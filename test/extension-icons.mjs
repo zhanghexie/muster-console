@@ -15,6 +15,7 @@ try {
   assert.equal(new Set(EXTENSION_ICONS.map(icon => icon.id)).size, 132);
   assert.equal(extensionIconId(extensionIconValue(DEFAULT_EXTENSION_ICON)), DEFAULT_EXTENSION_ICON);
   assert.equal(extensionIconId('builtin-extension:missing'), undefined);
+  assert.equal(isValidExtensionIcon('builtin-extension:constructor'), false);
   assert.equal(extensionIconId('📅'), undefined);
   assert.equal(isValidExtensionIcon('📅'), true);
   assert.equal(isValidExtensionIcon(extensionIconValue('calendar')), true);

@@ -78,6 +78,7 @@ export async function reviewExtensionSubmission({ repository, version, commit, o
   const { manifest, fingerprint, fileCount, syntaxChecked } = await inspectSubmissionPackage(bytes, version);
   const release = { packageKey: `${publisherId}/${manifest.id}`, publisherId, extensionId: manifest.id,
     name: manifest.name, ...(manifest.description ? { description: manifest.description } : {}), version, fingerprint,
+    ...(manifest.icon ? { icon: manifest.icon } : {}),
     repositoryUrl, packageUrl: url.href, sha256: digest(bytes) };
   githubReleaseUrl(release, true);
   const report = { schemaVersion: 1, sourceCommit: commit, release, bytes: bytes.length, fileCount, syntaxChecked,

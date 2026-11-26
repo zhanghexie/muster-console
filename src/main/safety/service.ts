@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { userDataStorage } from '../runtimeKernel/storageRootResolver';
 import fs from 'node:fs';
 import { assessIntegrationEvidence } from './gitPolicy';
@@ -316,7 +317,7 @@ export function createSafetyService(
     let listener: () => void = () => {};
     const aborted = new Promise<never>((_, reject) => {
       listener = () => {
-        let failure = controller.signal.reason ?? new Error('已停止');
+        let failure = controller.signal.reason ?? new Error(t('已停止'));
         // Rejecting the race only releases our logical queue. Detach the
         // physical reviewer too, before the next queued request can reuse it.
         // This guard prevents an old request from releasing a newer reviewer.
@@ -491,7 +492,7 @@ export function createSafetyService(
         if (settled) return;
         settled = true;
         clearEvidence();
-        humanController?.abort(new Error('本次人工审批已结束'));
+        humanController?.abort(new Error(t('本次人工审批已结束')));
         waiting.delete(requestId);
         clearTimeout(expiry);
         clearTimeout(queueExpiry);
@@ -675,7 +676,7 @@ export function createSafetyService(
     const s = state(id);
     s.generation++;
     const activeController = s.controller;
-    activeController?.abort(new Error('审批会话已停止'));
+    activeController?.abort(new Error(t('审批会话已停止')));
     for (const item of waiting.values())
       if (item.workspaceId === id) item.cancel();
     try {

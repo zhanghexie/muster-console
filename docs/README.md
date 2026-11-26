@@ -127,7 +127,7 @@
 | [features/xiangqi.md](features/xiangqi.md) | **中国象棋**：仿木棋桌、离线人机与同屏对弈、键盘走棋、工作区续局 |
 | [features/extensions.md](features/extensions.md) | **扩展工作台**：单宿主源码布局、package catalog、统一创作审核安装、项目绑定、隔离数据、管理页及运行边界 |
 | [features/extension-center.md](features/extension-center.md) | **扩展中心与工作区激活**：GitHub 独立索引与版本包、日报离线回退、profile 级安装、工作区独立启用、批量启用、安装校验、更新和安全卸载；发布审核、不可变版本目录与回滚仍按目标合同规划 |
-| [features/extension-icons.md](features/extension-icons.md) | **扩展内置图标**：128 个跨平台系统风格预设、稳定 ID、静态资源解析和旧文本图标兼容 |
+| [features/extension-icons.md](features/extension-icons.md) | **扩展内置图标**：132 个跨平台预设、扩展中心图标、稳定 ID 和旧文本图标兼容 |
 | [features/daily-report-extension.md](features/daily-report-extension.md) | **工作日报扩展**：日历、日志、日报、待办和派活；面板与 Pi AI 侧边栏共享日报 Domain 工具 |
 | [features/extension-source-layout.md](features/extension-source-layout.md) | **扩展 源码布局**：全局扩展单一源码根、项目扩展管理根和作用域解析 |
 | [features/extension-agent-resources.md](features/extension-agent-resources.md) | **扩展 Agent 资源**：实例级系统提示词、Skill 和 MCP 资源校验、信任门与释放边界 |

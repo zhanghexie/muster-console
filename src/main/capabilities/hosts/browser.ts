@@ -164,7 +164,7 @@ export const browserHost: Record<string, (ctx: AppContext, args: any, options?: 
     ),
   'browser.setViewport': async (ctx, args: { tabId: string; width?: number; height?: number; reset?: boolean }) => {
     if (args?.reset === true) {
-      if (args.width !== undefined || args.height !== undefined) throw new Error('reset 不与 width/height 组合');
+      if (args.width !== undefined || args.height !== undefined) throw new Error(t('reset 不与 width/height 组合'));
       return toolsFor(ctx).resetViewport(String(args.tabId ?? ''));
     }
     return toolsFor(ctx).setViewport(String(args?.tabId ?? ''), Number(args?.width), Number(args?.height));

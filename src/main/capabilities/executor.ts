@@ -187,7 +187,7 @@ function resolveConfirmAction(
   args: Record<string, unknown>,
   session?: ConfirmSessionSnapshot
 ): string | undefined {
-  if (def.name === 'automations.setEnabled') return args.enabled === false ? '停用' : '启用';
+  if (def.name === 'automations.setEnabled') return args.enabled === false ? t('停用') : t('启用');
   if (def.name === 'sessions.review') return reviewConfirmAction(args, session);
   return def.confirmAction;
 }

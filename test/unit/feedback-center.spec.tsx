@@ -4,6 +4,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { FeedbackCenter, FeedbackEntryPoint } from '../../src/renderer/src/components/FeedbackCenter';
 import type { FeedbackEntry, FeedbackReview, FeedbackSnapshot } from '../../src/shared/feedback';
 import { feedbackEditableText, feedbackReadableBody } from '../../src/shared/feedbackFormatting';
+import { applyLocaleSetting } from '../../src/shared/i18n';
 import { currentApiMock } from './helpers/api-mock';
 
 const entry: FeedbackEntry = { id: 'draft-1', revision: 1, status: 'pending', createdAt: 1, updatedAt: 1, sources: ['worker:a'],
@@ -17,6 +18,21 @@ function Harness({ initial = snapshot }: { initial?: FeedbackSnapshot } = {}) {
   const refresh = useCallback(async () => {}, []);
   return <FeedbackCenter open={open} onClose={() => setOpen(false)} snapshot={state} onSnapshot={setState} onRefresh={refresh}/>;
 }
+
+it('translates a persisted failed submission when the interface language changes', async () => {
+  const initial = { entries: [{ ...entry, error: '提交失败' }] };
+  render(<Harness initial={initial}/>);
+  fireEvent.click(screen.getByRole('button', { name: '查看详情' }));
+  expect((await findAppTip()).textContent).toContain('提交失败');
+  try {
+    act(() => { applyLocaleSetting('en'); });
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }));
+    expect((await findAppTip()).textContent).toContain('Submission failed.');
+    expect(initial.entries[0].error).toBe('提交失败');
+  } finally {
+    act(() => { applyLocaleSetting('zh-CN'); });
+  }
+});
 
 it('lets supported browsers size feedback fields without observing or reading their layout', async () => {
   const supports = vi.fn(() => true);

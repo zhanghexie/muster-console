@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -34,7 +35,10 @@ export function preparePtySpawnHelper(
     if (!helper.packaged && !(stat.mode & 0o111)) fs.chmodSync(helper.file, (stat.mode & 0o777) | 0o111);
     fs.accessSync(helper.file, fs.constants.X_OK);
   } catch (cause) {
-    const repair = helper?.packaged ? '请重新安装集序。' : '请检查工作台依赖并重新安装或构建 node-pty。';
-    throw new Error(`无法启动 macOS 终端，辅助程序不可用${helper ? '（' + helper.file + '）' : ''}。${repair}`, { cause });
+    const repair = helper?.packaged ? t('请重新安装集序。') : t('请检查工作台依赖并重新安装或构建 node-pty。');
+    const message = helper
+      ? t('无法启动 macOS 终端，辅助程序不可用（{{path}}）。{{repair}}', { path: helper.file, repair })
+      : t('无法启动 macOS 终端，辅助程序不可用。{{repair}}', { repair });
+    throw new Error(message, { cause });
   }
 }

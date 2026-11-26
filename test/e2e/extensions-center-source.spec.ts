@@ -43,12 +43,18 @@ test('shows the source of the live GitHub catalog in the list and release detail
   await expect(toolbar.getByText('GitHub 扩展中心', { exact: true })).toBeVisible();
   await expect(center.getByRole('heading', { level: 2 })).toHaveText(['创作', '阅读', '游戏']);
   const rows = center.locator('.ext-extension-center-list article');
+  for (const id of ['code-animation', 'dsh-media-desk', 'guizang-design', 'library', 'gomoku', 'rubiks-cube']) {
+    const card = rows.filter({ hasText: `muster/${id}` });
+    await expect(card.getByRole('button', { name: '安装', exact: true })).toBeEnabled();
+    await expect(card.locator('.ext-manager-icon [aria-hidden="true"]')).toHaveCSS('mask-image', /^url\(/);
+  }
   const rowWidths = () => rows.evaluateAll(items => [...new Set(items.map(item => Math.round(item.getBoundingClientRect().width)))]);
   expect(await rowWidths()).toHaveLength(1);
   await center.screenshot({ path: testInfo.outputPath('github-center-list.png') });
 
   await release.click();
   const detail = center.getByRole('article', { name: '五子棋' });
+  await expect(detail.locator('.ext-manager-icon [aria-hidden="true"]')).toHaveCSS('mask-image', /^url\(/);
   await expect(detail.getByText('GitHub 扩展中心', { exact: true })).toBeVisible();
   await expect(detail.getByRole('link', { name: '查看仓库' })).toHaveAttribute('href', 'https://github.com/zhanghexie/muster-extension-gomoku');
   await detail.screenshot({ path: testInfo.outputPath('github-center-detail.png') });

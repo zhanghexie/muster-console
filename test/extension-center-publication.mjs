@@ -15,7 +15,7 @@ const annotated = 'c'.repeat(40);
 const source = `https://api.github.com/repos/zhanghexie/muster-extension-foo/contents/releases/1.0.0.json?ref=${known}`;
 const verified = Buffer.from(JSON.stringify({ schemaVersion: 1, extensionId: 'foo', files: [] }));
 const sha = createHash('sha256').update(verified).digest('hex');
-const entry = { packageKey: 'muster/foo', publisherId: 'muster', extensionId: 'foo', name: 'Foo', version: '1.0.0',
+const entry = { packageKey: 'muster/foo', publisherId: 'muster', extensionId: 'foo', name: 'Foo', version: '1.0.0', icon: 'builtin-extension:book',
   packageUrl: source, sha256: sha, fingerprint: `package-extension:${'d'.repeat(64)}`, previousFingerprints: [`package-extension:${'e'.repeat(64)}`] };
 const catalog = { schemaVersion: 1, releases: [entry] };
 const settings = { catalog, destination: path.join(scratch, 'site'), baseUrl: 'https://mirror.example.test', fetchImpl: async (url, init) => {
@@ -78,13 +78,13 @@ try {
   assert.equal(moved.candidates.length, 0);
   assert.match(moved.errors[0].error, /different commit/);
 
-  function versionedPackage(version, permissions, id = 'foo') {
-    const manifest = { id, name: 'Foo', scope: 'global', version, permissions };
+  function versionedPackage(version, permissions, id = 'foo', icon) {
+    const manifest = { id, name: 'Foo', scope: 'global', version, permissions, icon };
     return Buffer.from(JSON.stringify({ schemaVersion: 1, extensionId: id, fingerprint: entry.fingerprint,
       directories: [], files: [{ path: 'extension.json', bytesBase64: Buffer.from(JSON.stringify(manifest)).toString('base64') }] }));
   }
-  const oldPackage = versionedPackage('1.0.0', []);
-  const newPackage = versionedPackage('1.2.0', ['hostTools']);
+  const oldPackage = versionedPackage('1.0.0', [], 'foo', entry.icon);
+  const newPackage = versionedPackage('1.2.0', ['hostTools'], 'foo', 'builtin-extension:design-tools');
   const approved = { ...catalog, releases: [{ ...entry, sha256: createHash('sha256').update(oldPackage).digest('hex') }] };
   const publicOptions = { catalog: approved, community: { schemaVersion: 1, releases: [] }, readTags: async () => newTags,
     fetchImpl: async url => new Response(url.searchParams.get('ref') === pending ? newPackage : oldPackage) };
@@ -92,8 +92,13 @@ try {
   assert.equal(review.errors.length, 0);
   assert.deepEqual(review.candidates[0].after.permissions, ['hostTools']);
   assert.equal(review.catalog.releases[0].version, '1.2.0');
+  assert.equal(review.catalog.releases[0].icon, 'builtin-extension:design-tools');
   assert.equal(new URL(review.catalog.releases[0].packageUrl).searchParams.get('ref'), pending);
   assert.equal(review.catalog.releases[0].sha256, createHash('sha256').update(newPackage).digest('hex'));
+  const noIcon = await discoverPublicExtensionReleases({ ...publicOptions, fetchImpl: async url => new Response(
+    url.searchParams.get('ref') === pending ? versionedPackage('1.2.0', []) : oldPackage,
+  ) });
+  assert.equal(Object.hasOwn(noIcon.catalog.releases[0], 'icon'), false, 'new releases can remove their old icon');
   const missing = await discoverPublicExtensionReleases({ ...publicOptions, fetchImpl: async () => new Response(null, { status: 404 }) });
   assert.deepEqual(missing.catalog, approved);
   assert.equal(missing.candidates.length, 0);
@@ -102,10 +107,11 @@ try {
     fetchImpl: async (url, init) => {
       assert.equal(url.href, `https://api.github.com/repos/author/My-Plugin/contents/releases/1.2.0.json?ref=${pending}`);
       assert.equal(init.headers.Authorization, undefined);
-      return new Response(versionedPackage('1.2.0', [], 'outside'));
+      return new Response(versionedPackage('1.2.0', [], 'outside', '🎨'));
     } };
   const proposal = await proposeCommunityExtension(communityOptions);
   assert.equal(proposal.community.releases[0].packageKey, 'author/outside');
+  assert.equal(proposal.community.releases[0].icon, '🎨');
   assert.deepEqual(proposal.catalog, approved);
   await assert.rejects(proposeCommunityExtension({ ...communityOptions, fetchImpl: async () => new Response(newPackage) }), /already registered/);
   await assert.rejects(proposeCommunityExtension({ ...communityOptions, repositoryUrl: 'https://github.com/author/My-Plugin/tree/main' }), /repository URL/);

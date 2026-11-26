@@ -527,7 +527,7 @@ export class RuntimeHost {
     }
     const e = this.entries.find(entry => entry.id === id);
     if (!e) throw new Error(t('runtime 未注册: {{id}}', { id }));
-    if (patch.scriptSource != null && e.manifest) throw new Error('声明式 Runtime 不接受脚本源码修改，请更新 Manifest');
+    if (patch.scriptSource != null && e.manifest) throw new Error(t('声明式 Runtime 不接受脚本源码修改，请更新 Manifest'));
     if (patch.extraArgs !== undefined && e.manifest && !e.builtin) throw new Error('Registered runtime arguments are fixed by its approved manifest');
     if (patch.scriptSource != null) {
       const file = this.scriptPath(id);

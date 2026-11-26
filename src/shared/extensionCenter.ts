@@ -4,6 +4,16 @@ export type ExtensionCenterCategory = typeof EXTENSION_CENTER_CATEGORIES[number]
 export interface ExtensionCenterListing {
   source: 'github' | 'remote' | 'file' | 'bundled';
   releases: ExtensionCenterRelease[];
+  installProgress?: ExtensionCenterInstallSnapshot;
+}
+
+export type ExtensionCenterInstallProgress =
+  | { phase: 'preparing' | 'verifying' | 'installing' }
+  | { phase: 'downloading'; receivedBytes: number; totalBytes?: number };
+
+export interface ExtensionCenterInstallSnapshot {
+  revision: number;
+  active: Array<{ packageKey: string; progress: ExtensionCenterInstallProgress }>;
 }
 
 export interface ExtensionCenterRelease {
@@ -11,6 +21,7 @@ export interface ExtensionCenterRelease {
   publisherId: string;
   extensionId: string;
   name: string;
+  icon?: string;
   description?: string;
   category?: ExtensionCenterCategory;
   version: string;
@@ -43,6 +54,7 @@ export interface ExtensionCenterCatalogRelease {
   publisherId: string;
   extensionId: string;
   name: string;
+  icon?: string;
   description?: string;
   category?: ExtensionCenterCategory;
   version: string;

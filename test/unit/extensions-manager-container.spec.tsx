@@ -3,7 +3,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { expect, it, vi } from 'vitest';
 import type { ExtensionDiscoveredExtension, ExtensionManagementSnapshot } from '../../src/shared/extension';
-import type { ExtensionCenterListing } from '../../src/shared/extensionCenter';
+import type { ExtensionCenterInstallResult, ExtensionCenterInstallSnapshot, ExtensionCenterListing } from '../../src/shared/extensionCenter';
 import { ExtensionsManagerContainer } from '../../src/renderer/src/panels/ExtensionsManagerContainer';
 
 beforeEach(() => dismissTip());
@@ -100,4 +100,57 @@ it('loads the extension center only when its tab is opened', async () => {
   await screen.findByText('内置扩展目录');
   expect(centerList).toHaveBeenLastCalledWith(true);
   expect(screen.queryByText('GitHub 扩展中心')).toBeNull();
+});
+
+it('shows real install progress in the list and detail, and keeps a failed install retryable', async () => {
+  const packageKey = 'muster/guizang-design';
+  const installing = deferred<ExtensionCenterInstallResult>();
+  const catalog: ExtensionCenterListing = { source: 'github', releases: [{
+    packageKey, publisherId: 'muster', extensionId: 'guizang-design', name: '歸藏设计', version: '0.1.1',
+    fingerprint: 'package-extension:abc', sourceKind: 'center', installed: false,
+  }] };
+  let emitProgress: (value: ExtensionCenterInstallSnapshot) => void = () => {};
+  const api = {
+    snapshot: vi.fn(async () => snapshot('a', 'one', 'first')), selectProject: vi.fn(), setEnabled: vi.fn(),
+    onChanged: vi.fn(() => () => {}), centerList: vi.fn(async () => catalog),
+    onCenterInstallProgress: (listener: typeof emitProgress) => { emitProgress = listener; return () => {}; },
+    centerInstall: vi.fn(() => installing.promise),
+  };
+  render(<ExtensionsManagerContainer workspaceId="a" api={api}/>);
+  fireEvent.click(await screen.findByRole('tab', { name: '扩展中心' }));
+  const center = within(screen.getByRole('tabpanel', { name: '扩展中心' }));
+  fireEvent.click(await center.findByRole('button', { name: '安装' }));
+  act(() => emitProgress({ revision: 1, active: [{ packageKey, progress: { phase: 'downloading', receivedBytes: 1_000_000 } }] }));
+  expect(center.getByText(/已下载.*1 MB/)).toBeTruthy();
+  expect(center.queryByRole('progressbar')).toBeNull();
+  act(() => emitProgress({ revision: 2, active: [{ packageKey, progress: { phase: 'downloading', receivedBytes: 5_000_000, totalBytes: 20_000_000 } }] }));
+  expect(center.getByRole('progressbar').getAttribute('value')).toBe('5000000');
+  expect(center.getByText('25%')).toBeTruthy();
+
+  api.centerList.mockResolvedValueOnce({ ...catalog, installProgress: { revision: 1, active: [] } });
+  await act(async () => { fireEvent.click(center.getByRole('button', { name: '刷新' })); });
+  expect(center.getByRole('progressbar').getAttribute('value')).toBe('5000000');
+
+  fireEvent.click(center.getByRole('button', { name: '查看扩展详情 歸藏设计' }));
+  const detail = within(center.getByRole('article', { name: '歸藏设计' }));
+  expect(detail.getByRole('progressbar').getAttribute('max')).toBe('20000000');
+  act(() => emitProgress({ revision: 3, active: [{ packageKey, progress: { phase: 'verifying' } }] }));
+  expect(detail.getByText('正在校验安装包')).toBeTruthy();
+  expect(detail.queryByRole('progressbar')).toBeNull();
+  act(() => emitProgress({ revision: 4, active: [{ packageKey, progress: { phase: 'installing' } }] }));
+  expect(detail.getByText('正在安装扩展')).toBeTruthy();
+
+  await act(async () => {
+    emitProgress({ revision: 5, active: [] });
+    installing.resolve({ packageKey, extensionId: 'guizang-design', installed: false, skipped: false, error: '安装包校验失败，请重试' });
+  });
+  expect(detail.getByText('安装包校验失败，请重试')).toBeTruthy();
+  fireEvent.click(detail.getByRole('button', { name: '返回扩展中心' }));
+  api.centerInstall.mockImplementationOnce(async () => {
+    api.centerList.mockResolvedValue({ ...catalog, releases: catalog.releases.map(release => ({ ...release, installed: true, installedVersion: release.version })) });
+    return { packageKey, extensionId: 'guizang-design', installed: true, skipped: false };
+  });
+  await act(async () => { fireEvent.click(center.getByRole('button', { name: '重试' })); });
+  expect(api.centerInstall).toHaveBeenCalledTimes(2);
+  expect(center.getByRole<HTMLButtonElement>('button', { name: '已安装' }).disabled).toBe(true);
 });

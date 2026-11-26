@@ -1,7 +1,7 @@
 import { MarkdownBody } from './MarkdownBody';
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MAIL_COLLECT_MS } from '../../../shared/mailActivity';
+import { MAIL_COLLECT_MS, type MailActivity } from '../../../shared/mailActivity';
 import { MOTION, prefersReducedMotion, usePresence } from './motion';
 import { subscribeInteractionPreferences } from '../interactionPreferences';
 import { isWebGateway } from '../webGatewayEnvironment';
@@ -118,7 +118,9 @@ export function MailEnvelopeViewport({ mailboxId, enabled = true, style }: {
 
   if (!enabled || !active || !presence.mounted) return null;
   const first = active.letters[0]!;
-  const other = active.direction === 'send' ? first.toName : first.fromName;
+  const senderName = (letter: MailActivity): string =>
+    letter.from.startsWith('orchestrator:') && letter.fromName === '调度' ? t('调度') : letter.fromName;
+  const other = active.direction === 'send' ? first.toName : senderName(first);
   const label = active.direction === 'send'
     ? t('寄信给 {{name}} · {{count}} 封', { name: other, count: active.count })
     : t('收到 {{name}} 的来信 · {{count}} 封', { name: other, count: active.count });
@@ -133,7 +135,7 @@ export function MailEnvelopeViewport({ mailboxId, enabled = true, style }: {
           style={{ '--mail-depth': active.letters.length - i - 1 } as React.CSSProperties}>
           <EnvelopePaper>
             <div className="mail-letter">
-              <div className="mail-letter-route"><span>{letter.fromName}</span><span aria-hidden="true">→</span><span>{letter.toName}</span></div>
+              <div className="mail-letter-route"><span>{senderName(letter)}</span><span aria-hidden="true">→</span><span>{letter.toName}</span></div>
               {letter.subject ? <div className="mail-letter-subject">{letter.subject}</div> : null}
               <MarkdownBody className="mail-letter-body" text={letter.text} displayOnly />
               <div className="mail-letter-footer">{letter.totalChars > letter.text.length ? t('信件节选') : t('代理间通信')}

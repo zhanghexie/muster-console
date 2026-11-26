@@ -20,6 +20,7 @@ const api: ExtensionManagementApi = {
   onChanged: listener => window.api.on('extensions:changed', () => listener()),
   centerList: (force?: boolean) => window.api.extensionCenter.list(force),
   centerInstall: packageKey => window.api.extensionCenter.install(packageKey),
+  onCenterInstallProgress: listener => window.api.on('extensionCenter:installProgress', listener),
   centerUninstall: packageKey => window.api.extensionCenter.uninstall(packageKey)
 };
 

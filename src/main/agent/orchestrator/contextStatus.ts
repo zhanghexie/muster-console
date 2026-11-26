@@ -128,7 +128,7 @@ export function getPickerConfiguration(o: OrchestratorHost, wsId: string, model?
   const config = o.ctx.config.get();
   if (!config.workspaces.some(workspace => workspace.id === wsId)) throw new Error(t('工作区不可用'));
   const context = getWorkspacePromptScope(o, wsId).workspaceContext;
-  if (!context || context.workspaceId !== wsId) throw new Error('调度缺少可确认的工作区来源。');
+  if (!context || context.workspaceId !== wsId) throw new Error(t('调度缺少可确认的工作区来源。'));
   const source = { workspaceId: wsId, rootId: context.sourceRootId, rootsRevision: context.rootsRevision, cwd: context.cwd };
   const selectedModel = o.models[wsId] ?? null;
   const bucket = o.buckets.get(wsId);
@@ -151,7 +151,7 @@ export function getPickerConfiguration(o: OrchestratorHost, wsId: string, model?
   const parameters: ModelParameterState[] = descriptor?.options.length ? [{ descriptor, override, effectiveValue: override ?? descriptor.defaultValue ?? null,
     source: override ? 'session' : 'engine' }] : [];
   return { source, selectedModel, selectedParameters, expected, parameters,
-    ...(!binding && levels === undefined ? { warning: '当前模型的思考档位尚未确认。' } : {}) };
+    ...(!binding && levels === undefined ? { warning: t('当前模型的思考档位尚未确认。') } : {}) };
 }
 
 export async function setPickerConfiguration(o: OrchestratorHost, wsId: string, model: HarnessPickerModelIdentity | null,
@@ -159,7 +159,7 @@ export async function setPickerConfiguration(o: OrchestratorHost, wsId: string, 
   try {
     if (!options?.expected || !options.parameters || typeof options.parameters !== 'object' || Array.isArray(options.parameters) ||
         Object.keys(options.parameters).some(key => key !== 'reasoning') || (model !== null && !normalizeAgentModelSelection(model))) {
-      throw new Error('调度模型配置无效。');
+      throw new Error(t('调度模型配置无效。'));
     }
     const requested = options.parameters.reasoning;
     const level = requested === undefined ? null : normalizeAgentThinking(requested);
@@ -167,7 +167,7 @@ export async function setPickerConfiguration(o: OrchestratorHost, wsId: string, 
     let changedModel = false;
     await o.ctx.store.saveAgentModelConfigurationStrict(() => {
       const choice = getPickerConfiguration(o, wsId, model);
-      if (choice.expected !== options.expected) throw new Error('调度模型或工作区配置已变化，请重新选择。');
+      if (choice.expected !== options.expected) throw new Error(t('调度模型或工作区配置已变化，请重新选择。'));
       if (level && !choice.parameters[0]?.descriptor.options.some(option => option.value === level)) throw new Error(t('当前模型不支持该思考档'));
       changedModel = choice.selectedModel?.providerId !== model?.providerId || choice.selectedModel?.modelId !== model?.modelId;
       const models = { ...o.models }, thinking = { ...o.thinkings };

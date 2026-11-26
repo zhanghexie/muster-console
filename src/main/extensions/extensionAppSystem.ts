@@ -9,7 +9,7 @@ import { ExtensionAuthoringServices } from './extensionAuthoringServices';
 import { createExtensionSafetyReviewer } from './extensionSafety';
 import { ExtensionSourceLayout } from './extensionSourceLayout';
 import { ExtensionPackageCatalog } from './extensionPackageCatalog';
-import { ExtensionCenterService } from './extensionCenter';
+import { ExtensionCenterService, type ExtensionCenterListOptions } from './extensionCenter';
 import { approvedCommunityCatalogUrl } from './extensionPublishingClient';
 import { extensionTrialTarget } from './extensionTrialEnvironment';
 import { ExtensionHost } from './extensionHost';
@@ -24,6 +24,7 @@ import { defaultRootFor } from '../../shared/workspaceRoots';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { ExtensionDiscoveredExtension, ExtensionTransactionPreserveResult } from '../../shared/extension';
+import type { ExtensionCenterInstallProgress, ExtensionCenterInstallResult, ExtensionCenterInstallSnapshot } from '../../shared/extensionCenter';
 import { t } from '../../shared/i18n';
 
 /** Construct the complete extension application services around the single package host. */
@@ -49,6 +50,22 @@ export function createExtensionAppSystem(ctx: AppContext) {
   const development = !app.isPackaged && process.env.NODE_ENV_ELECTRON_VITE === 'development';
   const bundledRoot = app.isPackaged ? path.join(process.resourcesPath, 'extensions') : path.join(app.getAppPath(), 'resources', 'extensions');
   const extensionCenter = new ExtensionCenterService(userData, sourceLayout.globalRoot, catalog, { hostVersion: app.getVersion(), bundledRoot, communityCatalogUrl: approvedCommunityCatalogUrl() });
+  const centerInstalls = new Map<string, { progress: ExtensionCenterInstallProgress; promise: Promise<ExtensionCenterInstallResult> }>();
+  let installProgressRevision = 0;
+  const centerInstallProgress = (): ExtensionCenterInstallSnapshot => ({
+    revision: installProgressRevision,
+    active: Array.from(centerInstalls, ([packageKey, { progress }]) => ({ packageKey, progress })),
+  });
+  const publishCenterInstallProgress = (): void => {
+    installProgressRevision++;
+    const win = ctx.getWindow();
+    if (stopped || !win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+    try { win.webContents.send('extensionCenter:installProgress', centerInstallProgress()); }
+    catch (error) { console.warn('[extension-center] could not publish install progress:', error); }
+  };
+  const listCenterCatalog = async (options: ExtensionCenterListOptions) => ({
+    ...await extensionCenter.listCatalog(options), installProgress: centerInstallProgress(),
+  });
   ensureExtensionStorageRoot(userData);
   const activation = new ExtensionWorkspaceActivationStore(extensionWorkspaceActivationPath(userData));
   const isWorkspaceActivated = (input: { workspaceId: string; extensionId: string; scope: 'global' | 'project'; controlRoot?: string; }): boolean => {
@@ -65,12 +82,12 @@ export function createExtensionAppSystem(ctx: AppContext) {
       const args = rawArgs && typeof rawArgs === 'object' ? rawArgs as Record<string, unknown> : {};
       if (name !== 'dispatch') throw new Error(`Unknown extension panel command: ${name}`);
       if (args.mode === 'list') return ctx.runtimes.list().filter(runtime => runtime.enabled).map(runtime => ({ id: runtime.id, label: runtime.label }));
-      if (args.mode === 'focus') { if (typeof args.sessionId !== 'string') throw new Error('缺少 sessionId'); await ctx.sessions.select(args.sessionId); return { ok: true, sessionId: args.sessionId }; }
-      if (args.mode !== 'dispatch' || typeof args.runtimeId !== 'string' || typeof args.name !== 'string') throw new Error('缺少派活参数');
+      if (args.mode === 'focus') { if (typeof args.sessionId !== 'string') throw new Error(t('缺少 sessionId')); await ctx.sessions.select(args.sessionId); return { ok: true, sessionId: args.sessionId }; }
+      if (args.mode !== 'dispatch' || typeof args.runtimeId !== 'string' || typeof args.name !== 'string') throw new Error(t('缺少派活参数'));
       const workspace = ctx.config.get().workspaces.find(item => item.id === identity.workspaceId);
-      if (!workspace) throw new Error('工作区不存在');
+      if (!workspace) throw new Error(t('工作区不存在'));
       const root = identity.sourceRootId ? workspace.roots?.find(item => item.id === identity.sourceRootId) : defaultRootFor(workspace);
-      if (!root) throw new Error('扩展源码根不存在');
+      if (!root) throw new Error(t('扩展源码根不存在'));
       const session = await ctx.sessions.createTerminal({ name: args.name.slice(0, 60), runtime: args.runtimeId, cwd: root.path, workspaceId: identity.workspaceId, rootId: root.id, activate: false });
       if (!ctx.agentSessions) throw new Error('Agent Session host unavailable');
       await ctx.agentSessions.send(session.id, typeof args.task === 'string' ? args.task : args.name, undefined, { steerOnBusy: false });
@@ -80,7 +97,7 @@ export function createExtensionAppSystem(ctx: AppContext) {
     (identity, messages, options, signal, onDelta) => llmChatStream(ctx, identity.extensionId, messages, options, onDelta, `extension:${identity.extensionInstanceId}`, signal),
     undefined, ctx, mediaStore, async () => {
       const win = ctx.getWindow();
-      const result = win ? await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], title: '选择扩展媒体文件' }) : await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], title: '选择扩展媒体文件' });
+      const result = win ? await dialog.showOpenDialog(win, { properties: ['openFile', 'multiSelections'], title: t('选择扩展媒体文件') }) : await dialog.showOpenDialog({ properties: ['openFile', 'multiSelections'], title: t('选择扩展媒体文件') });
       return result.canceled ? [] : result.filePaths;
     }, exportService, modelGateway, (context, name, raw, signal) => executeExtensionHostTool(ctx, context, name, raw, signal), isWorkspaceActivated);
   const syncCatalog = (): Promise<void> => {
@@ -131,16 +148,27 @@ export function createExtensionAppSystem(ctx: AppContext) {
     publish();
     return { extensionId };
   };
-  const installCenterRelease = async (packageKey: string): Promise<import('../../shared/extensionCenter').ExtensionCenterInstallResult> => {
-    const result = await extensionCenter.install(packageKey);
-    if (result.installed) {
-      await syncCatalog();
-      const record = catalog.get('global', result.extensionId);
-      if (record && SAMPLE_IDS.some(id => id === record.extensionId)) await extensionCenter.verifyInstalledRelease(record);
-      await activation.ensure(ctx.config.get().workspaces.map(workspace => ({ workspaceId: workspace.id, scope: 'global' as const, extensionId: result.extensionId })), false);
-      publish();
-    }
-    return result;
+  const installCenterRelease = (packageKey: string): Promise<ExtensionCenterInstallResult> => {
+    const running = centerInstalls.get(packageKey);
+    if (running) return running.promise;
+    let progress: ExtensionCenterInstallProgress = { phase: 'preparing' };
+    const task = {
+      get progress() { return progress; },
+      promise: Promise.resolve().then(async () => {
+        const result = await extensionCenter.install(packageKey, next => { progress = next; publishCenterInstallProgress(); });
+        if (result.installed) {
+          await syncCatalog();
+          const record = catalog.get('global', result.extensionId);
+          if (record && SAMPLE_IDS.some(id => id === record.extensionId)) await extensionCenter.verifyInstalledRelease(record);
+          await activation.ensure(ctx.config.get().workspaces.map(workspace => ({ workspaceId: workspace.id, scope: 'global' as const, extensionId: result.extensionId })), false);
+          publish();
+        }
+        return result;
+      }).finally(() => { centerInstalls.delete(packageKey); publishCenterInstallProgress(); }),
+    };
+    centerInstalls.set(packageKey, task);
+    publishCenterInstallProgress();
+    return task.promise;
   };
   const uninstallCenterRelease = async (packageKey: string): Promise<import('../../shared/extensionCenter').ExtensionCenterUninstallResult> => {
     const release = (await extensionCenter.list()).find(item => item.packageKey === packageKey);
@@ -177,7 +205,7 @@ export function createExtensionAppSystem(ctx: AppContext) {
     if (pkg.fingerprint !== fingerprint) throw new Error(t('扩展状态已变化，请重新扫描。'));
   };
   return {
-    extensionHost, management, workbench, authoring, authoringServices, agent: adapter.agent, extensionDomains: adapter.extensionDomains, extensionResources: adapter.extensionResources, exports: exportService, catalog, extensionCenter, workspaceActivation: activation, installLocal, installCenterRelease, uninstallCenterRelease, uninstallGlobalPackage,
+    extensionHost, management, workbench, authoring, authoringServices, agent: adapter.agent, extensionDomains: adapter.extensionDomains, extensionResources: adapter.extensionResources, exports: exportService, catalog, extensionCenter, workspaceActivation: activation, installLocal, listCenterCatalog, installCenterRelease, uninstallCenterRelease, uninstallGlobalPackage,
     /** The single host has no detached background tasks; domain commands are short-lived RPC. */
     runningTasks(): Array<{ workspaceId: string; sourceRootId: string; extensionId: string; id: string; command: string }> { return []; },
     async listExtensions(workspaceId: string): Promise<ExtensionDiscoveredExtension[]> {

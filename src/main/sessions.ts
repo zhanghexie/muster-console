@@ -1909,7 +1909,7 @@ export class SessionsService {
   /** Persist the same recovery snapshot before a host-managed interruption. */
   async captureManagedInterruptSnapshot(id: string, now = Date.now(), workContext?: string) {
     const s = this.sessions.find(item => item.id === id);
-    if (!s || s.archived || s.type !== 'terminal' || s.launchKind === 'shell') throw new Error('目标不是可中断的受管会话');
+    if (!s || s.archived || s.type !== 'terminal' || s.launchKind === 'shell') throw new Error(t('目标不是可中断的受管会话'));
     const identity = JSON.stringify([s.cwd, s.runtime, s.externalSessionId, s.worktreePath, s.worktreeGroups]);
     const groups = s.worktreeGroups?.groups;
     const roots = groups ? groups.flatMap(group => [group.path, ...group.repos.map(repo => path.join(group.path, repo.path))])
@@ -1923,7 +1923,7 @@ export class SessionsService {
       if (files.length) worktreeClean = false;
     }
     if (!this.sessions.includes(s) || s.archived || JSON.stringify([s.cwd, s.runtime, s.externalSessionId, s.worktreePath, s.worktreeGroups]) !== identity)
-      throw new Error('捕获快照期间会话已变化，未发送中断');
+      throw new Error(t('捕获快照期间会话已变化，未发送中断'));
     const snapshot = buildInterruptSnapshot({ session: s, now, uncommitted, worktreeClean,
       worktreeStatusUnknown, workContext, reason: 'preemption' });
     s.interruptSnapshot = snapshot;
@@ -2289,12 +2289,12 @@ export class SessionsService {
   async updateConfigurePermissions(id: string, enabled: boolean, validate: () => void, commit: () => void,
     restore: () => SessionMeta['nativePermissionRestore']): Promise<void> {
     const session = this.sessions.find(row => row.id === id);
-    if (!session || session.archived || session.launchKind !== 'agent') throw new Error('Harness 会话未打开');
+    if (!session || session.archived || session.launchKind !== 'agent') throw new Error(t('Harness 会话未打开'));
     let nativePermissionRestore: SessionMeta['nativePermissionRestore'];
     await this.persister.flushStrict(() => {
-      if (!this.sessions.includes(session) || session.archived) throw new Error('Harness 会话未打开');
+      if (!this.sessions.includes(session) || session.archived) throw new Error(t('Harness 会话未打开'));
       if (session.runtime && !this.isChatRuntime(session.runtime) && (this.ptyMgr.isRunning(id) || this.launchTasks.has(id))) {
-        throw new Error('终端运行中，请先停止终端再更改权限设置');
+        throw new Error(t('终端运行中，请先停止终端再更改权限设置'));
       }
       validate();
       nativePermissionRestore = restore();
@@ -2308,9 +2308,9 @@ export class SessionsService {
 
   async updateNativePermissionRestore(id: string, next: SessionMeta['nativePermissionRestore'], validate: () => void): Promise<void> {
     const session = this.sessions.find(row => row.id === id);
-    if (!session) throw new Error('Harness 会话未打开');
+    if (!session) throw new Error(t('Harness 会话未打开'));
     await this.persister.flushStrict(() => {
-      if (!this.sessions.includes(session) || session.archived) throw new Error('Harness 会话未打开');
+      if (!this.sessions.includes(session) || session.archived) throw new Error(t('Harness 会话未打开'));
       validate();
     }, rows => rows.map(row => row === session ? { ...row, nativePermissionRestore: next } : row),
     () => { session.nativePermissionRestore = next; });
@@ -2386,10 +2386,10 @@ export class SessionsService {
   async commitModelConfiguration(id: string, model: import('../shared/harnessPicker').HarnessPickerModelIdentity | null,
     values: import('../shared/modelParameters').ModelParameterValues, validate: () => void, committed: () => void): Promise<void> {
     const session = this.peek(id);
-    if (!session || session.archived) throw new Error('会话不可用');
+    if (!session || session.archived) throw new Error(t('会话不可用'));
     const changes = { modelOverride: model ? { ...model } : undefined, modelParameters: { ...values }, thinkingLevel: undefined };
     await this.persister.flushStrict(() => {
-      if (this.peek(id) !== session || session.archived) throw new Error('会话不可用');
+      if (this.peek(id) !== session || session.archived) throw new Error(t('会话不可用'));
       validate();
     }, rows => rows.map(row => row === session ? { ...row, ...changes } : row), () => {
       Object.assign(session, changes);

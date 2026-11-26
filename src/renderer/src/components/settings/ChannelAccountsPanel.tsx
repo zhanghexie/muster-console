@@ -150,9 +150,9 @@ export default function ChannelAccountsPanel({ active = true }: { active?: boole
     <div className="muster-messaging-settings">
       <div className="muster-messaging-nav">
         <CustomSelect value={selected.key} ariaLabel={t('选择消息服务')} menuEnabled={active}
-          options={channels.map(channel => ({ value: channel.key, label: channel.label }))} onChange={setSelectedKey} />
+          options={channels.map(channel => ({ value: channel.key, label: t(channel.label) }))} onChange={setSelectedKey} />
       </div>
-      <section aria-label={selected.label}>
+      <section aria-label={t(selected.label)}>
         <ChannelContent key={selected.key} channel={selected} call={call} />
       </section>
     </div>

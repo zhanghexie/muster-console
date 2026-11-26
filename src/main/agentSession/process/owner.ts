@@ -1,3 +1,4 @@
+import { t } from '../../../shared/i18n';
 import { execFile, spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { boundedAcpRequest } from '../processReclamation';
@@ -204,7 +205,7 @@ export function spawnOwnedProcess<T extends ChildProcess = ChildProcess>(options
       try { process.kill(-child.pid, 'SIGKILL'); }
       catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
-          throw new Error('无法确认工作进程组全部退出：' + (error as Error).message, { cause: error });
+          throw new Error(t('无法确认工作进程组全部退出：{{detail}}', { detail: (error as Error).message }), { cause: error });
         }
       }
       await boundedAcpRequest(exited, timeoutMs, '工作进程退出');

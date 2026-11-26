@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { jsonEqual, type GuiChatMessage, type GuiToolCallView } from '../../shared/guiWorker';
 import { replayMessage, type SessionReplayMaterial, type SessionReplayStep } from '../../shared/sessionReplay';
 import type { EventEnvelope, SessionRangeQuery } from './contracts';
@@ -41,7 +42,7 @@ export async function guiReplayMaterial(source: GuiChatMessage[], lastSeq: numbe
   read: (query: SessionRangeQuery) => Promise<EventEnvelope[]>, beforeMessageIds?: readonly string[]): Promise<SessionReplayMaterial> {
   if (beforeMessageIds !== undefined) {
     if (!Array.isArray(beforeMessageIds) || !beforeMessageIds.every(id => typeof id === 'string' && id.length > 0)) {
-      throw new Error('回放片段的消息编号无效');
+      throw new Error(t('回放片段的消息编号无效'));
     }
     const selected = new Set(beforeMessageIds);
     const first = source.findIndex(message => selected.has(message.id));
@@ -57,7 +58,7 @@ export async function guiReplayMaterial(source: GuiChatMessage[], lastSeq: numbe
   for (let fromSeq = 1; fromSeq <= lastSeq && candidates.size;) {
     const page = await read({ fromSeq, toSeq: lastSeq, limit: 256 });
     const last = page.at(-1);
-    if (!last || last.seq < fromSeq) throw new Error('读取会话回放期间事件记录发生变化，请重试');
+    if (!last || last.seq < fromSeq) throw new Error(t('读取会话回放期间事件记录发生变化，请重试'));
     for (const entry of page) {
       if (entry.type !== 'gui-session.delta' && entry.type !== 'gui-session.tool') continue;
       const event = entry.payload as StreamEvent;

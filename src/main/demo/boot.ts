@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { applyLocaleSetting, t } from '../../shared/i18n';
 import { PRODUCT_STORAGE_DIR } from '../../shared/productIdentity';
 import { parseDemoArgs, replayTitleBar, type DemoOptions } from './options';
 import { demoWorkspaceResolver, openDemoStore, prepareScene, recommendedDemoProject } from './storage';
@@ -40,7 +41,7 @@ function attachRecorder(dir: string) {
   ipcMain.on('demo:recordStart', e => {
     try {
       const win = BrowserWindow.fromWebContents(e.sender);
-      if (!permitted(e) || !win) throw new Error('无效录制窗口');
+      if (!permitted(e) || !win) throw new Error(t('无效录制窗口'));
       writers.get(e.sender.id)?.close();
       const [w, h] = win.getContentSize();
       const writer = startTape(dir, w, h);
@@ -51,13 +52,13 @@ function attachRecorder(dir: string) {
   ipcMain.on('demo:recordBatch', (e, id: string, items: DemoEvent[]) => {
     try {
       const writer = writers.get(e.sender.id);
-      if (!permitted(e) || !writer || writer.id !== id) throw new Error('录制窗口与记录不匹配。');
+      if (!permitted(e) || !writer || writer.id !== id) throw new Error(t('录制窗口与记录不匹配。'));
       writer.append(items);
       e.returnValue = { ok: true };
     } catch (error) { e.returnValue = { error: String(error) }; }
   });
   ipcMain.handle('demo:surface', async (e, id: string, rect: Electron.Rectangle) => {
-    if (!permitted(e) || writers.get(e.sender.id)?.id !== id) throw new Error('无效录制窗口');
+    if (!permitted(e) || writers.get(e.sender.id)?.id !== id) throw new Error(t('无效录制窗口'));
     const zoom = e.sender.getZoomFactor();
     const [width, height] = BrowserWindow.fromWebContents(e.sender)!.getContentSize();
     const x = Math.max(0, Math.round(rect.x * zoom)), y = Math.max(0, Math.round(rect.y * zoom));
@@ -75,7 +76,7 @@ function attachRecorder(dir: string) {
 async function openViewer(dir: string, opts: DemoOptions) {
   const tapes = listTapes(dir);
   const tape = opts.replay === 'latest' ? tapes[0] : tapes.find(t => t.id === opts.replay);
-  if (!tape) throw new Error('没有可播放的记录。请用 demo-build --record 录制整窗操作，再用 demo-run --list 查看。');
+  if (!tape) throw new Error(t('没有可播放的记录。请用 demo-build --record 录制整窗操作，再用 demo-run --list 查看。'));
   await app.whenReady();
   const renderer = path.resolve(__dirname, '../renderer');
   const offline = session.fromPartition('demo-view-' + randomUUID());
@@ -92,7 +93,7 @@ async function openViewer(dir: string, opts: DemoOptions) {
     done({ cancel: !allowed });
   });
   const win = new BrowserWindow({ width: tape.width, height: tape.height, useContentSize: true,
-    autoHideMenuBar: true, title: '集序 · ' + opts.scene, backgroundColor: '#202023',
+    autoHideMenuBar: true, title: t('集序 · {{scene}}', { scene: opts.scene }), backgroundColor: '#202023',
     ...replayTitleBar(process.platform),
     webPreferences: { session: offline, preload: path.join(__dirname, '../preload/demoReplay.js'), sandbox: true,
       contextIsolation: true, nodeIntegration: false, webviewTag: false, backgroundThrottling: false } });
@@ -106,7 +107,7 @@ async function openViewer(dir: string, opts: DemoOptions) {
   win.webContents.on('will-navigate', event => event.preventDefault());
   const data = readTape(dir, tape.id);
   ipcMain.handle('demo:read', async e => {
-    if (e.sender !== win.webContents || e.senderFrame !== e.sender.mainFrame) throw new Error('无效回放窗口');
+    if (e.sender !== win.webContents || e.senderFrame !== e.sender.mainFrame) throw new Error(t('无效回放窗口'));
     const batch = await data.next();
     return { events: batch.value ?? [], done: !!batch.done, speed: opts.speed, from: opts.from, width: tape.width, height: tape.height };
   });
@@ -115,20 +116,21 @@ async function openViewer(dir: string, opts: DemoOptions) {
 }
 
 function main() {
+  applyLocaleSetting('system', app.getPreferredSystemLanguages()[0]);
   const opts = parseDemoArgs(process.argv)!;
   const base = path.resolve(opts.base ?? app.getPath('appData'));
   const store = openDemoStore(base, opts.mode);
   if (!store) {
-    if (opts.mode === 'delete' || opts.list) { console.log('没有本地演示数据。'); app.exit(0); return; }
-    throw new Error('尚未搭建演示，请先运行 demo-build。');
+    if (opts.mode === 'delete' || opts.list) { console.log(t('没有本地演示数据。')); app.exit(0); return; }
+    throw new Error(t('尚未搭建演示，请先运行 demo-build。'));
   }
   // Hold through Chromium/process shutdown. A close-to-tray window is still a live author.
   process.once('exit', store.close);
   const { work, recordings } = prepareScene(store.root, opts);
-  if (opts.mode === 'delete') { console.log('已删除演示数据。原项目目录保留。'); app.exit(0); return; }
+  if (opts.mode === 'delete') { console.log(t('已删除演示数据。原项目目录保留。')); app.exit(0); return; }
   if (opts.list) {
     const tapes = listTapes(recordings);
-    console.log(tapes.map(t => t.id + '  ' + t.started).join('\n') || '尚无可播放的记录。'); app.exit(0); return;
+    console.log(tapes.map(t => t.id + '  ' + t.started).join('\n') || t('尚无可播放的记录。')); app.exit(0); return;
   }
   if (!opts.replay) captureDemoLoginShellPath();
   isolate(opts.replay ? path.join(path.dirname(work), 'viewer') : work,
@@ -141,7 +143,7 @@ function main() {
 
 function fail(error: unknown) {
   console.error('[demo]', error);
-  if (app.isPackaged) dialog.showErrorBox('集序 · Demo', String(error));
+  if (app.isPackaged) dialog.showErrorBox(t('集序 · Demo'), String(error));
   app.exit(1);
 }
 try { main(); } catch (error) { fail(error); }

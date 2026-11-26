@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { createHmac, randomBytes } from 'node:crypto';
 import { app } from 'electron';
 import type { HarnessPickerAvailability, HarnessPickerCatalog, HarnessPickerIdentity, HarnessPickerModelIdentity, HarnessPickerRequest, SetModelConfigurationInput, SetModelConfigurationResult } from '../../shared/harnessPicker';
@@ -22,14 +23,14 @@ const sameModel = (a?: HarnessPickerModelIdentity | null, b?: HarnessPickerModel
 
 function parseModel(value: unknown): HarnessPickerModelIdentity | null {
   if (value === null) return null;
-  if (!optionObject(value) || Object.keys(value).length !== 2 || !optionText(value.providerId, 512) || !optionText(value.modelId, 2048)) throw new Error('模型身份无效。');
+  if (!optionObject(value) || Object.keys(value).length !== 2 || !optionText(value.providerId, 512) || !optionText(value.modelId, 2048)) throw new Error(t('模型身份无效。'));
   return { providerId: value.providerId, modelId: value.modelId };
 }
 
 export function parsePickerParameters(value: unknown): ModelParameterValues {
-  if (!optionObject(value) || Object.keys(value).length > 32) throw new Error('模型参数无效。');
+  if (!optionObject(value) || Object.keys(value).length > 32) throw new Error(t('模型参数无效。'));
   const normalized = normalizeModelParameterValues(value);
-  if (Object.keys(normalized).length !== Object.keys(value).length) throw new Error('模型参数无效。');
+  if (Object.keys(normalized).length !== Object.keys(value).length) throw new Error(t('模型参数无效。'));
   return normalized;
 }
 
@@ -53,11 +54,11 @@ export async function listHarnessPickerChoices(ctx: AppContext): Promise<Harness
 function sessionPickerIdentity(ctx: AppContext, session: SessionMeta): HarnessPickerIdentity {
   const runtimeId = session.runtime;
   if (!runtimeId || session.archived || session.launchKind === 'shell' || !ctx.sessions.isChatRuntime(runtimeId) || !ctx.agentSessions?.getDriver(runtimeId)) {
-    throw new Error('会话不存在或不支持模型选择。');
+    throw new Error(t('会话不存在或不支持模型选择。'));
   }
   const acpPresetId = runtimeId === 'acp' ? defaultAcpAgentId(session.piModeId, getAcpPresets(app.getPath('userData'))) : undefined;
   const match = listWorkerHarnesses(ctx).find(choice => choice.surface === 'gui' && choice.runtimeId === runtimeId && choice.acpPresetId === acpPresetId);
-  if (!match?.enabled) throw new Error('会话 Harness 已停用或配置已变化。');
+  if (!match?.enabled) throw new Error(t('会话 Harness 已停用或配置已变化。'));
   return { harnessId: match.harnessId, runtimeId, surface: 'gui', ...(acpPresetId ? { acpPresetId } : {}) };
 }
 
@@ -76,17 +77,17 @@ function sessionSelectionState(session: SessionMeta | undefined): string {
 
 async function pickerSession(ctx: AppContext, sessionId: string) {
   const session = ctx.sessions.get(sessionId);
-  if (!session) throw new Error('会话不存在。');
+  if (!session) throw new Error(t('会话不存在。'));
   const before = sessionSelectionState(session);
   const harness = sessionPickerIdentity(ctx, session);
   const source = await resolveSessionModelSource(ctx.config.get(), session);
-  if (before !== sessionSelectionState(ctx.sessions.get(sessionId))) throw new Error('会话配置已变化，请重新读取。');
+  if (before !== sessionSelectionState(ctx.sessions.get(sessionId))) throw new Error(t('会话配置已变化，请重新读取。'));
   const physicalCwd = modelCatalogDirectory(source.sourceRoot.cwd);
   const expected = currentSessionStamp(ctx, session, source, physicalCwd);
   const assertCurrent = (): void => {
     assertModelCatalogSourceCurrent(ctx.config.get(), source, physicalCwd);
     const current = ctx.sessions.get(sessionId);
-    if (!current || currentSessionStamp(ctx, current, source, physicalCwd) !== expected) throw new Error('会话、模型或目录来源已变化，请重新选择。');
+    if (!current || currentSessionStamp(ctx, current, source, physicalCwd) !== expected) throw new Error(t('会话、模型或目录来源已变化，请重新选择。'));
   };
   return { harness, source, session, expected, assertCurrent };
 }
@@ -101,13 +102,13 @@ async function pickerParameters(ctx: AppContext, harness: HarnessPickerIdentity,
   model: HarnessPickerModelIdentity | null, session?: SessionMeta) {
   const selected = model ?? native.defaultRow ?? null;
   const row = selected && native.items.find(item => sameModel(item, selected));
-  if (model && !row) throw new Error('所选模型已隐藏或不在当前目录中，请重新选择。');
+  if (model && !row) throw new Error(t('所选模型已隐藏或不在当前目录中，请重新选择。'));
   if (harness.surface === 'cli' && harness.runtimeId !== 'kimi-cli') {
     const caps = cliCapabilities(harness.runtimeId, ctx.runtimes.get(harness.runtimeId)?.manifest);
     if (!caps.reasoning) return { parameters: [] };
-    if (row && row.effortLevels === undefined && ['codex', 'claude-code'].includes(harness.runtimeId)) return { parameters: [], warning: '当前模型的思考档位尚未确认。' };
+    if (row && row.effortLevels === undefined && ['codex', 'claude-code'].includes(harness.runtimeId)) return { parameters: [], warning: t('当前模型的思考档位尚未确认。') };
     const levels = cliReasoningLevels(caps, row?.effortLevels);
-    const parameters: ModelParameterState[] = levels.length ? [{ descriptor: { id: 'reasoning', semantic: 'reasoning', label: '思考强度',
+    const parameters: ModelParameterState[] = levels.length ? [{ descriptor: { id: 'reasoning', semantic: 'reasoning', label: t('思考强度'),
       options: levels.map(value => ({ value, label: value })), apply: 'reconnect', supportsDefault: true }, override: null, effectiveValue: null, source: 'engine' }] : [];
     return { parameters };
   }
@@ -117,7 +118,7 @@ async function pickerParameters(ctx: AppContext, harness: HarnessPickerIdentity,
   const resolvesGuiDefault = model === null && harness.surface === 'gui';
   const context = await ctx.agentSessions?.describePickerModelParameters({ runtimeId, piModeId, cwd: source.sourceRoot.cwd,
     ...(!resolvesGuiDefault ? { providerId: selected?.providerId, modelId: selected?.modelId } : {}) }, current ? session : undefined, resolvesGuiDefault);
-  if (!context || context.unavailable) return { parameters: [], warning: context?.warning ?? '当前模型参数尚未确认。',
+  if (!context || context.unavailable) return { parameters: [], warning: context?.warning ?? t('当前模型参数尚未确认。'),
     requiresDescription: !!context && hasConfiguredModelParameterDefault(context, ctx.config.get().modelParameterProfiles ?? []) };
   return { parameters: resolveModelParameters(context, ctx.config.get().modelParameterProfiles ?? [], current ? session.modelParameters : undefined).controls };
 }
@@ -129,7 +130,7 @@ export async function readHarnessPickerCatalog(ctx: AppContext, request: Harness
   const session = 'sessionId' in request ? await pickerSession(ctx, request.sessionId) : undefined;
   if ('dispatch' in request) await primePiCatalogSnapshot();
   const dispatch = 'dispatch' in request ? ctx.orchestrator?.getPickerConfiguration(request.dispatch.workspaceId) : undefined;
-  if ('dispatch' in request && !dispatch) throw new Error('调度模型配置不可用。');
+  if ('dispatch' in request && !dispatch) throw new Error(t('调度模型配置不可用。'));
   const source = session?.source ?? await resolveLaunchModelSource(ctx.config.get(), dispatch?.source ?? ('source' in request ? request.source : {}));
   const harness = session?.harness ?? (dispatch ? { harnessId: 'muster-core', runtimeId: 'pi', surface: 'gui' as const }
     : readTargetConfig('harness' in request ? request.harness : undefined));
@@ -139,10 +140,10 @@ export async function readHarnessPickerCatalog(ctx: AppContext, request: Harness
   const assertCurrent = () => {
     signal.throwIfAborted();
     assertModelCatalogSourceCurrent(ctx.config.get(), source, physicalCwd);
-    if (workerCatalogEnvironment(ctx, harness, !!dispatch) !== environment || workerCatalogRevision(ctx, harness, source.sourceRoot.cwd) !== revision) throw new Error('模型目录已变化，请重新读取。');
+    if (workerCatalogEnvironment(ctx, harness, !!dispatch) !== environment || workerCatalogRevision(ctx, harness, source.sourceRoot.cwd) !== revision) throw new Error(t('模型目录已变化，请重新读取。'));
     session?.assertCurrent();
     if (dispatch && 'dispatch' in request && ctx.orchestrator?.getPickerConfiguration(request.dispatch.workspaceId).expected !== dispatch.expected) {
-      throw new Error('调度模型或工作区配置已变化，请重新读取。');
+      throw new Error(t('调度模型或工作区配置已变化，请重新读取。'));
     }
   };
   assertCurrent();
@@ -173,17 +174,17 @@ export async function setPickerModelConfiguration(ctx: AppContext, request: SetM
   const { harness, source } = binding;
   const revision = workerCatalogRevision(ctx, harness, source.sourceRoot.cwd);
   const environment = workerCatalogEnvironment(ctx, harness);
-  if (stamp([binding.expected, environment, revision]) !== request.expected || !ctx.agentSessions) throw new Error('会话、模型或目录来源已变化，请重新选择。');
+  if (stamp([binding.expected, environment, revision]) !== request.expected || !ctx.agentSessions) throw new Error(t('会话、模型或目录来源已变化，请重新选择。'));
   const assertCurrent = () => {
     binding.assertCurrent();
-    if (workerCatalogRevision(ctx, harness, source.sourceRoot.cwd) !== revision || workerCatalogEnvironment(ctx, harness) !== environment) throw new Error('模型目录已变化，请重新选择。');
+    if (workerCatalogRevision(ctx, harness, source.sourceRoot.cwd) !== revision || workerCatalogEnvironment(ctx, harness) !== environment) throw new Error(t('模型目录已变化，请重新选择。'));
   };
   const native = await readWorkerNativeCatalog(ctx, harness, source);
   const preview = await pickerParameters(ctx, harness, source, native, model, binding.session);
   if (preview.requiresDescription) throw new Error(preview.warning);
   for (const [id, value] of Object.entries(parameters)) {
     if (!preview.parameters.some(control => control.descriptor.id === id && control.descriptor.options.some(option => option.value === value))) {
-      throw new Error(preview.warning ?? `该模型不支持所选参数 ${id}。`);
+      throw new Error(preview.warning ?? t('该模型不支持所选参数 {{id}}。', { id }));
     }
   }
   await ctx.agentSessions.validateLaunchModel(harness.runtimeId, source.sourceRoot.cwd, model ?? undefined, harness.acpPresetId);

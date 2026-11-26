@@ -16,6 +16,15 @@ try {
   const file = path.join(tmp, 'spawn-helper');
   const check = packaged => preparePtySpawnHelper('darwin', true, () => ({ file, packaged }));
   assert.throws(() => check(true), /请重新安装集序/);
+  const { applyLocaleSetting } = await import(pathToFileURL(compile('shared/i18n/index.ts')));
+  applyLocaleSetting('en');
+  try {
+    assert.throws(() => check(true), error =>
+      error.message === 'Cannot start the macOS terminal. The helper is unavailable (' + file + '). Reinstall Muster Console.'
+      && error.cause?.code === 'ENOENT');
+  } finally {
+    applyLocaleSetting('zh-CN');
+  }
   fs.mkdirSync(file);
   assert.throws(() => check(false), /重新安装或构建 node-pty/);
   fs.rmdirSync(file);

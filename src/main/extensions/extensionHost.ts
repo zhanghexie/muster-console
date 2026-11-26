@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { defaultRootFor, requireSourceRoot } from '../../shared/workspaceRoots';
 import { resolveExtensionProjectBindingAsync } from './extensionProjectBinding';
 import type { ExtensionToolContext } from './extensionHostTool';
@@ -303,7 +304,7 @@ export class ExtensionHost {
       exportService: this.exportService,
       isViewCurrent: () => this.views.get(token) === view,
       assertCurrent: () => {
-        if (this.views.get(token) !== view) throw new Error('扩展面板已关闭或工作区已切换');
+        if (this.views.get(token) !== view) throw new Error(t('扩展面板已关闭或工作区已切换'));
       },
       requirePermission: permission => requirePermission(permission),
     });
@@ -369,7 +370,7 @@ export class ExtensionHost {
         const request = this.panelLifecycle.childSignal(token);
         let confirmed: boolean;
         try {
-          confirmed = await this.confirmDangerous(`确认执行 ${view.manifest.name} 的危险操作`, `${name}\n${JSON.stringify(args[1] ?? {})}`, request.signal);
+          confirmed = await this.confirmDangerous(t('确认执行 {{name}} 的危险操作', { name: view.manifest.name }), `${name}\n${JSON.stringify(args[1] ?? {})}`, request.signal);
         } finally {
           request.dispose();
         }
@@ -388,15 +389,15 @@ export class ExtensionHost {
   async taskLaunchMeta(source: ExtensionTaskSource, workspaceId?: string, rootId?: string, runtime?: string): Promise<Record<string, string>> {
     const management = this.appContext?.extensionSystem?.management;
     if (!workspaceId || !rootId || !management || workspaceId !== source.workspaceId ||
-        (source.scope === 'project' && (rootId !== source.rootId || (source.sourceRootId && rootId !== source.sourceRootId)))) throw new Error('扩展所属项目已变化，请重新打开制作入口');
-    if (!runtime || !isChatRuntimeId(runtime) || getChatCapabilities(runtime).hostToolsAvailable === false) throw new Error('扩展创作需要支持宿主工具的 GUI Harness');
+        (source.scope === 'project' && (rootId !== source.rootId || (source.sourceRootId && rootId !== source.sourceRootId)))) throw new Error(t('扩展所属项目已变化，请重新打开制作入口'));
+    if (!runtime || !isChatRuntimeId(runtime) || getChatCapabilities(runtime).hostToolsAvailable === false) throw new Error(t('扩展创作需要支持宿主工具的 GUI Harness'));
     const controlRoot = source.scope === 'project' ? management.rootPath(workspaceId, rootId) : undefined;
     const pkg = await this.verifier.verifyFresh({ scope: source.scope, extensionId: source.extensionId, controlRoot });
     await this.assertProjectBinding(pkg.manifest, workspaceId, rootId);
     if (source.fingerprint !== pkg.fingerprint || !pkg.manifest.permissions.includes('project.tasks') ||
         !this.catalog.get(source.scope, source.extensionId, controlRoot)?.enabled || (this.developmentTrust && !this.developmentTrust.canRun({
           scope: source.scope, extensionId: source.extensionId, directory: pkg.descriptor.directory, fingerprint: pkg.fingerprint
-        }, workspaceId))) throw new Error('扩展已更新或停用，请重新打开制作入口');
+        }, workspaceId))) throw new Error(t('扩展已更新或停用，请重新打开制作入口'));
     return { extensionTask: pkg.manifest.id, extensionScope: source.scope, extensionFingerprint: pkg.fingerprint,
       extensionSurface: source.surfaceId, extensionSkillNames: JSON.stringify(extensionSkillNames(pkg.manifest)),
       ...(source.sourceRootId ? { extensionSourceRoot: source.sourceRootId } : {}) };
@@ -404,7 +405,7 @@ export class ExtensionHost {
 
   async projectTaskResources(task: SessionMeta): Promise<{ prompt: string | undefined; tools: GuiHostTool[] }> {
     const meta = task.meta, workspaceId = task.workspaceId;
-    if (!meta?.extensionTask || !workspaceId || !task.sourceRoot?.rootId) throw new Error('缺少扩展任务身份');
+    if (!meta?.extensionTask || !workspaceId || !task.sourceRoot?.rootId) throw new Error(t('缺少扩展任务身份'));
     const scope = meta.extensionScope === 'project' ? 'project' : 'global';
     const controlRoot = scope === 'project' ? this.appContext?.extensionSystem?.management.rootPath(workspaceId, task.sourceRoot.rootId) : undefined;
     const resolve = async () => {
@@ -413,7 +414,7 @@ export class ExtensionHost {
       await this.assertProjectBinding(pkg.manifest, workspaceId, task.sourceRoot!.rootId);
       const subject = { extensionId, scope, directory: pkg.descriptor.directory, fingerprint: pkg.fingerprint } as const;
       if ((!this.developmentTrust && pkg.fingerprint !== meta.extensionFingerprint) || !this.catalog.get(scope, extensionId, controlRoot)?.enabled || (this.workspaceActivation && !this.workspaceActivation({ workspaceId, extensionId, scope, ...(controlRoot ? { controlRoot } : {}) })) ||
-          !pkg.manifest.permissions.includes('project.tasks') || (this.developmentTrust && !await this.developmentTrust.ensureCanRun(subject, workspaceId))) throw new Error('任务绑定的扩展已变更或停用');
+          !pkg.manifest.permissions.includes('project.tasks') || (this.developmentTrust && !await this.developmentTrust.ensureCanRun(subject, workspaceId))) throw new Error(t('任务绑定的扩展已变更或停用'));
       if (!pkg.manifest.agent) return undefined;
       const surfaceId = meta.extensionSurface;
       const identity = { extensionId, workspaceId, surfaceId, extensionInstanceId: `${workspaceId}:${extensionId}:${surfaceId}`, packageFingerprint: pkg.fingerprint, sourceRootId: meta.extensionSourceRoot };
@@ -426,7 +427,7 @@ export class ExtensionHost {
       ...tool, execute: async (args: Record<string, unknown>, context: Parameters<GuiHostTool['execute']>[1]) => {
         const current = await resolve();
         const live = current && this.agent.extensionToolsForSession(current).find(item => item.id === tool.id);
-        if (!live) throw new Error('扩展工具不可用');
+        if (!live) throw new Error(t('扩展工具不可用'));
         return live.execute(args, { ...context, sessionId: task.id });
       }
     }));

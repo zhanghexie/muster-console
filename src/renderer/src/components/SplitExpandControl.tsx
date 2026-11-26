@@ -16,12 +16,6 @@ const MENU_INSET = 5;
 const MENU_HEIGHT = 4 * MENU_ROW + 2 * MENU_INSET;
 const VIEWPORT_INSET = 8;
 
-const modeItems = {
-  click: { label: '鼠标点击切屏', Icon: IconMouse },
-  hover: { label: '鼠标悬浮切屏', Icon: IconCursor },
-  focus: { label: '关闭虚拟屏', Icon: IconLayout }
-} as const;
-
 export function loadHSwitchMode(): HSwitchMode {
   try {
     const value = localStorage.getItem(H_SWITCH_MODE_KEY);
@@ -121,6 +115,11 @@ export function SplitExpandControl({
   onResizeEnd
 }: Props): React.JSX.Element | null {
   const { t } = useTranslation();
+  const modeItems = {
+    click: { label: t('鼠标点击切屏'), Icon: IconMouse },
+    hover: { label: t('鼠标悬浮切屏'), Icon: IconCursor },
+    focus: { label: t('关闭虚拟屏'), Icon: IconLayout }
+  } as const;
   const currentMode = focusMode ? 'focus' : switchMode;
   const menuId = useId();
   const hitRef = useRef<HTMLDivElement>(null);
@@ -442,7 +441,7 @@ export function SplitExpandControl({
                     }}
                   >
                     <Icon size={14} />
-                    <span>{t(itemLabel)}</span>
+                    <span>{itemLabel}</span>
                     {checked && <IconCheck size={13} />}
                   </button>
                 );

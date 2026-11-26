@@ -184,14 +184,14 @@ export function registerExtensionsExtensionIpc(ctx: AppContext, system: Extensio
   handle('extensionCatalog:installLocal', async () => {
     const win = ctx.getWindow();
     const result = win
-      ? await dialog.showOpenDialog(win, { title: '选择本地扩展目录', properties: ['openDirectory'] })
-      : await dialog.showOpenDialog({ title: '选择本地扩展目录', properties: ['openDirectory'] });
+      ? await dialog.showOpenDialog(win, { title: t('选择本地扩展目录'), properties: ['openDirectory'] })
+      : await dialog.showOpenDialog({ title: t('选择本地扩展目录'), properties: ['openDirectory'] });
     if (result.canceled || !result.filePaths[0]) return { canceled: true as const };
     return system.installLocal(text(result.filePaths[0], 'extension directory'));
   });
   handle('extensionCenter:list', (_event, value?: unknown) => {
     if (value !== undefined && typeof value !== 'boolean') throw new Error('Invalid extension center refresh flag');
-    return system.extensionCenter.listCatalog({ force: value === true });
+    return system.listCenterCatalog({ force: value === true });
   });
   handle('extensionCenter:install', (_event, value: unknown) => {
     const input = record(value);

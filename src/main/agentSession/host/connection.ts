@@ -452,7 +452,7 @@ async function prepareConnection(host: HostCore, entry: SessionEntry): Promise<G
       assertLlmCurrent();
       host.modelAdmission.assert(entry.runtimeId, session?.piModeId, admitted ?? (effModel.modelId ? effModel : undefined));
     } catch (error) {
-      try { await conn.close(); } catch (closeError) { throw new ConnectionCleanupError(`模型校验失败后连接回收失败：${String(closeError)}`); }
+      try { await conn.close(); } catch (closeError) { throw new ConnectionCleanupError(t('模型校验失败后连接回收失败：{{detail}}', { detail: String(closeError) })); }
       throw error;
     }
     entry.connectionAdmissionModel = admitted ?? (effModel.modelId ? effModel : undefined);

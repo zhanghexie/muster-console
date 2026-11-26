@@ -74,7 +74,22 @@ for (const invalid of [
   assert.equal(validateExtensionManifest(invalid, 'bookshelf').ok, false, JSON.stringify(invalid));
 }
 
-console.log('extensions-manifest: ok');
+const { applyLocaleSetting } = await import(pathToFileURL(compile('shared/i18n/index.ts')));
+const { localizeExtensionReason } = await import(pathToFileURL(compile('shared/extensionReason.ts')));
+const badEntry = validateExtensionManifest({ ...base, surface: { ...base.surface, entry: '../panel.html' } }, 'bookshelf');
+const duplicateOperation = validateExtensionManifest({ ...base, domain: { ...base.domain, queries: ['books.list', 'books.list'] } }, 'bookshelf');
+assert.equal(badEntry.error, 'surface.entry 必须是扩展包内 .html 相对路径');
+assert.equal(duplicateOperation.error, 'domain.queries 不能重复');
+applyLocaleSetting('en');
+assert.equal(localizeExtensionReason(badEntry.error), 'surface.entry must be a relative path to an .html file within the extension.');
+assert.equal(localizeExtensionReason(duplicateOperation.error), 'domain.queries must contain unique entries.');
+assert.equal(localizeExtensionReason('domain.unknown 不能重复'), 'domain.unknown 不能重复');
+assert.equal(localizeExtensionReason("Error invoking remote method 'extensionCenter:uninstall': Error: 请先关闭所有工作区中的该扩展后再卸载"),
+  "Error invoking remote method 'extensionCenter:uninstall': Error: Disable this extension in every workspace before uninstalling.");
+applyLocaleSetting('zh-CN');
+assert.equal(localizeExtensionReason(badEntry.error), badEntry.error);
+
+console.log('extensions-manifest: validation and localized display reasons passed');
 
 
 

@@ -44,6 +44,7 @@ export async function proposeCommunityExtension({ repositoryUrl, catalog, commun
   const packageKey = `${publisherId}/${extensionId}`;
   const entry = { packageKey, publisherId, extensionId, version, name: manifest.name, repositoryUrl: homepage,
     ...(typeof manifest.description === 'string' && manifest.description ? { description: manifest.description } : {}),
+    ...(typeof manifest.icon === 'string' && manifest.icon ? { icon: manifest.icon } : {}),
     packageUrl: packageUrl.href, sha256, fingerprint };
   githubReleaseUrl(entry, true);
   if ([...catalog.releases, ...community.releases].some(release => release.extensionId === extensionId)) {
@@ -77,9 +78,10 @@ export async function discoverPublicExtensionReleases({ catalog, community, read
       ]);
       if (before.sha256 !== entry.sha256 || before.fingerprint !== entry.fingerprint) throw new Error('Previously approved package does not match its checksums');
       candidates.push({ packageKey: entry.packageKey, version, sourceCommit, before: reviewFields(before.manifest), after: reviewFields(after.manifest) });
-      const { updatedAt, releaseNotes, ...release } = entry;
+      const { updatedAt, releaseNotes, icon: _previousIcon, ...release } = entry;
       return { ...release, version, name: after.manifest.name,
         ...(typeof after.manifest.description === 'string' && after.manifest.description ? { description: after.manifest.description } : {}),
+        ...(typeof after.manifest.icon === 'string' && after.manifest.icon ? { icon: after.manifest.icon } : {}),
         packageUrl: url.href, fingerprint: after.fingerprint, sha256: after.sha256,
         previousFingerprints: [...new Set([entry.fingerprint, ...(entry.previousFingerprints ?? [])])].slice(0, 100) };
     } catch (error) {

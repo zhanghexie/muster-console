@@ -21,7 +21,7 @@ export function registerFeedbackIpc(ctx: AppContext): void {
   function service(event: Electron.IpcMainInvokeEvent) {
     const win = ctx.getWindow();
     if (!win || !event?.sender || event.sender.id !== win.webContents.id || event.senderFrame !== win.webContents.mainFrame) throw new Error('反馈审核只支持本机工作台窗口');
-    if (!ctx.feedback) throw new Error(ctx.feedbackError ? t('反馈服务不可用：{{error}}', { error: ctx.feedbackError }) : t('反馈服务不可用'));
+    if (!ctx.feedback) throw new Error(ctx.feedbackError ? t('反馈服务不可用：{{error}}', { error: t(ctx.feedbackError) }) : t('反馈服务不可用'));
     return ctx.feedback;
   }
   handle('feedback:snapshot', event => service(event).snapshot());

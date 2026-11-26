@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -14,7 +15,7 @@ function owns(dir: string, expected: string) {
 }
 function directory(target: string) {
   const stat = exists(target);
-  if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) throw new Error('演示路径必须是本地目录：' + target);
+  if (stat && (!stat.isDirectory() || stat.isSymbolicLink())) throw new Error(t('演示路径必须是本地目录：{{path}}', { path: target }));
   if (!stat) fs.mkdirSync(target, { mode: 0o700 });
 }
 function remove(target: string) {
@@ -31,7 +32,7 @@ export function demoWorkspaceResolver(storeRoot: string, work: string) {
       try { project = fs.realpathSync(project); } catch { /* Preserve previously registered offline roots. */ }
       const relative = path.relative(physical, project);
       if (!relative || (relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative))) {
-        throw new Error('请选择演示数据目录以外的项目文件夹。');
+        throw new Error(t('请选择演示数据目录以外的项目文件夹。'));
       }
     }
     const dir = path.join(storage, createHash('sha256').update(id).digest('hex'));
@@ -51,12 +52,12 @@ export function openDemoStore(base: string, mode: DemoOptions['mode']) {
   directory(locks);
   const ignore = path.join(locks, '.gitignore'), lockMarker = '# Muster demo coordination v1\n*\n';
   if (!exists(ignore) && !fs.readdirSync(locks).length) fs.writeFileSync(ignore, lockMarker, { flag: 'wx' });
-  if (!exists(ignore)?.isFile() || fs.readFileSync(ignore, 'utf8') !== lockMarker) throw new Error('演示锁目录归属不匹配：' + locks);
+  if (!exists(ignore)?.isFile() || fs.readFileSync(ignore, 'utf8') !== lockMarker) throw new Error(t('演示锁目录归属不匹配：{{path}}', { path: locks }));
   const lock = path.join(locks, 'lock.sqlite');
-  if (exists(lock) && !exists(lock)?.isFile()) throw new Error('演示锁路径异常：' + lock);
+  if (exists(lock) && !exists(lock)?.isFile()) throw new Error(t('演示锁路径异常：{{path}}', { path: lock }));
   const db = new DatabaseSync(lock);
   try { db.exec('BEGIN EXCLUSIVE'); }
-  catch (error) { db.close(); throw new Error('Demo 数据正在使用或无法加锁。请退出正在使用这些数据的演示实例。', { cause: error }); }
+  catch (error) { db.close(); throw new Error(t('Demo 数据正在使用或无法加锁。请退出正在使用这些数据的演示实例。'), { cause: error }); }
   try {
     const newRoot = !exists(root);
     if (newRoot && mode !== 'build') { db.close(); return null; }
@@ -66,7 +67,7 @@ export function openDemoStore(base: string, mode: DemoOptions['mode']) {
       fs.writeFileSync(stamp, marker, { flag: 'wx', mode: 0o600 });
       fs.writeFileSync(path.join(root, '.gitignore'), ignoreContents, { flag: 'wx' });
     }
-    if (!owns(root, marker)) throw new Error('该目录不是集序创建的 demo 数据目录：' + root);
+    if (!owns(root, marker)) throw new Error(t('该目录不是集序创建的 demo 数据目录：{{path}}', { path: root }));
   } catch (error) { db.close(); throw error; }
   return { root, close: () => db.close() };
 }
@@ -90,7 +91,7 @@ export function prepareScene(root: string, opts: DemoOptions) {
     for (const entry of entries) {
       if (!exists(entry)) continue;
       if (!exists(entry)?.isDirectory() || !owns(entry, sceneMarker)) {
-        if (!opts.allScenes) throw new Error('该目录不是集序创建的演示场景：' + entry);
+        if (!opts.allScenes) throw new Error(t('该目录不是集序创建的演示场景：{{path}}', { path: entry }));
         continue;
       }
       for (const part of ['work', 'authored', 'copying', 'viewer', 'recordings']) remove(path.join(entry, part));
@@ -108,12 +109,12 @@ export function prepareScene(root: string, opts: DemoOptions) {
   }
   if (opts.mode !== 'build' && !exists(scene)) {
     if (opts.list) return { work, recordings };
-    throw new Error('场景尚未搭建，请先使用 demo-build --scene ' + opts.scene);
+    throw new Error(t('场景尚未搭建，请先使用 demo-build --scene {{scene}}', { scene: opts.scene }));
   }
   const newScene = !exists(scene);
   directory(scenes); directory(scene);
   if (newScene) fs.writeFileSync(path.join(scene, 'owner'), sceneMarker, { flag: 'wx', mode: 0o600 });
-  if (!owns(scene, sceneMarker)) throw new Error('该目录不是集序创建的演示场景：' + scene);
+  if (!owns(scene, sceneMarker)) throw new Error(t('该目录不是集序创建的演示场景：{{path}}', { path: scene }));
   if (opts.record || exists(recordings)) directory(recordings);
   if (opts.replay) directory(path.join(scene, 'viewer'));
   if (opts.replay || opts.list) return { work, recordings };
@@ -126,7 +127,7 @@ export function prepareScene(root: string, opts: DemoOptions) {
   }
   remove(staging);
   if (opts.mode === 'build') { directory(work); return { work, recordings }; }
-  if (!exists(work)) throw new Error('场景没有可运行的搭建数据。');
+  if (!exists(work)) throw new Error(t('场景没有可运行的搭建数据。'));
   directory(work);
   fs.renameSync(work, saved);
   try {
