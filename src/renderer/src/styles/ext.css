@@ -272,6 +272,7 @@
 .ext-agent-layout.docked.dock-left .ext-panel-frame {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+  border-left-width: 0;
 }
 
 .ext-agent-resizer {
@@ -290,14 +291,7 @@
 }
 
 .ext-agent-resizer::before {
-  content: '';
-  position: absolute;
-  left: 3.5px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: transparent;
+  background: var(--border-subtle);
 }
 
 .ext-agent-resizer:hover::before,

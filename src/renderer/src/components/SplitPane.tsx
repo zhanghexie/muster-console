@@ -28,6 +28,8 @@ export function SplitPane({
   onRatioCommit,
   minPrimary,
   minSecondary,
+  dividerSize = 6,
+  overlayDivider = false,
   className,
   reverse,
   children,
@@ -42,6 +44,10 @@ export function SplitPane({
   onRatioCommit?: (ratio: number) => void;
   minPrimary: number;
   minSecondary: number;
+  /** 手柄命中宽度（上下分栏为高度）。 */
+  dividerSize?: number;
+  /** 左右分栏的手柄可以跨在接缝上，不占两侧内容宽度。 */
+  overlayDivider?: boolean;
   className?: string;
   /** 视觉上把主栏换到次栏另一侧（如右栏面板让内容靠屏幕内侧、列表贴外缘） */
   reverse?: boolean;
@@ -59,11 +65,13 @@ export function SplitPane({
   const [hot, setHot] = useState(false);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [axisLength, setAxisLength] = useState(0);
-  const dragging = useRef(false);
+  const grabOffset = useRef<number | null>(null);
   const ratioRef = useRef(primaryRatio);
   ratioRef.current = primaryRatio;
   const onRatioCommitRef = useRef(onRatioCommit);
   onRatioCommitRef.current = onRatioCommit;
+  const overlay = axis === 'row' && overlayDivider;
+  const dividerGap = overlay ? 0 : dividerSize;
 
   useLayoutEffect(() => {
     const body = bodyRef.current;
@@ -80,7 +88,7 @@ export function SplitPane({
   }, [axis]);
 
   useEffect(() => {
-    if (dragging.current) return;
+    if (grabOffset.current !== null) return;
     if (primaryRatioProp == null) return;
     setPrimaryRatio(clampRatio(primaryRatioProp));
   }, [primaryRatioProp]);
@@ -88,48 +96,44 @@ export function SplitPane({
   const applyFromPointer = useCallback(
     (clientX: number, clientY: number) => {
       const el = bodyRef.current;
-      if (!el) return;
+      if (!el || grabOffset.current === null) return;
       const rect = el.getBoundingClientRect();
-      const split = 6;
-      if (axis === 'row') {
-        const usable = rect.width - split;
-        if (usable <= minPrimary + minSecondary) return;
-        // reverse 时主栏在视觉右侧，按指针到右缘的距离算主栏宽
-        const raw = reverse ? rect.right - clientX : clientX - rect.left;
-        const primary = clamp(raw, minPrimary, usable - minSecondary);
-        setPrimaryRatio(clampRatio(primary / usable));
-      } else {
-        const usable = rect.height - split;
-        if (usable <= minPrimary + minSecondary) return;
-        const primary = clamp(clientY - rect.top, minPrimary, usable - minSecondary);
-        setPrimaryRatio(clampRatio(primary / usable));
-      }
+      const row = axis === 'row';
+      const usable = (row ? rect.width : rect.height) - dividerGap;
+      if (usable <= minPrimary + minSecondary) return;
+      const seamX = clientX - grabOffset.current;
+      // 左右分栏从接缝中心算起，主栏从哪侧起就量到哪侧边缘。
+      const raw = row ? (reverse ? rect.right - seamX : seamX - rect.left) - dividerGap / 2 : clientY - rect.top;
+      setPrimaryRatio(clampRatio(clamp(raw, minPrimary, usable - minSecondary) / usable));
     },
-    [axis, minPrimary, minSecondary, reverse]
+    [axis, dividerGap, minPrimary, minSecondary, reverse]
   );
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       e.preventDefault();
-      dragging.current = true;
+      grabOffset.current = 0;
+      if (axis === 'row') {
+        const { left, width } = e.currentTarget.getBoundingClientRect();
+        grabOffset.current = e.clientX - (left + width / 2);
+      }
       setHot(true);
       e.currentTarget.setPointerCapture?.(e.pointerId);
-      applyFromPointer(e.clientX, e.clientY);
+      if (axis === 'column') applyFromPointer(e.clientX, e.clientY);
     },
-    [applyFromPointer]
+    [applyFromPointer, axis]
   );
 
   const onPointerMove = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!dragging.current) return;
       applyFromPointer(e.clientX, e.clientY);
     },
     [applyFromPointer]
   );
 
   const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return;
-    dragging.current = false;
+    if (grabOffset.current === null) return;
+    grabOffset.current = null;
     setHot(false);
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
@@ -171,7 +175,7 @@ export function SplitPane({
     [axis, reverse]
   );
 
-  const usable = Math.max(0, axisLength - 6);
+  const usable = Math.max(0, axisLength - dividerGap);
   // A narrow host cannot satisfy both pixel minima. Fit proportionally, while
   // retaining the user's saved ratio for when the host grows again.
   const minimumTotal = minPrimary + minSecondary;
@@ -186,11 +190,12 @@ export function SplitPane({
   return (
     <div
       ref={bodyRef}
-      className={`split-pane split-pane-${axis}${reverse ? ' is-reversed' : ''}${className ? ` ${className}` : ''}`}
+      className={`split-pane split-pane-${axis}${reverse ? ' is-reversed' : ''}${overlay ? ' is-divider-overlay' : ''}${className ? ` ${className}` : ''}`}
+      style={{ '--split-pane-divider-size': `${dividerSize}px` } as React.CSSProperties}
     >
       <div
         className="split-pane-panel split-pane-primary"
-        style={{ flex: `1 1 calc((100% - 6px) * ${displayedRatio})`, [minKey]: primaryMinimum }}
+        style={{ flex: `1 1 calc((100% - ${dividerGap}px) * ${displayedRatio})`, [minKey]: primaryMinimum }}
       >
         {primary}
       </div>
@@ -206,13 +211,14 @@ export function SplitPane({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onLostPointerCapture={onPointerUp}
         onKeyDown={onKeyDown}
       >
-        <div className="split-pane-handle-line" />
+        <div className={`split-pane-handle-line${axis === 'row' ? ' resize-divider-line' : ''}`} />
       </div>
       <div
         className="split-pane-panel split-pane-secondary"
-        style={{ flex: `0 0 calc((100% - 6px) * ${1 - displayedRatio})`, [minKey]: secondaryMinimum }}
+        style={{ flex: `0 0 calc((100% - ${dividerGap}px) * ${1 - displayedRatio})`, [minKey]: secondaryMinimum }}
       >
         {secondary}
       </div>

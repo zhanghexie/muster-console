@@ -110,15 +110,16 @@ assert.match(left, /\.session-item\.is-pane-focused::after/, '当前pane保留�
 assert.doesNotMatch(chat, /--ws-accent/, '默认消息头像不染工作区色');
 const split = read('split.css');
 assert.match(block(split, '.center-split-divider > span'), /background:\s*var\(--divider-rest\)/);
-assert.match(block(split, ".center-split-divider[aria-orientation='vertical'] > span"), /width:\s*1px/, 'divider视觉宽度不随hover放大');
+assert.match(block(split, ".center-split-divider[aria-orientation='horizontal'] > span"), /height:\s*1px/, '上下分栏沿用 1px 线');
 assert.match(block(split, '.center-split-divider:hover > span'), /background:\s*var\(--divider-active\)/);
 assert.doesNotMatch(block(split, '.center-split-divider:hover > span'), /box-shadow|width:/, 'hover不应增粗或发光');
-const leftDivider = block(base, '.left-col-resizer::after');
-assert.match(leftDivider, /width:\s*1px\s*;/, '左栏拖动视觉也严格为1px，命中区单独保留');
-assert.doesNotMatch(leftDivider, /box-shadow:|filter:/, '左栏分割线不应带光晕');
-const leftDividerActive = block(base, '.left-col-resizer:hover::after,\n.left-col-resizer.is-resizing::after');
+assert.match(base, /--resize-divider-active-width:\s*3px\s*;/, '左右分栏共用扩展 AI 侧栏的悬停和拖动线宽');
+const divider = block(base, '.resize-divider::before,\n.resize-divider-line');
+assert.match(divider, /inline-size:\s*1px\s*;/, '静息保留 1px 细线');
+assert.doesNotMatch(divider, /box-shadow:|filter:/, '分割线保持无光晕');
+const leftDividerActive = block(base, '.left-col-resizer:hover::before,\n.left-col-resizer.is-resizing::before');
 assert.match(leftDividerActive, /background:\s*var\(--divider-active\)/, '左栏 hover/拖动与虚拟屏使用同一 divideractive');
 assert.doesNotMatch(leftDividerActive, /width:|box-shadow:|filter:/, '左栏 hover/拖动不能增粗或发光');
-assert.match(block(base, '.left-col-resizer:focus-visible::after'), /background:\s*var\(--divider-focus\)/, '键盘焦点使用独立 dividerfocus');
+assert.match(block(base, '.left-col-resizer:focus-visible::before'), /background:\s*var\(--divider-focus\)/, '键盘焦点使用独立 dividerfocus');
 
 console.log('composer-material-css: ok');

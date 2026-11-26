@@ -107,7 +107,7 @@ Snap 重排和原生来源拖入保留全部已显示引用。来源方向菜单
 
 LeftPanel 订阅分屏 store，以工具优先的 App 主引用与已提交的非主槽派生全部打开引用。会话、内置工具、导航树和常用入口中，已打开项使用所在面的 `--interaction-selected`，当前聚焦项以 2×12px 中性短标记表示，不永久画焦点圈；`:focus-visible` 独立表达键盘焦点。选中/ARIA 语义及会话列表键盘锚点跟随实际焦点引用。物理重排不改变引用身份，关闭或解散后及时移除打开标记；空选择器不标记，单屏工具遮盖的背后会话不算打开。导航树与常用入口共享 `openedIds`，`selectedId` 表示聚焦；旧单选调用省略 `openedIds` 时兼容为仅选中项打开。待提交布局不提前成为另一份侧栏状态。
 
-分隔条保持原指针命中区，只绘制 1px 线：静息、hover/拖拽、键盘焦点分别消费 `--divider-rest / active / focus`。不增加宽度或光晕。工具栏使用不透明 chrome；拖起 pane 的透明目标蒙版仍由 resolver 的 `--surface-drag-preview` 提供，保留原 presence、blur 和几何。
+分隔条保持 8px 指针命中区，左右分栏的线画在两格交界中心，静息 1px，悬停和拖动时为 3px。上下分栏保持 1px。静息、悬停或拖动、键盘聚焦使用对应 divider 颜色。工具栏使用不透明 chrome，拖起 pane 的透明目标蒙版由 resolver 的 `--surface-drag-preview` 提供。
 
 pending 期间 DOM 和回调仍绑定原槽位，候选物理顺序可能已变化。store 先把原槽位解析为内容引用，再映射到最终候选焦点；列表填充也按该引用判断目标，不能直接沿用候选槽号。沙箱 iframe 的 `panelFocus` relay 每次 pointerdown/focusin/window focus 都上报，重复点击不同 guest 也能改焦点；父端检查消息类型及 `event.source` 等于当前实际 iframe 的 contentWindow，拒绝外来 source、隐藏或 inert 层，不信任消息自报槽号。窗口 blur/focus 后读取 activeElement iframe 的单帧检查作补充。子文档不冒泡不再依赖普通 React focus 事件兜底。
 

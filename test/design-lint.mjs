@@ -109,8 +109,6 @@ assert.equal(isCurrentPaneMarker('.ext-nav-row::before', hiddenMarkerBody.replac
  * 文档化例外（每条都有设计依据，且逐属性锁死形状，防止被当成「随便加竖条」的缺口）：
  *  - `.board-card.active::before`：当前会话的左侧短中性色标记（docs/features/global-board.md
  *    「当前会话以卡片左侧短中性色标记，不改变卡片底色和边框」），2×18px pill。
- *  - `.ext-agent-resizer::before`：拖拽分隔条 hover 指示线（ext.css 注释），常态透明、
- *    hover 才上色，属交互手柄，不是选中态。
  *  - 当前工作区：用切区按钮的 aria-current 标记位置（docs/features/workspaces.md），2×12px。
  */
 const currentWorkspaceMarker = ".agent-notify-bubble:has(> .agent-notify-body[aria-current='true'])::after";
@@ -120,7 +118,6 @@ const DOCUMENTED_MARKERS = new Map([
     props['border-radius'] === 'var(--radius-pill)' &&
     props.background === 'var(--fg-muted)' &&
     props.transform === 'translateY(-50%)' && props['pointer-events'] === 'none'],
-  ['.ext-agent-resizer::before', (props) => props.background === 'transparent'],
   [currentWorkspaceMarker, (props) =>
     props.position === 'absolute' && props['inset-inline-start'] === '2px' && props.top === 'calc(50% - 6px)' &&
     props.width === '2px' && props.height === '12px' && props['border-radius'] === 'var(--radius-pill)' &&
@@ -152,15 +149,6 @@ assert.equal(
   isDocumentedMarker('.board-card::before', markerDecls(boardMarkerBody)),
   false,
   '例外只给 .active，普通卡片不得带竖条'
-);
-assert.equal(
-  isDocumentedMarker('.ext-agent-resizer::before', markerDecls('position:absolute;width:3px;background:transparent;top:0;')),
-  true
-);
-assert.equal(
-  isDocumentedMarker('.ext-agent-resizer::before', markerDecls('position:absolute;width:3px;background:var(--fg-muted);top:0;')),
-  false,
-  '拖拽手柄常态必须透明，显示色只许在 :hover/:active'
 );
 for (const f of cssFiles) {
   const src = fs.readFileSync(path.join(stylesDir, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');

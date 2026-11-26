@@ -11,7 +11,7 @@
 | `resources/extensions/daily-report/agent.md` | Pi Agent 的系统提示词和工具使用边界 |
 | `resources/extensions/daily-report/ui/panel.html` | 日历、日志详情、日报生成、待办和派活交互 |
 | `resources/extensions/daily-report/client/styles.css` | 面板视觉源码、深浅主题与窄布局 |
-| `resources/extensions/daily-report/ui/panel.css` | 构建生成的样式，包含宿主动画 token |
+| `resources/extensions/daily-report/ui/panel.css` | 构建生成的样式，包含宿主动画和调宽分割线 token |
 
 样式修改后运行 `node scripts/build-daily-report.mjs`。Electron 构建生成 `ui/panel.css`，打包时经 extraResources 复制到 `extensions/daily-report`。干净 profile 可离线启动日报。
 
@@ -42,7 +42,7 @@ Agent 的上下文通过 DomainRuntime 的快照和查询工具取得，不依�
 
 面板通过 `../__sdk__/theme.css` 使用工作台主题 token、字体和基础控件，未设置固定的主题或面板底色。主题热同步由扩展面板外观协议负责。
 
-宽面板是独立滚动的日历/待办侧栏与正文阅读区；宽度不超过 720px 时使用一个滚动容器，依次显示日历、当日记录和待办编辑区。侧栏宽度和分组折叠偏好继续保存在原有 `ui.json`。
+宽面板由独立滚动的日历／待办侧栏和正文阅读区组成。调宽线位于两栏之间，静息 1px，悬停和拖动使用宿主的 3px token，拖动以抓取点为起点。宽度不超过 720px 时使用一个滚动容器，依次显示日历、当日记录和待办编辑区。侧栏宽度和分组折叠偏好保存在 `ui.json`。
 
 正文包含日期、当日概览、日志、当日待办和日报。概览的日志总数、已完成与进行中数量来自当前日期的日志条目，待推进数量来自当天仍未完成的待办。日报只在点击生成/重新生成时调用模型。长待办标题自然换行，状态和派活操作单独占行。
 

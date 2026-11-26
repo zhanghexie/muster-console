@@ -41,12 +41,8 @@ export const frag: Record<string, string> = {
   // ── 分割面板 / 虚拟屏切换钮（SplitPane / SplitExpandControl）──
   '拖动调整面板大小': 'Drag to resize panels',
   '拖动调整大小（方向键微调）': 'Drag to resize (arrow keys to fine-tune)',
-  // 把手不挂原生 title（捕获中无法消散），悬停提示为自绘胶囊
-  '长按选切屏方式（当前：{{mode}}），左右拖调大小':
-    'Long-press to pick a switch mode (current: {{mode}}); drag left-right to resize',
-  '长按选切屏方式': 'Long-press to pick a switch mode',
-  '虚拟屏已关闭（双栏全屏）· 长按拖到落点选切屏方式恢复，左右拖调整比例':
-    'Virtual screen closed (both panes full-width) · Long-press and drag to a drop to pick a switch mode to restore, or drag horizontally to adjust the split',
+  '虚拟屏操作': 'Virtual screen controls',
+  '长按选择切屏方式，左右拖动调宽': 'Hold to choose a switch mode. Drag sideways to resize.',
   '鼠标悬浮切屏': 'Hover to switch',
   '鼠标点击切屏': 'Click to switch',
   '关闭虚拟屏': 'Close virtual screen',

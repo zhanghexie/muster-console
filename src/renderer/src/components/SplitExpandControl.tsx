@@ -1,32 +1,31 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { IconCheck, IconChevronLeft, IconChevronRight, IconCursor, IconLayout, IconMinus, IconMouse, IconPlus } from './icons';
+import { MOTION, usePresence, usePresenceValue } from './motion';
 
 export type HSwitchMode = 'hover' | 'click';
+type MenuDrop = HSwitchMode | 'focus';
 
 const H_SWITCH_MODE_KEY = 'muster.hSwitchMode';
 const LONG_PRESS_MS = 400;
 const MOVE_CANCEL_PX = 6;
-/** ＋/－ 落点中心相对按钮原点的横向偏移（px） */
-const SIZE_DROP_OFFSET_PX = 44;
-/** 悬停/点击落点：同类（切页模式），纵向堆叠在把手上侧——悬停在原点上方 48px、
- *  点击在其正上 96px。横向并排会占住左右调大小的拖动轴（一斜拖就被判成 size 轴、
- *  落点藏掉），2026-09-09 改纵向：纵向=选模式（上两位）、正下=专注、左右=调大小 */
-const MODE_ROW_OFFSET_PX = 48;
-const MODE_ROW2_OFFSET_PX = 96;
-/** 「关闭虚拟屏」落点偏移：与悬浮/点击平行，恒在把手正下方（行为=原专注模式，仅改名） */
-const FOCUS_DROP_OFFSET_PX = 48;
-/** 落点命中半径（px）：最近落点间距 48（悬停↔点击纵向相邻），24 恰不重叠 */
-const HIT_RADIUS_PX = 24;
+const AXIS_LOCK_PX = 8;
+const MENU_WIDTH = 196;
+const MENU_ROW = 32;
+const MENU_INSET = 5;
+const MENU_HEIGHT = 4 * MENU_ROW + 2 * MENU_INSET;
+const VIEWPORT_INSET = 8;
 
-/** 长按菜单落点：切屏方式两轴 + 关闭虚拟屏（内部名 focus——行为即原专注模式，仅改名） */
-export type MenuDrop = HSwitchMode | 'focus';
-/** |dx| 超过该值点亮左右调节指示 */
-const SIZE_ARM_PX = 8;
+const modeItems = {
+  click: { label: '鼠标点击切屏', Icon: IconMouse },
+  hover: { label: '鼠标悬浮切屏', Icon: IconCursor },
+  focus: { label: '关闭虚拟屏', Icon: IconLayout }
+} as const;
 
 export function loadHSwitchMode(): HSwitchMode {
   try {
-    const v = localStorage.getItem(H_SWITCH_MODE_KEY);
-    if (v === 'click' || v === 'hover') return v;
+    const value = localStorage.getItem(H_SWITCH_MODE_KEY);
+    if (value === 'click' || value === 'hover') return value;
   } catch {
     /* ignore */
   }
@@ -43,78 +42,66 @@ export function saveHSwitchMode(mode: HSwitchMode): void {
 
 type Props = {
   hVs: boolean;
-  /**
-   * 专注模式（混合手势）：短按=退出；按住不动 400ms=弹菜单（悬停/点击/专注三落点
-   * 平行，当前模式高亮，拖到任一落点即切）；按住后左右拖=边界跟手调会话/右侧比例
-   * （无切页模式轴）
-   */
   focusMode?: boolean;
-  /** 0～1，相对中间热区 */
+  /** 把手相对全高热区的位置。 */
   along: number;
   switchMode: HSwitchMode;
   visible: boolean;
   onAlong: (t: number) => void;
   onHotChange: (hot: boolean) => void;
   onSwitchMode: (mode: HSwitchMode) => void;
-  /** 「关闭虚拟屏」落点（原「专注」，仅改名）：切换双栏全屏态（focusMode），
-   *  已在该态时重复提交为空操作 */
   onToggleFocus: () => void;
-  /** 按钮指针进出：避免热区 leave 卸掉按钮 */
   onBtnPointerActive: (active: boolean) => void;
-  /** 当前分割边界中心的视口 X（跟手渲染用；hVs/专注皆关时 undefined） */
+  /** 当前分割边界的视口 X。 */
   barX?: number;
-  /** 拖动向右时主区在变大 → 1，反之 -1（决定 ＋/－ 图标摆放） */
+  /** 向右拖时，激活侧是变宽还是变窄。 */
   growSign: 1 | -1;
-  /** 拖动轴变化上报：父层据此切换「被调侧模糊 + 等比例指示卡」 */
   onDragAxis?: (axis: 'size' | 'mode' | 'none') => void;
-  /** 长按拖拽水平轴：指针 X 即边界 X，实时调当前主态页宽（仅 hVs/专注开启时触发） */
   onResizeStart: () => void;
   onResizeMove: (pointerX: number) => void;
-  /** canceled=true（Escape / 指针取消）回滚拖拽前的大小 */
   onResizeEnd: (canceled: boolean) => void;
 };
 
-type DragState = {
-  originX: number;
-  originY: number;
-  dx: number;
-  dy: number;
-  hoverTarget: MenuDrop | null;
+type MenuLayout = {
+  left: number;
+  top: number;
+  rows: (MenuDrop | 'grip')[];
 };
 
-function hitMode(
-  clientX: number,
-  clientY: number,
-  originX: number,
-  originY: number
-): MenuDrop | null {
-  // 悬浮/点击切屏纵向堆叠在把手上侧、关闭虚拟屏在正下：纵向=选切屏方式、
-  // 左右=调大小，轴互不打架
-  const hits: { mode: MenuDrop; x: number; y: number }[] = [
-    { mode: 'hover', x: originX, y: originY - MODE_ROW_OFFSET_PX },
-    { mode: 'click', x: originX, y: originY - MODE_ROW2_OFFSET_PX },
-    { mode: 'focus', x: originX, y: originY + FOCUS_DROP_OFFSET_PX }
-  ];
-  for (const h of hits) {
-    const dx = clientX - h.x;
-    const dy = clientY - h.y;
-    if (dx * dx + dy * dy <= HIT_RADIUS_PX * HIT_RADIUS_PX) return h.mode;
-  }
-  return null;
+type Press = {
+  pointerId: number;
+  x: number;
+  y: number;
+  originX: number;
+  originY: number;
+  layout: MenuLayout;
+  picking: boolean;
+};
+
+type Drag = { x: number; target: MenuDrop | null };
+
+function layoutMenu(x: number, y: number, frame: DOMRect): MenuLayout {
+  const roomAbove = y - Math.max(frame.top, 0);
+  const roomBelow = Math.min(frame.bottom, window.innerHeight) - y;
+  const gripOffset = (row: number): number => MENU_INSET + (row + 0.5) * MENU_ROW;
+  const fitsAroundGrip = roomAbove >= gripOffset(2) && roomBelow >= MENU_HEIGHT - gripOffset(2);
+  const rows: MenuLayout['rows'] = ['click', 'hover', 'focus'];
+  const gripRow = fitsAroundGrip ? 2 : roomAbove > roomBelow ? 3 : 0;
+  rows.splice(gripRow, 0, 'grip');
+  const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+  const left = Math.max(VIEWPORT_INSET, Math.min(x - MENU_WIDTH / 2, viewportWidth - MENU_WIDTH - VIEWPORT_INSET));
+  return { left: left - x, top: -gripOffset(gripRow), rows };
 }
 
-/**
- * 分割条把手：无短按动作（开/关虚拟屏与顶栏右栏开关重复，2026-10-10 用户定稿
- * 去除；「关闭虚拟屏」态的恢复走菜单落点或右栏开关）；长按弹出三平行落点
- * （鼠标悬浮切屏/鼠标点击切屏/关闭虚拟屏），拖到任一落点即切。「关闭虚拟屏」
- * =双栏全屏并肩（原专注模式，2026-10-10 仅改名，行为不变）。当前态高亮：
- * 双栏全屏态高亮「关闭虚拟屏」、此时两切屏方式落点不高亮（用户定稿）；否则
- * 高亮现行切屏方式。该态下拖到悬浮/点击由宿主一步退出并应用切屏方式。
- * 长按后左右拖 = 边界跟手，实时调当前主态页宽（双栏全屏态调左/右比例）。
- * 两轴交互互斥显示：水平拖显示 ＋/－（指示变大变小）与实时比例读数、隐藏切屏胶囊；
- * 纵向拖则反之；未拖动时都显示。悬浮/点击同类（切屏方式），纵向堆叠在把手上侧
- * （悬浮近、点击远）；「关闭虚拟屏」另一类，恒在正下方。
- */
+function hitMode(press: Press, x: number, y: number): MenuDrop | null {
+  const localX = x - press.originX - press.layout.left;
+  if (localX < MENU_INSET || localX >= MENU_WIDTH - MENU_INSET) return null;
+  const row = Math.floor((y - press.originY - press.layout.top - MENU_INSET) / MENU_ROW);
+  const target = press.layout.rows[row];
+  return target && target !== 'grip' ? target : null;
+}
+
+/** 分割条长按后纵向选切屏方式，横向拖动调宽。 */
 export function SplitExpandControl({
   hVs,
   focusMode = false,
@@ -134,415 +121,344 @@ export function SplitExpandControl({
   onResizeEnd
 }: Props): React.JSX.Element | null {
   const { t } = useTranslation();
-  /** 水平拖调边界是否可用：虚拟屏开启或专注模式 */
-  const dragEnabled = hVs || focusMode;
-  const [picking, setPicking] = useState(false);
-  // 悬停提示（自绘，替代原生 title——捕获中 title 无法消散）：悬停显示、按下/菜单即隐
-  const [hintHover, setHintHover] = useState(false);
-  const [pressed, setPressed] = useState(false);
-  const [drag, setDrag] = useState<DragState | null>(null);
-  /** 拖动轴锁：首次越过阈值即锁定（size/mode），整个手势期间不再换轴 */
+  const currentMode = focusMode ? 'focus' : switchMode;
+  const menuId = useId();
+  const hitRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const pressRef = useRef<Press | null>(null);
   const dragAxisRef = useRef<'size' | 'mode' | null>(null);
-  const longTimerRef = useRef<number | null>(null);
-  const pressRef = useRef<{
-    x: number;
-    y: number;
-    originX: number;
-    originY: number;
-    moved: boolean;
-    picking: boolean;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
-  const moveFrameRef = useRef<number | null>(null);
-  const pendingMoveRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const longTimer = useRef<number | null>(null);
+  const moveFrame = useRef<number | null>(null);
+  const pendingMove = useRef<{ x: number; y: number } | null>(null);
+  const [pressed, setPressed] = useState(false);
+  const [hintHover, setHintHover] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [keyboardMenu, setKeyboardMenu] = useState<MenuLayout | null>(null);
+  const dragAxis = drag ? dragAxisRef.current : null;
+
+  const showHandle = visible || pressed || focused || keyboardMenu !== null;
+  const handlePresence = usePresence(showHandle, MOTION.microMs);
+  const hintPresence = usePresence(visible && hintHover && !pressed && !keyboardMenu, MOTION.microMs);
+  const resizePresence = usePresence(drag !== null || keyboardMenu !== null, MOTION.microMs);
+  const pointerMenu = drag && dragAxis !== 'size' ? pressRef.current?.layout : null;
+  const menuLayout = keyboardMenu ?? pointerMenu;
+  const { presence: menuPresence, value: menu } = usePresenceValue(
+    menuLayout ? { layout: menuLayout, target: drag?.target, currentMode } : null,
+    MOTION.microMs
+  );
 
   const clearLongTimer = useCallback(() => {
-    if (longTimerRef.current != null) {
-      window.clearTimeout(longTimerRef.current);
-      longTimerRef.current = null;
-    }
+    if (longTimer.current !== null) window.clearTimeout(longTimer.current);
+    longTimer.current = null;
   }, []);
 
   const cancelMoveFrame = useCallback(() => {
-    if (moveFrameRef.current != null) {
-      window.cancelAnimationFrame(moveFrameRef.current);
-      moveFrameRef.current = null;
-    }
-    pendingMoveRef.current = null;
+    if (moveFrame.current !== null) window.cancelAnimationFrame(moveFrame.current);
+    moveFrame.current = null;
+    pendingMove.current = null;
   }, []);
 
-  const endPick = useCallback(
-    (commit: MenuDrop | null, canceled = false) => {
-      clearLongTimer();
-      cancelMoveFrame();
-      pressRef.current = null;
-      setPicking(false);
-      setPressed(false);
-      setDrag(null);
-      dragAxisRef.current = null;
-      onBtnPointerActive(false);
-      // 拖拽中边界/条带跟指针走，松手时指针通常仍压在条上：保持热态（线体加亮
-      // + 按钮召出），等指针真正离开条带再熄
-      onHotChange(true);
-      if (dragEnabled) onResizeEnd(canceled);
-      // 三落点（悬浮/点击切屏/关闭虚拟屏）：拖到非当前落点即切，「关闭虚拟屏」
-      // 已在该态时由宿主空操作；该态下拖到悬浮/点击由宿主一步退出并应用
-      if (commit === 'focus') {
-        if (!focusMode) onToggleFocus();
-      } else if (commit) onSwitchMode(commit);
-    },
-    [
-      clearLongTimer,
-      cancelMoveFrame,
-      onBtnPointerActive,
-      onHotChange,
-      onSwitchMode,
-      onToggleFocus,
-      dragEnabled,
-      focusMode,
-      onResizeEnd
-    ]
-  );
-
-  useEffect(
-    () => () => {
-      clearLongTimer();
-      cancelMoveFrame();
-    },
-    [clearLongTimer, cancelMoveFrame]
-  );
-
-  useEffect(() => {
-    if (!picking) return;
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') {
-        suppressClickRef.current = true;
-        endPick(null, true);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [picking, endPick]);
-
-  // 截图/录屏等工具会抢走指针捕获或窗口焦点：不收尾的话拖拽永远停在 picking、
-  // 快照遮罩退不出去（2026-10-10 用户反馈）。捕获丢失与窗口失焦都按取消收尾并
-  // 回滚。正常松手释放捕获也会触发 lostpointercapture——pressRef 已清即为正常路径。
-  const onLostCapture = useCallback((): void => {
-    if (pressRef.current) endPick(null, true);
-  }, [endPick]);
-
-  useEffect(() => {
-    if (!picking) return;
-    const onBlur = (): void => endPick(null, true);
-    window.addEventListener('blur', onBlur);
-    return () => window.removeEventListener('blur', onBlur);
-  }, [picking, endPick]);
-
-  const onHitEnter = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (picking) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0.5;
-    onAlong(Math.min(1, Math.max(0, ratio)));
-    onHotChange(true);
-  };
-
-  const onHitMove = (e: React.PointerEvent<HTMLDivElement>): void => {
-    if (picking) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = rect.height > 0 ? (e.clientY - rect.top) / rect.height : 0.5;
-    onAlong(Math.min(1, Math.max(0, ratio)));
-  };
-
-  const applyPickMove = useCallback((clientX: number, clientY: number): void => {
-    const p = pressRef.current;
-    if (!p?.picking) return;
-    const dx = clientX - p.originX;
-    const dy = clientY - p.originY;
-    if (!dragAxisRef.current && (Math.abs(dx) > SIZE_ARM_PX || Math.abs(dy) > SIZE_ARM_PX)) {
-      dragAxisRef.current = Math.abs(dx) >= Math.abs(dy) ? 'size' : 'mode';
-    }
-    if (dragEnabled) {
-      onResizeMove(dragAxisRef.current === 'mode' ? p.originX : clientX);
-    }
-    setDrag({
-      originX: p.originX,
-      originY: p.originY,
-      dx,
-      dy,
-      hoverTarget: hitMode(clientX, clientY, p.originX, p.originY)
-    });
-  }, [dragEnabled, onResizeMove]);
-
-  const flushPendingMove = useCallback((): void => {
-    const move = pendingMoveRef.current;
+  useEffect(() => () => {
+    clearLongTimer();
     cancelMoveFrame();
-    if (move) applyPickMove(move.clientX, move.clientY);
-  }, [applyPickMove, cancelMoveFrame]);
+  }, [clearLongTimer, cancelMoveFrame]);
 
-  const onBtnDown = (e: React.PointerEvent<HTMLButtonElement>): void => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const btn = e.currentTarget;
-    const br = btn.getBoundingClientRect();
-    const originX = br.left + br.width / 2;
-    const originY = br.top + br.height / 2;
-    pressRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      originX,
-      originY,
-      moved: false,
-      picking: false
-    };
+  useEffect(() => {
+    if (!visible) setHintHover(false);
+  }, [visible]);
+
+  const applyMode = useCallback((mode: MenuDrop) => {
+    if (mode !== 'focus') onSwitchMode(mode);
+    else if (!focusMode) onToggleFocus();
+  }, [focusMode, onSwitchMode, onToggleFocus]);
+
+  const endPress = useCallback((mode: MenuDrop | null, canceled = false) => {
+    const press = pressRef.current;
+    if (!press) return;
+    const wasResizing = dragAxisRef.current === 'size';
+    pressRef.current = null;
     dragAxisRef.current = null;
-    suppressClickRef.current = false;
+    clearLongTimer();
+    cancelMoveFrame();
+    setPressed(false);
+    setDrag(null);
+    onBtnPointerActive(false);
+    // 清除手势后再释放捕获，正常松手派发的 lostpointercapture 不会重复收尾。
+    const button = buttonRef.current;
+    if (button?.hasPointerCapture?.(press.pointerId)) button.releasePointerCapture(press.pointerId);
+    if (wasResizing) onResizeEnd(canceled);
+    else if (press.picking) onDragAxis?.('none');
+    if (mode) applyMode(mode);
+  }, [applyMode, cancelMoveFrame, clearLongTimer, onBtnPointerActive, onDragAxis, onResizeEnd]);
+
+  const closeKeyboardMenu = useCallback((restoreFocus: boolean) => {
+    if (restoreFocus) buttonRef.current?.focus({ preventScroll: true });
+    setKeyboardMenu(null);
+    onBtnPointerActive(false);
+  }, [onBtnPointerActive]);
+
+  useEffect(() => {
+    if (!pressed && !keyboardMenu) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (pressRef.current) endPress(null, true);
+      else closeKeyboardMenu(true);
+    };
+    const onBlur = (): void => {
+      if (pressRef.current) endPress(null, true);
+      if (keyboardMenu) closeKeyboardMenu(false);
+    };
+    const onOutside = (event: PointerEvent): void => {
+      if (keyboardMenu && !hitRef.current?.contains(event.target as Node)) closeKeyboardMenu(false);
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('pointerdown', onOutside, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('pointerdown', onOutside, true);
+    };
+  }, [closeKeyboardMenu, endPress, keyboardMenu, pressed]);
+
+  useLayoutEffect(() => {
+    if (keyboardMenu && menuPresence.mounted) {
+      menuRef.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus({ preventScroll: true });
+    }
+  }, [keyboardMenu, menuPresence.mounted]);
+
+  const updateAnchor = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (pressRef.current || keyboardMenu) return;
+    const { top, height } = event.currentTarget.getBoundingClientRect();
+    if (height) onAlong(Math.min(1, Math.max(0, (event.clientY - top) / height)));
+    if (!visible) onHotChange(true);
+  };
+
+  const applyMove = (x: number, y: number): void => {
+    const press = pressRef.current;
+    if (!press?.picking) return;
+    const dx = Math.abs(x - press.x);
+    const dy = Math.abs(y - press.y);
+    const relativeY = y - press.originY;
+    const inResizeRow = relativeY >= -MENU_ROW / 2 && relativeY < MENU_ROW / 2;
+    // 选项预览允许回到胶囊所在行重新调宽。调宽开始后则只随横向位移。
+    if (dragAxisRef.current !== 'size' && inResizeRow && dx > AXIS_LOCK_PX) {
+      dragAxisRef.current = 'size';
+      onResizeStart();
+      onDragAxis?.('size');
+    } else if (!dragAxisRef.current && Math.max(dx, dy) > AXIS_LOCK_PX) {
+      dragAxisRef.current = 'mode';
+      onDragAxis?.('mode');
+    }
+    if (dragAxisRef.current === 'size') onResizeMove(press.originX + x - press.x);
+    const target = dragAxisRef.current === 'mode' ? hitMode(press, x, y) : null;
+    setDrag(previous => previous?.x === x && previous.target === target ? previous : { x, target });
+  };
+
+  const onBtnDown = (event: React.PointerEvent<HTMLButtonElement>): void => {
+    if (event.button !== 0 || pressRef.current || !hitRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const originX = rect.left + rect.width / 2;
+    const originY = rect.top + rect.height / 2;
+    pressRef.current = {
+      pointerId: event.pointerId, x: event.clientX, y: event.clientY, originX, originY, picking: false,
+      layout: layoutMenu(originX, originY, hitRef.current.getBoundingClientRect())
+    };
+    setKeyboardMenu(null);
     setPressed(true);
     onBtnPointerActive(true);
     onHotChange(true);
-    clearLongTimer();
-    btn.setPointerCapture(e.pointerId);
-    longTimerRef.current = window.setTimeout(() => {
-      longTimerRef.current = null;
-      const p = pressRef.current;
-      if (!p || p.moved) return;
-      p.picking = true;
-      setPicking(true);
-      if (dragEnabled) onResizeStart();
-      setDrag({
-        originX: p.originX,
-        originY: p.originY,
-        dx: 0,
-        dy: 0,
-        // 菜单初开即预亮当前态落点（双栏全屏态预亮「关闭虚拟屏」）
-        hoverTarget: focusMode ? 'focus' : switchMode
-      });
+    button.setPointerCapture(event.pointerId);
+    longTimer.current = window.setTimeout(() => {
+      longTimer.current = null;
+      const press = pressRef.current;
+      if (!press) return;
+      press.picking = true;
+      setDrag({ x: press.originX, target: currentMode });
     }, LONG_PRESS_MS);
   };
 
-  const onBtnMove = (e: React.PointerEvent<HTMLButtonElement>): void => {
-    const p = pressRef.current;
-    if (!p) return;
-    const dist = Math.hypot(e.clientX - p.x, e.clientY - p.y);
-    if (!p.picking && dist > MOVE_CANCEL_PX) {
-      p.moved = true;
-      clearLongTimer();
+  const onBtnMove = (event: React.PointerEvent<HTMLButtonElement>): void => {
+    const press = pressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    if (!press.picking) {
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) > MOVE_CANCEL_PX) clearLongTimer();
+      return;
     }
-    if (!p.picking) return;
-    pendingMoveRef.current = { clientX: e.clientX, clientY: e.clientY };
-    if (moveFrameRef.current == null) {
-      moveFrameRef.current = window.requestAnimationFrame(() => {
-        moveFrameRef.current = null;
-        const move = pendingMoveRef.current;
-        pendingMoveRef.current = null;
-        if (move) applyPickMove(move.clientX, move.clientY);
-      });
-    }
+    pendingMove.current = { x: event.clientX, y: event.clientY };
+    if (moveFrame.current !== null) return;
+    moveFrame.current = window.requestAnimationFrame(() => {
+      moveFrame.current = null;
+      const move = pendingMove.current;
+      pendingMove.current = null;
+      if (move) applyMove(move.x, move.y);
+    });
   };
 
-  const onBtnUp = (e: React.PointerEvent<HTMLButtonElement>): void => {
-    clearLongTimer();
-    flushPendingMove();
-    setPressed(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    // 捕获释放可能同步触发 lostpointercapture（已按取消收尾）：以现值为准，
-    // 不用进函数时的旧引用，避免二次 endPick
-    const p = pressRef.current;
-    if (!p) {
-      onBtnPointerActive(false);
-      return;
-    }
-    if (p.picking) {
-      // 调大小轴锁定的松手不提交落点（落点早已隐藏，指针也可能恰好停在
-      // 某落点的旧位置上）
-      const mode =
-        dragAxisRef.current === 'size'
-          ? null
-          : hitMode(e.clientX, e.clientY, p.originX, p.originY);
-      suppressClickRef.current = true;
-      endPick(mode);
-      return;
-    }
-    // 短按已去功能（2026-10-10 用户定稿）：开/关虚拟屏与顶栏右栏开关重复，
-    // 把手只承担长按菜单与左右拖调宽；suppressClick 仍防拖后误触
-    pressRef.current = null;
-    onBtnPointerActive(false);
+  const onBtnUp = (event: React.PointerEvent<HTMLButtonElement>): void => {
+    const press = pressRef.current;
+    if (press?.pointerId !== event.pointerId) return;
+    const move = pendingMove.current;
+    if (move) applyMove(move.x, move.y);
+    const mode = press.picking && dragAxisRef.current === 'mode' ? hitMode(press, event.clientX, event.clientY) : null;
+    endPress(mode);
   };
 
-  const onBtnCancel = (e: React.PointerEvent<HTMLButtonElement>): void => {
-    clearLongTimer();
-    cancelMoveFrame();
-    setPressed(false);
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-    if (!pressRef.current) {
-      onBtnPointerActive(false);
-      return;
-    }
-    if (picking) {
-      suppressClickRef.current = true;
-      endPick(null, true);
-      return;
-    }
-    pressRef.current = null;
-    onBtnPointerActive(false);
+  const openKeyboardMenu = (event: React.MouseEvent<HTMLButtonElement>): void => {
+    if (event.detail !== 0 || pressRef.current || !hitRef.current) return;
+    const { left, top, width, height } = event.currentTarget.getBoundingClientRect();
+    setKeyboardMenu(layoutMenu(left + width / 2, top + height / 2, hitRef.current.getBoundingClientRect()));
+    onBtnPointerActive(true);
   };
 
-  const show = visible || picking;
-  // 按钮脱离悬停/热态即复位提示，防止按钮重挂载后旧 hover 态残显示
-  useEffect(() => {
-    if (!show) setHintHover(false);
-  }, [show]);
-  const sizeArmed =
-    picking && dragEnabled && drag
-      ? drag.dx < -SIZE_ARM_PX
-        ? -1
-        : drag.dx > SIZE_ARM_PX
-          ? 1
-          : 0
-      : 0;
-  // 拖动轴互斥（锁定制）：首次越阈定轴后整手势不变——调大小轴藏切屏落点、
-  // 只显示 ＋/－；切屏方式轴反之；未越阈两者都显示
-  const dragAxis: 'size' | 'mode' | 'none' =
-    picking && drag ? dragAxisRef.current ?? 'none' : 'none';
+  const onMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    const rows = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button')];
+    const current = rows.indexOf(document.activeElement as HTMLButtonElement);
+    const next = event.key === 'ArrowUp' ? (current - 1 + rows.length) % rows.length
+      : event.key === 'ArrowDown' ? (current + 1) % rows.length
+      : event.key === 'Home' ? 0 : event.key === 'End' ? rows.length - 1 : null;
+    if (next === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    rows[next]?.focus();
+  };
 
-  useEffect(() => {
-    if (picking) onDragAxis?.(dragAxis);
-  }, [picking, dragAxis, onDragAxis]);
-
-  // 拖大小跟手：边界本身已随指针移动，按钮只需补上「指针位置 − 当前边界」的偏差；
-  // 未跟手场景（选模式 / 虚拟屏与专注皆关）维持按钮直接跟随指针
-  const btnDx =
-    picking && drag && dragEnabled && barX != null ? drag.originX + drag.dx - barX : drag?.dx ?? 0;
-  // 把手不挂原生 title（onBtnDown 的 preventDefault 抑制兼容鼠标事件，捕获中
-  // tooltip 控制器收不到通知、属性摘掉也不重算，提示会常驻到松手）；改为自绘
-  // 悬停提示：悬停显示、按下/长按菜单即隐。
-  const modeLabel = switchMode === 'hover' ? t('鼠标悬浮切屏') : t('鼠标点击切屏');
-  const hint = focusMode
-    ? t('虚拟屏已关闭（双栏全屏）· 长按拖到落点选切屏方式恢复，左右拖调整比例')
-    : hVs
-      ? t('长按选切屏方式（当前：{{mode}}），左右拖调大小', { mode: modeLabel })
-      : t('长按选切屏方式');
-
-  // 根节点 = 全高检测带兼触发区：整条压线即召出按钮，按钮锚点随指针纵向位置
-  // （along）落点。旧版只有竖直居中一小段触发区 + 幽灵胶囊指示器——两屏贴死
-  // 年代怕热区难触发才单独留块；页缝已有框色间隔后整条即热区，胶囊指示删除。
-  // 离开条带时连带清掉按钮热态，避免指针从按钮滑出后按钮残留。
   if (!hVs && !focusMode) return null;
+
+  const menuInteractive = keyboardMenu !== null && menuPresence.stage !== 'out';
+  const sizeDelta = dragAxis === 'size' && drag && pressRef.current ? drag.x - pressRef.current.x : 0;
+  const resizeDirection = sizeDelta < -AXIS_LOCK_PX ? 'left' : sizeDelta > AXIS_LOCK_PX ? 'right' : undefined;
+  const LeftSizeIcon = growSign < 0 ? IconPlus : IconMinus;
+  const RightSizeIcon = growSign > 0 ? IconPlus : IconMinus;
+  const label = t('虚拟屏操作');
 
   return (
     <div
+      ref={hitRef}
       className="pane-split-hit"
-      onPointerEnter={onHitEnter}
-      onPointerMove={onHitMove}
+      onPointerEnter={updateAnchor}
+      onPointerMove={updateAnchor}
       onPointerLeave={() => {
-        if (picking || pressRef.current) return;
-        onHotChange(false);
+        if (!pressRef.current && !keyboardMenu) onHotChange(false);
+      }}
+      onBlur={(event) => {
+        if (keyboardMenu && !event.currentTarget.contains(event.relatedTarget)) closeKeyboardMenu(false);
       }}
     >
-      {show && (
-        <div className="split-expand-anchor" style={{ top: `${along * 100}%` }}>
-          {hintHover && !picking && !pressed && (
-            <div className="split-hint-drop">{hint}</div>
+      <div className="split-expand-anchor" style={{ '--split-along': `${along * 100}%` } as React.CSSProperties}>
+        <button
+          ref={buttonRef}
+          type="button"
+          className="split-expand-btn"
+          aria-label={label}
+          aria-haspopup="menu"
+          aria-expanded={!!menuLayout}
+          aria-controls={menuInteractive ? menuId : undefined}
+          data-pointer-active={showHandle ? '' : undefined}
+          data-pressed={pressed ? '' : undefined}
+          data-direction={resizeDirection}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          onPointerEnter={() => {
+            setHintHover(true);
+            onBtnPointerActive(true);
+            onHotChange(true);
+          }}
+          onPointerLeave={() => {
+            setHintHover(false);
+            if (!pressRef.current && !keyboardMenu) onBtnPointerActive(false);
+          }}
+          onPointerDown={onBtnDown}
+          onPointerMove={onBtnMove}
+          onPointerUp={onBtnUp}
+          onPointerCancel={(event) => {
+            if (pressRef.current?.pointerId === event.pointerId) endPress(null, true);
+          }}
+          onLostPointerCapture={(event) => {
+            if (pressRef.current?.pointerId === event.pointerId) endPress(null, true);
+          }}
+          onClick={openKeyboardMenu}
+        >
+          {handlePresence.mounted && (
+            <span className="split-expand-grip mp-pop" {...handlePresence.spread}>
+              <span className="split-expand-glyph">
+                <IconChevronLeft size={12} />
+                <IconChevronRight size={12} />
+              </span>
+            </span>
           )}
-          {picking && (
-            <>
-              {/* ＋/－ 尺寸指示：普通模式水平主导时显示；专注下只在真拖水平轴时显示
-                  （按住不动弹的是模式菜单） */}
-              {dragEnabled && dragAxis !== 'mode' && (
-                <>
-                  <div
-                    className={`split-size-drop${sizeArmed < 0 ? ' is-armed' : ''}`}
-                    style={{ transform: `translate(calc(-50% - ${SIZE_DROP_OFFSET_PX}px), -50%)` }}
-                  >
-                    {growSign < 0 ? '＋' : '－'}
-                  </div>
-                  <div
-                    className={`split-size-drop${sizeArmed > 0 ? ' is-armed' : ''}`}
-                    style={{ transform: `translate(calc(-50% + ${SIZE_DROP_OFFSET_PX}px), -50%)` }}
-                  >
-                    {growSign > 0 ? '＋' : '－'}
-                  </div>
-                </>
-              )}
-              {dragAxis !== 'size' && (
-                <>
-                  {/* is-current = 当前态指示：双栏全屏态高亮「关闭虚拟屏」、
-                      两切屏方式落点不高亮（用户定稿）；否则高亮现行切屏方式 */}
-                  <div
-                    className={`split-mode-drop${
-                      !focusMode && switchMode === 'hover' ? ' is-current' : ''
-                    }${drag?.hoverTarget === 'hover' ? ' is-armed' : ''}`}
-                    style={{
-                      transform: `translate(-50%, calc(-50% - ${MODE_ROW_OFFSET_PX}px))`
+        </button>
+        {hintPresence.mounted && (
+          <div className="split-hint-position" data-side={barX !== undefined && barX < 250 ? 'right' : undefined} aria-hidden>
+            <div className="split-hint-drop mp-pop" {...hintPresence.spread}>{t('长按选择切屏方式，左右拖动调宽')}</div>
+          </div>
+        )}
+        {menuPresence.mounted && menu && (
+          <div className="split-menu-position" style={{
+            left: menu.layout.left,
+            top: menu.layout.top,
+            width: MENU_WIDTH,
+            '--split-menu-row': `${MENU_ROW}px`,
+            '--split-menu-inset': `${MENU_INSET}px`,
+            '--split-menu-x': `${-menu.layout.left}px`,
+            '--split-menu-y': `${-menu.layout.top}px`
+          } as React.CSSProperties}>
+            <div
+              ref={menuRef}
+              id={menuId}
+              className="split-mode-menu ui-menu mp-pop"
+              role="menu"
+              aria-label={label}
+              aria-hidden={!menuInteractive}
+              {...(!menuInteractive ? { inert: '' } : {})}
+              data-interactive={menuInteractive ? '' : undefined}
+              {...menuPresence.spread}
+              onKeyDown={onMenuKeyDown}
+            >
+              {menu.layout.rows.map((mode) => {
+                if (mode === 'grip') return <div key={mode} aria-hidden />;
+                const { Icon, label: itemLabel } = modeItems[mode];
+                const checked = menu.currentMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={checked}
+                    tabIndex={-1}
+                    className={`split-mode-drop${checked ? ' is-current' : ''}${menu.target === mode ? ' is-armed' : ''}`}
+                    data-mode={mode}
+                    onClick={() => {
+                      if (!menuInteractive) return;
+                      closeKeyboardMenu(true);
+                      applyMode(mode);
                     }}
                   >
-                    {t('鼠标悬浮切屏')}
-                  </div>
-                  <div
-                    className={`split-mode-drop${
-                      !focusMode && switchMode === 'click' ? ' is-current' : ''
-                    }${drag?.hoverTarget === 'click' ? ' is-armed' : ''}`}
-                    style={{
-                      transform: `translate(-50%, calc(-50% - ${MODE_ROW2_OFFSET_PX}px))`
-                    }}
-                  >
-                    {t('鼠标点击切屏')}
-                  </div>
-                </>
-              )}
-              {/* 「关闭虚拟屏」落点（原「专注」，仅改名）：与悬浮/点击同一轴互斥——
-                  水平真拖（调大小）时三落点一并让位给 ＋/－；当前态高亮 */}
-              {dragAxis !== 'size' && (
-                <div
-                  className={`split-mode-drop${focusMode ? ' is-current' : ''}${
-                    drag?.hoverTarget === 'focus' ? ' is-armed' : ''
-                  }`}
-                  style={{
-                    transform: `translate(-50%, calc(-50% + ${FOCUS_DROP_OFFSET_PX}px))`
-                  }}
-                >
-                  {t('关闭虚拟屏')}
-                </div>
-              )}
-            </>
-          )}
-          <button
-            type="button"
-            className={`split-expand-btn${dragEnabled ? ' is-on' : ''}${picking ? ' is-picking' : ''}`}
-            style={
-              picking && drag
-                ? {
-                    transform: `translate(calc(-50% + ${btnDx}px), calc(-50% + ${drag.dy}px))`
-                  }
-                : undefined
-            }
-            onPointerEnter={() => {
-              setHintHover(true);
-              onBtnPointerActive(true);
-              onHotChange(true);
-            }}
-            onPointerLeave={() => {
-              setHintHover(false);
-              if (!picking && !pressRef.current) onBtnPointerActive(false);
-            }}
-            onPointerDown={onBtnDown}
-            onPointerMove={onBtnMove}
-            onPointerUp={onBtnUp}
-            onPointerCancel={onBtnCancel}
-            onLostPointerCapture={onLostCapture}
-          >
-            {dragEnabled ? '◂▸' : '↔'}
-          </button>
-        </div>
-      )}
+                    <Icon size={14} />
+                    <span>{t(itemLabel)}</span>
+                    {checked && <IconCheck size={13} />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {resizePresence.mounted && (
+          <div className="split-resize-position" aria-hidden>
+            <div className="split-menu-resize mp-pop" data-direction={resizeDirection} {...resizePresence.spread}>
+              <LeftSizeIcon size={13} />
+              <RightSizeIcon size={13} />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

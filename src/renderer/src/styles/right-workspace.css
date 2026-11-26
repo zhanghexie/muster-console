@@ -74,14 +74,10 @@
 .right-resource-capsule button:hover { color: var(--raised-fg-primary); background: var(--raised-interaction-hover); }
 .right-resource-capsule button.is-selected { color: var(--raised-fg-selected-primary); background: var(--raised-interaction-selected); }
 .right-resource-capsule button.is-selected:hover { background: var(--raised-interaction-selected-hover); }
-.right-workspace-split { --right-resource-divider-width: 4px; flex: 1; min-height: 0; }
-.right-workspace-split > .split-pane-primary { position: relative; border-left: 1px solid var(--border-subtle); }
-.right-workspace-split > .split-pane-handle { width: var(--right-resource-divider-width); flex-basis: var(--right-resource-divider-width); }
-.right-workspace-split.is-web > .split-pane-handle { margin-right: calc(-1 * var(--right-resource-divider-width)); }
-.right-workspace-split:not(.resources-collapsed) .right-content-page.files-panel { height: auto; bottom: var(--right-resource-divider-width); }
-.right-workspace-split > .split-pane-handle .split-pane-handle-line { background: transparent; }
-.right-workspace-split > .split-pane-handle:hover .split-pane-handle-line { background: var(--divider-active); }
-.right-workspace-split > .split-pane-handle:focus-visible .split-pane-handle-line { background: var(--divider-focus); }
+.right-workspace-split { flex: 1; min-height: 0; }
+.right-workspace-split > .split-pane-primary { position: relative; }
+.right-workspace-split > .split-pane-handle { --split-pane-divider-rest: var(--border-subtle); }
+.right-workspace-split:not(.resources-collapsed) .right-content-page.files-panel { height: auto; bottom: var(--split-pane-divider-size, 4px); }
 .right-workspace-split.resources-collapsed > .split-pane-primary { flex: 0 0 0 !important; min-width: 0 !important; border: 0; overflow: hidden; pointer-events: none; }
 .right-workspace-split.resources-collapsed > .split-pane-handle { display: none; }
 .right-workspace-split.resources-collapsed > .split-pane-secondary { flex: 1 1 100% !important; min-width: 0 !important; }

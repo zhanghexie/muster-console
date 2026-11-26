@@ -377,6 +377,7 @@
   --elevation-raised: none; /* 卡片去投影只留描边：描边由 --border-control 单独承担 */
   --backdrop-blur: blur(16px) saturate(1.2);
   --frame-gap: 4px; /* 工作面外缘与底边留白。 */
+  --resize-divider-active-width: 3px; /* 对齐扩展 AI 侧栏的悬停与调宽反馈。 */
   --page-gap: var(--frame-gap); /* 中央页缝与外缘一致，默认 4px。 */
   --page-gap-before: round(down, calc(var(--page-gap) / 2), 1px); /* 奇数页缝按整像素分配。 */
   /* 左栏/顶栏左缘的统一内缩：底部框距的两倍（2026-10-10 用户定稿，先试两倍）。 */
@@ -464,7 +465,7 @@
   --ease-exit: cubic-bezier(0.4, 0, 0.2, 1); /* 退场：缓起快收 */
   --ease-hover: ease-out; /* 微交互（hover/图标） */
   --ease-move: cubic-bezier(0.33, 0.1, 0.25, 1); /* 大位移（虚拟屏条带/工作区胶片） */
-  --ease-loop: cubic-bezier(0.37, 0, 0.63, 1); /* 循环装饰（呼吸/轻浮；对称缓入缓出） */
+  --ease-loop: cubic-bezier(0.37, 0, 0.63, 1); /* 对称缓入缓出（循环装饰、双向伸缩） */
   --dur-micro: 120ms; /* hover/图标旋转 */
   --dur-menu: 160ms; /* 菜单/小浮层 */
   --dur-panel: 280ms; /* 面板/弹窗入场 */
@@ -903,8 +904,7 @@ button,
 .ui-menu,
 .c-select-menu,
 .split-expand-btn,
-.split-mode-drop,
-.split-size-drop {
+.split-hint-drop {
   --fg-primary: var(--overlay-fg-primary);
   --border-focus: var(--overlay-border-focus);
   --fg-secondary: var(--overlay-fg-secondary);
@@ -1606,37 +1606,46 @@ input[type='search'].ctrl-search {
   position: relative;
 }
 
-/* 左栏宽度手柄：骑在左栏右缘，拖动占中栏宽度（页总宽不变） */
+/* 左右调宽的线居中绘制；命中区与面板间距由各宿主决定。 */
+.resize-divider::before,
+.resize-divider-line {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  inline-size: 1px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  pointer-events: none;
+}
+
+.resize-divider::before {
+  content: '';
+  background: transparent;
+}
+
+.resize-divider:is(:hover, .is-resizing, .active, [data-resizing])::before,
+:is(:hover, .hot, .is-hot, [data-resizing]) > .resize-divider-line {
+  inline-size: var(--resize-divider-active-width);
+}
+
+/* 左栏宽度手柄骑在左栏右缘，拖动占中栏宽度（页总宽不变）。 */
 .left-col-resizer {
   position: absolute;
   top: 0;
   bottom: 0;
   width: 7px;
-  /* left = 栏宽 = 左栏宿主右缘；命中区略偏左以便从左栏触达。 */
-  transform: translateX(calc(-50% - 4px));
+  transform: translateX(-50%);
   z-index: var(--z-sticky);
   cursor: col-resize;
   touch-action: none;
 }
 
-.left-col-resizer::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: transparent;
-  transition: background var(--dur-micro) var(--ease-hover);
-}
-
-.left-col-resizer:hover::after,
-.left-col-resizer.is-resizing::after {
+.left-col-resizer:hover::before,
+.left-col-resizer.is-resizing::before {
   background: var(--divider-active);
 }
 
-.left-col-resizer:focus-visible::after {
+.left-col-resizer:focus-visible::before {
   background: var(--divider-focus);
 }
 
@@ -1844,7 +1853,7 @@ input[type='search'].ctrl-search {
 
 /*
  * 分割条：挂在 h-strip 内，跟虚拟屏 transform 一起动。
- * 静息露出框底，压线时显线。全高 28px 检测带（.pane-split-hit）兼触发区：
+ * 静息露出框底，压线时显线。全高检测带（.pane-split-hit）兼触发区：
  * 压线任意位置即召出按钮（.hot），按钮锚点随指针纵向位置落点——旧版只有
  * 竖直居中一小段触发区 + 幽灵胶囊指示（两屏贴死年代怕热区难触发的妥协），
  * 页缝已有框色间隔后整条即热区，胶囊指示删除。按钮是检测带子节点，
@@ -1867,9 +1876,8 @@ input[type='search'].ctrl-search {
 }
 
 /* 页缝有框色间隔时热区收窄到缝本身：28px 检测带会盖住两侧页面边缘的滚动条，
-   指针还没进缝就召出按钮、拖不了滚动条（2026-10-10 用户反馈）。VS 开启与
-   专注并肩都有页缝，热区=缝宽；VS 关闭时分割条贴右缘无缝可依，保持 28px
-   边缘条作为再开虚拟屏的入口。 */
+   指针还没进缝就召出按钮、拖不了滚动条（2026-10-10 用户反馈）。
+   VS 开启与专注并肩都有页缝，热区与页缝同宽。 */
 .main-view.h-vs-on .pane-split-v,
 .main-view.is-focus .pane-split-v {
   width: var(--page-gap, 4px);
@@ -1883,17 +1891,8 @@ input[type='search'].ctrl-search {
   transition: opacity var(--dur-micro) var(--ease-hover);
 }
 
-.pane-split-v .pane-split-line {
-  width: 1px;
-  height: 100%;
-}
-
 .pane-split.hot .pane-split-line {
   background: var(--divider-active);
-}
-
-.pane-split-v.hot .pane-split-line {
-  width: 1px;
 }
 
 /* 全高检测带兼触发区：整条压线即召出按钮 */
@@ -1910,8 +1909,9 @@ input[type='search'].ctrl-search {
 .split-expand-anchor {
   position: absolute;
   left: 50%;
-  width: 0;
-  height: 0;
+  top: clamp(26px, var(--split-along), calc(100% - 26px));
+  inline-size: 0;
+  block-size: 0;
   z-index: var(--z-dropdown);
 }
 
@@ -1919,131 +1919,180 @@ input[type='search'].ctrl-search {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: var(--z-dropdown);
+  z-index: 2;
   transform: translate(-50%, -50%);
-  pointer-events: auto;
-  border: 1px solid var(--border-control);
-  background: var(--surface-overlay);
+  display: grid;
+  place-items: center;
+  inline-size: 28px;
+  block-size: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--fg-secondary);
-  border-radius: var(--radius-pill);
-  --corner-shape: round;
-  min-width: 28px;
-  height: 24px;
-  padding: 0 8px;
-  font-size: var(--font-ui);
-  line-height: 1;
-  cursor: pointer;
-  box-shadow: var(--shadow-pop);
+  pointer-events: none;
+  cursor: col-resize;
   touch-action: none;
   user-select: none;
 }
 
-.split-expand-btn:hover {
-  color: var(--fg-primary);
-  border-color: var(--border-control);
-  background: var(--overlay-interaction-pressed);
+.split-expand-btn[data-pointer-active] {
+  pointer-events: auto;
 }
 
-.split-expand-btn.is-on {
-  color: var(--fg-primary);
-  border-color: var(--border-control);
-}
-
-.split-expand-btn.is-picking {
-  cursor: grabbing;
-  color: var(--fg-primary);
-  background: var(--overlay-interaction-pressed);
-  box-shadow: var(--shadow-pop);
-  z-index: calc(var(--z-dropdown) + 2);
-}
-
-.split-mode-drop {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: calc(var(--z-dropdown) + 1);
-  pointer-events: none;
-  min-width: 44px;
-  height: 24px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
-  background: var(--surface-overlay);
-  color: var(--fg-secondary);
-  font-size: var(--font-caption);
-  line-height: 1;
-  box-shadow: var(--shadow-pop);
-  white-space: nowrap;
-}
-
-.split-mode-drop.is-current {
-  color: var(--fg-primary);
-  border-color: var(--border-focus);
-}
-
-.split-mode-drop.is-armed {
-  color: var(--fg-primary);
-  background: var(--overlay-interaction-pressed);
-  border-color: var(--fg-primary);
-}
-
-/* 把手悬停提示（自绘替代原生 title——preventDefault 抑制鼠标事件后捕获中
- * title 无法消散）：悬停显示、按下/长按菜单即隐，让位到按钮左侧。
- * width:max-content 必须显式给：定位上下文是 0 宽锚点（且在缝宽热区内），
- * auto 收缩适配会塌到最小内容宽——中文一字一行变竖条 */
-.split-hint-drop {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: var(--z-dropdown);
-  pointer-events: none;
-  width: max-content;
-  max-width: 340px;
-  padding: 5px 10px;
-  border: 1px solid var(--border-control);
-  border-radius: var(--radius-control);
-  background: var(--surface-overlay);
-  color: var(--fg-secondary);
-  font-size: var(--font-caption);
-  line-height: 1.5;
-  box-shadow: var(--shadow-pop);
-  transform: translate(calc(-100% - 10px), -50%);
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-/*
- * 长按调节指示：左右两个圆形图标，仅按拖动方向点亮（非落点）。
- */
-.split-size-drop {
-  position: absolute;
-  left: 0;
-  top: 0;
-  z-index: calc(var(--z-dropdown) + 1);
-  pointer-events: none;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.split-expand-grip {
+  display: grid;
+  place-items: center;
+  inline-size: 26px;
+  block-size: 28px;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-pill);
   --corner-shape: round;
   background: var(--surface-overlay);
-  color: var(--fg-secondary);
-  font-size: var(--font-ui);
-  line-height: 1;
-  box-shadow: var(--shadow-pop);
-  transition: color var(--dur-micro) var(--ease-hover), background var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+  pointer-events: none;
 }
 
-.split-size-drop.is-armed {
+.split-expand-btn:is(:hover, [data-pressed], :focus-visible) {
   color: var(--fg-primary);
-  background: var(--overlay-interaction-pressed);
+}
+
+.split-expand-btn:is(:hover, :focus-visible) .split-expand-grip {
+  background: var(--interaction-hover);
+  border-color: var(--border-focus);
+}
+
+.split-expand-btn[data-pressed] .split-expand-grip {
+  background: var(--interaction-pressed);
+}
+
+.split-expand-glyph {
+  display: flex;
+  align-items: center;
+}
+
+.split-expand-glyph > svg + svg {
+  margin-inline-start: -4px;
+}
+
+.split-expand-btn[data-direction='left'] .split-expand-glyph > svg:last-child,
+.split-expand-btn[data-direction='right'] .split-expand-glyph > svg:first-child {
+  color: var(--fg-muted);
+}
+
+.split-menu-position,
+.split-resize-position,
+.split-hint-position {
+  position: absolute;
+  pointer-events: none;
+}
+
+.split-hint-position[data-side='right'] {
+  transform: translate(22px, -50%);
+}
+
+.split-menu-position,
+.split-resize-position {
+  z-index: 1;
+}
+
+.split-resize-position {
+  top: 0;
+  left: 0;
+  transform: translate(-50%, -50%);
+}
+
+.split-mode-menu {
+  display: grid;
+  grid-auto-rows: var(--split-menu-row);
+  padding: calc(var(--split-menu-inset) - 1px);
+  transform-origin: var(--split-menu-x) var(--split-menu-y);
+}
+
+/* 展开和收起共用把手原点和胶囊尺寸。 */
+.split-mode-menu.mp-pop:is([data-mp-stage='enter'], [data-mp-stage='out']) {
+  transform: scale(0.35, 0.18);
+}
+
+.split-mode-menu.mp-pop:is([data-mp-stage='in'], [data-mp-stage='out']) {
+  transition-duration: var(--dur-micro);
+  transition-timing-function: var(--ease-loop);
+}
+
+.split-mode-menu[data-interactive] {
+  pointer-events: auto;
+}
+
+.split-mode-drop {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.2;
+  text-align: start;
+  cursor: pointer;
+}
+
+.split-mode-drop.is-current {
+  color: var(--fg-primary);
+}
+
+.split-mode-drop.is-armed,
+.split-mode-menu[data-interactive] .split-mode-drop:is(:hover, :focus-visible) {
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.split-mode-drop > svg:last-child {
+  justify-self: end;
+}
+
+.split-menu-resize {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 68px;
+  block-size: 24px;
+  padding-inline: 5px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  --corner-shape: round;
+  background: var(--overlay-interaction-hover);
+  color: var(--overlay-fg-muted);
+  pointer-events: none;
+}
+
+.split-menu-resize[data-direction='left'] > svg:first-child,
+.split-menu-resize[data-direction='right'] > svg:last-child {
+  color: var(--overlay-fg-primary);
+}
+
+/* 提示定位层与进出场层分开，缩放时贴着把手一侧。 */
+.split-hint-position {
+  left: 0;
+  top: 0;
+  inline-size: max-content;
+  max-inline-size: 220px;
+  transform: translate(calc(-100% - 22px), -50%);
+}
+
+.split-hint-drop {
+  padding: 4px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+  transform-origin: right center;
+}
+
+.split-hint-position[data-side='right'] .split-hint-drop {
+  transform-origin: left center;
 }
 
 /* 工作区整屏胶片：固定骨架 ↔ 实况纵向滑动（不截屏） */
@@ -2233,7 +2282,7 @@ body.is-panel-resizing {
 }
 
 .split-pane-handle {
-  flex: 0 0 6px;
+  flex: 0 0 var(--split-pane-divider-size);
   position: relative;
   z-index: 4;
   display: flex;
@@ -2247,6 +2296,10 @@ body.is-panel-resizing {
   cursor: col-resize;
 }
 
+.split-pane.is-divider-overlay > .split-pane-handle-row {
+  margin-inline: calc(var(--split-pane-divider-size) / -2);
+}
+
 .split-pane-handle-column {
   cursor: row-resize;
 }
@@ -2255,11 +2308,6 @@ body.is-panel-resizing {
   background: var(--divider-rest);
   pointer-events: none;
   transition: opacity var(--dur-micro) var(--ease-hover);
-}
-
-.split-pane-handle-row .split-pane-handle-line {
-  width: 1px;
-  height: 100%;
 }
 
 .split-pane-handle-column .split-pane-handle-line {
@@ -2271,11 +2319,6 @@ body.is-panel-resizing {
 .split-pane-handle:hover .split-pane-handle-line {
   background: var(--divider-active);
   box-shadow: none;
-}
-
-.split-pane-handle-row.is-hot .split-pane-handle-line,
-.split-pane-handle-row:hover .split-pane-handle-line {
-  width: 1px;
 }
 
 .split-pane-handle-column.is-hot .split-pane-handle-line,

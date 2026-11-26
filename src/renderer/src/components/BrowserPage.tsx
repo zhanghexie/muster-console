@@ -400,18 +400,23 @@ export function BrowserPage({
     const startW = tabbarW;
     let finalW = startW;
     el.setPointerCapture(e.pointerId);
+    el.setAttribute('data-resizing', '');
     const move = (ev: PointerEvent): void => {
       finalW = Math.max(140, Math.min(320, Math.round(startW + (startX - ev.clientX))));
       setTabbarW(finalW);
     };
-    const up = (ev: PointerEvent): void => {
-      el.releasePointerCapture(ev.pointerId);
+    const end = (): void => {
+      el.removeAttribute('data-resizing');
       el.removeEventListener('pointermove', move);
-      el.removeEventListener('pointerup', up);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      el.removeEventListener('lostpointercapture', end);
       void window.api.browser.setTabbar({ width: finalW }).catch((err) => flashTip(String(err)));
     };
     el.addEventListener('pointermove', move);
-    el.addEventListener('pointerup', up);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('lostpointercapture', end);
   };
 
   const togglePicking = (tabId?: string): void => {
@@ -706,7 +711,7 @@ export function BrowserPage({
         {!bridge && !tabbarCollapsed && (
           <>
             <div
-              className="browser-tabbar-resizer"
+              className="browser-tabbar-resizer resize-divider"
               role="separator"
               aria-orientation="vertical"
               aria-label={t('调节标签栏宽度')}

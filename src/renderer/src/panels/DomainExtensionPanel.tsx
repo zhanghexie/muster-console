@@ -334,7 +334,7 @@ export function DomainExtensionPanel({ workspaceId, extensionId, scope = 'global
         <AgentChatView sessionId={sidebarSessionId} visible={active} workspaceId={workspaceId} runtimeId="pi" runtimeLabel="Pi" compactHeader variant="extension" />
         {floating && <div className={`ext-agent-resizer-corner${layoutMode === 'float-right' ? ' mirror' : ''}`} role="separator" aria-label={t('调整 AI 侧栏大小')} onPointerDown={beginFloatResize} />}
       </aside>}
-      {docked && <div className={`ext-agent-resizer${sidebar.resizing ? ' active' : ''}`} role="separator" aria-orientation="vertical" aria-label={t('调整 AI 侧栏宽度')} style={dockLeft ? { left: sidebar.width } : { right: sidebar.width }} onPointerDown={beginDockResize} />}
+      {docked && <div className={`ext-agent-resizer resize-divider${sidebar.resizing ? ' active' : ''}`} role="separator" aria-orientation="vertical" aria-label={t('调整 AI 侧栏宽度')} style={dockLeft ? { left: sidebar.width } : { right: sidebar.width }} onPointerDown={beginDockResize} />}
     </div>
   </div><footer className="ext-panel-statusbar">
     <span className="ext-panel-meta"><ExtensionIcon value={view.manifest.icon} size={14} /> {view.manifest.name}{view.manifest.version ? ` v${view.manifest.version}` : ''}</span><span className="ext-panel-meta-spacer" />

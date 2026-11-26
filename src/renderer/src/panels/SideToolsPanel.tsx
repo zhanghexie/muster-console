@@ -847,7 +847,9 @@ function SideToolsPanelInner({ active, pageVisible = true, gitEverActive, transi
         if (activeRightTab(modelRef.current)?.id === id) void fullscreen.enter(id);
       } finally { fullscreenSelection.current = false; }
     }} onAction={(action, id) => { if (id) dispatch({ type: action, id }); }}/>
-    <SplitPane axis="row" reverse defaultPrimaryRatio={0.24} primaryRatio={cfg.filesSplitRatio ?? 0.24} onRatioCommit={ratio => void patch({ filesSplitRatio: ratio }, workspaceId)} minPrimary={160} minSecondary={360} className={`right-workspace-split${isWebVisible ? ' is-web' : ''}${resources.collapsed ? ' resources-collapsed' : ''}`} aria-label={t('调整资源面板宽度')}>
+    <SplitPane axis="row" reverse dividerSize={4} overlayDivider={isWebVisible}
+      defaultPrimaryRatio={0.24} primaryRatio={cfg.filesSplitRatio ?? 0.24} onRatioCommit={ratio => void patch({ filesSplitRatio: ratio }, workspaceId)}
+      minPrimary={160} minSecondary={360} className={`right-workspace-split${resources.collapsed ? ' resources-collapsed' : ''}`} aria-label={t('调整资源面板宽度')}>
       <div className="right-resources mp-panel" data-mp-stage={presence.stage} aria-hidden={resources.collapsed} {...(operationBusy ? { inert: '' } : {})}>
         <div ref={setFilesHost} className={`right-resource-page xfade${resources.panel === 'files' ? ' is-shown' : ''}`} aria-hidden={resources.panel !== 'files'}/>
         <div ref={setGitHost} className={`right-resource-page xfade${resources.panel === 'git' ? ' is-shown' : ''}`} aria-hidden={resources.panel !== 'git'}/>

@@ -17,6 +17,8 @@ export function IconLayout(p: IconProps): React.JSX.Element { return <svg {...ba
 export function IconPin(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="m6 2 6 6-3 1-2 3-3-3-2-1 3-2zM6 10l-4 4"/></svg>; }
 export function IconPencil(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="m3 10 8-8 3 3-8 8-4 1zM9 4l3 3"/></svg>; }
 export function IconCheck(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="m3 8 3.3 3.3L13 4.7"/></svg>; }
+export function IconCursor(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="M3.5 2.5 13 8l-4.4 1.1-2.2 4.3z"/></svg>; }
+export function IconMouse(p: IconProps): React.JSX.Element { return <svg {...base(p)}><rect x="4" y="2" width="8" height="12" rx="4"/><path d="M8 4.5v2"/></svg>; }
 export function IconUnlock(p: IconProps): React.JSX.Element { return <svg {...base(p)}><rect x="3.5" y="7" width="9" height="7" rx="1.5"/><path d="M5.5 7V4.7a3 3 0 0 1 5.8-1M8 10v1.4"/></svg>; }
 export function IconScissors(p: IconProps): React.JSX.Element { return <svg {...base(p)}><circle cx="4" cy="4" r="1.7"/><circle cx="4" cy="12" r="1.7"/><path d="m5.3 5.1 7.7 7.4M5.3 10.9 13 3.5"/></svg>; }
 export function IconClipboard(p: IconProps): React.JSX.Element { return <svg {...base(p)}><rect x="3" y="3.5" width="10" height="11" rx="1.2"/><path d="M6 3.5V2h4v1.5M5.5 7h5M5.5 10h5"/></svg>; }
