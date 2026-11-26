@@ -1,0 +1,1691 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置重设计原型 · 沉浸版 · MetaAgent 工作台</title>
+<style>
+/* ============================================================
+   设置重设计原型（沉浸版）—— 统一单列宽，无节级卡片盒子，
+   区域划分靠节标题 + 字阶 + 留白；线条只给表格型列表。
+   token 与 design.md / base.css 对齐；仅原型演示，非实现。
+   ============================================================ */
+:root {
+  --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', monospace;
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-small: 6px;
+  --radius-pill: 999px;
+  --dur-micro: 120ms;
+  --dur-menu: 200ms;
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg-frame: #202023;
+  --bg-panel: #141416;
+  --bg-raised: #232326;
+  --bg-overlay: #262629;
+  --bg-input: #161618;
+  --text: #ededee;
+  --text-2: #a3a3a8;
+  --text-3: #98989d;
+  --hairline: #2a2a2d;
+  --green: #45d0a0;
+  --yellow: #e8c65a;
+  --red: #f3687b;
+  --blue: #6cc2ff;
+  --hover-fill: rgba(255,255,255,0.05);
+  --hover-fill-strong: rgba(255,255,255,0.09);
+  --selected-fill: rgba(255,255,255,0.08);
+  --shadow-page: 0 0 0 1px rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.35);
+  --shadow-pop: 0 0 0 1px rgba(255,255,255,0.08), 0 20px 56px rgba(0,0,0,0.6);
+  --ws-accent: #8697ff;
+}
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-frame: #f0f3f9;
+  --bg-panel: #ffffff;
+  --bg-raised: #f7f7f5;
+  --bg-overlay: #ffffff;
+  --bg-input: #ffffff;
+  --text: #2f2e2b;
+  --text-2: #55534f;
+  --text-3: #64625d;
+  --hairline: #e3e2dd;
+  --green: #18704f;
+  --yellow: #795800;
+  --red: #b52e47;
+  --blue: #2464a4;
+  --hover-fill: rgba(20,18,10,0.045);
+  --hover-fill-strong: rgba(20,18,10,0.08);
+  --selected-fill: rgba(20,18,10,0.06);
+  --shadow-page: 0 0 0 1px rgba(20,18,10,0.06), 0 1px 3px rgba(20,18,10,0.06);
+  --shadow-pop: 0 0 0 1px rgba(20,18,10,0.08), 0 20px 56px rgba(20,18,10,0.18);
+  --ws-accent: #4a5fd0;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-frame);
+  -webkit-font-smoothing: antialiased;
+}
+button { font-family: inherit; color: inherit; }
+svg.i { flex: none; stroke: currentColor; fill: none; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+.mono { font-family: var(--font-mono); }
+
+/* ---------- 窗口骨架 ---------- */
+.app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+.band {
+  height: 36px; flex: none;
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 0 16px;
+}
+.band-title { font-size: 12px; color: var(--text-3); }
+.band-space { flex: 1; }
+.band-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-2); font-size: 12px; cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+.band-btn:hover { background: var(--hover-fill); color: var(--text); }
+.band-btn.is-on { background: var(--selected-fill); color: var(--text); }
+
+/* ---------- 左导航 ---------- */
+.page { flex: 1; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+.nav {
+  display: flex; flex-direction: column; gap: 12px;
+  min-height: 0; padding: 4px 12px 16px;
+}
+.back {
+  display: flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 8px;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-2); font-size: 13px; cursor: pointer;
+}
+.back:hover { background: var(--hover-fill); color: var(--text); }
+.kbd {
+  margin-left: auto; padding: 1px 5px;
+  border-radius: var(--radius-small);
+  background: var(--hover-fill); color: var(--text-3);
+  font-family: inherit; font-size: 10px; line-height: 1.5; white-space: nowrap;
+}
+.search {
+  display: flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 8px 0 10px; flex: none;
+  border-radius: var(--radius-control);
+  background: var(--hover-fill); color: var(--text-3);
+}
+.search input {
+  flex: 1; min-width: 0; height: 100%;
+  border: 0; outline: 0; background: transparent;
+  color: var(--text); font-size: 13px; font-family: inherit;
+}
+.search input::placeholder { color: var(--text-3); }
+.nav-groups { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin-top: 4px; }
+.nav-group-title { padding: 0 10px 4px; color: var(--text-3); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; height: 30px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-2);
+  font-size: 13px; text-align: left; cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+.nav-item:hover { background: var(--hover-fill); color: var(--text); }
+.nav-item.active { background: var(--selected-fill); color: var(--text); }
+.nav-item svg { color: var(--text-3); }
+.nav-item.active svg { color: var(--ws-accent); }
+
+/* ---------- 右侧内容页 ---------- */
+.sheet {
+  position: relative; min-width: 0; min-height: 0;
+  margin: 0 8px 8px 0;
+  border-radius: var(--radius-card);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-page);
+  overflow: hidden;
+}
+.panes { position: absolute; inset: 0; }
+.pane {
+  position: absolute; inset: 0;
+  overflow-y: auto;
+  opacity: 0; visibility: hidden;
+  transition: opacity var(--dur-menu) var(--ease-out), visibility 0s var(--dur-menu);
+}
+.pane.is-shown { opacity: 1; visibility: visible; transition: opacity var(--dur-menu) var(--ease-out); }
+/* 所有页面统一同一个列宽：单列、居中、沉浸铺在页面上 */
+.col { max-width: 920px; margin: 0 auto; padding: 40px 44px 140px; }
+.pane-head h1 { margin: 0 0 6px; font-size: 20px; font-weight: 500; letter-spacing: -0.01em; }
+.pane-head p { margin: 0; color: var(--text-2); line-height: 1.5; }
+
+/* ---------- 节：纯排版分区（无卡片盒子） ---------- */
+.sec { margin-top: 40px; }
+.pane-head + .sec { margin-top: 28px; }
+.sec-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 26px; }
+.sec-h h2 { margin: 0; font-size: 14px; font-weight: 500; color: var(--text); }
+.sec-side { display: flex; align-items: center; gap: 8px; }
+.sec-desc { margin: 4px 0 0; color: var(--text-3); font-size: 13px; line-height: 1.6; }
+
+/* ---------- 三种行 ---------- */
+.rows { margin-top: 4px; }
+.row {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 0;
+}
+.row-l { flex: 1; min-width: 0; }
+.row-t { font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.row-d { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-top: 2px; }
+.row-r { flex: none; display: flex; align-items: center; gap: 8px; max-width: 55%; }
+/* 字段行：标签在上、控件整行（长输入 / 文本域 / 网格） */
+.frow { padding: 10px 0; }
+.frow-label { font-size: 13px; font-weight: 500; color: var(--text-2); display: flex; align-items: baseline; gap: 8px; margin-bottom: 7px; }
+.frow-tip { font-weight: 400; color: var(--text-3); font-size: 12px; }
+/* 列表行：应用列表行规范（radius + hover，不带分隔线）；表格型列表才用 hairline */
+.lrow { border-radius: var(--radius-control); transition: background var(--dur-micro) var(--ease-out); }
+.lrow:hover { background: var(--hover-fill); }
+.lrow-head {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; min-height: 42px; padding: 6px 12px;
+  border: 0; background: transparent; text-align: left; cursor: pointer;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+}
+.lrow-icon {
+  width: 24px; height: 24px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 11px; font-weight: 500; color: var(--text-2);
+}
+.lrow-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lrow-meta { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lrow-grow { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.lrow-actions { display: flex; align-items: center; gap: 4px; }
+.lrow-chev { color: var(--text-3); transition: transform var(--dur-micro) var(--ease-out); }
+.lrow.open .lrow-chev { transform: rotate(90deg); }
+.lrow-body { display: none; padding: 6px 12px 16px 46px; }
+.lrow.open .lrow-body { display: block; }
+.lrow-body .row { padding: 9px 0; }
+.lrow-body .frow { padding: 9px 0; }
+
+/* ---------- 折叠（高级 / 技术细节） ---------- */
+.fold { margin-top: 4px; }
+.fold summary {
+  display: flex; align-items: center; gap: 6px;
+  width: max-content; padding: 7px 0;
+  color: var(--text-3); font-size: 13px; cursor: pointer; list-style: none;
+}
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary:hover { color: var(--text); }
+.fold .chev { transition: transform var(--dur-micro) var(--ease-out); }
+.fold[open] > summary .chev { transform: rotate(90deg); }
+.fold-body { padding: 2px 0 10px; }
+.fold-body .row { padding: 9px 0; }
+.fold-body .frow { padding: 9px 0; }
+
+/* ---------- 控件 ---------- */
+.sw {
+  appearance: none; -webkit-appearance: none;
+  position: relative; flex: none; display: inline-block;
+  width: 32px; height: 18px; margin: 0; padding: 0;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--hover-fill-strong);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-out);
+}
+.sw::before {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--text-2);
+  transition: transform var(--dur-menu) var(--ease-out), background var(--dur-micro) var(--ease-out);
+}
+.sw:checked { background: var(--text); box-shadow: none; }
+.sw:checked::before { background: var(--bg-panel); transform: translateX(14px); }
+.sw:disabled { opacity: 0.45; cursor: default; }
+.seg {
+  display: inline-flex; gap: 2px; padding: 2px;
+  border-radius: var(--radius-control);
+  background: var(--bg-input);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.seg button {
+  height: 26px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-small);
+  background: transparent; color: var(--text-2);
+  font-size: 13px; cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out);
+}
+.seg button:hover { color: var(--text); }
+.seg button.is-on {
+  background: var(--bg-overlay); color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18), inset 0 0 0 1px var(--hairline);
+}
+.sel {
+  display: inline-flex; align-items: center; justify-content: space-between; gap: 8px;
+  min-width: 200px; max-width: 100%; height: 32px; padding: 0 8px 0 10px;
+  border-radius: var(--radius-control);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 13px; color: var(--text); cursor: pointer;
+}
+.sel:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+.sel .sel-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sel .chev { color: var(--text-3); }
+.sel.wide { min-width: 300px; }
+.inp {
+  height: 32px; padding: 0 10px; width: 100%;
+  border: 0; border-radius: var(--radius-control);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--text); font-size: 13px; font-family: inherit; outline: 0;
+}
+.inp:focus { box-shadow: inset 0 0 0 1px var(--text-3); }
+.inp::placeholder { color: var(--text-3); }
+textarea.inp { height: auto; min-height: 96px; padding: 8px 10px; line-height: 1.55; resize: vertical; }
+.inp-row { display: flex; gap: 8px; }
+.inp-row .inp { flex: 1; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-control);
+  background: var(--hover-fill); color: var(--text);
+  font-size: 13px; cursor: pointer; white-space: nowrap;
+  transition: background var(--dur-micro) var(--ease-out);
+}
+.btn:hover { background: var(--hover-fill-strong); }
+.btn.primary { background: var(--text); color: var(--bg-panel); }
+.btn.primary:hover { background: var(--text); opacity: 0.92; }
+.btn.ghost { background: transparent; color: var(--text-2); }
+.btn.ghost:hover { background: var(--hover-fill); color: var(--text); }
+.btn.danger {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 35%, transparent);
+  color: var(--red);
+}
+.btn.danger:hover { background: color-mix(in srgb, var(--red) 14%, transparent); }
+.btn.danger.armed { background: var(--red); color: var(--bg-panel); box-shadow: none; }
+.btn.tiny { height: 24px; padding: 0 8px; font-size: 12px; }
+.btn .kbd { margin-left: 2px; }
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 8px; border-radius: var(--radius-pill);
+  background: var(--hover-fill); color: var(--text-2);
+  font-size: 10px; font-weight: 500; white-space: nowrap;
+}
+.tag.ok { color: var(--green); background: color-mix(in srgb, var(--green) 13%, transparent); }
+.tag.warn { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 14%, transparent); }
+.tag.info { color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+.tag .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+button.tag { font-family: inherit; }
+.tag.is-on { box-shadow: inset 0 0 0 1px currentColor; }
+/* 能力管理：同名差异过滤态 */
+#pane-capabilityManagement.filter-conflicts .lrow:not([data-conflict]) { display: none; }
+#pane-capabilityManagement.filter-conflicts .group-title { display: none; }
+
+/* ---------- 内容对象（主题缩略卡等——是内容，不是布局容器） ---------- */
+.theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 10px; }
+.theme-card {
+  position: relative; display: flex; flex-direction: column; gap: 8px;
+  padding: 8px; border: 0; text-align: left; cursor: pointer;
+  border-radius: var(--radius-card);
+  background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--hairline);
+  color: inherit;
+}
+.theme-card:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+.theme-card.is-selected { box-shadow: inset 0 0 0 2px var(--ws-accent); }
+.thumb { height: 72px; border-radius: var(--radius-control); box-shadow: inset 0 0 0 1px rgba(128,128,128,0.25); position: relative; overflow: hidden; }
+.thumb .bar { position: absolute; top: 0; left: 0; bottom: 0; width: 26%; opacity: 0.1; }
+.thumb .ln { position: absolute; height: 5px; border-radius: 4px; opacity: 0.16; }
+.theme-meta { display: flex; align-items: center; gap: 6px; min-height: 20px; }
+.theme-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.theme-new {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 118px; border: 0; cursor: pointer;
+  border-radius: var(--radius-card);
+  border: 1px dashed var(--text-3); background: transparent;
+  color: var(--text-3); font-size: 13px;
+}
+.theme-new:hover { color: var(--text); border-color: var(--text-2); }
+.swatch-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 2px 0; }
+.swatch-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 4px 10px;
+  border: 0; border-radius: var(--radius-pill);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+  font-size: 12px; color: var(--text-2); cursor: pointer;
+}
+.swatch-pill.is-on { box-shadow: inset 0 0 0 1px var(--text); color: var(--text); }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 0; cursor: pointer; padding: 0; }
+.swatch.is-on { outline: 2px solid var(--text); outline-offset: 3px; }
+.color-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+.color-row .cl { width: 150px; flex: none; font-size: 13px; color: var(--text-2); }
+.sw-view { width: 36px; height: 24px; flex: none; border-radius: var(--radius-small); box-shadow: inset 0 0 0 1px var(--hairline); }
+.color-row .hex { flex: 1; min-width: 0; max-width: 240px; height: 28px; font-family: var(--font-mono); font-size: 12px; }
+.emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.emoji {
+  width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-control); background: transparent; font-size: 19px; cursor: pointer;
+}
+.emoji:hover { background: var(--hover-fill); }
+.emoji.is-on { background: var(--selected-fill); box-shadow: inset 0 0 0 1px var(--text-3); }
+.avatar-now {
+  width: 44px; height: 44px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+/* ---------- 远程访问：二维码与网址 ---------- */
+.hero { display: flex; gap: 24px; padding: 14px 0 4px; }
+.qr { width: 148px; height: 148px; flex: none; padding: 10px; border-radius: var(--radius-control); background: #fff; box-shadow: inset 0 0 0 1px var(--hairline); }
+.qr svg { width: 100%; height: 100%; display: block; }
+.hero-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.hero-t { font-size: 14px; font-weight: 500; }
+.url-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-control);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+}
+.url-row code { flex: 1; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.steps { margin: 0; padding-left: 18px; color: var(--text-2); font-size: 13px; line-height: 1.8; }
+
+/* ---------- 快捷键 ---------- */
+.chord {
+  min-width: 112px; height: 28px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-control);
+  background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--text-2); font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.chord:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-3); }
+.chord.recording { color: var(--text); box-shadow: inset 0 0 0 1px var(--text-2); }
+.icon-btn {
+  width: 28px; height: 28px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-3); cursor: pointer; font-size: 13px;
+}
+.icon-btn:hover { background: var(--hover-fill); color: var(--text); }
+.icon-btn:disabled { opacity: 0.35; cursor: default; }
+.kb-row { border-radius: var(--radius-control); display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 12px; min-height: 40px; }
+.kb-row:hover { background: var(--hover-fill); }
+.kb-name { font-size: 13px; flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.kb-actions { display: flex; align-items: center; gap: 4px; }
+
+/* ---------- 目录行（能力目录 / 快捷键键位表） ---------- */
+.table { margin-top: 6px; }
+.trow { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 5px 12px; border-radius: var(--radius-control); }
+.trow:hover { background: var(--hover-fill); }
+.trow + .trow { border-top: 1px solid var(--hairline); border-top-left-radius: 0; border-top-right-radius: 0; }
+.trow-name { font-family: var(--font-mono); font-size: 12px; font-weight: 500; }
+.trow-desc { flex: 1; min-width: 0; font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.group-title { padding: 18px 12px 4px; color: var(--text-3); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; }
+
+/* ---------- 页签行（能力管理） ---------- */
+.cm-tabs { display: flex; gap: 6px; }
+.cm-tab {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 12px;
+  border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--text-2); font-size: 13px; cursor: pointer;
+}
+.cm-tab:hover { background: var(--hover-fill); color: var(--text); }
+.cm-tab.is-on { background: var(--selected-fill); color: var(--text); }
+.cm-tab .tag { font-size: 10px; }
+
+/* ---------- 设计说明页 ---------- */
+.note-h { margin: 4px 0 0; font-size: 15px; font-weight: 500; }
+.note-p { margin: 6px 0 0; color: var(--text-2); line-height: 1.7; font-size: 13px; }
+.diag-row { display: grid; grid-template-columns: 190px 1fr 1fr; gap: 16px; padding: 12px 4px; align-items: start; }
+.diag-row + .diag-row { border-top: 1px solid var(--hairline); }
+.diag-name { font-size: 13px; font-weight: 500; padding-top: 2px; }
+.diag-cell { font-size: 12px; color: var(--text-3); line-height: 1.65; }
+.diag-cell b { display: block; font-size: 10px; font-weight: 500; letter-spacing: 0.06em; margin-bottom: 4px; }
+.diag-cell.now b { color: var(--yellow); }
+.diag-cell.new b { color: var(--green); }
+.an { padding: 8px 0 0; }
+.an-layer { padding: 10px 0 0; font-size: 12px; color: var(--text-2); line-height: 1.6; }
+.an-layer b { color: var(--text); font-weight: 500; margin-right: 8px; }
+.an-1 { font-size: 13px; }
+.an-2 { padding-left: 20px; border-left: 1px solid var(--hairline); margin-left: 4px; }
+.an-3 { padding-left: 20px; border-left: 1px solid var(--hairline); margin-left: 24px; }
+
+/* ---------- 保存条 ---------- */
+.savebar {
+  position: absolute; bottom: 20px; left: 0; right: 0; margin: 0 auto;
+  width: max-content; z-index: 10;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-card);
+  background: var(--bg-overlay);
+  box-shadow: var(--shadow-pop);
+  transform: translateY(12px); opacity: 0; pointer-events: none;
+  transition: transform var(--dur-menu) var(--ease-out), opacity var(--dur-menu) var(--ease-out);
+}
+.savebar.is-shown { transform: none; opacity: 1; pointer-events: auto; }
+.savebar-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); }
+.savebar-msg { font-size: 13px; color: var(--text-2); margin-right: 4px; }
+.savebar-msg.is-ok { color: var(--green); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-back" viewBox="0 0 16 16"><path d="M10 3.5 5.8 8l4.2 4.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.2"/><path d="m10.2 10.2 3.3 3.3"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 16 16"><path d="M6 3.5 10.5 8 6 12.5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 16 16"><path d="m4 6.5 4 4 4-4"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 16 16"><path d="M3 5h10M3 8h10M3 11h10"/><circle cx="6" cy="5" r="1.4" fill="var(--bg-panel)"/><circle cx="10.5" cy="8" r="1.4" fill="var(--bg-panel)"/><circle cx="5" cy="11" r="1.4" fill="var(--bg-panel)"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 16 16"><path d="M8 14A6 6 0 1 1 14 8c0 1.7-1.3 2-2.5 2H10a1.7 1.7 0 0 0-1.2 2.9c.5.6.2 1.1-.8 1.1Z"/><circle cx="5.6" cy="6.4" r="0.8" fill="currentColor" stroke="none"/><circle cx="8.4" cy="4.6" r="0.8" fill="currentColor" stroke="none"/><circle cx="11" cy="6.4" r="0.8" fill="currentColor" stroke="none"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 16 16"><path d="M8 2.5 9.4 6.6 13.5 8l-4.1 1.4L8 13.5 6.6 9.4 2.5 8l4.1-1.4Z"/></symbol>
+    <symbol id="i-term" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5"/><path d="m5 6.5 2 1.7-2 1.7M8.5 10.4h3"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 16 16"><rect x="3" y="3" width="4.4" height="4.4" rx="1"/><rect x="8.6" y="3" width="4.4" height="4.4" rx="1"/><rect x="3" y="8.6" width="4.4" height="4.4" rx="1"/><rect x="8.6" y="8.6" width="4.4" height="4.4" rx="1"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 16 16"><path d="M8.8 2.5 4.5 9h3l-.8 4.5L11.5 7h-3z"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 16 16"><path d="m8 2.8 5.5 2.8L8 8.4 2.5 5.6Z"/><path d="m3.5 8.5 4.5 2.3 4.5-2.3M3.5 11.2l4.5 2.3 4.5-2.3"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 16 16"><path d="M9.5 3.2a3 3 0 0 0-3.8 3.8L3 9.7a1.5 1.5 0 0 0 2.1 2.1l2.8-2.8a3 3 0 0 0 3.8-3.8L9.9 7 9 6.1l1.2-1.7z"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 16 16"><path d="M8 3a3.6 3.6 0 0 1 3.6 3.6c0 2.2.5 3.1 1.1 3.9H3.3c.6-.8 1.1-1.7 1.1-3.9A3.6 3.6 0 0 1 8 3Z"/><path d="M6.8 12.8a1.3 1.3 0 0 0 2.4 0"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 16 16"><rect x="5" y="2.5" width="6" height="11" rx="1.4"/><path d="M7.5 11.5h1"/></symbol>
+    <symbol id="i-plug" viewBox="0 0 16 16"><path d="M6 2.5v3M10 2.5v3M4.8 5.5h6.4v2a3.2 3.2 0 0 1-3.2 3.2 3.2 3.2 0 0 1-3.2-3.2ZM8 10.7v2.8"/></symbol>
+    <symbol id="i-kb" viewBox="0 0 16 16"><rect x="2" y="4.5" width="12" height="7" rx="1.4"/><path d="M4.5 7h.01M7 7h.01M9.5 7h.01M12 7h.01M5 9.4h6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.8"/><path d="M8 7.4v3.2M8 5.2h.01"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M2.5 5c0-.8.7-1.5 1.5-1.5h2.2l1.3 1.5H12c.8 0 1.5.7 1.5 1.5v5c0 .8-.7 1.5-1.5 1.5H4c-.8 0-1.5-.7-1.5-1.5Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 16 16"><path d="M8 2.8 9.5 6l3.5.4-2.6 2.3.7 3.4L8 10.4l-3.1 1.7.7-3.4L3 6.4 6.5 6Z" fill="currentColor" stroke="none"/></symbol>
+  </defs>
+</svg>
+
+<div class="app">
+  <div class="band">
+    <span class="band-title">MetaAgent 工作台 · 设置（重设计原型 · 沉浸版）</span>
+    <span class="band-space"></span>
+    <button class="band-btn" id="themeToggle" title="切换深浅主题">◐ 深浅主题</button>
+    <button class="band-btn is-on" data-goto="notes">设计说明</button>
+  </div>
+
+  <div class="page">
+    <!-- ============ 左导航 ============ -->
+    <aside class="nav">
+      <button class="back"><svg class="i" width="14" height="14"><use href="#i-back"/></svg><span>返回工作台</span><kbd class="kbd">Esc</kbd></button>
+      <div class="search">
+        <svg class="i" width="13" height="13"><use href="#i-search"/></svg>
+        <input type="search" placeholder="搜索设置" aria-label="搜索设置">
+        <kbd class="kbd">Ctrl K</kbd>
+      </div>
+      <nav class="nav-groups" aria-label="设置分组">
+        <div class="nav-group">
+          <div class="nav-group-title">常用</div>
+          <button class="nav-item active" data-goto="general"><svg class="i" width="14" height="14"><use href="#i-sliders"/></svg><span>通用</span></button>
+          <button class="nav-item" data-goto="appearance"><svg class="i" width="14" height="14"><use href="#i-palette"/></svg><span>外观</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">AI</div>
+          <button class="nav-item" data-goto="agent"><svg class="i" width="14" height="14"><use href="#i-spark"/></svg><span>模型服务商</span></button>
+          <button class="nav-item" data-goto="worker"><svg class="i" width="14" height="14"><use href="#i-term"/></svg><span>Worker</span></button>
+          <button class="nav-item" data-goto="capabilityManagement"><svg class="i" width="14" height="14"><use href="#i-grid"/></svg><span>能力管理</span></button>
+          <button class="nav-item" data-goto="capabilities"><svg class="i" width="14" height="14"><use href="#i-bolt"/></svg><span>调度 Agent</span></button>
+          <button class="nav-item" data-goto="memory"><svg class="i" width="14" height="14"><use href="#i-layers"/></svg><span>记忆</span></button>
+          <button class="nav-item" data-goto="textTools"><svg class="i" width="14" height="14"><use href="#i-wrench"/></svg><span>文本工具</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">连接</div>
+          <button class="nav-item" data-goto="notify"><svg class="i" width="14" height="14"><use href="#i-bell"/></svg><span>通知</span></button>
+          <button class="nav-item" data-goto="feishu"><svg class="i" width="14" height="14"><use href="#i-phone"/></svg><span>远程访问</span></button>
+          <button class="nav-item" data-goto="integrations"><svg class="i" width="14" height="14"><use href="#i-plug"/></svg><span>集成</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title">其他</div>
+          <button class="nav-item" data-goto="keybindings"><svg class="i" width="14" height="14"><use href="#i-kb"/></svg><span>快捷键</span></button>
+          <button class="nav-item" data-goto="about"><svg class="i" width="14" height="14"><use href="#i-info"/></svg><span>关于</span></button>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- ============ 内容页 ============ -->
+    <main class="sheet">
+      <div class="panes">
+
+        <!-- ================= 通用 ================= -->
+        <section class="pane is-shown" id="pane-general">
+          <div class="col">
+            <header class="pane-head"><h1>通用</h1><p>语言、字体和电脑行为。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>语言与文字</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">界面语言</div><div class="row-d">切换后立即生效，不用重启</div></div>
+                  <div class="row-r"><button class="sel"><span class="sel-v">跟随系统</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">字体族</div><div class="row-d">字体的中文也会用于编辑器与代码块</div></div>
+                  <div class="row-r"><button class="sel"><span class="sel-v">OPPO Sans</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">字号</div><div class="row-d">终端字体随新终端会话生效</div></div>
+                  <div class="row-r">
+                    <div class="seg" role="group" aria-label="字号">
+                      <button>紧凑</button><button class="is-on">标准</button><button>宽松</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">预览</div>
+                  <div class="inp" style="display:flex;align-items:center;min-height:40px;font-size:14px;">敏捷的棕色狐狸跳过懒狗 The quick brown fox 0123456789</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>隔离工作区</h2></div>
+              <div class="rows">
+                <div class="frow">
+                  <div class="frow-label">worktree 存储目录</div>
+                  <div class="row-d" style="margin:0 0 8px;">新任务保存到此目录，可选择其他磁盘。已有任务保留原位置；此目录包含未提交工作，请勿当作缓存清空。</div>
+                  <div class="inp-row">
+                    <input class="inp mono" value="" placeholder="默认：%LOCALAPPDATA%\MetaAgent\worktrees">
+                    <button class="btn">浏览…</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>电脑</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">任务运行时阻止休眠</div><div class="row-d">有定时任务在跑或快到点时，电脑不会自己睡着。关掉后错过的任务按「错过策略」处理</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="任务运行时阻止休眠"></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">会话结束自动写日志</div><div class="row-d">关闭 GUI 会话时，用「文本工具」的模型把这次会话总结成一条工作日志（消息不少于 4 条才写）</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" aria-label="会话结束自动写日志"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 外观 ================= -->
+        <section class="pane" id="pane-appearance">
+          <div class="col">
+            <header class="pane-head"><h1>外观</h1><p>调整主题、工作区配色和头像。点一下就切换，立即生效。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>主题</h2>
+                <div class="sec-side"><button class="btn ghost tiny">打开主题文件夹</button></div>
+              </div>
+              <div class="theme-grid">
+                <div class="theme-card is-selected" role="button" tabindex="0">
+                  <div class="thumb" style="background:#141416;"><div class="bar" style="background:#fff;"></div><div class="ln" style="top:14px;left:34%;right:14px;background:#fff;"></div><div class="ln" style="top:26px;left:34%;width:55%;background:#fff;"></div><div class="ln" style="top:52px;left:34%;width:22%;background:#8697ff;opacity:.8;"></div></div>
+                  <div class="theme-meta"><span class="theme-name">深色</span><span class="tag ok"><span class="dot"></span>使用中</span></div>
+                </div>
+                <div class="theme-card" role="button" tabindex="0">
+                  <div class="thumb" style="background:#ffffff;"><div class="bar" style="background:#000;"></div><div class="ln" style="top:14px;left:34%;right:14px;background:#000;"></div><div class="ln" style="top:26px;left:34%;width:55%;background:#000;"></div><div class="ln" style="top:52px;left:34%;width:22%;background:#4a5fd0;opacity:.75;"></div></div>
+                  <div class="theme-meta"><span class="theme-name">浅色</span><span class="tag">全局默认</span></div>
+                </div>
+                <div class="theme-card" role="button" tabindex="0">
+                  <div class="thumb" style="background:#10162b;"><div class="bar" style="background:#fff;"></div><div class="ln" style="top:14px;left:34%;right:14px;background:#fff;"></div><div class="ln" style="top:26px;left:34%;width:55%;background:#fff;"></div><div class="ln" style="top:52px;left:34%;width:22%;background:#7aa5ff;opacity:.8;"></div></div>
+                  <div class="theme-meta"><span class="theme-name">夜蓝</span><span class="tag info">本工作区</span><button class="icon-btn" style="width:20px;height:20px;" title="删除">✕</button></div>
+                </div>
+                <button class="theme-new"><svg class="i" width="14" height="14"><use href="#i-plus"/></svg>新建主题</button>
+              </div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">这个工作区单独用</div><div class="row-d">跟随全局默认「深色」；切换工作区会自动换肤</div></div>
+                  <div class="row-r"><button class="sel"><span class="sel-v">跟随全局默认</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>主题色</h2><div class="sec-side"><span class="tag info">即时生效</span></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">应用范围</div><div class="row-d">框、侧栏选中图标与发送钮的颜色来源</div></div>
+                  <div class="row-r"><div class="seg"><button>全局默认</button><button class="is-on">仅当前工作区</button></div></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">启用主题色</div><div class="row-d">关掉后整圈框回中性色</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="启用主题色"></div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">颜色</div>
+                  <div class="swatch-row">
+                    <button class="swatch-pill is-on">跟随头像 😀</button>
+                    <button class="swatch" style="background:#e5625a;" title="赤"></button>
+                    <button class="swatch" style="background:#e08a3c;" title="橙"></button>
+                    <button class="swatch" style="background:#d9a83f;" title="黄"></button>
+                    <button class="swatch" style="background:#5fa052;" title="绿"></button>
+                    <button class="swatch is-on" style="background:#4ca98c;" title="青"></button>
+                    <button class="swatch" style="background:#5c9dd6;" title="蓝"></button>
+                    <button class="swatch" style="background:#7a8cf0;" title="紫"></button>
+                    <button class="swatch" style="background:#b06fc9;" title="洋红"></button>
+                    <button class="swatch-pill"><span style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,#e5625a,#5c9dd6);display:inline-block;"></span>自定义颜色</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>配色 · 深色</h2><div class="sec-side"><span class="tag">内置主题不可编辑</span></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">外观</div><div class="row-d">内置主题：点「复制为新主题」后再改颜色</div></div>
+                  <div class="row-r"><div class="seg"><button class="is-on">深色</button><button>浅色</button></div></div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">主题名</div>
+                  <input class="inp" style="max-width:280px;" value="深色" disabled>
+                </div>
+                <details class="fold" open>
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>背景海拔<span class="tag">5 项</span></summary>
+                  <div class="fold-body">
+                    <div class="color-row"><span class="cl">框（窗口底）</span><span class="sw-view" style="background:#202023;"></span><input class="inp hex mono" value="#202023" disabled></div>
+                    <div class="color-row"><span class="cl">页（工作面）</span><span class="sw-view" style="background:#141416;"></span><input class="inp hex mono" value="#141416" disabled></div>
+                    <div class="color-row"><span class="cl">卡（页内浮起）</span><span class="sw-view" style="background:#232326;"></span><input class="inp hex mono" value="#232326" disabled></div>
+                    <div class="color-row"><span class="cl">浮层</span><span class="sw-view" style="background:#262629;"></span><input class="inp hex mono" value="#262629" disabled></div>
+                    <div class="color-row"><span class="cl">输入</span><span class="sw-view" style="background:#161618;"></span><input class="inp hex mono" value="#161618" disabled></div>
+                  </div>
+                </details>
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>文字与描边<span class="tag">5 项</span></summary>
+                  <div class="fold-body"><div class="row"><div class="row-l"><div class="row-d">正文 #EDEDEE · 二级 #A3A3A8 · 三级 #98989D · hairline #2A2A2D</div></div></div></div>
+                </details>
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>状态色<span class="tag">5 项</span></summary>
+                  <div class="fold-body"><div class="row"><div class="row-l"><div class="row-d">成功 #45D0A0 · 等待 #E8C65A · 错误 #F3687B · 进行中 #6CC2FF · 特殊 #A88FFF</div></div></div></div>
+                </details>
+                <div class="row" style="justify-content:flex-end;">
+                  <button class="btn ghost">复制为新主题</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>你的头像</h2></div>
+              <div class="rows">
+                <div class="frow">
+                  <div class="frow-label">头像</div>
+                  <div style="display:flex;align-items:center;gap:16px;">
+                    <span class="avatar-now">😀</span>
+                    <div class="emoji-grid">
+                      <button class="emoji is-on">😀</button><button class="emoji">🤖</button><button class="emoji">🐱</button><button class="emoji">🐶</button><button class="emoji">🦊</button><button class="emoji">🐸</button><button class="emoji">🐙</button><button class="emoji">🦄</button><button class="emoji">🌵</button><button class="emoji">🍄</button><button class="emoji">👾</button><button class="emoji">🐳</button><button class="emoji">🪐</button><button class="emoji">⚡</button><button class="emoji">🔥</button><button class="emoji">💎</button>
+                    </div>
+                    <button class="btn">上传图片</button>
+                  </div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">显示名<span class="frow-tip">悬浮头像时显示，缺省为「我」</span></div>
+                  <input class="inp" style="max-width:280px;" placeholder="我">
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 模型服务商（纵向手风琴，不再左右分栏） ================= -->
+        <section class="pane" id="pane-agent">
+          <div class="col">
+            <header class="pane-head"><h1>模型服务商</h1><p>接入哪些大模型服务。配好后可以在聊天和定时任务里选用，也会同步给调度 Agent。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>供应商</h2>
+                <div class="sec-side"><button class="btn tiny"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>添加供应商</button></div>
+              </div>
+              <div class="rows">
+                <div class="lrow open">
+                  <button class="lrow-head" style="padding:10px 12px;">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-icon">D</span>
+                    <span class="lrow-grow"><span class="lrow-name">DeepSeek</span><span class="lrow-meta">3 个模型</span></span>
+                    <svg class="i" width="11" height="11" style="color:var(--yellow)"><use href="#i-star"/></svg>
+                    <span class="tag ok"><span class="dot"></span>已启用</span>
+                  </button>
+                  <div class="lrow-body">
+                    <div class="row" style="padding-top:2px;">
+                      <div class="row-l"><div class="row-t">启用</div><div class="row-d">禁用后聊天与定时任务都不再选用它</div></div>
+                      <div class="row-r">
+                        <span class="tag"><svg class="i" width="9" height="9" style="color:var(--yellow)"><use href="#i-star"/></svg>默认服务商</span>
+                        <input type="checkbox" class="sw" checked aria-label="启用 DeepSeek">
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="row-l"><div class="row-t">连通性</div><div class="row-d">✔ 上次测试成功 · 230ms</div></div>
+                      <div class="row-r"><button class="btn tiny">测试连通性</button></div>
+                    </div>
+                    <div class="frow">
+                      <div class="frow-label">Base URL</div>
+                      <input class="inp mono" value="https://api.deepseek.com/v1">
+                    </div>
+                    <div class="frow">
+                      <div class="frow-label">API 格式<span class="frow-tip">大多数三方服务选第一个就行</span></div>
+                      <button class="sel wide" style="justify-content:space-between;"><span class="sel-v">OpenAI 兼容（Chat Completions）</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button>
+                    </div>
+                    <div class="frow">
+                      <div class="frow-label">API Key</div>
+                      <div class="inp-row">
+                        <input class="inp mono" type="password" value="sk-xxxxxxxxxxxxxxxx">
+                        <button class="btn">显示</button>
+                      </div>
+                    </div>
+                    <details class="fold">
+                      <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>高级 · 思考强度映射</summary>
+                      <div class="fold-body">
+                        <div class="frow">
+                          <div class="frow-label">应用内五档 → 该服务商的载荷值<span class="frow-tip">留空 = 该档不可用；多档可重复映射同一值</span></div>
+                          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;">
+                            <div><div class="frow-tip" style="margin-bottom:4px;">关闭</div><input class="inp" placeholder="不可用"></div>
+                            <div><div class="frow-tip" style="margin-bottom:4px;">低</div><input class="inp" placeholder="不可用"></div>
+                            <div><div class="frow-tip" style="margin-bottom:4px;">中</div><input class="inp" placeholder="不可用"></div>
+                            <div><div class="frow-tip" style="margin-bottom:4px;">高</div><input class="inp" value="thinking"></div>
+                            <div><div class="frow-tip" style="margin-bottom:4px;">最高</div><input class="inp" value="thinking"></div>
+                          </div>
+                        </div>
+                        <div class="row">
+                          <div class="row-l"><div class="row-t">请求以 reasoning_effort 字段发送</div><div class="row-d">OpenAI 兼容网关常用；字段名由协议决定</div></div>
+                          <div class="row-r"><input type="checkbox" class="sw" aria-label="请求以 reasoning_effort 字段发送"></div>
+                        </div>
+                        <div class="row">
+                          <div class="row-l"><div class="row-t">off 档真正关闭思考</div><div class="row-d">DeepSeek 系专属；GLM-5.3/OpenAI 协议层禁止关闭思考</div></div>
+                          <div class="row-r"><input type="checkbox" class="sw" aria-label="off 档真正关闭思考"></div>
+                        </div>
+                      </div>
+                    </details>
+
+                    <div class="group-title" style="padding-left:0;">模型列表<span style="margin-left:8px;font-weight:400;">★ = 默认模型</span></div>
+                    <div class="rows">
+                      <div class="lrow open">
+                        <button class="lrow-head">
+                          <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                          <span class="lrow-grow"><span class="lrow-name mono">deepseek-chat</span><span class="lrow-meta">默认</span></span>
+                          <span class="tag">128K 上下文</span><span class="tag">思考</span>
+                        </button>
+                        <div class="lrow-body">
+                          <div class="frow"><div class="frow-label">显示名称</div><input class="inp" style="max-width:280px;" value="DeepSeek Chat"></div>
+                          <div class="frow"><div class="frow-label">上下文窗口<span class="frow-tip">tokens</span></div><div class="inp-row" style="max-width:420px;"><input class="inp mono" value="131072"><button class="btn tiny">64k</button><button class="btn tiny">128k</button><button class="btn tiny">1M</button></div></div>
+                          <div class="row" style="justify-content:flex-end;"><button class="btn ghost tiny">设为默认</button><button class="btn ghost tiny" style="color:var(--red);">删除</button></div>
+                        </div>
+                      </div>
+                      <div class="lrow">
+                        <button class="lrow-head">
+                          <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                          <span class="lrow-grow"><span class="lrow-name mono">deepseek-reasoner</span></span>
+                          <span class="tag">64K 上下文</span><span class="tag">思考</span>
+                        </button>
+                      </div>
+                      <div class="lrow">
+                        <button class="lrow-head">
+                          <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                          <span class="lrow-grow"><span class="lrow-name mono">deepseek-coder</span></span>
+                          <span class="tag">128K 上下文</span>
+                        </button>
+                      </div>
+                      <div class="row" style="justify-content:flex-start;padding-top:6px;">
+                        <button class="btn ghost tiny"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>添加模型</button>
+                      </div>
+                    </div>
+
+                    <div class="row" style="margin-top:16px;border-top:1px solid var(--hairline);padding-top:14px;">
+                      <div class="row-l"><div class="row-t" style="color:var(--red);">删除这个供应商</div><div class="row-d">用到它的定时任务会改用默认服务商</div></div>
+                      <div class="row-r"><button class="btn danger">删除</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="lrow">
+                  <button class="lrow-head" style="padding:10px 12px;">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-icon">智</span>
+                    <span class="lrow-grow"><span class="lrow-name">智谱 BigModel</span><span class="lrow-meta">2 个模型</span></span>
+                    <span class="tag ok"><span class="dot"></span>已启用</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= Worker ================= -->
+        <section class="pane" id="pane-worker">
+          <div class="col">
+            <header class="pane-head"><h1>Worker</h1><p>终端里干活的 AI 命令行工具。选一个默认的，新建会话时优先用它。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>默认 Worker</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">新建会话默认用</div><div class="row-d">新建终端会话时优先拉起它；标 GUI 的在聊天界面里运行</div></div>
+                  <div class="row-r"><button class="sel wide"><span class="sel-v">Cursor CLI（cursor-cli）</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>Shell 环境</h2><div class="sec-side"><span class="tag info">即时生效</span></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">后台命令 Shell</div><div class="row-d">后台终端任务（bgtasks.shell）默认用 Git Bash 跑命令；选「强制 PowerShell」恢复旧行为</div></div>
+                  <div class="row-r"><button class="sel"><span class="sel-v">自动（bash 优先）</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">Git Bash 路径<span class="frow-tip">留空恢复自动探测；装在自定义位置时才需手动指定</span></div>
+                  <input class="inp mono" style="max-width:480px;" value="D:\Git\bin\bash.exe">
+                  <div class="row-d" style="margin-top:6px;">当前生效：D:\Git\bin\bash.exe</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>Agent Runtime 注册表</h2>
+                <div class="sec-side">
+                  <span class="tag info">即时生效</span>
+                  <button class="btn tiny"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>注册新 runtime</button>
+                </div>
+              </div>
+              <p class="sec-desc">和调度 Agent 共用这份清单。启用、改名、额外参数、增删脚本都会先确认，确认后立即生效。</p>
+              <div class="rows">
+                <div class="lrow open">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-icon">C</span>
+                    <span class="lrow-grow"><span class="lrow-name">Cursor CLI</span><span class="lrow-meta">开箱 · GUI · cursor-cli</span></span>
+                    <span class="tag ok"><span class="dot"></span>开</span><span class="tag ok">预检通过</span>
+                  </button>
+                  <div class="lrow-body">
+                    <div class="row"><div class="row-l"><div class="row-t">启用</div></div><div class="row-r"><input type="checkbox" class="sw" checked aria-label="启用 Cursor CLI"></div></div>
+                    <div class="row"><div class="row-l"><div class="row-t">新会话默认模型</div></div><div class="row-r"><button class="sel"><span class="sel-v">composer-1</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div></div>
+                    <div class="row"><div class="row-l"><div class="row-t">沙箱</div><div class="row-d">限制写路径与网络，默认关</div></div><div class="row-r"><input type="checkbox" class="sw" aria-label="沙箱"></div></div>
+                    <div class="row"><div class="row-l"><div class="row-t">Auto-review</div><div class="row-d">分类器拒绝高风险工具，非审批卡</div></div><div class="row-r"><input type="checkbox" class="sw" aria-label="Auto-review"></div></div>
+                    <div class="row" style="justify-content:flex-end;border-top:1px solid var(--hairline);padding-top:12px;margin-top:4px;">
+                      <button class="btn tiny">检测</button>
+                      <button class="btn tiny primary">保存此项</button>
+                      <button class="btn danger tiny">删除</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-icon">K</span>
+                    <span class="lrow-grow"><span class="lrow-name">Claude Code</span><span class="lrow-meta">开箱 · GUI · claude-cli</span></span>
+                    <span class="tag ok"><span class="dot"></span>开</span><span class="tag warn">预检 1 项</span>
+                  </button>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-icon">P</span>
+                    <span class="lrow-grow"><span class="lrow-name">Pi</span><span class="lrow-meta">开箱 · pi</span></span>
+                    <span class="tag"><span class="dot"></span>关</span>
+                  </button>
+                </div>
+              </div>
+              <details class="fold" style="margin-top:8px;">
+                <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>维护</summary>
+                <div class="fold-body">
+                  <div class="row">
+                    <div class="row-l"><div class="row-t">恢复开箱 runtime</div><div class="row-d">移除手工注册的 runtime，恢复出厂清单；不影响已装 CLI</div></div>
+                    <div class="row-r"><button class="btn tiny">恢复开箱</button></div>
+                  </div>
+                  <div class="row">
+                    <div class="row-l"><div class="row-t">清除检测 hooks</div><div class="row-d">卸载各 CLI 设置里的可用性预检钩子</div></div>
+                    <div class="row-r"><button class="btn tiny">清除</button></div>
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 能力管理（纵向展开，不再左右分栏） ================= -->
+        <section class="pane" id="pane-capabilityManagement">
+          <div class="col">
+            <header class="pane-head"><h1>能力管理</h1><p>集中管理技能和 MCP，查看内容来源、作用范围与各 Agent 的关联。</p></header>
+
+            <div class="sec" style="margin-top:24px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div class="cm-tabs" role="tablist">
+                  <button class="cm-tab is-on">Skills <span class="tag">12</span></button>
+                  <button class="cm-tab">MCP <span class="tag">3</span></button>
+                </div>
+                <button class="tag warn" id="conflictFilter" style="cursor:pointer;border:0;" title="只看有同名差异的条目">● 同名差异 1</button>
+                <span style="flex:1;"></span>
+                <div class="seg" id="scopeSeg"><button>全局</button><button class="is-on">当前项目</button></div>
+                <button class="sel" id="projectSel" style="min-width:170px;"><span class="sel-v">metaagent-workbench</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button>
+              </div>
+              <div class="inp-row" style="margin-top:14px;align-items:center;">
+                <div class="search" style="flex:1;background:var(--bg-input);box-shadow:inset 0 0 0 1px var(--hairline);">
+                  <svg class="i" width="13" height="13"><use href="#i-search"/></svg>
+                  <input type="search" placeholder="搜索名称、用途或来源…">
+                </div>
+                <button class="btn"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>新建技能</button>
+                <button class="btn ghost"><svg class="i" width="11" height="11"><use href="#i-folder"/></svg>发现目录</button>
+              </div>
+            </div>
+
+            <div class="sec" style="margin-top:20px;">
+              <div class="group-title" style="padding:0 12px;">全局能力</div>
+              <div class="rows" id="skillList">
+                <div class="lrow open">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">commit-message-helper</span><span class="lrow-meta">根据暂存区改动生成符合仓库惯例的提交信息</span></span>
+                    <span class="tag info">全局使用</span>
+                  </button>
+                  <div class="lrow-body">
+                    <div class="frow">
+                      <div class="frow-label">关联的入口</div>
+                      <div class="row"><div class="row-l"><div class="row-t" style="font-size:13px;">调度 Agent</div><div class="row-d">已关联</div></div><div class="row-r"><input type="checkbox" class="sw" checked aria-label="关联调度 Agent"></div></div>
+                      <div class="row"><div class="row-l"><div class="row-t" style="font-size:13px;">Worker（GUI 会话）</div><div class="row-d">未关联</div></div><div class="row-r"><input type="checkbox" class="sw" aria-label="关联 Worker"></div></div>
+                      <div class="row"><div class="row-l"><div class="row-t" style="font-size:13px;">Claude Code（CLI 原生目录可见）</div><div class="row-d">~/.claude/skills 已有同名技能</div></div><div class="row-r"><input type="checkbox" class="sw" checked aria-label="关联 Claude Code"></div></div>
+                    </div>
+                    <details class="fold">
+                      <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>内容来源</summary>
+                      <div class="fold-body"><div class="row"><div class="row-l"><div class="row-d mono">C:\Users\admin\.agents\skills\commit-message-helper\SKILL.md</div></div></div></div>
+                    </details>
+                    <div class="row" style="justify-content:flex-end;border-top:1px solid var(--hairline);padding-top:12px;margin-top:4px;">
+                      <button class="btn tiny">✎ 编辑 SKILL.md</button>
+                      <button class="btn danger tiny">删除技能</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">journal</span><span class="lrow-meta">工作日志与长期记忆</span></span>
+                    <span class="tag info">全局使用</span>
+                  </button>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">code-review</span><span class="lrow-meta">五维审查面板</span></span>
+                    <span class="tag info">全局使用</span>
+                  </button>
+                </div>
+              </div>
+              <div class="group-title" style="padding:18px 12px 4px;">仅当前项目</div>
+              <div class="rows">
+                <div class="lrow" data-conflict>
+                  <button class="lrow-head">
+                    <svg class="lrow-chev i" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">release-notes</span></span>
+                    <span class="tag warn">同名差异</span>
+                  </button>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">test-polisher</span></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 调度 Agent ================= -->
+        <section class="pane" id="pane-capabilities">
+          <div class="col">
+            <header class="pane-head"><h1>调度 Agent</h1><p>负责分派任务、盯进度的那个 AI。这里决定它怎么说话、守什么规矩、能用哪些工具。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>调度提示词</h2><div class="sec-side"><span class="tag">使用内置默认</span><button class="btn tiny">编辑</button></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">appendSystemPrompt 正文</div><div class="row-d mono" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">你是 MetaAgent 工作台的调度 Agent，负责把任务分派给 Worker、盯进度、汇总结果…</div></div>
+                </div>
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>查看完整预览</summary>
+                  <div class="fold-body"><div class="row"><div class="row-l"><div class="row-d mono" style="white-space:normal;">（提示词正文 + 能力目录附录，随保存生效）</div></div></div></div>
+                </details>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>全局行为规约</h2><div class="sec-side"><span class="tag">2 条规则</span><button class="btn tiny"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>添加规则</button></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">规则 1</div><div class="row-d">异常上报：执行中发现异常或疑点时，必须在对话中及时告知用户，不得静默绕过…</div></div>
+                  <div class="row-r">
+                    <button class="btn ghost tiny">编辑</button><button class="btn ghost tiny" style="color:var(--red);">删除规则</button>
+                    <input type="checkbox" class="sw" checked aria-label="启用规则 1">
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">规则 2<span class="tag warn">已停用</span></div><div class="row-d">Shell 重定向：Windows 下丢弃命令输出一律 &gt; /dev/null…</div></div>
+                  <div class="row-r">
+                    <button class="btn ghost tiny">编辑</button><button class="btn ghost tiny" style="color:var(--red);">删除规则</button>
+                    <input type="checkbox" class="sw" aria-label="启用规则 2">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>应用能力</h2><div class="sec-side"><span class="tag">v1.50.0 · 27 个工具</span></div></div>
+              <p class="sec-desc">这里展示注册范围；当前回合、模式与执行授权仍可能进一步限制工具。</p>
+              <div class="inp-row" style="margin-top:10px;align-items:center;">
+                <div class="search" style="flex:1;background:var(--bg-input);box-shadow:inset 0 0 0 1px var(--hairline);">
+                  <svg class="i" width="13" height="13"><use href="#i-search"/></svg>
+                  <input type="search" placeholder="按名称或用途搜索…">
+                </div>
+                <div class="seg"><button class="is-on">全部</button><button>调度</button><button>Worker</button><button>扩展</button></div>
+              </div>
+              <div class="group-title">任务与文件</div>
+              <div class="table">
+                <div class="trow"><span class="trow-name">task.create</span><span class="trow-desc">创建任务并写入看板</span><span class="tag">调度</span></div>
+                <div class="trow"><span class="trow-name">fs.read</span><span class="trow-desc">读取工作区内文件</span><span class="tag">Worker</span></div>
+                <div class="trow"><span class="trow-name">mcp.list / search / call</span><span class="trow-desc">代理调用宿主 MCP</span><span class="tag">调度</span></div>
+              </div>
+              <div class="group-title">会话与通知</div>
+              <div class="table">
+                <div class="trow"><span class="trow-name">ui.notify</span><span class="trow-desc">重要异常提醒用户</span><span class="tag">调度 · Worker</span></div>
+                <div class="trow"><span class="trow-name">browser.*</span><span class="trow-desc">内置浏览器导航 / 截图 / 自动化（27 项）</span><span class="tag">扩展</span></div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>技术细节</h2></div>
+              <div class="rows">
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>注入清单<span class="tag">5 个注入点</span></summary>
+                  <div class="fold-body">
+                    <div class="row"><div class="row-l"><div class="row-t mono" style="font-size:12px;">AGENTS.md · metaagent</div><div class="row-d">目标 AGENTS.md · 恒注入 · 压缩后保留</div></div></div>
+                    <div class="row"><div class="row-l"><div class="row-t mono" style="font-size:12px;">HOST.md 指针</div><div class="row-d">目标简报 · 条件注入</div></div></div>
+                  </div>
+                </details>
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>Worker 白名单</summary>
+                  <div class="fold-body"><div class="row"><div class="row-l"><div class="row-d mono">task.* · fs.* · ui.notify · mcp.* · browser.*（.metaAgent/workspace.json）</div></div></div></div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 记忆 ================= -->
+        <section class="pane" id="pane-memory">
+          <div class="col">
+            <header class="pane-head"><h1>记忆</h1><p>让 AI 按「意思」而不只是关键词找回以前的记忆。需要一个嵌入模型。</p></header>
+            <p class="sec-desc" style="margin-top:8px;">记忆检索 = 词法（恒开）+ 向量（可选加成）。作用域：当前工作区 <b style="color:var(--text-2);">metaagent-workbench</b>（每个工作区独立配置）。</p>
+            <div class="sec">
+              <div class="sec-h"><h2>向量检索</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">检索模式</div><div class="row-d">自动 = API 优先，其次本地模型；纯词法即关闭向量层</div></div>
+                  <div class="row-r"><button class="sel wide"><span class="sel-v">自动（API 优先，其次本地模型）</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">本地模型目录或 HF 仓库 id<span class="frow-tip">留空用内置缺省（Xenova/bge-small-zh-v1.5）</span></div>
+                  <input class="inp mono" style="max-width:480px;" placeholder="Xenova/bge-small-zh-v1.5">
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">允许首用自动下载模型</div><div class="row-d">经 hf-mirror.com；应用期间 BM25 检索照常</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="允许首用自动下载模型"></div>
+                </div>
+                <div class="frow">
+                  <div class="frow-label">API Base URL<span class="frow-tip">OpenAI 兼容 /embeddings</span></div>
+                  <input class="inp mono" style="max-width:480px;" value="https://open.bigmodel.cn/api/paas/v4">
+                </div>
+                <div class="frow">
+                  <div class="frow-label">API 模型名</div>
+                  <input class="inp mono" style="max-width:280px;" value="embedding-3">
+                </div>
+                <div class="frow">
+                  <div class="frow-label">API Key 环境变量名<span class="frow-tip">可选；明文 Key 不出主进程，只做增改不做误清</span></div>
+                  <input class="inp mono" style="max-width:280px;" value="ZHIPUAI_API_KEY">
+                </div>
+                <div class="frow">
+                  <div class="frow-label">API Key<span class="frow-tip">已配置；留空保持现值</span></div>
+                  <input class="inp mono" style="max-width:280px;" type="password" placeholder="••••••••">
+                </div>
+                <div class="row" style="justify-content:space-between;border-top:1px solid var(--hairline);padding-top:14px;margin-top:4px;">
+                  <span class="tag ok" role="status">已应用 · 向量状态：已就绪</span>
+                  <button class="btn primary">应用向量配置</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 文本工具（纵向展开） ================= -->
+        <section class="pane" id="pane-textTools">
+          <div class="col">
+            <header class="pane-head"><h1>文本工具</h1><p>选中任意文字后弹出的 AI 小工具：翻译、解释、润色，也能加你自己的。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>默认模型</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">功能默认模型</div><div class="row-d">功能未单独指定模型时用它；仍为空则用「模型服务商」页的全局默认</div></div>
+                  <div class="row-r"><button class="sel wide"><span class="sel-v">跟随全局默认</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>功能</h2>
+                <div class="sec-side"><button class="btn tiny"><svg class="i" width="11" height="11"><use href="#i-plus"/></svg>添加功能</button></div>
+              </div>
+              <div class="rows">
+                <div class="frow">
+                  <div class="frow-label">AI 帮写<span class="frow-tip">描述想要的功能，自动生成名称和提示词</span></div>
+                  <div class="inp-row">
+                    <input class="inp" placeholder="如：把会议记录整理成要点表格">
+                    <button class="btn primary">AI 帮写</button>
+                  </div>
+                </div>
+                <div class="lrow open" style="margin-top:8px;">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">翻译</span><span class="lrow-meta">内置</span></span>
+                  </button>
+                  <div class="lrow-body">
+                    <div class="row"><div class="row-l"><div class="row-t">在浮条显示</div><div class="row-d">关掉后划词浮条不再出现这个功能</div></div><div class="row-r"><input type="checkbox" class="sw" checked aria-label="在浮条显示"></div></div>
+                    <div class="frow"><div class="frow-label">名称<span class="frow-tip">浮条按钮文字</span></div><input class="inp" style="max-width:280px;" value="翻译"></div>
+                    <div class="row"><div class="row-l"><div class="row-t">模型</div><div class="row-d">跟随功能默认模型</div></div><div class="row-r"><button class="sel"><span class="sel-v">DeepSeek · deepseek-chat</span><svg class="i chev" width="12" height="12"><use href="#i-down"/></svg></button></div></div>
+                    <div class="row"><div class="row-l"><div class="row-t">关闭思考</div><div class="row-d">对支持的模型附加关闭深度思考的参数</div></div><div class="row-r"><input type="checkbox" class="sw" checked aria-label="关闭思考"></div></div>
+                    <div class="frow">
+                      <div class="frow-label">提示词（system）<span class="frow-tip">选中文字作为 user 消息发送；提示词为空时该功能点击不会生效</span></div>
+                      <textarea class="inp mono">把输入文字翻译成中文。只输出译文，不要解释。</textarea>
+                    </div>
+                    <div class="row" style="justify-content:flex-end;border-top:1px solid var(--hairline);padding-top:12px;margin-top:4px;">
+                      <button class="btn danger tiny">删除功能</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">润色</span></span>
+                    <span class="tag warn">停用</span>
+                  </button>
+                </div>
+                <div class="lrow">
+                  <button class="lrow-head">
+                    <svg class="i lrow-chev" width="10" height="10"><use href="#i-chev"/></svg>
+                    <span class="lrow-grow"><span class="lrow-name">会议纪要整理</span></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 通知 ================= -->
+        <section class="pane" id="pane-notify">
+          <div class="col">
+            <header class="pane-head"><h1>通知</h1><p>会话状态变化时怎么提醒你：桌面气泡、手机、飞书。同类提醒 45 秒内只发一次。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>什么时候提醒</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">需要你<span class="tag warn">始终开启</span></div><div class="row-d">会话在等你回答或卡住了。这条必须能找到你，不能关</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked disabled aria-label="需要你"></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">已完成</div><div class="row-d">会话把活干完了</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="已完成"></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">出错</div><div class="row-d">会话报错停下了</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="出错"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>安静时段</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">免打扰</div><div class="row-d">这段时间不提醒「已完成 / 出错」，「需要你」照常提醒。可以跨零点，起止不能相同</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="免打扰" data-acc="dnd"></div>
+                </div>
+                <div class="frow" id="dnd" style="padding-left:0;">
+                  <div class="frow-label">时段</div>
+                  <div class="inp-row" style="align-items:center;max-width:300px;">
+                    <input class="inp mono" type="time" value="22:00" aria-label="免打扰开始">
+                    <span style="color:var(--text-3);">到</span>
+                    <input class="inp mono" type="time" value="08:00" aria-label="免打扰结束">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>飞书</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">只推送绑定到飞书的会话</div><div class="row-d">关掉后所有会话的提醒都会发飞书卡片。需要先在「远程访问」里绑定飞书</div></div>
+                  <div class="row-r"><input type="checkbox" class="sw" checked aria-label="只推送绑定到飞书的会话"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 远程访问 ================= -->
+        <section class="pane" id="pane-feishu">
+          <div class="col">
+            <header class="pane-head"><h1>远程访问</h1><p>用手机或别的电脑打开这个工作台。改动立即生效。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>用网址打开</h2><div class="sec-side"><span class="tag info">即时生效</span><span class="tag ok"><span class="dot"></span>服务运行中</span></div></div>
+              <div class="hero">
+                <div class="qr">
+                  <svg viewBox="0 0 29 29" shape-rendering="crispEdges"><rect width="29" height="29" fill="#fff"/><path fill="#1a1a1a" d="M1 1h7v7H1zM3 3h3v3H3zM21 1h7v7h-7zM23 3h3v3h-3zM1 21h7v7H1zM3 23h3v3H3zM10 1h1v2h-1zM12 2h2v1h-2zM15 1h1v3h-1zM17 3h2v1h-2zM10 5h2v1h-2zM13 5h3v2h-3zM10 8h1v2h-1zM12 9h3v1h-3zM16 8h2v2h-2zM19 10h2v1h-2zM22 9h1v2h-1zM24 10h2v1h-2zM27 9h1v2h-1zM2 10h1v2H2zM4 11h2v1H4zM7 10h2v2H7zM10 12h1v3h-1zM12 12h2v2h-2zM15 13h2v1h-2zM18 12h1v3h-1zM20 13h2v1h-2zM23 12h1v2h-1zM25 13h2v1h-2zM1 14h2v1H1zM4 14h2v2H4zM8 15h1v2H8zM11 16h2v1h-2zM14 15h1v3h-1zM16 16h2v1h-2zM19 15h1v2h-1zM21 16h2v2h-2zM24 15h1v2h-1zM26 16h2v1h-2zM2 17h2v1H2zM5 18h2v1H5zM9 18h1v2H9zM12 18h2v2h-2zM15 19h2v1h-2zM18 19h1v2h-1zM20 20h2v1h-2zM23 18h2v2h-2zM26 19h2v2h-2zM10 21h1v2h-1zM12 22h3v1h-3zM16 21h1v3h-1zM18 23h1v2h-1zM21 22h2v1h-2zM24 22h2v2h-2zM10 25h2v1h-2zM13 24h1v2h-1zM15 26h2v1h-2zM19 26h2v1h-2zM22 25h1v2h-1zM25 26h2v1h-2z"/></svg>
+                </div>
+                <div class="hero-body">
+                  <div class="hero-t">手机扫码，或复制网址到浏览器</div>
+                  <div class="url-row"><code>http://192.168.1.7:8787/token-abc123</code><button class="btn tiny">复制</button></div>
+                  <ol class="steps">
+                    <li>手机和电脑连同一个 Wi-Fi</li>
+                    <li>扫码或输入上面的网址</li>
+                    <li>首次打开自动免密登录</li>
+                  </ol>
+                </div>
+              </div>
+              <div class="rows">
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>其他网址<span class="tag">2 个</span></summary>
+                  <div class="fold-body">
+                    <div class="row"><div class="row-l"><div class="row-d mono">http://127.0.0.1:8787/token-abc123</div></div><div class="row-r"><span class="tag">本机</span></div></div>
+                    <div class="row"><div class="row-l"><div class="row-d mono">http://metaagent-pc:8787/token-abc123</div></div></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>安全</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">重置访问密钥</div><div class="row-d">怀疑网址泄露时用。旧网址立即失效，已连接的设备会被断开</div></div>
+                  <div class="row-r"><button class="btn danger">重新生成 Token</button></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>飞书</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">lark-cli</div></div>
+                  <div class="row-r"><span class="tag ok"><span class="dot"></span>已安装 v1.2.3</span></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">飞书应用</div></div>
+                  <div class="row-r"><span class="tag ok"><span class="dot"></span>已接入</span></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">事件流</div><div class="row-d">卡片按钮回调依赖事件订阅</div></div>
+                  <div class="row-r"><span class="tag ok"><span class="dot"></span>运行中</span><button class="btn tiny">重启</button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">绑定用户</div></div>
+                  <div class="row-r"><span class="tag">hexuan</span><button class="btn danger tiny">解除绑定</button></div>
+                </div>
+                <details class="fold">
+                  <summary><svg class="i chev" width="10" height="10"><use href="#i-chev"/></svg>命令速查（在飞书里发给机器人）</summary>
+                  <div class="fold-body">
+                    <div class="row"><div class="row-l"><div class="row-d mono" style="white-space:pre-line;">/tasks — 看板速览
+/run &lt;任务&gt; — 新建并运行
+/ask &lt;问题&gt; — 交给当前会话</div></div></div>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>Webhook 触发（GitHub / CI）</h2></div>
+              <div class="rows">
+                <div class="frow">
+                  <div class="frow-label">Payload URL</div>
+                  <div class="url-row"><code>http://192.168.1.7:8787/hook/hk-9f27ac</code><span class="tag">推荐</span><button class="btn tiny">复制</button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">签名密钥</div><div class="row-d mono">whsec_4f8a…c21b（填入 GitHub 的 Secret）</div></div>
+                  <div class="row-r"><button class="btn tiny">换一个密钥</button><button class="btn ghost tiny">清除密钥</button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-t">重新生成 Hook 地址</div><div class="row-d">旧 hook 地址立即失效（不影响网页访问）。hook 地址即凭证，不要写进公开文件</div></div>
+                  <div class="row-r"><button class="btn danger">重新生成</button></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 集成 ================= -->
+        <section class="pane" id="pane-integrations">
+          <div class="col">
+            <header class="pane-head"><h1>集成</h1><p>宿主与 CLI 的互联配置和壳层协议参考。用户级 MCP 服务器在「能力管理」页维护。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>CLI 入站 MCP</h2><div class="sec-side"><span class="tag info">即时生效</span></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">写入 CLI 引擎 MCP 配置…</div><div class="row-d">把 Worker 白名单工具面暴露给 pty 里的 Claude Code / Cursor / Gemini（原生 MCP 发现）。写入 ~/.claude.json 等之前会弹确认；无 MCP 的 runtime 仍走 HOST.md + HTTP</div></div>
+                  <div class="row-r"><button class="btn">写入</button></div>
+                </div>
+                <div class="row">
+                  <div class="row-l"><div class="row-d" role="status" style="color:var(--green);">✔ 已写入 CLI 引擎 MCP 配置（2026-10-08 17:42）</div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>壳层协议</h2><div class="sec-side"><span class="tag">参考</span></div></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">会话状态上报</div><div class="row-d">Worker 经各工作区 .metaAgent/runtime.json 发现本机 Shell API，POST /v1/session-status；壳层工具亦可 POST /v1/tool。协议全文见 .metaAgent/HOST.md</div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 快捷键 ================= -->
+        <section class="pane" id="pane-keybindings">
+          <div class="col">
+            <header class="pane-head"><h1>快捷键</h1><p>点快捷键格子，然后按下新组合键。改动立即生效。</p></header>
+            <div class="sec" style="margin-top:24px;">
+              <div class="inp-row" style="align-items:center;">
+                <div class="search" style="flex:1;background:var(--bg-input);box-shadow:inset 0 0 0 1px var(--hairline);">
+                  <svg class="i" width="13" height="13"><use href="#i-search"/></svg>
+                  <input type="search" placeholder="搜索动作、分组或快捷键…">
+                </div>
+                <button class="btn" id="kbFind">按下查找</button>
+              </div>
+            </div>
+            <div class="sec">
+              <div class="sec-h"><h2>会话</h2></div>
+              <div class="table">
+                <div class="kb-row trow"><span class="kb-name">新建会话</span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl N</button><button class="icon-btn" title="恢复默认" disabled>↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+                <div class="kb-row trow"><span class="kb-name">聚焦搜索<span class="tag warn">冲突</span></span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl K</button><button class="icon-btn" title="恢复默认">↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+                <div class="kb-row trow"><span class="kb-name">切换左侧栏</span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl B</button><button class="icon-btn" title="恢复默认" disabled>↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+              </div>
+            </div>
+            <div class="sec">
+              <div class="sec-h"><h2>常规</h2></div>
+              <div class="table">
+                <div class="kb-row trow"><span class="kb-name">打开命令面板</span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl Shift P</button><button class="icon-btn" title="恢复默认" disabled>↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+                <div class="kb-row trow"><span class="kb-name">打开设置</span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl ,</button><button class="icon-btn" title="恢复默认" disabled>↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+                <div class="kb-row trow"><span class="kb-name">保存设置</span>
+                  <span class="kb-actions"><button class="chord kb-chord">Ctrl S</button><button class="icon-btn" title="恢复默认" disabled>↺</button><button class="icon-btn" title="清除绑定">×</button></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 关于 ================= -->
+        <section class="pane" id="pane-about">
+          <div class="col">
+            <header class="pane-head"><h1>关于</h1><p>版本和更新。</p></header>
+            <div class="sec">
+              <div class="sec-h"><h2>版本</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">MetaAgent 工作台 <span class="mono" style="color:var(--text-2);">v0.1.30</span></div><div class="row-d">已是最新版本 · 今天 14:32 检查</div></div>
+                  <div class="row-r"><button class="btn">检查更新</button></div>
+                </div>
+              </div>
+            </div>
+            <div class="sec">
+              <div class="sec-h"><h2>更新方式</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l"><div class="row-t">自动更新</div><div class="row-d">仅 Windows 安装版（NSIS）启用；发现新版本自动下载，退出应用时完成安装。macOS / Linux 请手动下载新安装包</div></div>
+                  <div class="row-r"><span class="tag ok"><span class="dot"></span>已启用</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 设计说明 ================= -->
+        <section class="pane" id="pane-notes">
+          <div class="col">
+            <header class="pane-head"><h1>设计说明</h1><p>设置页统一骨架提案（沉浸版）：全部页面同一个列宽，去掉节级卡片盒子，区域划分靠节标题、字阶与留白。token 不动，只收编结构与控件。</p></header>
+
+            <div class="sec">
+              <div class="sec-h"><h2>现状诊断：七类不统一</h2></div>
+              <div style="margin-top:8px;">
+                <div class="diag-row">
+                  <div class="diag-name">① 内容列宽不一</div>
+                  <div class="diag-cell now"><b>现状</b>普通页 760px、模型服务商/文本工具 1000px、关于页更窄；切页时正文左右边界跳动。</div>
+                  <div class="diag-cell new"><b>提案</b>所有页面统一 920px 单列，居中；主从页不再加宽——直接取消左右分栏。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">② 卡片盒子太重</div>
+                  <div class="diag-cell now"><b>现状</b>每个分区套一张 L2 卡片，设置页看起来像一堆浮起的盒子，页面被卡片的边框切割。</div>
+                  <div class="diag-cell new"><b>提案</b>内容直接铺在页面上（沉浸）；区域 = 节标题（14/500）+ 40px 区距 + 行；线条只给表格型列表（目录、键位表）。主题缩略图、二维码这类「内容对象」保留自己的形。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">③ 行文法混乱</div>
+                  <div class="diag-cell now"><b>现状</b>布尔项三种写法：行+开关 / 裸勾选+长句 / 标签忽左忽右；模型列表、记忆表单、Shell 表单各是一套字段排版。</div>
+                  <div class="diag-cell new"><b>提案</b>只允许三种行：<b>设置行</b>（左标题+说明、右控件）、<b>字段行</b>（标签在上、控件整行）、<b>列表行</b>（图标+名称+徽标+meta+右动作，可展开）。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">④ 控件多套皮肤</div>
+                  <div class="diag-cell now"><b>现状</b>按钮有 btn / ui-btn / cm-button 三套；分段选择有 s-seg / weekday-toggle / llm-capsule 三套；输入框高度不一。</div>
+                  <div class="diag-cell new"><b>提案</b>控件收敛为一套：开关、分段（含启用/禁用胶囊变体）、选择、输入；按钮四档（主/次/幽灵/危险描边）+ tiny。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">⑤ 保存语义标记随缘</div>
+                  <div class="diag-cell now"><b>现状</b>通知每张卡都挂「随保存生效」，Worker 个别卡挂「即时生效」，其余页没有标。</div>
+                  <div class="diag-cell new"><b>提案</b>随保存生效是默认、不打标；只有「即时生效」的节头挂蓝点 tag。标记从卡片级上收到节级。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">⑥ 危险动作位置随机</div>
+                  <div class="diag-cell now"><b>现状</b>红色「删除」出现在页头、卡头部、列表行内、卡片中间，有的红字有的描边。</div>
+                  <div class="diag-cell new"><b>提案</b>破坏性动作一律放所属区块最后一行右侧（前加 hairline 分界），红描边 + 两步确认；行内小动作用幽灵 tiny + 红字。</div>
+                </div>
+                <div class="diag-row">
+                  <div class="diag-name">⑦ 同类控件异形、排布与逻辑不符</div>
+                  <div class="diag-cell now"><b>现状</b>能力管理范围切换独带 emoji（全应用唯一）；「待处理差异」（队列）与 Skills/MCP（资源类型）并排成页签；同为布尔项，有的用开关、有的用启用/禁用胶囊、有的用浮条胶囊；同为文本输入，服务商整行、记忆页右置半行。</div>
+                  <div class="diag-cell new"><b>提案</b>同类控件同形：布尔一律开关，多选一一律分段（不设胶囊变体），输入框一律字段行（标签在上、控件整行）；页签只放资源类型，待办队列（同名差异）降级为列表上方的过滤胶囊，点击只看有差异的条目；作用域切「全局」时项目选择器禁用。</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>统一骨架</h2></div>
+              <div class="an">
+                <div class="an-layer an-1"><b>页</b>页头 = 20px 标题 + 一句 lead；所有页面同一列宽 920px，内容直接铺在 L1 页面上</div>
+                <div class="an-layer an-2"><b>节</b>节标题 14/500 + 右侧槽（动作按钮 或 「即时生效」tag）+ 可选一句灰色说明；节与节之间 40px 留白</div>
+                <div class="an-layer an-3"><b>行</b>设置行 / 字段行 / 列表行；控件归一：布尔一律开关、多选一一律分段、下拉在设置行右侧、输入框一律字段行；技术细节收「高级」折叠；表格型列表（目录、键位）行间用 hairline</div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>各页落点</h2></div>
+              <div class="table" style="margin-top:8px;">
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">通用 · 通知 · 记忆 · 集成 · 关于</span><span class="trow-desc">纯排版行，直接落地；只把卡片壳和「随保存生效」角标去掉</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">外观</span><span class="trow-desc">四节：主题（缩略图网格是内容对象）/ 主题色 / 配色编辑（色彩分组收折叠）/ 头像</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">模型服务商</span><span class="trow-desc">取消左右分栏 → 供应商手风琴（头部=状态行，展开=字段行+高级折叠+模型列表+删除行）</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">能力管理 · 文本工具</span><span class="trow-desc">同样取消分栏 → 条目手风琴展开详情；页签只放 Skills/MCP 资源类型，「同名差异」为过滤胶囊；作用域切全局时项目选择器禁用</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">Worker</span><span class="trow-desc">注册表为列表行（行内即编辑）；Shell 两行化；工具钮上收节头</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">调度 Agent</span><span class="trow-desc">提示词 / 规约（开关行）/ 应用能力（搜索+目录表）/ 技术细节折叠</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">远程访问</span><span class="trow-desc">二维码 hero 直接铺页；飞书状态格改状态行；Webhook 整节折叠</span></div>
+                <div class="trow"><span class="trow-name" style="font-family:inherit;font-size:13px;">快捷键</span><span class="trow-desc">键位表用表格行；冲突黄标；录制三钮右对齐</span></div>
+              </div>
+            </div>
+
+            <div class="sec">
+              <div class="sec-h"><h2>实现与测试影响</h2></div>
+              <div class="rows">
+                <div class="row">
+                  <div class="row-l">
+                    <div class="row-t">不动的东西</div>
+                    <div class="row-d">页签 id、IPC、保存模型（草稿/即时键/保存条）、SETTINGS_FIELDS 搜索锚点（data-settings-item 全保留）、动画体系（mp-* / acc / xfade）、左导航。</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="row-l">
+                    <div class="row-t">要动的东西</div>
+                    <div class="row-d">settings.css：内容列统一 920px、行原语改造（去卡片壳、表格型 hairline）；shared.tsx 增补字段行/列表行原语；13 个 Pane 重排；模型服务商/能力管理/文本工具从 split 改手风琴；capability-management.css 并入 settings 体系；design.md §10 设置页条目同步新文法。</div>
+                  </div>
+                </div>
+                <div class="row">
+                  <div class="row-l">
+                    <div class="row-t">测试策略</div>
+                    <div class="row-d">现有 spec 按可访问名查找控件——重构不改可访问名；settings-page.spec / command-palette.mjs / settings-css.mjs 全量回归（滚动下放断言要跟着列宽改），各 Pane spec 逐页跑。</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- 保存条（演示：改任意开关出现） -->
+      <div class="savebar" id="savebar" role="status">
+        <span class="savebar-dot"></span>
+        <span class="savebar-msg" id="saveMsg">有 1 项更改未保存</span>
+        <button class="btn ghost" id="discardBtn">撤销</button>
+        <button class="btn primary" id="saveBtn">保存<kbd class="kbd">Ctrl S</kbd></button>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+// ---- 页签切换 ----
+const navBtns = document.querySelectorAll('.nav-item');
+const panes = document.querySelectorAll('.pane');
+function goto(id) {
+  navBtns.forEach(b => b.classList.toggle('active', b.dataset.goto === id));
+  panes.forEach(p => { p.classList.toggle('is-shown', p.id === 'pane-' + id); p.scrollTop = 0; });
+}
+navBtns.forEach(b => b.addEventListener('click', () => goto(b.dataset.goto)));
+document.querySelectorAll('[data-goto]').forEach(b => {
+  if (!b.classList.contains('nav-item')) b.addEventListener('click', () => goto(b.dataset.goto));
+});
+
+// ---- 深浅主题 ----
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const r = document.documentElement;
+  r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+});
+
+// ---- 分段 / 主题色 / 头像 单选 ----
+document.querySelectorAll('.seg').forEach(g => {
+  g.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || g.closest('#pane-notes')) return;
+    g.querySelectorAll('button').forEach(x => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+  });
+});
+document.querySelectorAll('.swatch-row, .emoji-grid').forEach(g => {
+  g.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    g.querySelectorAll('.is-on').forEach(x => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+  });
+});
+document.querySelectorAll('.theme-card').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.theme-card').forEach(x => x.classList.remove('is-selected'));
+    c.classList.add('is-selected');
+  });
+});
+
+// ---- 列表行展开（供应商 / Runtime / 技能 / 功能 / 模型） ----
+document.querySelectorAll('.lrow > .lrow-head').forEach(h => {
+  h.addEventListener('click', e => {
+    if (e.target.closest('.btn, .icon-btn, input')) return;
+    h.parentElement.classList.toggle('open');
+  });
+});
+
+// ---- 能力管理：同名差异过滤 + 作用域联动项目选择器 ----
+const conflictBtn = document.getElementById('conflictFilter');
+const cmPane = document.getElementById('pane-capabilityManagement');
+conflictBtn.addEventListener('click', () => {
+  conflictBtn.classList.toggle('is-on');
+  cmPane.classList.toggle('filter-conflicts');
+});
+const scopeSeg = document.getElementById('scopeSeg');
+const projectSel = document.getElementById('projectSel');
+scopeSeg.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  const isGlobal = b.textContent.trim() === '全局';
+  projectSel.style.opacity = isGlobal ? '0.45' : '';
+  projectSel.style.pointerEvents = isGlobal ? 'none' : '';
+});
+
+// ---- 开关改动 → 保存条 ----
+let dirty = 0;
+const savebar = document.getElementById('savebar');
+const saveMsg = document.getElementById('saveMsg');
+function bump() {
+  dirty++;
+  saveMsg.textContent = `有 ${dirty} 项更改未保存`;
+  saveMsg.classList.remove('is-ok');
+  savebar.classList.add('is-shown');
+}
+document.querySelectorAll('.pane input[type="checkbox"]').forEach(sw => {
+  sw.addEventListener('change', bump);
+});
+document.getElementById('discardBtn').addEventListener('click', () => { dirty = 0; savebar.classList.remove('is-shown'); });
+document.getElementById('saveBtn').addEventListener('click', () => {
+  dirty = 0;
+  saveMsg.textContent = '已保存 ✓';
+  saveMsg.classList.add('is-ok');
+  setTimeout(() => savebar.classList.remove('is-shown'), 1400);
+});
+
+// ---- 快捷键录制（演示） ----
+document.querySelectorAll('.kb-chord').forEach(ch => {
+  ch.addEventListener('click', () => {
+    document.querySelectorAll('.kb-chord.recording').forEach(x => { x.classList.remove('recording'); x.textContent = x.dataset.prev || x.textContent; });
+    ch.dataset.prev = ch.textContent;
+    ch.textContent = '按下快捷键…';
+    ch.classList.add('recording');
+    const done = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const parts = [];
+      if (e.ctrlKey) parts.push('Ctrl');
+      if (e.metaKey) parts.push('Cmd');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+      let k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+      if (k !== 'Escape' && k !== 'Control' && k !== 'Shift' && k !== 'Alt' && k !== 'Meta') {
+        parts.push(k);
+        ch.textContent = parts.join(' ');
+      } else if (k === 'Escape') {
+        ch.textContent = ch.dataset.prev;
+      }
+      ch.classList.remove('recording');
+      window.removeEventListener('keydown', done, true);
+    };
+    window.addEventListener('keydown', done, true);
+  });
+});
+</script>
+</body>
+</html>

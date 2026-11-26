@@ -1,0 +1,93 @@
+/* The trigger belongs to the composer toolbar; the panel may cover the editor. */
+.session-reminder-overlay {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+.session-reminder-overlay[hidden] { display: none; }
+.session-reminder-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 6px;
+  color: var(--fg-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  font-size: var(--font-caption);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.session-reminder-trigger:hover, .session-reminder-trigger[aria-expanded='true'] { background: var(--interaction-hover); color: var(--fg-primary); }
+.session-reminder-trigger:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.session-reminder-close:hover { background: var(--overlay-interaction-hover); }
+.session-reminder-count {
+  min-width: 16px;
+  padding: 2px 3px;
+  text-align: center;
+  color: var(--overlay-status-warning-fg);
+  background: var(--overlay-status-warning-bg);
+  border-radius: var(--radius-small);
+}
+.session-reminder-panel {
+  position: absolute;
+  z-index: var(--z-popover);
+  left: 0;
+  bottom: calc(100% + 8px);
+  width: min(344px, calc(100vw - 16px));
+  max-width: calc(100vw - 16px);
+  min-height: 0;
+  max-height: min(520px, 65vh);
+  overflow: auto;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  transform-origin: bottom left;
+  color: var(--overlay-fg-primary);
+  font-size: var(--font-ui);
+  pointer-events: auto;
+}
+/* CLI positions its own host at the toolbar and flips at the terminal edge. */
+.cli-composer-popover > .session-reminder-panel {
+  bottom: 0;
+  width: min(344px, 100%);
+  max-width: 100%;
+  max-height: var(--cli-popup-max-height, 200px);
+}
+.cli-composer-popover.is-below > .session-reminder-panel { top: 0; bottom: auto; transform-origin: top left; }
+@container (max-width: 359px) {
+  .session-reminder-label { display: none; }
+  /* Keep existing workflow/background controls readable beside the new button. */
+  .agent-composer-tb-left:has(.session-reminder-overlay:not([hidden])) { gap: 3px; }
+  .agent-composer-tb-left:has(.session-reminder-overlay:not([hidden])) .agent-composer-bgtasks { flex: none; }
+  .agent-composer-tb-left:has(.session-reminder-overlay:not([hidden])) .bg-capsule { padding-inline: 3px; white-space: nowrap; }
+}
+.session-reminder-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 16px 8px; }
+.session-reminder-head strong { font-weight: 500; }
+.session-reminder-sub, .session-reminder-meta, .session-reminder-foot { color: var(--overlay-fg-secondary); }
+.session-reminder-sub { margin-top: 4px; }
+.session-reminder-close { display: grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--overlay-fg-secondary); cursor: pointer; }
+.session-reminder-list { padding: 0 8px 4px; }
+.session-reminder-row { display: flex; gap: 10px; padding: 10px 8px; border-radius: var(--radius-control); }
+.session-reminder-row:hover { background: var(--overlay-interaction-hover); }
+.session-reminder-row input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--overlay-fg-primary); }
+.session-reminder-delete { display: grid; place-items: center; flex: none; width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--overlay-fg-secondary); cursor: pointer; }
+.session-reminder-delete:hover:not(:disabled) { color: var(--overlay-status-danger-fg); background: var(--overlay-interaction-hover); }
+.session-reminder-delete:focus-visible { outline: 2px solid var(--overlay-border-focus); outline-offset: 1px; }
+.session-reminder-delete:disabled { cursor: default; }
+.session-reminder-copy { flex: 1; min-width: 0; }
+.session-reminder-text { display: block; overflow-wrap: anywhere; line-height: 1.5; }
+.session-reminder-row.is-complete .session-reminder-text { color: var(--overlay-fg-secondary); text-decoration: line-through; }
+.session-reminder-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-top: 4px; }
+.session-reminder-meta button, .session-reminder-error button { padding: 0; border: 0; color: var(--overlay-fg-primary); background: transparent; text-decoration: underline; cursor: pointer; }
+.session-reminder-empty { padding: 12px 8px 16px; color: var(--overlay-fg-secondary); }
+.session-reminders-done { margin: 0 16px; border-top: 1px solid var(--border-subtle); }
+.session-reminders-done summary { display: flex; gap: 6px; align-items: center; padding: 12px 0; color: var(--overlay-fg-secondary); list-style: none; cursor: pointer; }
+.session-reminders-done summary::-webkit-details-marker { display: none; }
+.session-reminders-done:not([open]) summary svg { transform: rotate(-90deg); }
+.session-reminders-done .session-reminder-list { margin: 0 -8px; }
+.session-reminder-foot { padding: 10px 16px 12px; border-top: 1px solid var(--border-subtle); }
+.cli-session-view.is-scan-capturing :is(.session-reminder-overlay, .session-reminder-panel) { visibility: hidden; }

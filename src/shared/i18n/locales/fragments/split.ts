@@ -1,0 +1,48 @@
+/** 域：中央区分屏 V1 + 网页扩展面板（CenterPanel / LeftPanel 分屏入口 / ExtensionPanel web 模式 / 管理面板网页徽标） */
+export const frag: Record<string, string> = {
+  // ── 分屏 pane 工具条与菜单 ──
+  '分屏操作': 'Split actions',
+  '全屏显示': 'Enter fullscreen',
+  '退出全屏': 'Exit fullscreen',
+  '无法切换全屏：{{error}}': 'Could not switch fullscreen: {{error}}',
+  '当前环境不支持全屏，请在桌面应用或支持全屏的浏览器中打开': 'Fullscreen is unavailable. Open this in the desktop app or a browser that supports fullscreen.',
+  '请先退出其他内容的全屏，再重试': 'Exit the other fullscreen content, then try again.',
+  '分屏偏好保存失败': 'Could not save split preferences',
+  '分屏偏好保存失败：{{error}}': 'Could not save split preferences: {{error}}',
+  '{{name}}：分屏操作': '{{name}}: Split actions',
+  '收起此侧': 'Hide this pane',
+  '切换分屏会话': 'Switch split content',
+  '显示 {{name}}': 'Show {{name}}',
+  '关闭此面板': 'Close this pane',
+  '关闭此面板，另一侧占满': 'Close this pane; the other side takes over',
+  '与对面交换': 'Swap with the other side',
+  '转为上下分屏': 'Switch to top/bottom split',
+  '转为左右分屏': 'Switch to left/right split',
+  '分隔条回到居中': 'Reset divider to center',
+  '解散分屏（保留此侧）': 'Dissolve split (keep this side)',
+  '转到浏览器标签': 'Move to browser tab',
+  // ── Windows 式顶部布局落点 ──
+  '选择分屏布局': 'Choose split layout',
+  '左右均分': 'Equal columns',
+  '左宽右窄': 'Wide left pane',
+  '上下均分': 'Equal rows',
+  '一大两小': 'One large and two small panes',
+  '三列均分': 'Three equal columns',
+  '{{layout}}，位置 {{index}}：{{name}}': '{{layout}}, position {{index}}: {{name}}',
+  '此布局无法保留所有已打开面板': 'This layout cannot keep all open panes',
+  // ── 列表入口 ──
+  '分屏显示': 'Split view',
+  // ── 空 pane / 提示 ──
+  '选择内容': 'Choose content',
+  '空面板': 'Empty pane',
+  '从左侧拖入会话或工具，或直接点击列表项填充': 'Drag a session or tool from the left, or click a list item to fill this pane',
+  '调整分屏比例': 'Adjust split ratio',
+  '拖动调整比例，双击回到 50/50': 'Drag to adjust the ratio; double-click to reset to 50/50',
+  '宽度不足，分屏已临时收起': 'Not enough width; the split is temporarily collapsed',
+  // ── 网页扩展面板（ExtensionPanel web 模式 / 管理面板徽标）──
+  '嵌入面板': 'Embed in pane',
+  '已在浏览器标签打开': 'Opened in a browser tab',
+  '移回面板': 'Move back to pane',
+  '正在嵌入网页…': 'Embedding web page…',
+  '网页': 'Web',
+};

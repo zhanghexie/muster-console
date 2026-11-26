@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-context-'));
+const compile = createSharedCompiler(root, tmp);
+const { ClaudeContextUsage } = await import(pathToFileURL(compile('main/agentSession/drivers/claude/contextUsage.ts')).href);
+const usage = new ClaudeContextUsage();
+assert.deepEqual(usage.observe({type:'assistant',message:{model:'m1',usage:{input_tokens:100,cache_read_input_tokens:30,cache_creation_input_tokens:20,output_tokens:5}}}),{tokens:155,contextWindow:0});
+assert.deepEqual(usage.observe({type:'result',modelUsage:{m1:{contextWindow:1000},other:{contextWindow:9999}}}),{tokens:155,contextWindow:1000});
+assert.equal(usage.observe({type:'assistant',parent_tool_use_id:'child',message:{model:'m1',usage:{input_tokens:999,output_tokens:1}}}),undefined);
+assert.deepEqual(usage.get(),{tokens:155,contextWindow:1000});
+assert.deepEqual(usage.observe({type:'stream_event',event:{type:'message_start',message:{model:'m2',usage:{input_tokens:200,output_tokens:0}}}}),{tokens:200,contextWindow:0});
+assert.deepEqual(usage.observe({type:'stream_event',event:{type:'message_delta',usage:{output_tokens:11}}}),{tokens:211,contextWindow:0});
+assert.equal(usage.observe({type:'result',modelUsage:{m1:{contextWindow:1000}}}),undefined);
+assert.equal(usage.observe({type:'assistant',message:{model:'m2',usage:{input_tokens:-1}}}),null);
+assert.equal(usage.get(),null);
+console.log('claude context usage: ok');

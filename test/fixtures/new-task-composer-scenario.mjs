@@ -1,0 +1,190 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export default async function ({ page, capture, assert }) {
+  const assets = fileURLToPath(new URL('../../src/renderer/src/assets/harness-brands/', import.meta.url));
+  await page.route('**/assets/harness-brands/*', route =>
+    route.fulfill({ path: path.join(assets, path.basename(new URL(route.request().url()).pathname)) }));
+  await page.getByRole('button', { name: '打开任务表单' }).click();
+  const dialog = page.getByRole('dialog', { name: '新建任务' });
+  const editor = dialog.getByRole('textbox', { name: '任务' });
+  await editor.waitFor();
+  const form = page.locator('.new-task-dialog:has(.new-task-environment)');
+  const bounds = () => form.evaluate(el => {
+    const { x, y, width, height } = el.getBoundingClientRect();
+    return [x, y, width, height].map(Math.round);
+  });
+  await editor.click();
+  const before = await bounds();
+  const shell = form.locator('.chat-input-shell');
+  const aboveButton = async (panel, button, align = 'left') => {
+    await panel.evaluate(async el => {
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await Promise.all(el.getAnimations({ subtree: true }).filter(a => a.effect?.getTiming().iterations !== Infinity).map(a => a.finished.catch(() => {})));
+    });
+    const rect = await panel.boundingBox();
+    const trigger = await button.boundingBox();
+    const viewport = page.viewportSize();
+    assert.ok(Math.abs(trigger.y - rect.y - rect.height - 4) <= 1, JSON.stringify({ rect, trigger }));
+    const idealLeft = align === 'right' ? trigger.x + trigger.width - rect.width : trigger.x;
+    assert.ok(Math.abs(rect.x - Math.max(8, Math.min(idealLeft, viewport.width - rect.width - 8))) <= 1);
+    assert.ok(rect.y >= 0 && rect.x >= 0 && rect.x + rect.width <= viewport.width);
+  };
+  const permissions = form.getByRole('button', { name: '权限模式' });
+  assert.equal(await form.getByRole('switch', { name: '配置权限' }).count(), 0);
+  await permissions.click();
+  const permissionMenu = page.getByRole('dialog', { name: '权限模式' });
+  await aboveButton(permissionMenu, permissions);
+  await permissionMenu.getByRole('switch', { name: '配置权限' }).click();
+  const plan = permissionMenu.getByRole('menuitemradio', { name: '计划模式' });
+  await plan.waitFor();
+  await plan.focus();
+  await aboveButton(permissionMenu, permissions);
+  assert.equal(await permissionMenu.getByRole('switch', { name: '配置权限' }).getAttribute('aria-checked'), 'true');
+  assert.deepEqual(await bounds(), before);
+  const tipTarget = permissionMenu.getByRole('img', { name: /自动接受工作区/ });
+  await tipTarget.hover();
+  await page.locator('[role="tooltip"]:popover-open').filter({ hasText: /自动接受工作区/ }).waitFor();
+  await plan.hover();
+  await plan.press('Enter');
+  await permissionMenu.waitFor({ state: 'hidden' });
+  assert.match(await permissions.innerText(), /计划模式/);
+  await permissions.click();
+  await aboveButton(permissionMenu, permissions);
+  assert.equal(await plan.getAttribute('aria-checked'), 'true');
+  await plan.hover();
+  await capture('permissions');
+  await permissions.click();
+  await permissionMenu.waitFor({ state: 'hidden' });
+  const mode = form.getByRole('combobox', { name: '引擎模式' });
+  await mode.click();
+  await page.waitForFunction(() => document.querySelector('select:open') &&
+    getComputedStyle(document.querySelector('select:open'), '::picker(select)').opacity === '1');
+  const modeRows = await mode.locator('option').evaluateAll(options => options.map(option => {
+    const label = option.querySelector('.c-select-item-label');
+    const range = document.createRange();
+    range.selectNodeContents(label);
+    const rect = option.getBoundingClientRect();
+    return { name: label.textContent, lines: range.getClientRects().length, top: rect.top, bottom: rect.bottom, left: rect.left };
+  }));
+  const modeBox = await mode.boundingBox();
+  assert.ok(Math.abs(modeRows[0].left - modeBox.x) < 8, JSON.stringify({ modeRows, modeBox }));
+  await capture('mode');
+  const padding = await mode.evaluate(el => {
+    const style = getComputedStyle(el, '::picker(select)');
+    return { top: parseFloat(style.paddingTop) + parseFloat(style.borderTopWidth),
+      bottom: parseFloat(style.paddingBottom) + parseFloat(style.borderBottomWidth) };
+  });
+  const pickerTop = modeRows[0].top - padding.top;
+  const pickerBottom = modeRows.at(-1).bottom + padding.bottom;
+  assert.ok(Math.abs(modeBox.y - pickerBottom - 4) <= 1, '模式菜单应紧贴按钮上方');
+  assert.ok(pickerTop >= 0, '模式选项应完整显示');
+  assert.deepEqual(await bounds(), before, '模式菜单展开时任务面板应保持原位');
+  assert.ok(modeRows.every(row => row.lines === 1), JSON.stringify(modeRows));
+  await mode.getByRole('option', { name: '创造模式' }).click();
+  assert.equal(await mode.inputValue(), 'creator');
+  await editor.click();
+  await form.getByRole('button', { name: '添加附件' }).click();
+  const actions = page.locator('.task-composer-flyout').getByRole('menu');
+  await actions.waitFor();
+  assert.deepEqual(await bounds(), before);
+  await actions.getByRole('menuitem', { name: /命令 \/ 技能/ }).click();
+  await page.locator('.task-composer-flyout[data-flyout=actions]').waitFor({ state: 'detached' });
+  const skill = page.getByRole('option', { name: /review/i });
+  await skill.waitFor();
+  assert.deepEqual(await bounds(), before, '打开候选不得改变任务面板的位置或尺寸');
+  const flyout = page.locator('.task-composer-flyout:visible');
+  assert.equal(await form.locator('.agent-composer-menu').count(), 0);
+  const popup = await flyout.boundingBox();
+  const list = flyout.getByRole('listbox');
+  const listBox = await list.boundingBox();
+  const shellBox = await shell.boundingBox();
+  assert.ok(await list.getByRole('option').count() >= 16);
+  await capture('commands');
+  const listBottom = listBox.y + listBox.height;
+  assert.ok(listBottom <= shellBox.y - 3 && listBox.y >= 0,
+    `命令列表底边 ${listBottom}，输入框上沿 ${shellBox.y}，菜单高度 ${listBox.height}`);
+  const viewport = page.viewportSize();
+  assert.ok(popup.x >= 0 && popup.y >= 0 && popup.x + popup.width <= viewport.width + 1 && popup.y + popup.height <= viewport.height + 1);
+  assert.equal(await editor.evaluate(el => el === document.activeElement), true);
+  for (let i = 0; i < 12; i++) await editor.press('ArrowDown');
+  assert.ok(await list.evaluate(el => el.scrollTop > 0 && el.scrollHeight > el.clientHeight));
+  assert.deepEqual(await bounds(), before);
+  await skill.click();
+  assert.equal(await editor.locator('.composer-token-label').innerText(), '/skill:review');
+  await editor.fill('');
+  await page.keyboard.insertText('/quickInput');
+  await page.getByRole('option', { name: /quickInput/ }).click();
+  await page.getByRole('dialog', { name: '快捷短语' }).waitFor();
+  assert.deepEqual(await bounds(), before);
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog', { name: '快捷短语' }).waitFor({ state: 'hidden' });
+  await editor.click();
+  await page.keyboard.insertText('@');
+  await flyout.getByRole('listbox').waitFor();
+  assert.deepEqual(await bounds(), before);
+  await page.keyboard.press('Escape');
+  await flyout.waitFor({ state: 'hidden' });
+  await editor.fill('/harness');
+  await page.getByRole('option', { name: /harness/i }).click();
+  const reference = page.getByRole('dialog', { name: '插入模型引用' });
+  await reference.waitFor();
+  assert.deepEqual(await bounds(), before);
+  await page.keyboard.press('Escape');
+  await reference.waitFor({ state: 'hidden' });
+  await editor.fill('');
+  await page.keyboard.insertText('整理本次改动');
+  await page.keyboard.press('Enter');
+  await page.keyboard.insertText('列出需要验证的交互');
+  await dialog.locator('input[type=file]').setInputFiles({ name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('sample') });
+  await dialog.getByText('notes.txt', { exact: true }).first().waitFor();
+  const draft = await editor.innerText();
+  const submit = dialog.getByRole('button', { name: '开始任务' });
+  assert.equal(await submit.isEnabled(), true);
+  const geometry = await form.evaluate(el => {
+    const rect = el => { const { left, right, top, bottom } = el.getBoundingClientRect(); return { left, right, top, bottom }; };
+    const fields = [...el.querySelector('.new-task-environment').children];
+    return { captions: fields.map(f => rect(f.firstElementChild)), controls: fields.map(f => rect(f.querySelector('input,select,button'))),
+      editor: rect(el.querySelector('.chat-input-shell')) };
+  });
+  const { captions, controls, editor: editorRect } = geometry;
+  if (controls[0].left !== controls[2].left) {
+    for (const row of [captions, controls]) for (const field of row) {
+      assert.ok(Math.abs(field.top - row[0].top) < 1 && Math.abs(field.bottom - row[0].bottom) < 1, JSON.stringify(row));
+    }
+  }
+  assert.ok(Math.abs(controls[0].left - editorRect.left) < 1 && Math.abs(controls[2].right - editorRect.right) < 1, JSON.stringify(geometry));
+  await capture('composer');
+  assert.equal(await dialog.getByRole('tab', { name: 'CLI' }).count(), 0);
+  const target = dialog.getByRole('button', { name: '选择 Harness 和模型' });
+  const beforePicker = await bounds();
+  await target.click();
+  const picker = page.getByRole('dialog', { name: '选择 Harness 和模型' });
+  const gui = picker.getByRole('tab', { name: 'GUI', exact: true });
+  await picker.getByRole('tab', { name: 'Muster Core' }).waitFor();
+  await aboveButton(picker, target, 'right');
+  await capture('harness-gui');
+  const cli = picker.getByRole('tab', { name: 'CLI', exact: true });
+  await gui.focus();
+  await page.keyboard.press('ArrowRight');
+  await picker.getByRole('tab', { name: 'Codex CLI' }).waitFor();
+  assert.equal(await cli.getAttribute('aria-selected'), 'true');
+  assert.equal(await cli.evaluate(tab => document.activeElement === tab), true);
+  assert.deepEqual(await bounds(), beforePicker);
+  await aboveButton(picker, target, 'right');
+  await capture('harness-cli');
+  const modelId = picker.getByRole('textbox', { name: '模型 ID' });
+  const modelStep = picker.getByRole('button', { name: '模型', exact: true });
+  if (await modelStep.isVisible()) await modelStep.click();
+  await modelId.fill('bad & model');
+  await page.getByText(/模型 ID 无效/).waitFor();
+  assert.equal(await picker.getByRole('button', { name: '确认配置' }).isEnabled(), false);
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'hidden' });
+  assert.equal(await target.evaluate(el => el === document.activeElement), true);
+  await editor.waitFor();
+  assert.equal(await editor.innerText(), draft);
+  assert.equal(await dialog.getByText('notes.txt', { exact: true }).count(), 1);
+  assert.equal(await target.isVisible(), true);
+  assert.equal(await page.evaluate(() => window.__uiFixture.taskStarts), 0);
+}

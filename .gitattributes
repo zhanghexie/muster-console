@@ -1,0 +1,17 @@
+# 统一行尾：仓库内一律 LF（Windows 检出也保持 LF，避免跨平台整文件行尾 diff）
+* text=auto eol=lf
+
+# 二进制资产不做任何转换
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+
+# append-only 日志：并发合入走 union，两边追加都不丢（P6）
+docs/journal/*.md merge=union

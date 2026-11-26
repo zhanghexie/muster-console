@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- MetaAgent 工作台 图标提案：门拱式「M」+ 拱下 agent 圆点 -->
+  <!-- 底板：L0 临床黑 + 发丝线描边（与应用一级结构边界同语言） -->
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="#1A1A1A"/>
+  <rect x="33" y="33" width="958" height="958" rx="215" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="2"/>
+  <!-- M = MetaAgent；单线圆角笔画，形似门拱/工作台骨架（宿主为框架，agent 居于其中） -->
+  <path d="M 322 700 L 322 332 L 512 512 L 702 332 L 702 700" fill="none" stroke="#E4E4E4" stroke-width="82" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 拱下圆点 = 被调度的 agent，与两腿同落在一条地平线上 -->
+  <circle cx="512" cy="664" r="48" fill="#E4E4E4"/>
+</svg>

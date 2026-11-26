@@ -1,0 +1,134 @@
+/* 干净主题色：均匀混色，不叠加噪点贴图或模拟模糊。 */
+:root[data-workspace-material='frosted'] {
+  --glass-sheet: var(--surface-canvas);
+  --glass-float: var(--glass-sheet);
+  --input-surface: var(--surface-input);
+}
+
+:root[data-workspace-material='frosted'][data-theme='light'] {
+  --input-surface: var(--surface-input);
+}
+
+/* 被覆盖/重叠的面各自有不透明实底，不透出第二套文字。 */
+html[data-workspace-material='frosted'] :is(.center-panel, .side-tools-panel) {
+  background-color: var(--glass-sheet);
+}
+
+/* 输入条垫底与工作面是同一实色，滚动消息不会透到输入区下面。 */
+html[data-workspace-material='frosted'] .chat-surface-view {
+  --composer-fade: var(--glass-sheet);
+}
+
+/* One native window material per platform — Mica on Windows 11 22H2+, Vibrancy
+   (sidebar) on macOS — and one pure workspace-color overlay across the entire
+   frame. Off means the raw native material; cards/drawers keep opaque surfaces. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']),
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) :is(body, #root) {
+  background: transparent;
+}
+
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .app-shell {
+  background: var(--workspace-native-tint, transparent);
+}
+
+/* Keep animated glass scrims' backdrop sampling inside the renderer over Vibrancy.
+   Use body so dialogs portaled beside #root share the same backdrop root.
+   Release the extra compositing layer as soon as the last scrim unmounts. */
+html[data-native-material='vibrancy'] body:has(.backdrop-blur-overlay.mp-scrim) {
+  will-change: opacity;
+}
+
+/* Give the filter an opaque surface behind the translucent frame while open.
+   Fade it with the scrim so the sidebar regains its native material smoothly. */
+html[data-native-material='vibrancy'] body:has(.backdrop-blur-overlay.mp-scrim)::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--surface-frame) 25%, black);
+  opacity: 0;
+  transition: opacity var(--dur-exit) var(--ease-exit);
+}
+
+html[data-native-material='vibrancy'] body:has(.backdrop-blur-overlay.mp-scrim[data-mp-stage='in'])::before {
+  opacity: 1;
+  transition: opacity var(--dur-panel) var(--ease-standard);
+}
+
+/* Every exposed frame surface shares the native material without an image layer. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) :is(
+  .app-shell, .chrome-bar, .main-view, .settings-page,
+  .main-view.sessions-hidden .ws-stage
+) {
+  background-image: none;
+}
+
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) :is(.chrome-bar, .main-view, .settings-page),
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .main-view.sessions-hidden .ws-stage {
+  background: transparent;
+}
+
+html:is([data-native-material='mica'], [data-native-material='vibrancy']):not(.is-narrow) .git-page {
+  background: transparent;
+}
+
+/* Workspace-transition skeletons share the frame; their content panes stay solid. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) :is(.ws-pane-skel, .ws-pane-skel .ws-skeleton, .ws-skel-left) {
+  background: transparent;
+}
+
+/* Whole-page opacity would also fade card surfaces into the native material.
+   Keep pointer disabling, the active resizer and snapshot feedback as cues. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .main-view.is-reshaping :is(.terminal-page, .git-page),
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .main-view.is-left-resizing .terminal-page {
+  opacity: 1;
+}
+
+/* Retain the lower sidebar through its existing covering slide, then hide all
+   nested visible layers: the folded stage now has a transparent frame. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .sessions-float:not(.is-retained),
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .sessions-float:not(.is-retained) *,
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .sessions-float.is-hidden,
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .sessions-float.is-hidden * {
+  visibility: hidden;
+}
+
+/* Translucent sidebar tiles share the same treatment on every platform. */
+.app-shell .left-panel {
+  --sidebar-item-hover: color-mix(in srgb, var(--interaction-hover) 65%, transparent);
+  --sidebar-item-selected: color-mix(in srgb, var(--interaction-selected) 72%, transparent);
+  --sidebar-item-selected-hover: color-mix(in srgb, var(--interaction-selected-hover) 78%, transparent);
+}
+.app-shell .left-panel .utility-feature-item,
+.app-shell .left-ws-slot .agent-notify-bubble::before {
+  background: var(--sidebar-item-hover);
+}
+.app-shell .left-panel .session-item:hover:not([aria-disabled='true']) {
+  background: var(--sidebar-item-hover);
+}
+.app-shell .left-panel :is(.session-item, .utility-feature-item):is(.active, .is-pane-open),
+.app-shell .left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble::before {
+  background: var(--sidebar-item-selected);
+}
+.app-shell .left-panel .utility-feature-item:hover,
+.app-shell .left-panel :is(.session-item, .utility-feature-item):is(.active, .is-pane-open):hover,
+.app-shell .left-ws-slot .agent-notify-bubble:hover::before,
+.app-shell .left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble:hover::before {
+  background: var(--sidebar-item-selected-hover);
+}
+.app-shell .left-ws-slot .agent-notify-bubble {
+  background: color-mix(in srgb, var(--surface-frame) 45%, transparent);
+}
+.app-shell .left-panel .session-capsule {
+  background: color-mix(in srgb, var(--status-neutral-bg) 65%, transparent);
+}
+
+/* Settings owns this marker from its DOM commit through presence exit/unmount.
+   Composite only the two parents: explicit-visible descendants cannot escape
+   opacity, and SettingsModal owns inert for their input/focus/accessibility. */
+html:is([data-native-material='mica'], [data-native-material='vibrancy']) .app-shell.has-settings-page > :is(.chrome-bar, .main-view) {
+  opacity: 0;
+  pointer-events: none;
+  transition: none !important;
+}

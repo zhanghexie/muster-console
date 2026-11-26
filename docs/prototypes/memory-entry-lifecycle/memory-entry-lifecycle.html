@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 条目生命周期徽标 + 来历/血缘（条目 3 / M5）现状 vs 改后</title>
+<!--
+  记忆面板改造计划 · 条目 3 交互原型（docs/plans/memory-panel-comprehension-plan.md）。
+  现状侧 = M1–M4 已合入后的真实形态（含召回热度胶囊、双库标注）；改后侧叠加条目 3 三件事：
+  ①生命周期徽标（策展中/已取代）②来历行（会话/审批/直写三态）③血缘互链（取代了谁/被谁取代）。
+  token 抄自 base.css / memory.css（2026-09-27 快照）。数据虚构，交互可点。
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-panel: #1e1e1e; --bg-raised: #252526; --bg-overlay: #2a2a2a; --bg-input: #232323;
+    --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e; --hairline: #2c2c2c;
+    --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(250,250,250,0.05); --selected-fill: rgba(250,250,250,0.08); --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', 'Courier New', monospace;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-panel: 280ms; --dur-micro: 120ms;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 26px 0 80px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  h2 { font-size: var(--font-control); font-weight: 500; color: var(--text-2); margin: 22px 0 10px; }
+  .view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .view-toggle button { padding: 5px 16px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .view-toggle button.is-active { background: var(--selected-fill); color: var(--ink); }
+  .pane { display: none; } .pane.is-show { display: block; }
+
+  /* —— 行卡（对齐 MemoryPanel 条目总览行卡） —— */
+  .chiprow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { padding: 2px 12px; border-radius: var(--radius-pill); font-size: var(--font-caption); color: var(--text-2); background: var(--bg-inset); cursor: pointer; }
+  .chip.is-active { background: var(--selected-fill); color: var(--ink); }
+  .chip.is-add { background: transparent; border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent); color: var(--yellow); }
+  .rowcard { padding: 11px 13px; border-radius: var(--radius-small); background: var(--bg-raised); box-shadow: var(--shadow-card); margin-bottom: 8px; }
+  .row-top { display: flex; align-items: flex-start; gap: 8px; }
+  .row-text { flex: 1; min-width: 0; font-size: var(--font-ui); }
+  .row-text .tagword { color: var(--green); font-family: var(--font-mono); font-size: 12px; margin-right: 4px; }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-tag.is-warn { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-sched { background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+  .memory-tag.is-dim { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-tag.is-other { background: var(--bg-inset); color: var(--text-2); }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .meta-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+
+  /* —— 条目 3 新元素 —— */
+  .stage-curated { background: transparent; border: 1px solid color-mix(in srgb, var(--green) 45%, transparent); color: var(--green); }
+  .stage-retired { background: var(--bg-inset); color: var(--text-3); }
+  .prov-row { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: var(--font-caption); color: var(--text-3); }
+  .prov-row .ico { flex: none; opacity: 0.8; }
+  .prov-row .link { color: var(--text-2); cursor: pointer; border-bottom: 1px dashed var(--hairline); }
+  .prov-row .link:hover { color: var(--ink); border-bottom-color: var(--text-3); }
+  .lineage { margin-top: 8px; border-top: 1px dashed var(--hairline); padding-top: 7px; }
+  .lineage-head { display: flex; align-items: center; gap: 6px; font-size: var(--font-caption); color: var(--text-2); cursor: pointer; }
+  .lineage-head:hover { color: var(--ink); }
+  .lineage-head .chev { margin-left: auto; font-size: 10px; color: var(--text-3); transition: transform var(--dur-panel) var(--ease-standard); }
+  .lineage.is-open .lineage-head .chev { transform: rotate(180deg); }
+  .lineage-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-panel) var(--ease-standard); }
+  .lineage.is-open .lineage-body { grid-template-rows: 1fr; }
+  .lineage-body > div { overflow: hidden; min-height: 0; }
+  .lineage-inner { padding: 8px 10px; margin-top: 7px; border-radius: var(--radius-small); background: var(--bg-canvas); font-size: var(--font-caption); color: var(--text-2); }
+  .lineage-inner .old-quote { color: var(--text-3); }
+  .lineage-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .ui-btn { padding: 3px 12px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn:hover { background: var(--hover-fill); }
+  .retired-text { color: var(--text-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--red) 40%, transparent); }
+
+  .gap-note { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--yellow) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .gap-note b { color: var(--yellow); font-weight: 500; }
+
+  .toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(8px); opacity: 0; background: var(--bg-overlay); color: var(--ink); font-size: var(--font-caption); padding: 8px 16px; border-radius: var(--radius-pill); box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08); pointer-events: none; transition: opacity var(--dur-micro) ease-out, transform var(--dur-micro) ease-out; }
+  .toast.is-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 3 · 生命周期徽标 + 来历/血缘，M5 批次）。现状侧=当前 dev 真实形态（含已合入的召回热度/双库标注）；切「改后」后可点：<b>「已取代」筛选档</b>（退役条目考古）、<b>⤴ 血缘行展开</b>、<b>来历行</b>各链接。数据虚构。</div>
+
+  <div class="view-toggle">
+    <button id="btnBefore" class="is-active">现状</button>
+    <button id="btnAfter">改后</button>
+  </div>
+
+  <!-- ================= 现状 ================= -->
+  <div class="pane is-show" id="paneBefore">
+    <h2>条目总览 · 全部</h2>
+    <div class="chiprow">
+      <span class="chip is-active">全部</span>
+      <span class="chip">Worker 共享</span>
+      <span class="chip">调度专用</span>
+      <span class="memory-meta-dim" style="margin-left:6px">排序：按时间 · 按召回 · 从未被召回</span>
+    </div>
+
+    <div class="rowcard">
+      <div class="row-top">
+        <div class="row-text"><span class="tagword">#decision</span>数据库统一 PostgreSQL，弃 MySQL。</div>
+        <span class="memory-tag is-lesson">Worker 共享</span>
+      </div>
+      <div class="meta-row">
+        <span class="memory-meta-dim">09-01 10:00</span>
+        <span class="memory-tag is-other">近 30 天注入 12 次 · 检索命中 5 次</span>
+      </div>
+    </div>
+
+    <div class="rowcard">
+      <div class="row-top">
+        <div class="row-text"><span class="tagword">#preference</span>派活默认 GLM-5.3-Flash（provider zhipu）。</div>
+        <span class="memory-tag is-lesson">Worker 共享</span>
+      </div>
+      <div class="meta-row">
+        <span class="memory-meta-dim">昨天</span>
+        <span class="memory-tag is-other">近 30 天注入 3 次</span>
+      </div>
+    </div>
+
+    <div class="rowcard">
+      <div class="row-top">
+        <div class="row-text"><span class="tagword">#lesson</span>Windows 反斜杠转义陷阱。</div>
+        <span class="memory-tag is-lesson">Worker 共享</span>
+      </div>
+      <div class="meta-row">
+        <span class="memory-meta-dim">09-26</span>
+        <span class="memory-tag is-dim">从未被召回</span>
+      </div>
+    </div>
+
+    <div class="gap-note">
+      <b>缺口① 来历不明</b>——一条记忆是谁说的、是任务里沉淀的、你审批放行的、还是你说「记住」直写的，卡片上一概看不出（信任的第一要素）。<br>
+      <b>缺口② 退役即蒸发</b>——被「GLM-5.3-Flash」取代的旧条目「派活默认 DeepSeek」已经不在这份列表里，只能去回收站盲翻前镜像，不知道哪张镜像对应哪条。<br>
+      <b>缺口③ 无版本血缘</b>——现役条目看不出它是不是某条旧记忆的新版本；旧条目也回指不到新条目。
+    </div>
+  </div>
+
+  <!-- ================= 改后 ================= -->
+  <div class="pane" id="paneAfter">
+    <h2>同一列表 · 叠加生命周期</h2>
+    <div class="chiprow" id="nsChips">
+      <span class="chip is-active" data-view="active">全部</span>
+      <span class="chip" data-view="active">Worker 共享</span>
+      <span class="chip" data-view="active">调度专用</span>
+      <span class="chip is-add" data-view="retired" id="retiredChip">已取代（2）</span>
+    </div>
+
+    <!-- 现役视图 -->
+    <div id="activeList">
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text"><span class="tagword">#decision</span>数据库统一 PostgreSQL，弃 MySQL。</div>
+          <span class="memory-tag stage-curated">策展中</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-meta-dim">09-01 10:00</span>
+          <span class="memory-tag is-other">近 30 天注入 12 次 · 检索命中 5 次</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>来自
+          <span class="link" data-toast="→ 跳转会话 a1b2c3">会话 a1b2c3</span>· 任务收口时沉淀
+        </div>
+      </div>
+
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text"><span class="tagword">#preference</span>派活默认 GLM-5.3-Flash（provider zhipu）。</div>
+          <span class="memory-tag stage-curated">策展中</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-meta-dim">昨天</span>
+          <span class="memory-tag is-other">近 30 天注入 3 次</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>来自
+          <span class="link" data-toast="→ 跳晋升审阅 · 巩固轮 #12">审批 #12</span>· 你批准的
+        </div>
+        <div class="lineage is-open" id="lin1">
+          <div class="lineage-head">⤴ 取代了「派活默认 DeepSeek」<span class="memory-meta-dim">· 09-12 退役</span><span class="chev">▼</span></div>
+          <div class="lineage-body"><div><div class="lineage-inner">
+            <div class="old-quote">旧文：「派活默认 DeepSeek。」</div>
+            <div class="lineage-actions">
+              <button class="ui-btn" data-toast="→ 定位到「已取代」档的旧条目">查看旧版</button>
+              <button class="ui-btn" data-toast="→ 跳回收站 · 前镜像 #29">旧版全文（回收站前镜像 #29）</button>
+            </div>
+          </div></div></div>
+        </div>
+      </div>
+
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text"><span class="tagword">#lesson</span>Windows 反斜杠转义陷阱。</div>
+          <span class="memory-tag stage-curated">策展中</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-meta-dim">09-26</span>
+          <span class="memory-tag is-dim">从未被召回</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>来自 你说的「记住」<span class="memory-meta-dim">（直写条目：无会话短 ID 即判直写）</span></div>
+      </div>
+
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text"><span class="tagword">#preference</span>调度简报默认精简。</div>
+          <span class="memory-tag is-sched">调度专用</span>
+          <span class="memory-tag stage-curated">策展中</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-meta-dim">今天</span>
+          <span class="memory-tag is-dim">触发词「简报」</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>来自
+          <span class="link" data-toast="→ 跳转调度会话 sched">调度会话 sched</span>· 调度回合沉淀
+        </div>
+      </div>
+
+      <div class="memory-meta-dim" style="margin-top:10px">「策展中」徽标为常驻弱绿描边（词汇表作用）；来历三态判定：有时间戳会话短 ID=会话沉淀 / 命中巩固明细=审批 #n / 两者皆无=直写。</div>
+    </div>
+
+    <!-- 已取代视图 -->
+    <div id="retiredList" style="display:none">
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text retired-text"><span class="tagword">#preference</span>派活默认 DeepSeek。</div>
+          <span class="memory-tag stage-retired">已被取代</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-tag is-dim">由「派活默认 GLM-5.3-Flash（provider zhipu）」取代</span>
+          <span class="memory-meta-dim">09-12 退役</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>当年来历：来自
+          <span class="link" data-toast="→ 跳转会话 8f7e6d5">会话 8f7e6d5</span>· 任务收口时沉淀
+        </div>
+        <div class="lineage-actions" style="margin-top:8px">
+          <button class="ui-btn" data-toast="→ 回「全部」档定位现役新版">查看现役新版</button>
+          <button class="ui-btn" data-toast="→ 跳回收站 · 前镜像 #29（只读查看）">旧版全文 · 回收站前镜像 #29</button>
+        </div>
+      </div>
+
+      <div class="rowcard">
+        <div class="row-top">
+          <div class="row-text retired-text"><span class="tagword">#bug</span>终端渲染用 WebGL 加速光标。</div>
+          <span class="memory-tag stage-retired">已被取代</span>
+        </div>
+        <div class="meta-row">
+          <span class="memory-tag is-dim">由「终端渲染统一走合成器路径，禁 paint 型动画」取代</span>
+          <span class="memory-meta-dim">08-29 退役</span>
+        </div>
+        <div class="prov-row"><span class="ico">↳</span>当年来历：来自
+          <span class="link" data-toast="→ 跳晋升审阅 · 巩固轮 #7">审批 #7</span>· 你批准的
+        </div>
+        <div class="lineage-actions" style="margin-top:8px">
+          <button class="ui-btn" data-toast="→ 回「全部」档定位现役新版">查看现役新版</button>
+          <button class="ui-btn" data-toast="→ 跳回收站 · 前镜像 #17（只读查看）">旧版全文 · 回收站前镜像 #17</button>
+        </div>
+      </div>
+
+      <div class="memory-meta-dim" style="margin-top:10px">显示 2 / 2 · 本档上限 100 条，超出引导用搜索。退役条目<b style="color:var(--text-2)">只读</b>：这里没有「恢复」按钮——恢复只走回收站回滚既有通道，不造旁路。</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // 现状/改后切换
+  var btnB = document.getElementById('btnBefore'), btnA = document.getElementById('btnAfter');
+  var paneB = document.getElementById('paneBefore'), paneA = document.getElementById('paneAfter');
+  function show(w) {
+    btnB.classList.toggle('is-active', w === 'b'); btnA.classList.toggle('is-active', w === 'a');
+    paneB.classList.toggle('is-show', w === 'b'); paneA.classList.toggle('is-show', w === 'a');
+  }
+  btnB.onclick = function () { show('b'); };
+  btnA.onclick = function () { show('a'); };
+
+  // toast
+  var t = document.getElementById('toast'), tt = null;
+  function toast(msg) {
+    t.textContent = msg; t.classList.add('is-show');
+    clearTimeout(tt); tt = setTimeout(function () { t.classList.remove('is-show'); }, 1800);
+  }
+  document.querySelectorAll('[data-toast]').forEach(function (el) {
+    el.addEventListener('click', function (ev) { ev.stopPropagation(); toast(el.getAttribute('data-toast')); });
+  });
+
+  // 已取代筛选档切换
+  var activeList = document.getElementById('activeList');
+  var retiredList = document.getElementById('retiredList');
+  var retiredChip = document.getElementById('retiredChip');
+  var chips = document.querySelectorAll('#nsChips .chip');
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      chips.forEach(function (c) { c.classList.remove('is-active'); });
+      chip.classList.add('is-active');
+      var retired = chip.getAttribute('data-view') === 'retired';
+      activeList.style.display = retired ? 'none' : '';
+      retiredList.style.display = retired ? '' : 'none';
+    });
+  });
+
+  // 血缘行展开/收起
+  document.querySelectorAll('.lineage-head').forEach(function (head) {
+    head.addEventListener('click', function () { head.parentElement.classList.toggle('is-open'); });
+  });
+</script>
+</body>
+</html>

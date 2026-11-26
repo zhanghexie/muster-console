@@ -1,0 +1,271 @@
+{
+  "source": "approved-flat-36.png",
+  "sourceSize": [
+    1254,
+    1254
+  ],
+  "outputSize": [
+    256,
+    256
+  ],
+  "outputFormat": "webp",
+  "quality": 95,
+  "glyphSize": 208,
+  "padding": 24,
+  "background": "transparent",
+  "matting": "neutral-background separation, opaque interiors and recovered edge alpha",
+  "crops": [
+    {
+      "id": "news",
+      "left": 28,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "social",
+      "left": 238,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "messaging",
+      "left": 445,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "development",
+      "left": 649,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "video",
+      "left": 853,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "music",
+      "left": 1057,
+      "top": 36,
+      "width": 170,
+      "height": 136
+    },
+    {
+      "id": "live",
+      "left": 28,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "photography",
+      "left": 238,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "design",
+      "left": 445,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "writing",
+      "left": 649,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "reading",
+      "left": 853,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "education",
+      "left": 1057,
+      "top": 234,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "calendar",
+      "left": 28,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "tasks",
+      "left": 238,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "notes",
+      "left": 445,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "mail",
+      "left": 649,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "cloud",
+      "left": 853,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "security",
+      "left": 1057,
+      "top": 426,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "data",
+      "left": 28,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "finance",
+      "left": 238,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "shopping",
+      "left": 445,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "travel",
+      "left": 649,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "maps",
+      "left": 853,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "health",
+      "left": 1057,
+      "top": 624,
+      "width": 170,
+      "height": 137
+    },
+    {
+      "id": "gamepad",
+      "left": 28,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "action",
+      "left": 238,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "shooter",
+      "left": 445,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "rpg",
+      "left": 649,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "strategy",
+      "left": 853,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "racing",
+      "left": 1057,
+      "top": 824,
+      "width": 170,
+      "height": 134
+    },
+    {
+      "id": "sports",
+      "left": 28,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    },
+    {
+      "id": "puzzle",
+      "left": 238,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    },
+    {
+      "id": "simulation",
+      "left": 445,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    },
+    {
+      "id": "sandbox",
+      "left": 649,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    },
+    {
+      "id": "rhythm",
+      "left": 853,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    },
+    {
+      "id": "cards",
+      "left": 1057,
+      "top": 1014,
+      "width": 170,
+      "height": 139
+    }
+  ]
+}

@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title> Harness 透明模式 · 交互 demo（v3）</title>
+<link rel="stylesheet" href="file:///E:/Projects/metaagent-workbench/src/renderer/src/styles.css">
+<style>
+/* ══ 以下为透明模式新增样式（demo 增量），只允许使用既有 token ══ */
+body.demo-body { margin: 0; background: var(--bg-canvas); color: var(--ink);
+  font: 13px/1.6 -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+.demo-wrap { max-width: 880px; margin: 0 auto; padding: 0 0 48px; }
+.demo-topbar { position: sticky; top: 0; z-index: 9; display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--bg-panel); border-bottom: 1px solid var(--hairline); }
+.demo-topbar .demo-title { font-weight: 600; font-size: 13px; }
+.demo-topbar .demo-sub { color: var(--text-3); font-size: 12px; }
+.demo-topbar .demo-spacer { flex: 1; }
+/* 开关：bg-input 底 + hairline 边，开=绿 */
+.harness-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+  color: var(--text-2); font-size: 12px; user-select: none; }
+.harness-toggle .tk { width: 30px; height: 16px; border-radius: 999px; background: var(--bg-input);
+  border: 1px solid var(--hairline); position: relative; transition: background var(--dur-base, 160ms) var(--ease-out, ease); }
+.harness-toggle .tk::after { content: ''; position: absolute; top: 1px; left: 1px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--text-3); transition: transform var(--dur-base, 160ms) var(--ease-out, ease), background var(--dur-base,160ms) ease; }
+body.harness-on .harness-toggle .tk { background: var(--ink); border-color: var(--ink); }
+body.harness-on .harness-toggle .tk::after { transform: translateX(14px); background: var(--bg-canvas); }
+body.harness-on .harness-toggle { color: var(--ink); }
+/* 标注公共：默认隐藏；开启后按组件自身 display 显示（不互相覆盖） */
+.harness-a { display: none; }
+body.harness-on .harness-inject { display: block; }
+body.harness-on .harness-steer { display: flex; }
+body.harness-on .harness-drawer { display: block; }
+body.harness-on .harness-compact { display: flex; }
+/* 透明模式下 hoverbar 常显（时间 + 计量 chips）；特异性压过 .chat-msg.chat-quiet .chat-hoverbar */
+body.harness-on .chat-msg.chat-quiet .chat-hoverbar { opacity: 1; pointer-events: auto; }
+/* ── 注入快照 ── */
+.harness-inject { margin: 2px 0 6px 36px; border: 1px dashed var(--hairline); border-radius: 8px;
+  background: var(--bg-inset); overflow: hidden; }
+.harness-inject summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px; color: var(--text-2); font-size: 12px; }
+.harness-inject summary::-webkit-details-marker { display: none; }
+.harness-inject summary:hover { background: var(--hover-fill); }
+.harness-inject .h-ico { color: var(--purple); font-size: 11px; }
+.harness-inject .h-segs { color: var(--text-3); }
+.harness-inject .h-caret { margin-left: auto; color: var(--text-3); transition: transform var(--dur-fast, 120ms) ease; }
+.harness-inject[open] .h-caret { transform: rotate(180deg); }
+.harness-seg { border-top: 1px solid var(--hairline); padding: 6px 10px; }
+.harness-seg label { display: block; color: var(--text-3); font-size: 11px; margin-bottom: 3px; }
+.harness-seg pre { margin: 0; padding: 6px 8px; background: var(--bg-canvas); border-radius: 6px;
+  color: var(--text-2); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-all;
+  max-height: 88px; overflow: hidden; }
+/* ── 插话线 ── */
+.harness-steer { display: flex; align-items: center; gap: 8px; margin: 4px 0 4px 36px; padding: 5px 10px;
+  border-left: 2px solid var(--purple); background: var(--bg-inset); border-radius: 0 8px 8px 0;
+  color: var(--ink-soft); font-size: 12px; }
+.harness-steer .h-badge { flex: none; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+  border: 1px solid var(--purple); color: var(--purple); }
+.harness-steer .h-time { margin-left: auto; color: var(--text-3); font-size: 11px; }
+/* ── 计量 chips（挂在 hoverbar 里）── */
+.harness-metrics { display: none; gap: 4px; align-items: center; margin-right: 6px; }
+body.harness-on .harness-metrics { display: inline-flex; }
+.harness-chip { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: var(--bg-inset);
+  color: var(--text-2); border: 1px solid var(--hairline); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* ── 每轮 harness 详情抽屉 ── */
+.harness-drawer { margin: 2px 0 8px 36px; border: 1px solid var(--hairline); border-radius: 8px;
+  background: var(--bg-panel); overflow: hidden; }
+.harness-drawer summary { list-style: none; cursor: pointer; padding: 6px 10px; color: var(--text-2);
+  font-size: 12px; display: flex; gap: 6px; align-items: center; }
+.harness-drawer summary::-webkit-details-marker { display: none; }
+.harness-drawer summary:hover { background: var(--hover-fill); }
+.harness-drawer table { width: calc(100% - 20px); margin: 0 10px 8px; border-collapse: collapse; font-size: 11px; }
+.harness-drawer th { text-align: left; color: var(--text-3); font-weight: 500; padding: 3px 6px;
+  border-bottom: 1px solid var(--hairline); }
+.harness-drawer td { padding: 4px 6px; color: var(--ink-soft); border-bottom: 1px solid var(--hairline); }
+.harness-drawer td.num { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.harness-drawer .h-note { padding: 0 10px 8px; color: var(--text-3); font-size: 11px; }
+/* ── 压缩分隔 ── */
+.harness-compact { display: flex; align-items: center; gap: 8px; margin: 8px 36px; color: var(--text-3); font-size: 11px; }
+.harness-compact::before, .harness-compact::after { content: ''; flex: 1; height: 1px; background: var(--hairline); }
+.harness-compact .h-ico { color: var(--yellow); }
+/* 关闭态时 hoverbar 里原生时间右对齐不受影响 */
+.demo-list { height: 780px; flex: none; border: 1px solid var(--hairline); border-radius: 10px; background: var(--bg-panel); }
+</style>
+</head>
+<body class="demo-body harness-on">
+<div class="demo-topbar">
+  <span class="demo-title">修消费态加载图</span>
+  <span class="demo-sub">v3 交互 demo · 真实 DOM + 真实样式</span>
+  <span class="demo-spacer"></span>
+  <label class="harness-toggle" id="tg"><span>Harness 透明</span><span class="tk"></span></label>
+</div>
+<div class="demo-wrap">
+<div class="chat-list demo-list"><div class="agent-chat-col"><div class="chat-turn-anchor is-history-trigger" data-mid="7f642c69-3582-4178-b02e-a2424eac557a" data-role="user"><div class="chat-msg user chat-quiet" data-sender="user"><div class="chat-msg-avatar is-circle" data-avatar-sender="user" title="我"><span class="chat-msg-avatar-glyph">我</span></div><div class="chat-msg-col"><div class="chat-body"><div class="turn-fold-item"><div class="md-body chat-text"><p>你没搞清楚我问的啥，我们的游戏再打开时有个默认的图写着 233 乐园什么的，然后进入ugc加载的时候会出来一个动态配置的优秀作品的图，我问的是替换的哪一个</p></div></div></div><div class="chat-hoverbar"><span class="chat-time" title="2026/9/15 18:40:57">9月15日 18:40</span><button type="button" class="chat-hoverbar-btn" title="复制内容" aria-label="复制内容"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1"></path></svg></button><button type="button" class="chat-hoverbar-btn" title="从这里分叉出新会话" aria-label="分叉会话"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6"></circle><circle cx="12" cy="3.5" r="1.6"></circle><circle cx="8" cy="12.5" r="1.6"></circle><path d="M4 5.2v.8c0 1.4 1.4 2.4 4 2.4s4-1 4-2.4v-.8"></path><path d="M8 8.4v2.4"></path></svg></button></div></div></div></div><div class="harness-a harness-inject"><details>
+<summary><span class="h-ico">⌁</span>本次发送追加了 3 段注入<span class="h-segs">HOST.md · 记忆 · 模式</span><span class="h-caret">▾</span></summary>
+<div class="harness-seg"><label>HOST.md · 工作区协议（材料化，1,182 字）</label><pre>本仓库由 MetaAgent 工作台托管时：终端里的 Worker 请阅读 .metaAgent/HOST.md（宿主协议说明…）禁止读写 .metaAgent 本地存储；异常上报分级：做不下去或需要用户决策 → 说清卡点并停下等用户…</pre></div>
+<div class="harness-seg"><label>记忆段 · 长期记忆（会话相关检索，286 字）</label><pre>相关记忆：MetaWorld Mobile 真实 UE 工程：主仓+per-plugin 嵌套仓库；嵌套容器设计已定案（自动发现全部+负担优化）…</pre></div>
+<div class="harness-seg"><label>模式段 · 全自动附加协议（97 字）</label><pre>当前为全自动模式：按既定计划推进，完成后一次性汇报，不做中途确认。</pre></div>
+</details></div><div class="chat-turn-anchor" data-mid="d3f8015c-9fc3-4ed0-aca8-3918feb7bf1b" data-role="assistant"><div class="chat-msg assistant chat-quiet" data-sender="assistant"><div class="chat-msg-avatar is-circle" data-avatar-sender="assistant" title="修消费态加载图"><span class="chat-msg-avatar-glyph">C</span></div><div class="chat-msg-col"><div class="chat-body"><button type="button" class="turn-fold is-stale" aria-expanded="false" aria-disabled="true" title="较早的回合已折叠归档"><span class="turn-fold-label">7 个工具调用 · 3 段思考</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="turn-fold-caret" aria-hidden="true"><path d="M4 6l4 4 4-4"></path></svg></button><div class="turn-fold-item"><div class="md-body chat-text"><p>换的是<strong>后面那张</strong>：进 UGC 加载时、平台按 Scene 拉下来的优秀作品图（<code>getCustomData</code>），不是前面写着「233乐园」的默认底图。</p>
+<p>两套图对应两条路：</p>
+<ul>
+<li><strong>233乐园 / 派对 Logo</strong>：<code>ShowPlatformBackground</code> / 全屏 <code>I_Background_LeYuan</code> 等，壳层默认底，这次<strong>没动</strong>。</li>
+<li><strong>优秀作品动态图</strong>：<code>ShowCustomBackGround</code> / <code>ShowFullCustomBackGround</code>，原来走 <code>getCustomData</code>。跳关前 Prepare 成功时，<strong>抢在拉优秀作品之前</strong>用关卡里选的贴图把这块盖掉，游戏名和 Tips 也藏掉。</li>
+</ul>
+<p>没选图、或贴图当时没进内存：这块仍走原来的优秀作品图。冷启动进主关、跨游戏跳，也还是原来那套，不会用关卡选的图。</p></div></div></div><div class="chat-hoverbar"><span class="harness-metrics"><span class="harness-chip up">↑ 46.2k</span><span class="harness-chip down">↓ 1.8k</span><span class="harness-chip">思 3.1k</span><span class="harness-chip">28.7s</span></span><span class="chat-time" title="2026/9/15 18:40:57">9月15日 18:40</span><button type="button" class="chat-hoverbar-btn" title="复制内容" aria-label="复制内容"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1"></path></svg></button><button type="button" class="chat-hoverbar-btn" title="从这里分叉出新会话" aria-label="分叉会话"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6"></circle><circle cx="12" cy="3.5" r="1.6"></circle><circle cx="8" cy="12.5" r="1.6"></circle><path d="M4 5.2v.8c0 1.4 1.4 2.4 4 2.4s4-1 4-2.4v-.8"></path><path d="M8 8.4v2.4"></path></svg></button></div></div></div></div><div class="harness-a harness-compact"><span class="h-ico">⇡</span><span>此处发生上下文压缩 · 42,180 字 → 11,902 字（更早历史已替换为摘要）</span></div><div class="chat-turn-anchor is-history-trigger" data-mid="0ed8ad9a-6010-432c-aaa6-1b00dab16ed7" data-role="user"><div class="chat-msg user chat-quiet" data-sender="user"><div class="chat-msg-avatar is-circle" data-avatar-sender="user" title="我"><span class="chat-msg-avatar-glyph">我</span></div><div class="chat-msg-col"><div class="chat-body"><div class="turn-fold-item"><div class="md-body chat-text"><p>这个图再pc上有吗？我再pc上测反正是没看到这个图，你先打个meta安卓包，然后再确认一下pc meta环境有没有这个吧</p></div></div></div><div class="chat-hoverbar"><span class="chat-time" title="2026/9/15 18:45:43">9月15日 18:45</span><button type="button" class="chat-hoverbar-btn" title="复制内容" aria-label="复制内容"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1"></path></svg></button><button type="button" class="chat-hoverbar-btn" title="从这里分叉出新会话" aria-label="分叉会话"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6"></circle><circle cx="12" cy="3.5" r="1.6"></circle><circle cx="8" cy="12.5" r="1.6"></circle><path d="M4 5.2v.8c0 1.4 1.4 2.4 4 2.4s4-1 4-2.4v-.8"></path><path d="M8 8.4v2.4"></path></svg></button></div></div></div></div><div class="harness-a harness-inject"><details>
+<summary><span class="h-ico">⌁</span>本次发送追加了 2 段注入<span class="h-segs">HOST.md · 记忆</span><span class="h-caret">▾</span></summary>
+<div class="harness-seg"><label>HOST.md · 工作区协议（同上，1,182 字）</label><pre>（与上次相同，hash 一致，展开看全文）</pre></div>
+<div class="harness-seg"><label>记忆段 · 变更（本次新增“相机/ISM”相关检索，312 字）</label><pre>相关记忆：ISM 挂载问题曾在 08-29 处理过一轮（R-12 关联）；当前分支 fix/…</pre></div>
+</details></div><div class="harness-a harness-steer"><span class="h-badge">插话</span><span>别再改 MountCamera 了，先看 ISM 父子级那边的约束，从根源处理</span><span class="h-time">10:31:42</span></div><div class="chat-turn-anchor" data-mid="d8ccb82c-0025-4a19-85b1-f24b958860f0" data-role="assistant"><div class="chat-msg assistant chat-quiet" data-sender="assistant"><div class="chat-msg-avatar is-circle" data-avatar-sender="assistant" title="修消费态加载图"><span class="chat-msg-avatar-glyph">C</span></div><div class="chat-msg-col"><div class="chat-body"><button type="button" class="turn-fold is-stale" aria-expanded="false" aria-disabled="true" title="较早的回合已折叠归档"><span class="turn-fold-label">27 个工具调用 · 8 段思考</span><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="turn-fold-caret" aria-hidden="true"><path d="M4 6l4 4 4-4"></path></svg></button><div class="turn-fold-item"><div class="md-body chat-text"><p><strong>PC Meta 编辑器没有优秀作品那张图。</strong> 你在 PC 上看不到是代码就是这么写的，不是这次漏了。</p>
+<p>依据：</p>
+<ul>
+<li>编辑器包名是 <code>com.editor.pie</code>，算 PIE。<code>GetSourceType</code> 直接走 Platform，<strong>不请求</strong> <code>getCustomData</code>（注释写明：未发布游戏没法配优秀作品）。</li>
+<li>233乐园全屏 Logo 只在 <code>App233</code> / 派对 / GPark 上；口袋编辑器是 <code>PIE_Ark</code>，走另一套普通 loading，不是乐园那张底图。</li>
+<li>这次没打 Windows 消费端（发起卡里 Windows Game 是叉）。PC 上只有 Editor，看不到手机进 UGC 那一屏。</li>
+</ul>
+<p>要看「先乐园底图 → 再优秀作品图，跳关时换成关卡选的图」，得用手机消费态。</p>
+<p>Android Meta 已发出：<code>v0.71.0.1.20260915184623</code>（队列 35216），后台在盯。好了会把下载链给你。发布到 Meta 后跳一下子关看加载屏。</p></div></div></div><div class="chat-hoverbar"><span class="harness-metrics"><span class="harness-chip up">↑ 46.2k</span><span class="harness-chip down">↓ 1.8k</span><span class="harness-chip">思 3.1k</span><span class="harness-chip">28.7s</span></span><span class="chat-time" title="2026/9/15 18:45:43">9月15日 18:45</span><button type="button" class="chat-hoverbar-btn" title="复制内容" aria-label="复制内容"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"></rect><path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1"></path></svg></button><button type="button" class="chat-hoverbar-btn" title="从这里分叉出新会话" aria-label="分叉会话"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="4" cy="3.5" r="1.6"></circle><circle cx="12" cy="3.5" r="1.6"></circle><circle cx="8" cy="12.5" r="1.6"></circle><path d="M4 5.2v.8c0 1.4 1.4 2.4 4 2.4s4-1 4-2.4v-.8"></path><path d="M8 8.4v2.4"></path></svg></button></div></div></div></div><div class="chat-time-sep" aria-hidden="true"><span>9月15日 19:22</span></div><div class="harness-a harness-drawer"><details>
+<summary><span>⚙ harness 详情 · 本轮 3 次模型调用 · 插话 1 条</span></summary>
+<table><tr><th>#</th><th>模型</th><th>输入</th><th>输出</th><th>TTFT</th><th>耗时</th><th>重试</th></tr>
+<tr><td>1</td><td>deepseek-v4.1</td><td class="num">46,211</td><td class="num">1,204</td><td class="num">1.8s</td><td class="num">9.4s</td><td class="num">—</td></tr>
+<tr><td>2</td><td>deepseek-v4.1</td><td class="num">52,884</td><td class="num">962</td><td class="num">2.1s</td><td class="num">8.1s</td><td class="num">1</td></tr>
+<tr><td>3</td><td>deepseek-v4.1</td><td class="num">58,102</td><td class="num">1,847</td><td class="num">1.6s</td><td class="num">11.2s</td><td class="num">—</td></tr>
+</table>
+<div class="h-note">生效提示词快照 #3 · 系统提示词 4,214 字 · 工具 ×27（原生 19 + 宿主 8）· 采样 temperature 0.7 · 上下文 58,102 token</div>
+</details></div></div></div>
+</div>
+<script>
+document.getElementById('tg').addEventListener('click', () => document.body.classList.toggle('harness-on'));
+</script>
+</body>
+</html>

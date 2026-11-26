@@ -1,0 +1,171 @@
+import { createConnectionDiagnostics, diagnosticRpcResult } from '../../../../src/channels/shared/connection-error.mjs';
+import { SET_ALIAS_ENDPOINT, validAliasPayload } from './bot-alias-rpc.mjs';
+import { registerManagementRpc } from '../../../management-rpc.mjs';
+
+import { resolveRpcAuthority } from '../../rpc-authority.mjs';
+import { publicConnectionTestResult } from '../../../../src/channels/shared/connection-test.mjs';
+import { publicWorkspaceError } from './workspace-rpc.mjs';
+
+export const TOKEN_BOT_ENDPOINTS = Object.freeze({
+  status: 'connection.status',
+  bindCredentials: 'bot.bind-credentials',
+  reconnectBot: 'bot.reconnect',
+  deleteBot: 'bot.delete',
+
+  setAlias: SET_ALIAS_ENDPOINT,
+
+});
+
+const ENDPOINTS = Object.freeze(Object.values(TOKEN_BOT_ENDPOINTS));
+const FORBIDDEN_PUBLIC_KEYS = new Set([
+  'token', 'botToken', 'tokenRef', 'platformId', 'secret', 'secretRef',
+]);
+const TELEGRAM_NETWORK_ERRORS = new Set([
+  'telegram-transport-error',
+  'telegram-timeout',
+  'telegram-response-invalid',
+]);
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function exactKeys(value, allowed) {
+  return isRecord(value) && Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function validId(value) {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(value);
+}
+
+function validToken(value) {
+  return typeof value === 'string' && value.trim().length >= 20 && value.length <= 4_096;
+}
+
+function payloadFailure(endpoint, payload) {
+  if (!isRecord(payload)) return 'Payload must be an object.';
+  if (endpoint === TOKEN_BOT_ENDPOINTS.status) {
+    return exactKeys(payload, []) ? null : 'connection.status does not accept fields.';
+  }
+  if (endpoint === TOKEN_BOT_ENDPOINTS.bindCredentials) {
+    return exactKeys(payload, ['token']) && validToken(payload.token)
+      ? null : 'bot.bind-credentials requires a Bot Token.';
+  }
+  if (endpoint === TOKEN_BOT_ENDPOINTS.reconnectBot) {
+    return exactKeys(payload, ['botId', 'sendTest']) && validId(payload.botId)
+      && (payload.sendTest === undefined || typeof payload.sendTest === 'boolean')
+      ? null : 'bot.reconnect requires a botId.';
+  }
+  if (endpoint === TOKEN_BOT_ENDPOINTS.deleteBot) {
+    return exactKeys(payload, ['botId', 'confirm']) && validId(payload.botId) && payload.confirm === true
+      ? null : 'bot.delete requires a botId and confirm=true.';
+  }
+
+  if (endpoint === TOKEN_BOT_ENDPOINTS.setAlias) {
+    return validAliasPayload(payload)
+      ? null : '请输入有效的别名（最多 80 个字符）。';
+  }
+
+  return 'Unknown bot endpoint.';
+}
+
+function sanitizePublic(value) {
+  if (Array.isArray(value)) return value.map(sanitizePublic);
+  if (!isRecord(value)) return value;
+  const safe = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (!FORBIDDEN_PUBLIC_KEYS.has(key)) safe[key] = sanitizePublic(child);
+  }
+  return safe;
+}
+
+function operationError(channel, error) {
+  const workspaceError = publicWorkspaceError(error);
+  if (workspaceError) return workspaceError;
+  if (error?.code === 'webhook-configured') {
+    return { code: 'webhook-configured', message: error.message };
+  }
+  if (error?.code === 'telegram-401' || error?.code === 'discord-401') {
+    return { code: 'invalid-token', message: `${channel} Bot Token 无效，请重新填写。` };
+  }
+  if (channel === 'Telegram' && TELEGRAM_NETWORK_ERRORS.has(error?.code)) {
+    return {
+      code: 'telegram-network-error',
+      message: '无法访问 Telegram Bot API。请检查网络和系统代理设置，然后重试。',
+    };
+  }
+  if (error?.code === 'discord-intents') {
+    return { code: 'discord-intents', message: error.message };
+  }
+  return { code: `${channel.toLowerCase()}-operation-failed`, message: `${channel} 操作失败，请稍后重试。` };
+}
+
+export function createTokenBotRpcHandler(controller, { channel }) {
+  const diagnostics = controller.diagnostics ?? createConnectionDiagnostics({ channel: channel.toLowerCase() });
+  for (const method of ['status', 'bindCredentials', 'reconnectBot', 'deleteBot']) {
+    if (typeof controller?.[method] !== 'function') {
+      throw new TypeError(`A complete ${channel} controller is required (${method})`);
+    }
+  }
+  return async (endpoint, payload, signal) => {
+    if (signal?.aborted) {
+      return { ok: false, error: { code: 'cancelled', message: 'The request was cancelled.' } };
+    }
+    if (!ENDPOINTS.includes(endpoint)) {
+      return { ok: false, error: { code: 'bad-request', message: `Unknown ${channel} endpoint.` } };
+    }
+    const invalid = payloadFailure(endpoint, payload);
+    if (invalid) return { ok: false, error: { code: 'bad-request', message: invalid } };
+    try {
+      let value;
+      if (endpoint === TOKEN_BOT_ENDPOINTS.status) value = await controller.status();
+      else if (endpoint === TOKEN_BOT_ENDPOINTS.bindCredentials) {
+        value = await controller.bindCredentials(payload);
+      } else if (endpoint === TOKEN_BOT_ENDPOINTS.reconnectBot) {
+        value = await controller.reconnectBot(payload.botId);
+        if (signal?.aborted) {
+          return { ok: false, error: { code: 'cancelled', message: 'The request was cancelled.' } };
+        }
+        if (payload.sendTest === true) {
+          let testError = null;
+          try {
+            if (value?.bots?.find((bot) => bot?.botId === payload.botId)?.connected !== true) {
+              const unavailable = new Error('Bot is not connected');
+              unavailable.code = 'test-target-unavailable';
+              throw unavailable;
+            }
+            if (typeof controller.sendConnectionTest !== 'function') {
+              const unavailable = new Error('Connection test is unavailable');
+              unavailable.code = 'test-target-unavailable';
+              throw unavailable;
+            }
+            await controller.sendConnectionTest(payload.botId);
+          } catch (error) {
+            testError = error;
+          }
+          value = { ...value, testMessage: publicConnectionTestResult(testError, { diagnostics, botId: payload.botId }) };
+        }
+      } else if (endpoint === TOKEN_BOT_ENDPOINTS.setAlias) {
+        if (typeof controller.updateAlias !== 'function') throw new Error('Alias update is unavailable');
+        value = await controller.updateAlias(payload.botId, payload.alias);
+      } else {
+        value = await controller.deleteBot(payload.botId);
+      }
+      return signal?.aborted
+        ? { ok: false, error: { code: 'cancelled', message: 'The request was cancelled.' } }
+        : { ok: true, value: sanitizePublic(value) };
+    } catch (error) {
+      return diagnosticRpcResult(diagnostics, error, signal?.aborted
+        ? { ok: false, error: { code: 'cancelled', message: 'The request was cancelled.' } }
+        : { ok: false, error: operationError(channel, error) }, { operation: endpoint, botId: payload?.botId });
+    }
+  };
+}
+
+export function installTokenBotRpc(ctx, controller, { channel, rpcChannel, authority }) {
+  return registerManagementRpc(ctx,
+    rpcChannel,
+    createTokenBotRpcHandler(controller, { channel }),
+    { authority: resolveRpcAuthority(authority) },
+  );
+}

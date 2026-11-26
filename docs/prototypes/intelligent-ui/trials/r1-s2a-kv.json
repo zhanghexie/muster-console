@@ -1,0 +1,1 @@
+{"scene":"S2 环境现状","render":{"mode":"inline","title":"文档站环境现状","preset":"kv","data":{"entries":[{"k":"Node.js","v":"v20.11.1（LTS）","mono":true},{"k":"框架","v":"Next.js 14.2.5（App Router）","mono":true},{"k":"文档页面数","v":"328 页（含 2 个动态路由）"},{"k":"当前渲染方式","v":"默认 SSG，仅 /changelog 走 SSR"},{"k":"全量构建耗时","v":"约 4 分 20 秒","mono":true},{"k":"月访问量","v":"约 12 万 PV"}]}}}

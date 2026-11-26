@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.node.json",
+  "compilerOptions": {
+    "types": ["node", "vitest/globals"],
+    "noUnusedLocals": false,
+    "tsBuildInfoFile": "./.tmp/tsbuildinfo/test-node.tsbuildinfo"
+  },
+  "include": [
+    "test/unit/node-main/**/*.spec.ts",
+    "src/main/webAccess/ws.d.ts",
+    "src/shared/unidiff.d.ts"
+  ]
+}

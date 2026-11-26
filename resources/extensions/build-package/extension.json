@@ -1,0 +1,15 @@
+{
+  "id": "build-package",
+  "name": "一键打包",
+  "version": "1.0.0",
+  "description": "确认版本和目标平台后，在项目终端中运行打包脚本。",
+  "icon": "builtin-extension:package-tracking",
+  "scope": "project",
+  "project": { "kind": "relative", "path": "." },
+  "surface": { "kind": "toolbar", "command": "build-package" },
+  "permissions": ["hostTools"],
+  "commandEntry": "command.mjs",
+  "commands": [
+    { "id": "build-package", "title": "一键打包", "handler": "build-package" }
+  ]
+}

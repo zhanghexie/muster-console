@@ -1,0 +1,1 @@
+{"scene":"S6 改善最大结论","render":{"mode":"inline","title":"改善最大接口","preset":"kv","data":{"entries":[{"k":"改善最大","v":"订单查询 /order/query：P95 892ms → 318ms，下降 64%（对应缓存命中率 61% → 92%）"}]}}}

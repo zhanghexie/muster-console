@@ -1,0 +1,460 @@
+/* ===== 后台任务（子代理/后台终端/定时器）：输入框上方胶囊 + 上弹面板 ===== */
+
+.agent-composer-bgtasks {
+  display: flex;
+  justify-content: flex-start;
+  padding: 0 2px 4px;
+}
+
+/* 壳内底栏场景：贴齐工具栏，不再占独立行 */
+.agent-composer-toolbar .agent-composer-bgtasks {
+  padding: 0;
+}
+
+.bg-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover),
+    background var(--dur-micro) var(--ease-hover);
+}
+
+.bg-capsule:hover,
+.bg-capsule.is-open {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.bg-capsule.is-running {
+  color: var(--status-info-fg);
+}
+
+.bg-capsule.has-unread {
+  color: var(--status-success-fg);
+}
+
+.bg-capsule-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--status-info-fg);
+  animation: bg-capsule-pulse var(--dur-breath) var(--ease-loop) infinite;
+}
+
+.bg-capsule-dot.is-done {
+  background: var(--status-success-fg);
+  animation: none;
+}
+
+@keyframes bg-capsule-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.75);
+  }
+}
+
+.bg-capsule-badge {
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: var(--radius-pill);
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+  font-size: var(--font-micro);
+  font-weight: 500;
+  line-height: 14px;
+  text-align: center;
+}
+
+/* 面板：portal 进 .chat-input-shell 渲染（工具栏 container-type 是绝对定位包含块，
+   原地锚定只能贴按钮），left/right:0 与输入壳同宽对齐、底缘贴壳顶上方——与排队面板
+   同一竖列、radius-modal 同族。overflow:hidden 把列表/详情/终端等直角子层裁进四角
+   （不裁就会盖住底角，贴窗口缘时把宿主圆角压成直角）；阴影画在本盒外，不被
+   overflow 裁。进出场走 .mp-pop token */
+.bg-tasks-pop {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: min(600px, 72vh);
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-modal);
+  overflow: hidden;
+  box-shadow: var(--shadow-pop);
+  z-index: var(--z-dropdown);
+}
+
+.bg-tasks-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 右侧让开斜纹手柄的 20px 角区，防「关闭面板」被抢点 */
+  padding: 10px 32px 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bg-tasks-title {
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.bg-tasks-spacer {
+  flex: 1;
+}
+
+.bg-btn {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover),
+    background var(--dur-micro) var(--ease-hover);
+}
+
+.bg-btn:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.bg-btn.ghost {
+  border-color: transparent;
+}
+
+.bg-btn.danger:hover {
+  color: var(--status-danger-fg);
+  border-color: var(--status-danger-border);
+}
+
+.bg-tasks-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.bg-task-list {
+  width: 176px;
+  flex: none;
+  border-right: 1px solid var(--border-subtle);
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bg-task-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.bg-task-item:hover,
+.bg-task-item:focus-visible {
+  background: var(--interaction-hover);
+}
+
+.bg-task-item.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.bg-task-item-icon {
+  flex: none;
+  opacity: 0.8;
+  font-size: var(--font-ui);
+}
+
+.bg-task-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.bg-task-item-label {
+  font-size: var(--font-caption);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bg-task-item-meta {
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.bg-task-item-unread {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--status-success-fg);
+}
+
+/* 删除已完成：行悬浮/聚焦显形（与排队面板行内删除同款垃圾桶） */
+.bg-task-item-del {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover),
+    background var(--dur-micro) var(--ease-hover);
+}
+
+.bg-task-item:hover .bg-task-item-del,
+.bg-task-item-del:focus-visible {
+  opacity: 1;
+}
+
+.bg-task-item-del:hover {
+  color: var(--status-danger-fg);
+  background: var(--interaction-hover);
+}
+
+.bg-task-detail {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bg-task-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bg-task-head-icon {
+  opacity: 0.8;
+}
+
+.bg-task-head-label {
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bg-task-spacer {
+  flex: 1;
+}
+
+.bg-task-state {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.bg-task-state.is-running {
+  color: var(--status-info-fg);
+}
+
+.bg-task-state.is-done {
+  color: var(--status-success-fg);
+}
+
+.bg-task-state.is-error {
+  color: var(--status-danger-fg);
+}
+
+/* 子代理转写：与主聊天同构（复用 chat-list），占满详情剩余高。
+   className 落在外壳壳层（.chat-list-shell）上，内层才是滚动容器 */
+.bg-task-transcript {
+  flex: 1;
+  min-height: 0;
+}
+
+.bg-task-transcript .chat-list {
+  padding: 8px 12px;
+}
+
+.bg-task-empty {
+  padding: 24px 16px;
+}
+
+/* 后台终端：真 xterm 直连 bg-* 会话。
+   .terminal-wrap 是 position:absolute/inset:0，向上找最近定位祖先——
+   这里必须自己当定位上下文并裁剪，否则会盖满整个面板 */
+.bg-task-terminal {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.bg-task-terminal > * {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 定时器 */
+.bg-timer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+}
+
+.bg-timer-count {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  color: var(--fg-primary);
+  letter-spacing: 2px;
+}
+
+.bg-timer-reason {
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  text-align: center;
+}
+
+.bg-task-result {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  flex: none;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0 12px 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-raised);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* 右上角拖拽手柄：与 AgentFloat 同款斜纹角标（横向拖改宽、纵向拖改高） */
+.bg-tasks-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nesw-resize;
+  z-index: calc(var(--z-dropdown) + 1);
+  touch-action: none;
+}
+
+.bg-tasks-resizer::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: repeating-linear-gradient(
+    135deg,
+    var(--fg-secondary) 0 1.5px,
+    transparent 1.5px 5px
+  );
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  opacity: 0.45;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.bg-tasks-resizer:hover::before {
+  opacity: 1;
+}

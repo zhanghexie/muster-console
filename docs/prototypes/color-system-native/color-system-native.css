@@ -1,0 +1,39 @@
+/* Runtime-only study. Keep production geometry, fonts, base theme and Mica. */
+html[data-color-study='balanced'] {
+  --study-tools: color-mix(in srgb, var(--study-reading) 96%, var(--ink));
+  --study-selected: color-mix(in srgb, var(--study-reading) 89%, var(--ink));
+  --study-tab-rim: color-mix(in srgb, var(--ink) 13%, transparent);
+}
+html[data-color-study='balanced'] :is(.right-workspace-toolbar, .right-tabs-row) {
+  background: var(--study-tools);
+}
+html[data-color-study='balanced'] :is(.right-current-row, .right-workspace-main, .right-content-page, .right-resources) {
+  background: var(--study-reading);
+}
+html[data-color-study='balanced'] .right-tab.is-selected {
+  background: var(--study-selected);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 var(--study-tab-rim);
+}
+html[data-color-study='balanced'] .right-tab:not(.is-selected) { color: var(--text-2); }
+html[data-color-study='balanced'] .right-resource-capsule button.is-selected {
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+}
+html[data-color-study='balanced'] :is(.file-editor-main, .file-editor-cm, .file-editor-cm .cm-editor, .file-editor-cm .cm-gutters) {
+  background: var(--study-reading) !important;
+}
+html[data-color-study='balanced'] .chat-input-shell:focus-within {
+  border-color: var(--focus-border);
+}
+html[data-color-study='balanced'] .chat-msg.assistant .chat-msg-avatar:not(.is-omitted):not(:has(.chat-msg-avatar-img)) {
+  background: var(--bg-raised);
+  border-color: var(--hairline);
+  color: var(--text-2);
+}
+html[data-color-study='balanced'] .left-ws-slot .agent-notify-scheduler {
+  background: color-mix(in srgb, var(--workspace-frame-color) 94%, var(--ink));
+  color: var(--ink-soft);
+}
+html[data-color-study='balanced'] :is(.split-pane-handle-line, .center-split-handle-line) {
+  background-color: color-mix(in srgb, var(--ink) 28%, var(--study-reading)) !important;
+}

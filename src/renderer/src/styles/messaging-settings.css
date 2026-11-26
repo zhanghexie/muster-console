@@ -1,0 +1,99 @@
+/* Map the imported account views to the workbench surfaces. Dialogs and
+   tooltips from the imported views portal to body. */
+:is(.muster-messaging-settings, .dim-aliasDialog, .dim-botNameTooltip, .dim-contextBackdrop) {
+  --dsw-alias-bg-base: var(--surface-canvas);
+  --dsw-alias-bg-layer-1: var(--surface-input);
+  --dsw-alias-bg-layer-2: var(--surface-raised);
+  --dsw-alias-bg-layer-3: var(--surface-overlay);
+  --dsw-alias-bg-module-platform: var(--surface-raised);
+  --dsw-alias-border: var(--surface-edge);
+  --dsw-alias-border-l1: var(--surface-edge);
+  --dsw-alias-border-l2: var(--surface-edge);
+  --dsw-alias-border-l3: var(--surface-edge);
+  --dsw-alias-label: var(--fg-primary);
+  --dsw-alias-label-primary: var(--fg-primary);
+  --dsw-alias-label-secondary: var(--fg-secondary);
+  --dsw-alias-label-tertiary: var(--fg-muted);
+  --dsw-alias-text-secondary: var(--fg-secondary);
+  --dsw-alias-interactive-bg-hover: var(--surface-chrome);
+  --dsw-alias-brand-primary: var(--action-bg);
+  --dsw-alias-state-business-primary: var(--action-bg);
+  --dsw-alias-state-danger-primary: var(--status-danger-fg);
+  --dsw-alias-state-error-primary: var(--status-danger-fg);
+  --dsw-alias-state-error-secondary: var(--status-danger-bg);
+  --dsw-alias-state-success-primary: var(--status-success-fg);
+  --dsw-alias-state-warn-primary: var(--status-warning-fg);
+}
+
+.muster-messaging-settings { min-width: 0; }
+.muster-messaging-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+
+.muster-messaging-content { min-width: 0; }
+.muster-messaging-content[data-mp-stage="in"] { transform: none; }
+.muster-messaging-instructions { margin: 0 0 12px; }
+.muster-messaging-failure { display: grid; justify-items: start; gap: 8px; }
+.muster-messaging-settings .muster-channel-account-settings { max-width: none; padding: 0; }
+.muster-channel-account-settings :is(.ddt-card, .dim-surfaceCard) { min-width: 0; max-width: 100%; border-radius: var(--radius-card); }
+.muster-channel-account-settings :is(input, button, select, textarea) { max-width: 100%; }
+.muster-channel-account-settings :is(.ddt-button, .dim-contactSlot, .dim-viewActions) { overflow-wrap: anywhere; }
+.muster-messaging-settings .muster-channel-account-settings :is(.ddt-button, .dxw-button, .bxf-button)[data-kind="primary"],
+.muster-messaging-settings .muster-channel-account-settings .dim-bindActions .dim-scanButton {
+  border-color: var(--action-bg);
+  background: var(--action-bg);
+  color: var(--action-fg);
+}
+.muster-messaging-settings .muster-channel-account-settings :is(.ddt-button, .dxw-button, .bxf-button)[data-kind="primary"]:hover:not(:disabled),
+.muster-messaging-settings .muster-channel-account-settings .dim-bindActions .dim-scanButton:hover:not(:disabled) {
+  border-color: var(--action-bg-hover);
+  background: var(--action-bg-hover);
+}
+.muster-messaging-settings .muster-channel-account-settings :is(.ddt-button, .dxw-button, .bxf-button)[data-kind="primary"]:disabled,
+.muster-messaging-settings .muster-channel-account-settings .dim-bindActions .dim-scanButton:disabled {
+  border-color: var(--surface-edge);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  opacity: 1;
+}
+.muster-channel-account-settings .dim-aliasSave,
+.dim-contextBackdrop .dim-contextSave,
+.dim-aliasDialog .dim-aliasSave { color: var(--action-fg); }
+.muster-messaging-settings .muster-channel-account-settings .dim-qrFrame { border-radius: var(--radius-card); }
+.muster-messaging-settings .muster-channel-account-settings .dof-hero { background: var(--surface-raised); }
+.muster-messaging-settings .muster-channel-account-settings .dof-hero::after { content: none; }
+
+.muster-messaging-remote {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+.muster-messaging-remote-title,
+.muster-messaging-binding-code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.muster-messaging-remote-title h4 { margin: 0; color: var(--fg-primary); font-size: inherit; }
+.muster-messaging-remote-title [data-authorized] { color: var(--status-success-fg); }
+.muster-messaging-remote p { margin: 0; overflow-wrap: anywhere; }
+.muster-messaging-bound-users { display: grid; gap: 6px; margin: 0; padding-inline-start: 20px; }
+.muster-messaging-bound-users li { padding-inline-end: 4px; overflow-wrap: anywhere; }
+.muster-messaging-bound-users .btn { margin-inline-start: 8px; }
+.muster-messaging-binding { display: grid; justify-items: start; gap: 6px; }
+.muster-messaging-binding code { color: var(--fg-primary); font-weight: 500; letter-spacing: .08em; user-select: text; }
+.muster-messaging-binding time { color: var(--fg-secondary); }
+
+/* Component transitions come from the host's presence contract. */
+.muster-channel-account-settings *:not(.muster-messaging-disclosure),
+.muster-channel-account-settings *::before,
+.muster-channel-account-settings *::after,
+.dim-botNameTooltip,
+.dim-contextBackdrop *,
+.dim-aliasDialog * {
+  transition: none !important;
+  animation: none !important;
+}

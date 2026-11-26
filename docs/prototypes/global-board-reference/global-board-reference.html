@@ -1,0 +1,197 @@
+<div id="reference-board" aria-label="全局看板参考风格原型">
+  <div class="rb-preview"><span>全局看板 · 设计预览</span><div aria-label="预览主题"><button type="button" data-theme="light" aria-pressed="true">浅色</button><button type="button" data-theme="dark" aria-pressed="false">深色</button></div></div>
+  <div class="rb-app" data-theme="light">
+    <div class="rb-chrome"><span>MetaAgent</span><span>工作台</span></div>
+    <main class="rb-board">
+      <header class="rb-heading"><div><h1>全局看板</h1><p class="rb-scope">全部工作区</p></div><nav class="rb-tabs" aria-label="看板视图"><button type="button" aria-pressed="true"><i data-lucide="columns-3" aria-hidden="true"></i>状态</button><button type="button" data-preview="自由视图"><i data-lucide="layout-dashboard" aria-hidden="true"></i>自由</button></nav><button type="button" class="rb-close" aria-label="关闭看板" data-preview="关闭看板">×</button></header>
+      <div class="rb-toolbar"><button type="button" class="rb-filter" aria-pressed="false"><i data-lucide="filter" aria-hidden="true"></i><span>仅当前工作区</span></button><div class="rb-management"><button type="button" class="rb-clean" data-preview="批量清理 · 3">批量清理 <span>3</span></button><button type="button" class="rb-archive" aria-pressed="false">归档 <span>40</span></button><button type="button" class="rb-new" data-preview="新建会话">＋ 新建</button></div></div>
+      <div class="rb-columns"></div>
+      <footer class="rb-footer"><span>3 个需要处理 · 0 未读</span><span class="rb-feedback" role="status" aria-live="polite"></span></footer>
+    </main>
+  </div>
+</div>
+<style>
+#reference-board {width:100%;font-family:"OPPO Sans",Geist,Inter,"Segoe UI","Microsoft YaHei",sans-serif;--rb-radius-control:8px;--rb-radius-card:12px;--rb-radius-modal:16px;--rb-radius-small:6px;--rb-radius-pill:999px;--rb-corner-shape:superellipse(1.5);--rb-font-caption:12px;--rb-font-ui:13px;--rb-font-control:14px;--rb-font-title:17px;}
+#reference-board *,#reference-board *::before,#reference-board *::after {box-sizing:border-box;corner-shape:var(--rb-corner-shape);}
+#reference-board .rb-preview {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-right:90px;margin-bottom:12px;font-size:12px;color:light-dark(#686868,#b4b4b4);}
+#reference-board .rb-preview div {display:flex;gap:4px;}
+#reference-board .rb-preview button {font:inherit;padding:6px 12px;border:1px solid light-dark(#dedede,#454545);border-radius:var(--rb-radius-control);background:light-dark(#fff,#242424);color:light-dark(#333,#ddd);}
+#reference-board .rb-preview button[aria-pressed="true"] {background:light-dark(#222,#e7e7e7);color:light-dark(#fff,#222);}
+#reference-board .rb-app {color-scheme:light;--rb-page:light-dark(#fff,#202123);--rb-well:light-dark(#f6f6f6,#282a2d);--rb-card:light-dark(#fff,#323437);--rb-ink:light-dark(#171717,#f1f1f1);--rb-body:light-dark(#646464,#b9bcc1);--rb-muted:light-dark(#747474,#aeb2b8);--rb-line:light-dark(#ececec,#414347);--rb-control:light-dark(#e7e7e7,#4c4e52);--rb-hover:light-dark(#f0f0f0,#3d3f42);--rb-primary:light-dark(#202020,#e6e7e9);--rb-on-primary:light-dark(#fff,#202123);--rb-blue-bg:light-dark(#d7eef3,#2b454c);--rb-blue-fg:light-dark(#326873,#aad3db);--rb-amber-bg:light-dark(#fff0d7,#4c3c25);--rb-amber-fg:light-dark(#8c5818,#edc58a);--rb-green-bg:light-dark(#dff3e5,#2c4738);--rb-green-fg:light-dark(#327b49,#a3d5b3);--rb-neutral-bg:light-dark(#f3f3f3,#434549);--rb-neutral-fg:light-dark(#606060,#d0d1d4);--rb-focus:light-dark(#4e7b92,#95b8d0);border:1px solid var(--rb-control);border-radius:8px;overflow:hidden;background:var(--rb-page);color:var(--rb-ink);font-size:13px;line-height:1.5;}
+#reference-board .rb-app[data-theme="dark"] {color-scheme:dark;}
+#reference-board .rb-chrome {display:flex;align-items:center;gap:18px;padding:10px 26px;border-bottom:1px solid var(--rb-line);color:var(--rb-muted);font-size:11px;}
+#reference-board .rb-chrome span:first-child {color:var(--rb-ink);font-weight:500;}
+#reference-board .rb-board {padding:26px 28px 0;}
+#reference-board button {cursor:var(--cursor-interaction,pointer);}
+#reference-board .rb-app button {font:inherit;background:transparent;color:var(--rb-body);border:1px solid transparent;border-radius:2px;padding:5px 9px;white-space:nowrap;}
+#reference-board .rb-app button:hover {background:var(--rb-hover);color:var(--rb-ink);}
+#reference-board button:focus-visible {outline:2px solid var(--rb-focus,#568097);outline-offset:3px;}
+#reference-board .rb-heading {display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:27px;}
+#reference-board h1 {margin:0;font-size:23px;font-weight:500;line-height:1.3;}
+#reference-board .rb-scope {margin:6px 0 0;color:var(--rb-muted);font-size:12px;}
+#reference-board .rb-heading .rb-close {font-size:22px;padding:0 5px;line-height:1;}
+#reference-board .rb-tabs {display:flex;gap:24px;border-bottom:1px solid var(--rb-line);}
+#reference-board .rb-tabs button {display:flex;align-items:center;gap:7px;padding:0 2px 11px;border-radius:0;}
+#reference-board .rb-tabs button[aria-pressed="true"] {color:var(--rb-ink);border-bottom:2px solid var(--rb-ink);}
+#reference-board .rb-tabs svg,#reference-board .rb-filter svg {width:13px;height:13px;stroke-width:1.5;}
+#reference-board .rb-toolbar {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:14px 0 24px;font-size:12px;}
+#reference-board .rb-filter {display:flex;align-items:center;gap:7px;border-color:var(--rb-line)!important;color:var(--rb-ink)!important;}
+#reference-board .rb-filter[aria-pressed="true"] {background:var(--rb-hover);border-color:var(--rb-body)!important;}
+#reference-board .rb-management {display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+#reference-board .rb-management span {margin-left:5px;color:var(--rb-muted);font-variant-numeric:tabular-nums;}
+#reference-board .rb-management .rb-new {background:var(--rb-primary);color:var(--rb-on-primary);padding:5px 13px;}
+#reference-board .rb-columns {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;}
+#reference-board .rb-column {min-width:0;background:var(--rb-well);border-radius:3px;display:flex;flex-direction:column;}
+#reference-board .rb-column-head {display:flex;align-items:center;gap:8px;padding:16px 15px 18px;font-size:14px;}
+#reference-board .rb-count {font-size:11px;line-height:16px;min-width:16px;padding:0 3px;text-align:center;background:var(--rb-state-bg);color:var(--rb-state-fg);border-radius:1px;font-variant-numeric:tabular-nums;}
+#reference-board .rb-list {height:660px;overflow:auto;scrollbar-width:thin;scrollbar-color:var(--rb-control) transparent;padding:0 7px 9px;display:flex;flex-direction:column;gap:9px;}
+#reference-board .rb-task {flex-shrink:0;background:var(--rb-card);border:0;border-radius:2px;padding:13px 13px 0;min-width:0;}
+#reference-board .rb-task.is-selected {outline:1px solid var(--rb-focus);outline-offset:-1px;}
+#reference-board .rb-tags {display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:12px;font-size:11px;}
+#reference-board .rb-status {position:relative;padding:1px 5px;border-radius:1px;background:var(--rb-tag-bg);color:var(--rb-tag-fg);white-space:nowrap;}
+#reference-board .rb-orch {position:absolute;width:4px;height:4px;border-radius:50%;right:-2px;top:-2px;background:var(--rb-focus);}
+#reference-board .rb-workspace {color:var(--rb-body);overflow-wrap:anywhere;}
+#reference-board .rb-task .rb-title {padding:0;border:0;border-radius:0;white-space:normal;text-align:left;display:block;max-width:100%;overflow-wrap:anywhere;color:var(--rb-ink);font-size:14px;font-weight:400;line-height:1.5;}
+#reference-board .rb-task .rb-title:hover {background:transparent;color:var(--rb-ink);text-decoration:underline;text-underline-offset:3px;}
+#reference-board .rb-summary {color:var(--rb-body);font-size:12px;line-height:1.6;margin:5px 0 0;overflow-wrap:anywhere;}
+#reference-board .rb-related {margin:7px 0 0;color:var(--rb-body);font-size:11px;overflow-wrap:anywhere;}
+#reference-board .rb-details {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:13px 0 11px;color:var(--rb-muted);font-size:11px;}
+#reference-board .rb-provider {display:grid;place-items:center;width:20px;height:20px;border-radius:50%;border:1px solid var(--rb-line);color:var(--rb-ink);font-size:11px;}
+#reference-board .rb-time {font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px;}
+#reference-board .rb-time svg {width:12px;height:12px;stroke-width:1.4;}
+#reference-board .rb-actions {display:flex;align-items:center;gap:17px;flex-wrap:wrap;border-top:1px solid var(--rb-line);padding:10px 0;font-size:11px;}
+#reference-board .rb-actions button {padding:0;border:0;border-radius:0;color:var(--rb-body);}
+#reference-board .rb-actions button:hover {background:transparent;text-decoration:underline;color:var(--rb-ink);}
+#reference-board .rb-footer {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:12px 0;font-size:11px;color:var(--rb-muted);}
+#reference-board .rb-archive-note {grid-column:1/-1;padding:16px;background:var(--rb-well);color:var(--rb-body);font-size:12px;}
+#reference-board .rb-app {border-radius:var(--rb-radius-modal);font-size:var(--rb-font-ui);}
+#reference-board .rb-app button {border-radius:var(--rb-radius-control);}
+#reference-board .rb-chrome {font-size:var(--rb-font-caption);}
+#reference-board h1 {font-size:var(--rb-font-title);font-weight:500;}
+#reference-board .rb-heading .rb-close {font-size:20px;}
+#reference-board .rb-heading {margin-bottom:24px;}
+#reference-board .rb-tabs {display:inline-flex;border:0;background:var(--rb-well);border-radius:var(--rb-radius-control);padding:3px;gap:3px;}
+#reference-board .rb-tabs button {border:0;padding:5px 10px;border-radius:var(--rb-radius-small);font-size:var(--rb-font-caption);}
+#reference-board .rb-tabs button[aria-pressed="true"] {background:var(--rb-primary);color:var(--rb-on-primary);border:0;}
+#reference-board .rb-toolbar {margin:12px 0 24px;}
+#reference-board .rb-column {border-radius:var(--rb-radius-card);overflow:hidden;}
+#reference-board .rb-column-head {font-size:var(--rb-font-caption);font-weight:500;}
+#reference-board .rb-count {font-size:var(--rb-font-caption);border-radius:var(--rb-radius-small);padding:1px 5px;}
+#reference-board .rb-task {border:1px solid var(--rb-line);border-radius:var(--rb-radius-card);padding:12px 12px 0;}
+#reference-board .rb-tags {font-size:var(--rb-font-caption);margin-bottom:8px;}
+#reference-board .rb-status {border-radius:var(--rb-radius-pill);corner-shape:round;padding:1px 7px;}
+#reference-board .rb-task .rb-title {font-size:var(--rb-font-control);}
+#reference-board .rb-related,#reference-board .rb-details,#reference-board .rb-actions,#reference-board .rb-footer {font-size:var(--rb-font-caption);}
+#reference-board .rb-details {margin-top:12px;}
+#reference-board .rb-provider {font-size:var(--rb-font-caption);corner-shape:round;}
+#reference-board .rb-orch {corner-shape:round;}
+#reference-board .rb-actions {border:0;padding:0 0 12px;gap:16px;}
+#reference-board .rb-actions button {padding:0;border-radius:0;}
+#reference-board .rb-heading {display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:start;gap:12px;}
+#reference-board .rb-heading h1 {line-height:32px;}
+#reference-board .rb-heading .rb-close {justify-self:end;width:32px;height:32px;padding:0;}
+#reference-board .rb-card-head {display:grid;grid-template-columns:20px minmax(0,1fr) auto;align-items:start;gap:8px;margin-bottom:8px;}
+#reference-board .rb-card-head .rb-provider {margin-top:1px;}
+#reference-board .rb-card-head .rb-time {padding-top:3px;font-size:var(--rb-font-caption);color:var(--rb-muted);white-space:nowrap;}
+#reference-board .rb-task {padding-bottom:12px;}
+#reference-board .rb-tags {margin-bottom:0;}
+#reference-board .rb-actions {padding:8px 0 0;}
+#reference-board .rb-scrollframe {position:relative;min-height:0;}
+#reference-board .rb-list {scrollbar-width:none;}
+#reference-board .rb-list::-webkit-scrollbar {display:none;}
+#reference-board .rb-app .rb-scroll-thumb {position:absolute;right:1px;top:0;width:5px;min-height:0;padding:0;border:0;border-radius:var(--rb-radius-pill);corner-shape:round;background:var(--rb-control);opacity:0;touch-action:none;}
+#reference-board .rb-scrollframe:hover .rb-scroll-thumb,#reference-board .rb-scrollframe:focus-within .rb-scroll-thumb {opacity:1;}
+#reference-board .rb-app .rb-scroll-thumb:focus-visible {outline:1px solid var(--rb-focus);outline-offset:0;}
+@media(max-width:850px) {#reference-board .rb-board {padding:23px 18px 0;}#reference-board .rb-columns {gap:10px;}#reference-board .rb-task {padding:11px 10px 0;}#reference-board .rb-column-head {padding:14px 12px;}}
+@media(max-width:620px) {#reference-board .rb-columns {grid-template-columns:1fr;gap:18px;}#reference-board .rb-list {height:auto;}#reference-board .rb-preview {padding-right:0;}#reference-board .rb-management {gap:4px;}#reference-board .rb-heading {margin-bottom:22px;}#reference-board .rb-board {padding:20px 14px 0;}}
+@media(pointer:coarse) {#reference-board button {min-height:44px;}#reference-board .rb-actions {gap:14px;}}
+@media(max-width:620px) {#reference-board .rb-heading {gap:8px;}#reference-board .rb-heading .rb-tabs svg {display:none;}#reference-board .rb-heading .rb-tabs button {padding:5px 8px;}}
+</style>
+<script>
+(() => {
+ const root=document.getElementById('reference-board');
+ const app=root.querySelector('.rb-app');
+ const columns=root.querySelector('.rb-columns');
+ const feedback=root.querySelector('.rb-feedback');
+ const tasks = [
+ {id:'a1',group:'active',type:'C',title:'工作面板 27',ws:'TestMetaAgent',time:'12h',summary:'展示 ui.render 部件'},
+ {id:'a2',group:'active',type:'C',title:'工作面板 36',ws:'MetaApp',time:'1m'},
+ {id:'a3',group:'active',type:'P',title:'工作面板 24',ws:'TestMetaAgent',time:'12h'},
+ {id:'a4',group:'active',type:'C',title:'工作面板 17',ws:'metaagent',time:'4d',summary:'待命'},
+ {id:'a5',group:'active',type:'P',title:'GLM 审查员·三线复审',ws:'metaagent',time:'8m',summary:'宿主五条修复复审 PASS（附…）',orch:true},
+ {id:'a6',group:'active',type:'P',title:'工作面板 22',ws:'MetaApp',time:'1m',summary:'排查会话搜索关键词换行问题'},
+ {id:'a7',group:'active',type:'C',title:'Prepare提前GetAsset',ws:'MetaApp',time:'1m',summary:'等 Android GetAsset 包 185…'},
+ {id:'a8',group:'active',type:'C',title:'修消费添加截图',ws:'MetaApp',time:'4h'},
+ {id:'a9',group:'active',type:'P',title:'README 更新与状态上报复盘',ws:'TestMetaAgent',time:'12h',summary:'会话已重命名，复盘补充完毕'},
+ {id:'n1',group:'needs',type:'C',title:'倒挂对账未改等看',ws:'MetaApp',time:'4h',summary:'停着，等你开口',actions:['通过','打回','搁置']},
+ {id:'n2',group:'needs',type:'C',title:'【在排查】7117345583变身隐身',ws:'MetaApp',time:'3h',summary:'未 push，等你看转化 rebase',actions:['通过','打回','搁置']},
+ {id:'n3',group:'needs',type:'C',title:'编辑器卡顿匹配失败',ws:'MetaApp',time:'3h',summary:'编辑器卡顿嫌疑已收敛，等确认',actions:['通过','打回','搁置']},
+ {id:'d1',group:'done',type:'C',title:'原型目录归档',ws:'metaagent',time:'8m',summary:'原型目录已归档，引用与测试…'},
+ {id:'d2',group:'done',type:'P',title:'多模态UI审查员',ws:'metaagent',time:'18h',summary:'UI批二复审完成 PASS，报告…',orch:true},
+ {id:'d3',group:'done',type:'C',title:'【在排查】7123290317',ws:'MetaApp',time:'3h',summary:'结论已发群，未提测',task:'任务 t-1（表中无此任务）',actions:['取消完成标记'],orch:true},
+ {id:'d4',group:'done',type:'C',title:'【已提MR】12548',ws:'MetaApp',time:'4h',summary:'新 MR 12548 已催大山'},
+ {id:'d5',group:'done',type:'C',title:'调研UGC AI生成链路',ws:'MetaApp',time:'4h',summary:'文档已写，等验收',actions:['取消完成标记']},
+ {id:'d6',group:'done',type:'C',title:'对照7两条ISM',ws:'MetaApp',time:'1m',summary:'7两句差异已对齐',actions:['取消完成标记']},
+ {id:'d7',group:'done',type:'C',title:'72合入temp并开MR',ws:'MetaApp',time:'4h',summary:'四仓 MR 已开并催合，等确认',actions:['取消完成标记']}
+];
+ const groups=[{key:'active',name:'进行中',total:14,status:'空闲',bg:'var(--rb-blue-bg)',fg:'var(--rb-blue-fg)',tagBg:'var(--rb-neutral-bg)',tagFg:'var(--rb-neutral-fg)'},{key:'needs',name:'需要你',total:3,status:'待验收',bg:'var(--rb-amber-bg)',fg:'var(--rb-amber-fg)',tagBg:'var(--rb-amber-bg)',tagFg:'var(--rb-amber-fg)'},{key:'done',name:'已完成',total:12,status:'已完成',bg:'var(--rb-green-bg)',fg:'var(--rb-green-fg)',tagBg:'var(--rb-green-bg)',tagFg:'var(--rb-green-fg)'}];
+ const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const state={theme:'light',filtered:false,archive:false};
+ const restore=s=>{const m=s?.modelContent||s;if(m?.prototype==='global-board-reference'){state.theme=m.theme==='dark'?'dark':'light';state.filtered=!!s.privateContent?.filtered;}};
+ restore(window.openai?.widgetState);
+ function save(){window.openai?.setWidgetState?.({modelContent:{prototype:'global-board-reference',theme:state.theme},privateContent:{filtered:state.filtered}})?.catch(()=>{});}
+ function syncScrollbars(){
+  root.querySelectorAll('.rb-scrollframe').forEach(frame=>{
+   const list=frame.querySelector('.rb-list'),thumb=frame.querySelector('.rb-scroll-thumb');
+   const overflow=list.scrollHeight-list.clientHeight;
+   thumb.hidden=overflow<=0;
+   if(overflow<=0)return;
+   const size=Math.max(28,list.clientHeight*list.clientHeight/list.scrollHeight);
+   thumb.style.height=size+'px';thumb.style.top=(list.scrollTop/overflow*(list.clientHeight-size))+'px';
+   thumb.setAttribute('aria-valuenow',String(Math.round(list.scrollTop/overflow*100)));
+  });
+ }
+ function render(){
+  app.dataset.theme=state.theme;
+  root.querySelectorAll('.rb-preview [data-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.theme===state.theme)));
+  root.querySelector('.rb-scope').textContent=state.filtered?'当前工作区 · MetaApp':'全部工作区';
+  root.querySelector('.rb-filter').setAttribute('aria-pressed',String(state.filtered));
+  root.querySelector('.rb-filter span').textContent=state.filtered?'全部工作区':'仅当前工作区';
+  root.querySelector('.rb-archive').setAttribute('aria-pressed',String(state.archive));
+  columns.innerHTML=groups.map(g=>{
+   const rows=tasks.filter(t=>t.group===g.key&&(!state.filtered||t.ws==='MetaApp'));
+   return `<section class="rb-column" style="--rb-state-bg:${g.bg};--rb-state-fg:${g.fg};--rb-tag-bg:${g.tagBg};--rb-tag-fg:${g.tagFg}" aria-label="${g.name}">
+    <header class="rb-column-head"><span>${g.name}</span><span class="rb-count">${state.filtered?rows.length:g.total}</span></header>
+    <div class="rb-scrollframe"><div class="rb-list" id="rb-list-${g.key}">${rows.map(t=>`<article class="rb-task" data-id="${t.id}">
+     <div class="rb-card-head"><span class="rb-provider" aria-label="${t.type==='C'?'Codex':'Pi'}" data-tooltip="${t.type==='C'?'Codex':'Pi'}">${t.type}</span><button type="button" class="rb-title" data-select="${t.id}">${esc(t.title)}</button><time class="rb-time"><i data-lucide="clock-3" aria-hidden="true"></i>${t.time}</time></div>
+     <div class="rb-tags"><span class="rb-status">${g.status}${t.orch?'<span class="rb-orch" data-tooltip="由调度编排" aria-label="由调度编排"></span>':''}</span><span class="rb-workspace">#${esc(t.ws)}</span></div>
+     ${t.summary?`<p class="rb-summary">${esc(t.summary)}</p>`:''}
+     ${t.task?`<p class="rb-related">${esc(t.task)}</p>`:''}
+     ${t.actions?`<div class="rb-actions">${t.actions.map(a=>`<button type="button" data-action="${esc(a)}" data-task="${t.id}">${a}</button>`).join('')}</div>`:''}
+    </article>`).join('')}</div><button type="button" class="rb-scroll-thumb" role="scrollbar" aria-label="滚动${g.name}列表" aria-controls="rb-list-${g.key}" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></button></div>
+   </section>`;
+  }).join('')+(state.archive?'<div class="rb-archive-note">归档 · 40（截图未提供归档任务内容）</div>':'');
+  if(globalThis.lucide)lucide.createIcons({attrs:{width:13,height:13}});
+  root.querySelectorAll('.rb-list').forEach(list=>list.addEventListener('scroll',syncScrollbars,{passive:true}));
+  root.querySelectorAll('.rb-scroll-thumb').forEach(thumb=>{
+   const list=thumb.parentElement.querySelector('.rb-list');
+   thumb.addEventListener('pointerdown',e=>{const startY=e.clientY,startScroll=list.scrollTop;thumb.setPointerCapture(e.pointerId);const move=p=>{list.scrollTop=startScroll+(p.clientY-startY)*(list.scrollHeight-list.clientHeight)/(list.clientHeight-thumb.offsetHeight);};const stop=()=>{thumb.removeEventListener('pointermove',move);};thumb.addEventListener('pointermove',move);thumb.addEventListener('lostpointercapture',stop,{once:true});});
+   thumb.addEventListener('keydown',e=>{const moves={ArrowDown:40,ArrowUp:-40,PageDown:list.clientHeight,PageUp:-list.clientHeight};if(e.key in moves){e.preventDefault();list.scrollTop+=moves[e.key];}else if(e.key==='Home'||e.key==='End'){e.preventDefault();list.scrollTop=e.key==='Home'?0:list.scrollHeight;}});
+  });
+  syncScrollbars();
+ }
+ root.addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  if(b.dataset.theme){state.theme=b.dataset.theme;render();save();return;}
+  if(b.classList.contains('rb-filter')){state.filtered=!state.filtered;render();save();return;}
+  if(b.classList.contains('rb-archive')){state.archive=!state.archive;render();return;}
+  if(b.dataset.select){root.querySelectorAll('.rb-task').forEach(t=>t.classList.toggle('is-selected',t.dataset.id===b.dataset.select));feedback.textContent='已选中：'+tasks.find(t=>t.id===b.dataset.select).title;return;}
+  if(b.dataset.action){feedback.textContent='操作预览：'+b.dataset.action+' · '+tasks.find(t=>t.id===b.dataset.task).title;return;}
+  if(b.dataset.preview)feedback.textContent='操作预览：'+b.dataset.preview;
+ });
+ window.addEventListener('openai:set_globals',e=>{restore(e.detail?.globals?.widgetState);render();});
+ render();
+ const sizeObserver=new ResizeObserver(syncScrollbars);sizeObserver.observe(root);
+ if(globalThis.Tweak){const tweak=new Tweak({container:root,onChange:()=>{render();save();}});tweak.addSelect(state,'theme',{label:'主题',options:[{label:'浅色',value:'light'},{label:'深色',value:'dark'}]});}
+})();
+</script>

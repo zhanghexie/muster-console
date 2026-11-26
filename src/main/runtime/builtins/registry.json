@@ -1,0 +1,839 @@
+{
+  "version": 1,
+  "runtimes": [
+    {
+      "id": "cursor-cli",
+      "label": "Cursor CLI",
+      "script": "cursor-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [
+        "--model",
+        "auto",
+        "-f",
+        "--sandbox",
+        "disabled",
+        "--trust",
+        "--approve-mcps"
+      ],
+      "builtinScriptVersion": 12,
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-cursor-skills",
+            "label": ".cursor/skills",
+            "base": "home",
+            "path": ".cursor/skills",
+            "targets": [
+              "cursor-cli"
+            ]
+          },
+          {
+            "id": "workspace-cursor-skills",
+            "label": ".cursor/skills",
+            "base": "workspace",
+            "path": ".cursor/skills",
+            "targets": [
+              "cursor-cli"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "cursor-cli",
+            "label": "Cursor CLI",
+            "kind": "cli",
+            "skillSupport": "native-directory",
+            "directoryIds": [
+              "home-cursor-skills",
+              "workspace-cursor-skills"
+            ]
+          }
+        ],
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".cursor/mcp.json",
+          "id": "cursor"
+        }
+      }
+    },
+    {
+      "id": "claude-code",
+      "label": "Claude Code",
+      "script": "claude-code.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [],
+      "builtinScriptVersion": 9,
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-claude-skills",
+            "label": ".claude/skills",
+            "base": "home",
+            "path": ".claude/skills",
+            "targets": [
+              "claude-cli"
+            ]
+          },
+          {
+            "id": "workspace-claude-skills",
+            "label": ".claude/skills",
+            "base": "workspace",
+            "path": ".claude/skills",
+            "targets": [
+              "claude-cli"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "claude-cli",
+            "label": "Claude Code CLI",
+            "kind": "cli",
+            "skillSupport": "native-directory",
+            "directoryIds": [
+              "home-claude-skills",
+              "workspace-claude-skills"
+            ]
+          }
+        ],
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".claude.json",
+          "id": "claude"
+        }
+      }
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "script": "opencode.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "builtinScriptVersion": 3,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "jsonc",
+          "base": "home",
+          "path": ".config/opencode/opencode.json",
+          "dialect": "opencode"
+        }
+      }
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "script": "codex.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [],
+      "builtinScriptVersion": 6,
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-agents-skills",
+            "label": ".agents/skills",
+            "base": "home",
+            "path": ".agents/skills",
+            "targets": [
+              "codex-cli"
+            ]
+          },
+          {
+            "id": "home-codex-skills",
+            "label": ".codex/skills",
+            "base": "home",
+            "path": ".codex/skills",
+            "targets": [
+              "codex-cli"
+            ]
+          },
+          {
+            "id": "workspace-agents-skills",
+            "label": ".agents/skills",
+            "base": "workspace",
+            "path": ".agents/skills",
+            "targets": [
+              "codex-cli"
+            ]
+          },
+          {
+            "id": "workspace-codex-skills",
+            "label": ".codex/skills",
+            "base": "workspace",
+            "path": ".codex/skills",
+            "targets": [
+              "codex-cli"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "codex-cli",
+            "label": "Codex CLI",
+            "kind": "cli",
+            "skillSupport": "native-directory",
+            "directoryIds": [
+              "home-agents-skills",
+              "workspace-agents-skills"
+            ]
+          }
+        ],
+        "mcp": {
+          "strategy": "config-file",
+          "format": "toml",
+          "base": "home",
+          "path": ".codex/config.toml",
+          "serversKey": [
+            "mcp_servers"
+          ]
+        }
+      }
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini",
+      "script": "gemini.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [],
+      "builtinScriptVersion": 4,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".gemini/settings.json"
+        }
+      }
+    },
+    {
+      "id": "kimi-cli",
+      "label": "Kimi Code CLI",
+      "script": "kimi-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".kimi-code/mcp.json",
+          "dialect": "kimi"
+        }
+      }
+    },
+    {
+      "id": "grok-cli",
+      "label": "Grok Build CLI",
+      "script": "grok-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "toml",
+          "base": "home",
+          "path": ".grok/config.toml",
+          "dialect": "grok"
+        }
+      }
+    },
+    {
+      "id": "commandcode-cli",
+      "label": "Command Code CLI",
+      "script": "commandcode-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".commandcode/mcp.json",
+          "dialect": "commandcode"
+        }
+      }
+    },
+    {
+      "id": "cline-cli",
+      "label": "Cline CLI",
+      "script": "cline-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".cline/data/settings/cline_mcp_settings.json",
+          "dialect": "cline"
+        }
+      }
+    },
+    {
+      "id": "kilo-cli",
+      "label": "Kilo Code CLI",
+      "script": "kilo-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "jsonc",
+          "base": "home",
+          "path": ".config/kilo/kilo.json",
+          "dialect": "kilo"
+        }
+      }
+    },
+    {
+      "id": "github-copilot-cli",
+      "label": "GitHub Copilot CLI CLI",
+      "script": "github-copilot-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".copilot/mcp-config.json",
+          "dialect": "copilot"
+        }
+      }
+    },
+    {
+      "id": "devin-cli",
+      "label": "Devin CLI CLI",
+      "script": "devin-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "jsonc",
+          "base": "home",
+          "path": ".config/devin/mcp_config.json",
+          "dialect": "devin"
+        }
+      }
+    },
+    {
+      "id": "hermes-cli",
+      "label": "Hermes Agent CLI",
+      "script": "hermes-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "yaml",
+          "base": "home",
+          "path": ".hermes/config.yaml",
+          "dialect": "hermes"
+        }
+      }
+    },
+    {
+      "id": "pi-external-cli",
+      "label": "Pi CLI",
+      "script": "pi-external-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 2,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "The CLI launcher loads a session-owned extension connected to the host stdio MCP server."
+        }
+      }
+    },
+    {
+      "id": "omp-cli",
+      "label": "Oh My Pi CLI",
+      "script": "omp-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 2,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "The CLI launcher loads a session-owned extension connected to the host stdio MCP server."
+        }
+      }
+    },
+    {
+      "id": "muse-cli",
+      "label": "Muse Code CLI",
+      "script": "muse-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".config/muse/settings.json",
+          "dialect": "muse"
+        }
+      }
+    },
+    {
+      "id": "zcode-cli",
+      "label": "ZCode CLI",
+      "script": "zcode-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".zcode/cli/config.json",
+          "dialect": "zcode"
+        }
+      }
+    },
+    {
+      "id": "mimo-code-cli",
+      "label": "MiMo Code CLI",
+      "script": "mimo-code-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "builtinScriptVersion": 1,
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "config-file",
+          "format": "jsonc",
+          "base": "home",
+          "path": ".config/mimocode/mimocode.json",
+          "dialect": "mimo"
+        }
+      }
+    },
+    {
+      "id": "qwen-cli",
+      "label": "Qwen Code CLI",
+      "script": "qwen-cli.mjs",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "terminalResume": "by-id",
+      "extraArgs": [],
+      "builtinScriptVersion": 3,
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-qwen-skills",
+            "label": ".qwen/skills",
+            "base": "home",
+            "path": ".qwen/skills",
+            "targets": [
+              "qwen-cli"
+            ]
+          },
+          {
+            "id": "workspace-qwen-skills",
+            "label": ".qwen/skills",
+            "base": "workspace",
+            "path": ".qwen/skills",
+            "targets": [
+              "qwen-cli"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "qwen-cli",
+            "label": "Qwen Code CLI",
+            "kind": "cli",
+            "skillSupport": "native-directory",
+            "directoryIds": [
+              "home-qwen-skills",
+              "workspace-qwen-skills"
+            ]
+          }
+        ],
+        "mcp": {
+          "strategy": "config-file",
+          "format": "json",
+          "base": "home",
+          "path": ".qwen/settings.json",
+          "serversKey": [
+            "mcpServers"
+          ],
+          "dialect": "qwen"
+        }
+      }
+    },
+    {
+      "id": "codebuddy-cli",
+      "label": "CodeBuddy Code",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "pty",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "manifest": {
+        "id": "codebuddy-cli",
+        "label": "CodeBuddy Code",
+        "installUrl": "https://www.codebuddy.cn/docs/cli/installation",
+        "terminal": { "command": "codebuddy", "args": [] },
+        "chat": {
+          "transport": "acp",
+          "command": "codebuddy",
+          "args": ["--acp"],
+          "mcpPermissionMetadata": {
+            "toolNameKey": "codebuddy.ai/toolName",
+            "requireApprovalKeys": ["codebuddy.ai/runtimeSecurity", "codebuddy.ai/sandboxIntercept", "codebuddy.ai/sensitiveProtectionApproval", "codebuddy.ai/approvalKind"]
+          }
+        },
+        "capabilities": {
+          "model": true,
+          "permissions": [
+            { "value": "default", "label": "默认审批", "args": ["--permission-mode", "default"] },
+            { "value": "acceptEdits", "label": "自动批准编辑", "args": ["--permission-mode", "acceptEdits"] },
+            { "value": "plan", "label": "计划模式", "args": ["--permission-mode", "plan"] },
+            { "value": "dontAsk", "label": "不询问（拒绝需审批的操作）", "args": ["--permission-mode", "dontAsk"] },
+            { "value": "auto", "label": "自动模式", "args": ["--permission-mode", "auto"] },
+            { "value": "bypassPermissions", "label": "跳过权限检查", "args": ["--permission-mode", "bypassPermissions"] }
+          ],
+          "permissionFlags": { "--permission-mode": true, "--dangerously-skip-permissions": false, "-y": false },
+          "reasoning": { "flag": "--effort", "levels": ["minimal", "low", "medium", "high", "xhigh", "max"] }
+        },
+        "integrations": {
+          "skillDirectories": [
+            { "id": "home-codebuddy-skills", "base": "home", "path": ".codebuddy/skills", "homeOverride": { "env": "CODEBUDDY_CONFIG_DIR", "path": "skills" }, "targets": ["codebuddy-cli"] },
+            { "id": "workspace-codebuddy-skills", "base": "workspace", "path": ".codebuddy/skills", "targets": ["codebuddy-cli"] }
+          ],
+          "skillTargets": [
+            { "id": "codebuddy-cli", "label": "CodeBuddy Code", "kind": "cli", "skillSupport": "native-directory", "directoryIds": ["home-codebuddy-skills", "workspace-codebuddy-skills"] }
+          ],
+          "mcp": {
+            "strategy": "config-file",
+            "format": "jsonc",
+            "base": "home",
+            "path": ".codebuddy/.mcp.json",
+            "homeOverride": { "env": "CODEBUDDY_CONFIG_DIR", "path": ".mcp.json" },
+            "fallbacks": [
+              { "base": "home", "path": ".codebuddy/mcp.json", "homeOverride": { "env": "CODEBUDDY_CONFIG_DIR", "path": "mcp.json" } },
+              { "base": "home", "path": ".codebuddy.json" }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "pi",
+      "label": "Muster Core",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-agents-skills",
+            "label": ".agents/skills",
+            "base": "home",
+            "path": ".agents/skills",
+            "targets": [
+              "pi-gui",
+              "pi-dispatcher"
+            ]
+          },
+          {
+            "id": "workspace-agents-skills",
+            "label": ".agents/skills",
+            "base": "workspace",
+            "path": ".agents/skills",
+            "targets": [
+              "pi-gui",
+              "pi-dispatcher"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "pi-gui",
+            "label": "Pi GUI",
+            "kind": "gui",
+            "skillSupport": "host-policy"
+          },
+          {
+            "id": "pi-dispatcher",
+            "label": "Pi dispatcher SDK",
+            "kind": "sdk",
+            "skillSupport": "host-policy"
+          }
+        ],
+        "mcp": {
+          "strategy": "native",
+          "reason": "Host tools are registered in process by the Pi adapter."
+        }
+      }
+    },
+    {
+      "id": "pi-external",
+      "label": "Pi",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host tools are supplied by the session-owned Pi extension bridge."
+        }
+      }
+    },
+    {
+      "id": "omp",
+      "label": "Oh My Pi",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host tools are supplied by the session-owned Pi extension bridge."
+        }
+      }
+    },
+    {
+      "id": "muse-gui",
+      "label": "Muse Code",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host MCP is supplied to the Muse session; native MCP configuration is managed by Muse."
+        }
+      }
+    },
+    {
+      "id": "zcode-gui",
+      "label": "ZCode",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host MCP is supplied to the ZCode session; native MCP configuration is not merged."
+        }
+      }
+    },
+    {
+      "id": "claude",
+      "label": "Claude",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-claude-skills",
+            "label": ".claude/skills",
+            "base": "home",
+            "path": ".claude/skills",
+            "targets": [
+              "claude-gui"
+            ]
+          },
+          {
+            "id": "workspace-claude-skills",
+            "label": ".claude/skills",
+            "base": "workspace",
+            "path": ".claude/skills",
+            "targets": [
+              "claude-gui"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "claude-gui",
+            "label": "Claude",
+            "kind": "gui",
+            "skillSupport": "host-policy"
+          }
+        ],
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host MCP is supplied by the session adapter."
+        }
+      }
+    },
+    {
+      "id": "codex-gui",
+      "label": "Codex（GUI）",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "skillDirectories": [
+          {
+            "id": "home-agents-skills",
+            "label": ".agents/skills",
+            "base": "home",
+            "path": ".agents/skills",
+            "targets": [
+              "codex-gui"
+            ]
+          },
+          {
+            "id": "home-codex-skills",
+            "label": ".codex/skills",
+            "base": "home",
+            "path": ".codex/skills",
+            "targets": [
+              "codex-gui"
+            ]
+          },
+          {
+            "id": "workspace-agents-skills",
+            "label": ".agents/skills",
+            "base": "workspace",
+            "path": ".agents/skills",
+            "targets": [
+              "codex-gui"
+            ]
+          },
+          {
+            "id": "workspace-codex-skills",
+            "label": ".codex/skills",
+            "base": "workspace",
+            "path": ".codex/skills",
+            "targets": [
+              "codex-gui"
+            ]
+          }
+        ],
+        "skillTargets": [
+          {
+            "id": "codex-gui",
+            "label": "Codex（GUI）",
+            "kind": "gui",
+            "skillSupport": "host-policy"
+          }
+        ],
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host MCP is supplied by the session adapter."
+        }
+      }
+    },
+    {
+      "id": "acp",
+      "label": "ACP",
+      "script": "",
+      "builtin": true,
+      "enabled": true,
+      "surface": "chat",
+      "extraArgs": [],
+      "updatedAt": 0,
+      "integrations": {
+        "mcp": {
+          "strategy": "session",
+          "reason": "Host MCP is supplied by the session adapter."
+        }
+      }
+    }
+  ]
+}

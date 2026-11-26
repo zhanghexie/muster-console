@@ -1,0 +1,63 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createSharedCompiler} from './helpers/shared-compile.mjs';
+const scratch=path.resolve('.tmp');fs.mkdirSync(scratch,{recursive:true});
+const temp=fs.mkdtempSync(path.join(scratch,'knowledge-user-correction-'));
+const compile=createSharedCompiler(process.cwd(),path.join(temp,'compiled'));
+const {KnowledgeStore}=await import(pathToFileURL(compile('main/memory/knowledgeStore.ts')));
+let store=new KnowledgeStore(path.join(temp,'assets'));
+const draft={kind:'user_preference',summary:'报告先写结论',applicability:[]};
+let seq=0;
+const context=()=>({namespace:'worker',origin:'user',sourceText:'报告先写结论',evidence:[{id:`e${++seq}`,source:'host-user',eventTime:1,verification:'user_confirmed',observation:'user_input'}]});
+const decision=(extra={})=>({operationId:`op${++seq}`,candidateId:`c${seq}`,policyVersion:'p1',decision:'save',draft,sourceQuote:'报告先写结论',reason:'用户表达持续偏好',...extra});
+const current=id=>store.list().records.find(r=>r.id===id);
+try{
+ const automatic=store.commitCuratorDecision(decision(),context()).record;
+ assert.equal(automatic.status,'active');
+ store.disablePolicy('p1','测试错误策略停用');
+ assert.equal(store.search({query:'报告'}).length,0);
+ const revised=store.revise(automatic.id,automatic.revision,{...draft,summary:'报告先写结论，再写验证范围'});
+ assert.throws(()=>store.commitCuratorDecision(decision({policyVersion:'p2',targetId:automatic.id,targetRevision:automatic.revision}),context()),/已变化/,'a late save with the old text cannot create another record by ignoring its target revision');
+ assert.equal(revised.status,'active');assert.equal(revised.userManaged,true);
+ assert.equal(store.search({query:'报告'})[0].record.summary,revised.summary);
+ assert.match(store.core('worker'),/验证范围/);
+ assert.equal(store.list().policySuppressedIds.includes(revised.id),false);
+ store.compensatePolicy('p1');
+ assert.deepEqual(current(revised.id),JSON.parse(JSON.stringify(revised)),'policy compensation cannot pause or replace a user-confirmed version');
+ assert.throws(()=>store.revise(revised.id,automatic.revision,draft),/已变化/);
+ assert.throws(()=>store.revise(revised.id,revised.revision,{...draft,summary:''}),/summary/);
+ assert.deepEqual(current(revised.id),JSON.parse(JSON.stringify(revised)));
+ const stopped=store.stopUsing(revised.id,revised.revision);
+ assert.equal(stopped.status,'needs_revalidation');assert.equal(store.search({query:'报告'}).length,0);assert.equal(store.core('worker'),'');
+ const latestContext=context();
+ for(const action of ['save','duplicate','suspend','supersede']){
+   const targetDraft={...draft,summary:stopped.summary};
+   assert.throws(()=>store.commitCuratorDecision(decision({policyVersion:'p2',decision:action,draft:targetDraft,targetId:stopped.id,targetRevision:stopped.revision}),latestContext),/用户确认/);
+ }
+ assert.equal(store.submit({...draft,summary:stopped.summary},context()).record.revision,stopped.revision,'ordinary duplicate submission cannot alter protected versions');
+ assert.deepEqual(current(stopped.id),JSON.parse(JSON.stringify(stopped)));
+ const undoStop=store.restore(stopped.id,stopped.revision,revised.revision);
+ assert.equal(undoStop.status,'active');assert.equal(undoStop.summary,revised.summary);
+ const deleted=store.deleteKnowledge(undoStop.id,undoStop.revision);
+ assert(store.deletedKnowledgeIds().includes(deleted.id));
+ const restored=store.restore(deleted.id,deleted.revision,undoStop.revision);
+ assert.equal(restored.status,'active');assert.equal(store.deletedKnowledgeIds().length,0);
+ const undoRestore=store.restore(restored.id,restored.revision,deleted.revision);
+ assert.equal(store.db.prepare('SELECT kind FROM events ORDER BY id DESC LIMIT 1').get().kind,'user_restored_inactive','restoring a deletion must not count as knowledge activation');
+ assert.equal(undoRestore.status,'rejected');assert(store.deletedKnowledgeIds().includes(deleted.id));
+ const editedDeleted=store.revise(undoRestore.id,undoRestore.revision,{...draft,summary:'报告只保留结论及关键验证'});
+ assert.equal(editedDeleted.status,'active');assert.equal(store.deletedKnowledgeIds().length,0);
+ const fact=store.submit({kind:'task_fact',summary:'本轮完成测试',applicability:[]},context()).record;
+ assert.throws(()=>store.revise(fact.id,fact.revision,draft),/类型/);
+ store.close();store=new KnowledgeStore(path.join(temp,'assets'));
+ assert.deepEqual(current(editedDeleted.id),JSON.parse(JSON.stringify(editedDeleted)),'full user version survives restart');
+ const original=store.restore(editedDeleted.id,editedDeleted.revision,automatic.revision);
+ assert.equal(original.summary,draft.summary);assert.equal(original.status,'active');assert.equal(original.userManaged,true);
+ assert.equal(store.search({query:'报告'})[0].record.revision,original.revision);
+ console.log('knowledge-user-correction: immediate recall, stop, undo, delete/restore, restart, CAS and model/policy protection passed');
+}finally{
+ store.close();
+ assert(path.resolve(temp).startsWith(scratch+path.sep));fs.rmSync(temp,{recursive:true,force:true});
+}

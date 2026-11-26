@@ -1,0 +1,6 @@
+{
+  "name": "muster-vendored-dsh-im",
+  "version": "5.10.0",
+  "private": true,
+  "type": "module"
+}

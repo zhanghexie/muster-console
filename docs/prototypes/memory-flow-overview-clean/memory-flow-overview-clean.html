@@ -1,0 +1,1150 @@
+<!-- AI生成 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>记忆中心 · 总览（原型 · 少交叉布局）</title>
+<!-- OPPO Sans 与应用同源（base.css 同 CDN） -->
+<style>
+  @font-face {
+    font-family: 'OPPO Sans';
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+    src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Regular.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'OPPO Sans';
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+    src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Medium.woff2') format('woff2');
+  }
+  @font-face {
+    font-family: 'OPPO Sans';
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+    src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Bold.woff2') format('woff2');
+  }
+
+  /* ===== token（自 base.css :root 拷贝，保证与真实界面同源） ===== */
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a;
+    --bg-panel: #1e1e1e;
+    --bg-raised: #252526;
+    --bg-overlay: #2a2a2a;
+    --bg-input: #232323;
+    --ink: #e4e4e4;
+    --ink-soft: #d6d6d6;
+    --text-2: #9e9e9e;
+    --text-3: #7e7e7e;
+    --hairline: #2c2c2c;
+    --green: #45d0a0;
+    --yellow: #dcc765;
+    --red: #f3687b;
+    --blue: #6cc2ff;
+    --purple: #a88fff;
+    --hover-fill: rgba(250, 250, 250, 0.05);
+    --hover-fill-strong: rgba(250, 250, 250, 0.1);
+    --selected-fill: rgba(250, 250, 250, 0.08);
+    --bg-inset: rgba(127, 127, 127, 0.08);
+    --shadow-card: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 1px 3px rgba(0, 0, 0, 0.45),
+      0 1px 2px -1px rgba(0, 0, 0, 0.35);
+    --radius-control: 12px;
+    --radius-card: 16px;
+    --radius-modal: 24px;
+    --radius-pill: 999px;
+    --radius-small: 8px;
+    --corner-shape: superellipse(1.5);
+    --font-micro: 10px;
+    --font-caption: 12px;
+    --font-ui: 13px;
+    --font-control: 14px;
+    --font-body: 15px;
+    --font-title: 17px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --ease-hover: ease-out;
+    --dur-micro: 120ms;
+    --dur-menu: 160ms;
+    --dur-panel: 280ms;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; }
+  body {
+    background: var(--bg-panel);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: var(--font-ui);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+
+  .frame {
+    height: 100%;
+    display: flex; flex-direction: column;
+    padding: 16px 22px 10px;
+  }
+
+  /* ===== 面板头 ===== */
+  .panel-head {
+    display: flex; align-items: flex-end; gap: 14px; padding: 4px 20px 14px;
+  }
+  .panel-head h1 { margin: 0; font-size: var(--font-title); font-weight: 700; letter-spacing: 0.02em; }
+  .panel-head .sub { margin: 0 0 1px; font-size: var(--font-caption); color: var(--text-3); }
+  .proto-pill {
+    margin-left: auto; padding: 3px 12px; border-radius: var(--radius-pill);
+    background: var(--bg-inset); color: var(--text-2); font-size: var(--font-caption);
+  }
+
+  /* ===== 页签（仿 memory-tabs：下划线式） ===== */
+  .tabs {
+    display: flex; align-items: center; gap: 2px; padding: 0 20px;
+    border-bottom: 1px solid var(--hairline); overflow-x: auto;
+  }
+  .tab {
+    position: relative; border: none; background: none; padding: 8px 10px 9px;
+    font: inherit; font-size: 12.5px; color: var(--text-2); cursor: pointer; white-space: nowrap;
+    transition: color var(--dur-micro) var(--ease-hover);
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.is-active { color: var(--ink); }
+  .tab.is-active::after {
+    content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px;
+    background: var(--ink); border-radius: var(--radius-pill);
+  }
+  .tab .badge {
+    display: inline-block; margin-left: 5px; padding: 0 6px; border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red);
+    font-size: 11px; line-height: 16px; font-weight: 500;
+  }
+
+  .view { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 10px 0 2px; }
+  .flow-legend {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 12px 4px 0; font-size: 10.5px; color: var(--text-3);
+  }
+  .flow-legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .flow-legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .hidden { display: none !important; }
+
+  /* ===== 图画布（随窗口等比缩放，不出滚动条） ===== */
+  .diagram-card {
+    position: relative; flex: 1 1 auto; min-height: 0;
+    background: var(--bg-canvas); border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card); overflow: hidden;
+    background-image: radial-gradient(ellipse 62% 55% at 50% 44%, rgba(108, 194, 255, 0.032), transparent 70%);
+  }
+  .diagram-card > svg {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+
+  /* —— 边 —— */
+  .edge { fill: none; stroke-width: 1.6; }
+  .e-neutral { stroke: rgba(158, 158, 158, 0.3); }
+  .e-green   { stroke: color-mix(in srgb, var(--green) 72%, transparent); }
+  .e-yellow  { stroke: color-mix(in srgb, var(--yellow) 72%, transparent); }
+  .e-blue    { stroke: color-mix(in srgb, var(--blue) 78%, transparent); stroke-width: 2.4; }
+  .e-purple  { stroke: color-mix(in srgb, var(--purple) 72%, transparent); }
+  .e-dash    { stroke-dasharray: 5 5; }
+  .e-casing  { stroke: var(--bg-canvas); stroke-width: 9; fill: none; }
+  .e-hit     { stroke: transparent; stroke-width: 16; fill: none; pointer-events: stroke; cursor: pointer; }
+
+  /* —— 连线标注：默认隐去，悬停节点时浮现（降噪）—— */
+  .elabel {
+    font-size: var(--font-micro); fill: var(--text-3); pointer-events: none;
+    paint-order: stroke; stroke: var(--bg-canvas); stroke-width: 3px; stroke-linejoin: round;
+    opacity: 0; transition: opacity var(--dur-menu) var(--ease-hover);
+  }
+  .elabel.rest, .elabel.lit { opacity: 1; }
+  .elabel.tone-green  { fill: color-mix(in srgb, var(--green) 75%, var(--text-3)); }
+  .elabel.tone-yellow { fill: color-mix(in srgb, var(--yellow) 78%, var(--text-3)); }
+  .elabel.tone-blue   { fill: color-mix(in srgb, var(--blue) 80%, var(--text-3)); }
+  .elabel.tone-purple { fill: color-mix(in srgb, var(--purple) 78%, var(--text-3)); }
+
+  /* —— 直写门 —— */
+  .gate-diamond { fill: var(--bg-raised); stroke: color-mix(in srgb, var(--red) 80%, transparent); stroke-width: 1.6; }
+  .gate-core { fill: color-mix(in srgb, var(--red) 70%, transparent); }
+  .gate-hit { fill: transparent; cursor: pointer; }
+
+  /* —— 粒子 —— */
+  .particle { pointer-events: none; }
+
+  /* —— 节点卡 —— */
+  .node {
+    width: 100%; height: 100%;
+    background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card);
+    padding: 10px 12px; font-family: var(--font-sans); color: var(--ink);
+    transition: box-shadow var(--dur-micro) var(--ease-hover);
+  }
+  .node[data-tab] { cursor: pointer; }
+  .node[data-tab]:hover { box-shadow: var(--shadow-card), inset 0 0 0 9999px var(--hover-fill); }
+  .n-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .n-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .n-dot.c-green { background: var(--green); }
+  .n-dot.c-yellow { background: var(--yellow); }
+  .n-dot.c-blue { background: var(--blue); }
+  .n-dot.c-purple { background: var(--purple); }
+  .n-title { font-size: var(--font-ui); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .n-badge {
+    margin-left: auto; flex: none; padding: 1px 8px; border-radius: var(--radius-pill);
+    font-size: 10.5px; line-height: 16px; font-weight: 500; color: var(--text-2);
+    background: var(--bg-inset);
+  }
+  .n-badge.c-green  { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+  .n-badge.c-yellow { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+  .n-badge.c-purple { color: var(--purple); background: color-mix(in srgb, var(--purple) 12%, transparent); }
+  .n-sub { margin-top: 4px; font-size: 11px; color: var(--text-3); line-height: 1.45; }
+  .n-chips { margin-top: 7px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .chip {
+    padding: 1px 7px; border-radius: var(--radius-small); background: var(--bg-inset);
+    color: var(--text-2); font-size: 10.5px; line-height: 17px;
+  }
+
+  /* —— 悬停聚焦：非相关元素压暗 —— */
+  .dimmed { opacity: 0.18; }
+  .edge, .elabel, foreignObject, .gate-diamond, .gate-core, .brain-scan, .brain-gyri, .brain-shell { transition: opacity var(--dur-menu) var(--ease-hover); }
+
+  /* ===== 人脑意象：脑侧影（Twemoji 改色）——整个记忆系统住在大脑里 ===== */
+  .brain-mass { fill: url(#brain-fill); stroke: rgba(255, 255, 255, 0.2); stroke-width: 0.055; }
+
+  /* —— 主角弧线辉光层 —— */
+  .e-glow { fill: none; stroke-width: 6; opacity: 0.16; filter: url(#glow-soft); }
+
+  /* —— 直写门呼吸 —— */
+  .gate-halo { fill: color-mix(in srgb, var(--red) 13%, transparent); filter: url(#glow-soft); animation: gate-breathe 2.6s var(--ease-loop) infinite; }
+  .gate-core { animation: gate-breathe 2.6s var(--ease-loop) infinite; }
+  @keyframes gate-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+
+  /* —— 节点卡悬浮辉光 —— */
+  .node[data-tab]:hover {
+    box-shadow: var(--shadow-card), 0 0 28px rgba(255, 255, 255, 0.07), inset 0 0 0 9999px var(--hover-fill);
+  }
+
+  .panel-head .glyph { flex: none; color: var(--text-3); }
+  .panel-head .glyph path { stroke: currentColor; }
+  .head-tools { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+
+  /* —— tooltip —— */
+  .tip {
+    position: absolute; z-index: 30; max-width: 320px; padding: 10px 12px;
+    background: var(--bg-overlay); border-radius: var(--radius-control); box-shadow: var(--shadow-card);
+    opacity: 0; pointer-events: none; transform: translateY(4px);
+    transition: opacity var(--dur-menu) var(--ease-hover), transform var(--dur-menu) var(--ease-hover);
+  }
+  .tip.show { opacity: 1; transform: translateY(0); }
+  .tip h3 { margin: 0 0 5px; font-size: var(--font-ui); font-weight: 500; color: var(--ink); }
+  .tip p { margin: 0; font-size: 11.5px; line-height: 1.6; color: var(--text-2); }
+  .tip .nav { margin-top: 7px; font-size: 11px; color: var(--blue); }
+
+  /* ===== 头部索引 chip ===== */
+  .infra-chip {
+    display: inline-flex; align-items: center; gap: 6px; border: none; cursor: pointer;
+    padding: 3px 10px; border-radius: var(--radius-pill); background: var(--bg-inset);
+    color: var(--text-2); font: inherit; font-size: 10.5px;
+    transition: background var(--dur-micro) var(--ease-hover), color var(--dur-micro) var(--ease-hover);
+  }
+  .infra-chip:hover { background: var(--hover-fill-strong); color: var(--ink); }
+  .dot-ok { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+
+  .n-glyph { flex: none; }
+
+  /* ===== 占位页签页 ===== */
+  .placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .placeholder .big { font-size: var(--font-title); font-weight: 700; color: var(--ink); }
+  .placeholder .why { margin: 10px 0 26px; font-size: var(--font-caption); color: var(--text-3); }
+  .back-btn {
+    border: none; cursor: pointer; font: inherit; font-size: var(--font-ui);
+    padding: 8px 18px; border-radius: var(--radius-control);
+    background: var(--bg-raised); color: var(--ink); box-shadow: var(--shadow-card);
+    transition: box-shadow var(--dur-micro) var(--ease-hover);
+  }
+  .back-btn:hover { box-shadow: var(--shadow-card), inset 0 0 0 9999px var(--hover-fill); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tip { transition: none; }
+    .gate-halo, .gate-core { animation: none; }
+  }
+
+  /* —— 布局编辑 —— */
+  .diagram-card.is-editing .node { cursor: grab; user-select: none; }
+  .diagram-card.is-editing .gate-hit { cursor: grab; }
+  .infra-chip.is-on { background: color-mix(in srgb, var(--blue) 22%, transparent); color: var(--blue); }
+  .wp-handle {
+    fill: #fff; stroke: var(--blue); stroke-width: 1.6; cursor: grab;
+    pointer-events: all;
+  }
+  .wp-handle:hover { fill: var(--blue); }
+  .wp-seg { stroke: color-mix(in srgb, var(--blue) 35%, transparent); stroke-width: 8; fill: none; cursor: crosshair; }
+  .elabel.edit-on { opacity: 1 !important; pointer-events: all; cursor: grab; }
+  .edit-bar {
+    display: none; position: absolute; left: 12px; right: 12px; bottom: 10px; z-index: 20;
+    align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 7px 12px; border-radius: var(--radius-control);
+    background: color-mix(in srgb, var(--bg-overlay) 88%, transparent);
+    box-shadow: var(--shadow-card); font-size: 12px; color: var(--text-2);
+  }
+  .diagram-card.is-editing .edit-bar { display: flex; }
+  .edit-bar kbd {
+    padding: 0 5px; border-radius: 4px; background: var(--bg-inset);
+    font-size: 10.5px; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<p data-aigc-mark="1" style="margin:0 0 8px;font-size:10px;line-height:1.3;color:#6b6560;font-weight:400;">AI生成</p>
+
+<div class="frame">
+  <header class="panel-head">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px">
+        <svg class="glyph" width="20" height="16" viewBox="0 0 20 16" fill="none" aria-hidden="true">
+          <path vector-effect="non-scaling-stroke" transform="translate(-2.6 -1.3) scale(0.0225)" stroke-width="1.4"
+                d="M 175 335 C 148 258 205 168 318 138 C 428 108 585 98 705 128 C 830 160 895 245 882 340 C 874 402 838 442 782 462 C 748 474 716 480 688 508 C 658 538 596 552 560 524 C 534 504 528 484 500 474 C 452 458 388 452 336 430 C 262 400 202 382 175 335 Z" />
+        </svg>
+        <h1>记忆中心</h1>
+      </div>
+      <p class="sub">记忆如何形成、巩固，并流回会话</p>
+    </div>
+    <div class="head-tools">
+      <button class="infra-chip" type="button" id="btn-edit-layout">编辑布局</button>
+      <button class="infra-chip" type="button" id="btn-reset-layout">重置</button>
+      <button class="infra-chip" type="button" id="btn-export-layout">导出 JSON</button>
+      <button class="infra-chip" data-tab="索引状态"><span class="dot-ok"></span>索引 · 正常</button>
+      <span class="proto-pill">原型 · 假数据 · 少交叉布局</span>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <!-- ============ 总览（数据流回路图） ============ -->
+  <section class="view" id="view-overview">
+    <div class="diagram-card" id="diagramCard">
+      <svg id="flow" viewBox="0 0 1400 800" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="glow-soft" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="2.6" result="b" />
+            <feMerge>
+              <feMergeNode in="b" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id="brain-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgba(255, 255, 255, 0.035)" />
+            <stop offset="0.55" stop-color="rgba(255, 255, 255, 0.008)" />
+            <stop offset="1" stop-color="rgba(255, 255, 255, 0)" />
+          </linearGradient>
+          <marker id="m-neutral" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">            <path d="M0,0 L6,3 L0,6 z" fill="rgba(158,158,158,0.55)" />
+          </marker>
+          <marker id="m-green" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 z" fill="color-mix(in srgb, var(--green) 80%, transparent)" />
+          </marker>
+          <marker id="m-yellow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 z" fill="color-mix(in srgb, var(--yellow) 82%, transparent)" />
+          </marker>
+          <marker id="m-blue" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+            <path d="M0,0 L7,3.5 L0,7 z" fill="color-mix(in srgb, var(--blue) 85%, transparent)" />
+          </marker>
+          <marker id="m-purple" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L6,3 L0,6 z" fill="color-mix(in srgb, var(--purple) 80%, transparent)" />
+          </marker>
+          <linearGradient id="fade-out" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="rgba(158,158,158,0.42)" />
+            <stop offset="1" stop-color="rgba(158,158,158,0)" />
+          </linearGradient>
+        </defs>
+
+        <!-- ══ 人脑意象：脑侧影（Twemoji 1f9e0 · CC BY 4.0 · 反白改色） ══ -->
+        <g id="brain" aria-hidden="true">
+          <g id="brainFit" transform="translate(157.6 -51.9) scale(30.2640 23.5176)"><path class="brain-mass" d="M29.75 27.625s2.184-.443 3.542-2.229c1.583-2.083 1.375-4.312 1.375-4.312 1.604-3-.5-5.813-.5-5.813C33.958 12.104 32 10.792 32 10.792c-1.271-3.021-4.083-3.833-4.083-3.833-2.208-2.583-6.125-2.5-6.125-2.5s-3.67-1.345-8.708.167c-.833.25-3.625.833-5.667 2.083C.981 10.649.494 16.793.584 17.792 1.083 23.375 5 24.375 7.5 24.958c.583 1.583 2.729 4.5 6.583 3.417 4.75-.833 6.75-2.25 7.917-2.25s4.417 1.25 7.75 1.5z"/></g>
+          
+        </g>
+
+        <!-- ══ 脑内世界：记忆流程映射为脑区（对话会话在颅外） ══ -->
+        <g id="world">
+          <!-- 边由下方 buildEdges 正交航点生成（少交叉布局） -->
+          <g id="edges"></g>
+
+          <!-- 连线标注（默认隐去，悬停相关脑区时浮现） -->
+          <g id="elabels">
+            <text class="elabel" data-lk="e-note" x="322" y="658" text-anchor="middle">memory.note · 转录摄入</text>
+            <text class="elabel rest" data-lk="e-direct-1" x="228" y="549" text-anchor="end">直写门</text>
+            <text class="elabel" data-lk="e-usermd-branch" x="232" y="370" text-anchor="middle" transform="rotate(-90 232 370)">偏好 → 画像路由</text>
+            <text class="elabel" data-lk="e-cortex-branch" x="540" y="536" text-anchor="middle">任务事实 → 新皮层</text>
+            <text class="elabel" data-lk="e-cand" x="560" y="326" text-anchor="middle">候选</text>
+            <text class="elabel tone-green" data-lk="e-auto" x="862" y="326" text-anchor="middle">高置信 · 自动入池</text>
+            <text class="elabel tone-yellow" data-lk="e-review" x="736" y="402" text-anchor="start">低置信 · 改写</text>
+            <text class="elabel tone-green" data-lk="e-approve" x="907" y="440" text-anchor="middle">批准</text>
+            <text class="elabel" data-lk="e-reject" x="706" y="512" text-anchor="start">驳回即弃</text>
+            <text class="elabel" data-lk="e-delrestore" x="1082" y="338" text-anchor="middle" transform="rotate(-90 1082 338)">⇅ 修剪 · 回滚</text>
+            <text class="elabel tone-blue rest" data-lk="e-inject" x="526" y="24" text-anchor="middle">注入回路 · bootstrap 注入 · memory.search · trigger 命中</text>
+            <text class="elabel tone-purple" data-lk="e-fire" x="180" y="450" text-anchor="middle" transform="rotate(-90 180 450)">intents 命中</text>
+          </g>
+
+          <!-- 直写门（杏仁核式快速通路闸门） -->
+          <g id="gate">
+            <circle class="gate-halo" cx="246" cy="549" r="11" />
+            <rect class="gate-diamond" x="234" y="537" width="24" height="24" transform="rotate(45 246 549)" />
+            <circle class="gate-core" cx="246" cy="549" r="3" />
+            <rect class="gate-hit" x="222" y="525" width="48" height="48" data-tip-title="直写门（唯一绕过巩固的写入）"
+                  data-tip="仅当用户本回合明示『记住』时放行：无头/定时回合拒绝、回合内有网络来源污点拒绝、超注入预算不硬写并返回合并提醒。偏好类内容自动路由前额叶（USER.md）。" />
+          </g>
+
+          <!-- 脑区卡片 -->
+          <g id="nodes">
+            <foreignObject x="90" y="610" width="195" height="66">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-session"
+                   data-tip-title="对话会话 · 颅外世界"
+                   data-tip="一切记忆的源头。用户明示『记住』经直写门快速入库（类比杏仁核的情绪强化通路）；模型自发结论经 memory.note 落海马体；会话结束或压缩前的转录也被摄入（种类门 + 脱敏）。">
+                <div class="n-head"><span class="n-dot"></span><span class="n-title">对话会话</span></div>
+                <div class="n-sub">你 + Agent · 一切记忆的源头</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="385" y="415" width="205" height="64">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-staging" data-tab="晋升审阅"
+                   data-tip-title="海马体 · 情景暂存池（staging）"
+                   data-tip="Hippocampus——情景记忆的成形之处。memory.note 与转录摄入（会话结束/压缩前 flush：种类门 + 凭证脱敏 + 剔除已注入内容）的候选先落这里（SQLite），等巩固流程按真实召回信号决定去留。永不自动注入会话。">
+                <div class="n-head"><span class="n-dot c-yellow"></span><span class="n-title">情景暂存池</span><span class="n-badge c-yellow">12 候选</span></div>
+                <div class="n-sub">SQLite · 永不自动注入</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="630" y="300" width="185" height="78">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-consolidation" data-tab="晋升审阅"
+                   data-tip-title="巩固引擎 ≈ 系统巩固（睡眠期）"
+                   data-tip="人脑在睡眠期把海马体的情景记忆转存新皮层（systems consolidation）——这里的巩固引擎在空闲期做同一件事：信号门（真实召回信号）+ 污点门（网络来源按 untrusted）+ 置信分档。">
+                <div class="n-head">
+                  <svg class="n-glyph" width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+                    <path d="M2.5 8 C2.3 4.6 5.2 2.2 8.4 3.1 C11.2 3.9 11.8 7.6 9.2 9.2 C7.2 10.4 4.8 9.4 4.5 7.2 C4.3 5.4 5.9 4.3 7.6 4.9"
+                          stroke="var(--text-3)" stroke-width="1.2" stroke-linecap="round" />
+                  </svg>
+                  <span class="n-title">巩固引擎</span>
+                </div>
+                <div class="n-sub">空闲 · 上次巩固 14:32</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="780" y="162" width="260" height="72">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-curated" data-tab="条目总览"
+                   data-tip-title="新皮层 · 策展核心（长期存储）"
+                   data-tip="Neocortex——长期记忆的存储皮层。worker 与 scheduler 双命名空间（docs/memory/MEMORY.md 与调度私有库）；markdown 为 canonical，SQLite 只是派生索引（删库可全量重建）；bootstrap 注入 + 逐回合预算装箱（16K）。">
+                <div class="n-head"><span class="n-dot c-green"></span><span class="n-title">策展核心 · MEMORY.md</span><span class="n-badge">47 条</span></div>
+                <div class="n-sub">worker + scheduler 双库 · 预算 16K</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="400" y="168" width="220" height="76">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-usermd" data-tab="条目总览"
+                   data-tip-title="前额叶 · USER.md 用户画像"
+                   data-tip="Prefrontal cortex——自我模型所在。用户本人的偏好/风格/习惯（第一人称句式）经画像路由直写；全局单文件跨工作区生效；4000 字符硬上限；supersede-in-place，永不追加矛盾条目。">
+                <div class="n-head"><span class="n-dot c-purple"></span><span class="n-title">USER.md · 画像</span><span class="n-badge">1.2K / 4K</span></div>
+                <div class="n-sub">全局 · 跨工作区生效</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="395" y="268" width="195" height="64">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-intents" data-tab="意图管理"
+                   data-tip-title="前额叶 · Standing Intents（前瞻记忆）"
+                   data-tip="前瞻记忆（prospective memory）正是前额叶的职能——『当 X 发生时提醒我』。消息词法 + 事件谓词双触发；冷却 24h / 预算 3 次 / 90 天过期；取消是持久状态。">
+                <div class="n-head"><span class="n-dot c-purple"></span><span class="n-title">Standing Intents</span><span class="n-badge">5 在途</span></div>
+                <div class="n-sub">词法 + 事件双触发 · 冷却 24h</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="630" y="420" width="185" height="66">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-approval" data-tab="审批队列"
+                   data-tip-title="前扣带回 · 审批队列（人在环）"
+                   data-tip="Anterior cingulate——冲突监控与把关。低置信与改写操作在此等人工裁决：批准 → 新皮层；驳回即弃。角标 + 通知提醒，不占用 needs_you。">
+                <div class="n-head"><span class="n-dot c-yellow"></span><span class="n-title">审批队列</span><span class="n-badge c-yellow">3</span></div>
+                <div class="n-sub">冲突监控 · 人在环把关</div>
+              </div>
+            </foreignObject>
+
+            <foreignObject x="980" y="478" width="175" height="64">
+              <div xmlns="http://www.w3.org/1999/xhtml" class="node node--region" id="n-recycle" data-tab="回收站"
+                   data-tip-title="突触修剪 · 回收站"
+                   data-tip="Synaptic pruning——用进废退。删除策展条目前先落 preimages 全文镜像，面板可回滚，不覆盖原始转录与意译副本。修剪不是遗忘，是有序整理。">
+                <div class="n-head"><span class="n-dot"></span><span class="n-title">回收站</span><span class="n-badge">2</span></div>
+                <div class="n-sub">preimages 前镜像 · 可回滚</div>
+              </div>
+            </foreignObject>
+          </g>
+        </g>
+
+        <!-- ══ 粒子（神经脉冲 · 带辉光） ══ -->
+        <g id="particles" filter="url(#glow-soft)" aria-hidden="true"></g>
+        <g id="handles"></g>
+      </svg>
+      <div class="edit-bar" id="edit-bar">
+        <span>拖卡片 / 门 / 线上圆点 / 标注。线段上点击加折点，双击圆点删除。拖折点自动正交吸附，按 <kbd>Alt</kbd> 自由拖。右上角「重置」点两次即可恢复默认。</span>
+      </div>
+      <div class="tip" id="tip"><h3></h3><p></p></div>
+    </div>
+
+<!-- 颜色语义图例 -->
+  <div class="flow-legend">
+    <span><i style="background: var(--green)"></i>自动通过</span>
+    <span><i style="background: var(--yellow)"></i>需人工把关</span>
+    <span><i style="background: var(--blue)"></i>注入与检索</span>
+    <span><i style="background: var(--purple)"></i>意图提醒</span>
+    <span><i style="background: var(--red)"></i>门禁</span>
+    <span><i style="background: rgba(158,158,158,0.6)"></i>记录流转</span>
+  </div>
+  </section>
+
+  <!-- ============ 其他页签（占位演示） ============ -->
+  <section class="view hidden" id="view-placeholder">
+    <div class="placeholder">
+      <div class="big" id="ph-title">条目总览</div>
+      <p class="why">各页改后稿已做到 memory-center-pages.html，点页签即跳转</p>
+      <button class="back-btn" id="ph-back">← 返回总览</button>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var NS = 'http://www.w3.org/2000/svg';
+  var R = 16;
+  var STORE = 'metaagent.memory-flow-layout.v2';
+  var SNAP = 12;
+  var ATTACH = 14;
+  var editing = false;
+  var svg = document.getElementById('flow');
+  var card = document.getElementById('diagramCard');
+  var handlesG = document.getElementById('handles');
+  var movers = [];
+
+  var EDGE_META = {
+    'e-note': { cls: 'edge e-neutral', marker: 'm-neutral' },
+    'e-direct-1': { cls: 'edge e-neutral', marker: 'm-neutral' },
+    'e-usermd-branch': { cls: 'edge e-neutral', marker: 'm-neutral' },
+    'e-cortex-branch': { cls: 'edge e-neutral', marker: 'm-neutral' },
+    'e-cand': { cls: 'edge e-neutral', marker: 'm-neutral' },
+    'e-auto': { cls: 'edge e-green', marker: 'm-green' },
+    'e-review': { cls: 'edge e-yellow', marker: 'm-yellow' },
+    'e-approve': { cls: 'edge e-green', marker: 'm-green' },
+    'e-reject': { cls: 'edge', fade: true },
+    'e-delrestore': { cls: 'edge e-neutral', marker: 'm-neutral', both: true },
+    'e-inject': { cls: 'edge e-blue', glow: 'var(--blue)', casing: true, hit: true,
+      tipTitle: '注入回路（Lane1 · 零模型）',
+      tip: '策展核心与 USER.md 每回合按预算注入会话；memory.search 提供 BM25×向量×新近度排序检索；策展条目 trigger 词组对入站消息预筛，强命中注入隐藏块（每回合 ≤3）。' },
+    'e-inject-ustub': { cls: 'edge e-blue', glow: 'var(--blue)', casing: true },
+    'e-fire': { cls: 'edge e-purple e-dash', marker: 'm-purple', glow: 'var(--purple)', hit: true,
+      tipTitle: '意图发射（prospective）',
+      tip: '命中后单事务复查状态 → 过期 → 冷却 → 预算再发射；只对实际注入者推进 fire_count。取消是持久状态，「重新武装」是唯一恢复入口。' }
+  };
+
+  var DEFAULT = {
+    nodes: {
+      'n-session': { x: 90, y: 610, w: 195, h: 66 },
+      'n-staging': { x: 385, y: 415, w: 205, h: 64 },
+      'n-consolidation': { x: 630, y: 300, w: 185, h: 78 },
+      'n-curated': { x: 780, y: 162, w: 260, h: 72 },
+      'n-usermd': { x: 400, y: 168, w: 220, h: 76 },
+      'n-intents': { x: 395, y: 268, w: 195, h: 64 },
+      'n-approval': { x: 630, y: 420, w: 185, h: 66 },
+      'n-recycle': { x: 980, y: 478, w: 175, h: 64 }
+    },
+    gate: { cx: 246, cy: 549 },
+    edges: {
+      'e-note': [[285,643],[360,643],[360,447],[385,447]],
+      'e-direct-1': [[246,610],[246,566]],
+      'e-usermd-branch': [[246,532],[246,206],[400,206]],
+      'e-cortex-branch': [[263,549],[820,549],[820,234]],
+      'e-cand': [[488,415],[488,339],[630,339]],
+      'e-auto': [[815,339],[910,339],[910,234]],
+      'e-review': [[722,378],[722,420]],
+      'e-approve': [[815,453],[1000,453],[1000,234]],
+      'e-reject': [[692,486],[692,530]],
+      'e-delrestore': [[1040,198],[1068,198],[1068,478]],
+      'e-inject': [[910,162],[910,32],[142,32],[142,610]],
+      'e-inject-ustub': [[510,168],[510,32]],
+      'e-fire': [[395,300],[194,300],[194,610]]
+    },
+    labels: {
+      'e-note': { x: 322, y: 658, rot: 0 },
+      'e-direct-1': { x: 228, y: 549, rot: 0 },
+      'e-usermd-branch': { x: 232, y: 370, rot: -90 },
+      'e-cortex-branch': { x: 540, y: 536, rot: 0 },
+      'e-cand': { x: 560, y: 326, rot: 0 },
+      'e-auto': { x: 862, y: 326, rot: 0 },
+      'e-review': { x: 736, y: 402, rot: 0 },
+      'e-approve': { x: 907, y: 440, rot: 0 },
+      'e-reject': { x: 706, y: 512, rot: 0 },
+      'e-delrestore': { x: 1082, y: 338, rot: -90 },
+      'e-inject': { x: 526, y: 24, rot: 0 },
+      'e-fire': { x: 180, y: 450, rot: -90 }
+    }
+  };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function loadLayout() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      if (!raw) return clone(DEFAULT);
+      var saved = JSON.parse(raw);
+      var out = clone(DEFAULT);
+      if (saved.nodes) Object.keys(out.nodes).forEach(function (k) { if (saved.nodes[k]) out.nodes[k] = saved.nodes[k]; });
+      if (saved.gate) out.gate = saved.gate;
+      if (saved.edges) Object.keys(out.edges).forEach(function (k) { if (saved.edges[k]) out.edges[k] = saved.edges[k]; });
+      if (saved.labels) Object.keys(out.labels).forEach(function (k) { if (saved.labels[k]) out.labels[k] = saved.labels[k]; });
+      return out;
+    } catch (e) { return clone(DEFAULT); }
+  }
+
+  var layout = loadLayout();
+  window.__MEMORY_FLOW_LAYOUT__ = layout;
+
+  function persist() {
+    localStorage.setItem(STORE, JSON.stringify(layout));
+    window.__MEMORY_FLOW_LAYOUT__ = layout;
+  }
+
+  function rounded(pts) {
+    var d = 'M ' + pts[0][0] + ' ' + pts[0][1];
+    for (var i = 1; i < pts.length - 1; i++) {
+      var p = pts[i], prev = pts[i - 1], next = pts[i + 1];
+      var l1 = Math.hypot(p[0] - prev[0], p[1] - prev[1]) || 1;
+      var l2 = Math.hypot(next[0] - p[0], next[1] - p[1]) || 1;
+      var rr = Math.min(R, l1 / 2, l2 / 2);
+      var t1x = p[0] - (p[0] - prev[0]) / l1 * rr, t1y = p[1] - (p[1] - prev[1]) / l1 * rr;
+      var t2x = p[0] + (next[0] - p[0]) / l2 * rr, t2y = p[1] + (next[1] - p[1]) / l2 * rr;
+      d += ' L ' + t1x.toFixed(1) + ' ' + t1y.toFixed(1) +
+           ' Q ' + p[0] + ' ' + p[1] + ' ' + t2x.toFixed(1) + ' ' + t2y.toFixed(1);
+    }
+    var last = pts[pts.length - 1];
+    return d + ' L ' + last[0] + ' ' + last[1];
+  }
+
+  function applyNodes() {
+    Object.keys(layout.nodes).forEach(function (id) {
+      var n = layout.nodes[id];
+      var el = document.getElementById(id);
+      if (!el) return;
+      var fo = el.closest('foreignObject') || el.parentNode;
+      fo.setAttribute('x', n.x);
+      fo.setAttribute('y', n.y);
+      fo.setAttribute('width', n.w);
+      fo.setAttribute('height', n.h);
+    });
+  }
+
+  function applyGate() {
+    var cx = layout.gate.cx, cy = layout.gate.cy;
+    var g = document.getElementById('gate');
+    g.querySelector('.gate-halo').setAttribute('cx', cx);
+    g.querySelector('.gate-halo').setAttribute('cy', cy);
+    var d = g.querySelector('.gate-diamond');
+    d.setAttribute('x', cx - 12);
+    d.setAttribute('y', cy - 12);
+    d.setAttribute('transform', 'rotate(45 ' + cx + ' ' + cy + ')');
+    g.querySelector('.gate-core').setAttribute('cx', cx);
+    g.querySelector('.gate-core').setAttribute('cy', cy);
+    var hit = g.querySelector('.gate-hit');
+    hit.setAttribute('x', cx - 24);
+    hit.setAttribute('y', cy - 24);
+  }
+
+  function applyLabels() {
+    Object.keys(layout.labels).forEach(function (lk) {
+      var L = layout.labels[lk];
+      var t = document.querySelector('#elabels text[data-lk="' + lk + '"]');
+      if (!t) return;
+      t.setAttribute('x', L.x);
+      t.setAttribute('y', L.y);
+      if (L.rot) t.setAttribute('transform', 'rotate(' + L.rot + ' ' + L.x + ' ' + L.y + ')');
+      else t.removeAttribute('transform');
+    });
+  }
+
+  function rebuildEdges() {
+    var g = document.getElementById('edges');
+    g.innerHTML = '';
+    Object.keys(EDGE_META).forEach(function (id) {
+      var d = EDGE_META[id];
+      var pts = layout.edges[id];
+      if (!pts || pts.length < 2) return;
+      var path = rounded(pts);
+      function mk(cls) {
+        var el = document.createElementNS(NS, 'path');
+        el.setAttribute('class', cls);
+        el.setAttribute('d', path);
+        return el;
+      }
+      if (d.casing) g.appendChild(mk('e-casing'));
+      if (d.glow) { var gl = mk('e-glow'); gl.style.stroke = d.glow; g.appendChild(gl); }
+      var main = mk(d.cls);
+      main.setAttribute('id', id);
+      if (d.marker) main.setAttribute('marker-end', 'url(#' + d.marker + ')');
+      if (d.both) main.setAttribute('marker-start', 'url(#' + d.marker + ')');
+      if (d.fade) main.setAttribute('stroke', 'url(#fade-out)');
+      g.appendChild(main);
+      if (d.hit || editing) {
+        var hit = mk('e-hit');
+        hit.dataset.eid = id;
+        if (d.tipTitle) {
+          hit.setAttribute('data-tip-title', d.tipTitle);
+          hit.setAttribute('data-tip', d.tip);
+        }
+        g.appendChild(hit);
+      }
+    });
+    movers.forEach(function (m) {
+      var p = document.getElementById(m.id);
+      if (p) { m.path = p; try { m.len = p.getTotalLength(); } catch (e) { m.len = 1; } }
+    });
+    if (editing) drawHandles();
+    else handlesG.innerHTML = '';
+  }
+
+  function drawHandles() {
+    handlesG.innerHTML = '';
+    Object.keys(layout.edges).forEach(function (id) {
+      var pts = layout.edges[id];
+      for (var i = 0; i < pts.length - 1; i++) {
+        var seg = document.createElementNS(NS, 'path');
+        seg.setAttribute('class', 'wp-seg');
+        seg.setAttribute('d', 'M ' + pts[i][0] + ' ' + pts[i][1] + ' L ' + pts[i + 1][0] + ' ' + pts[i + 1][1]);
+        seg.dataset.eid = id;
+        seg.dataset.seg = String(i);
+        handlesG.appendChild(seg);
+      }
+      pts.forEach(function (p, i) {
+        var c = document.createElementNS(NS, 'circle');
+        c.setAttribute('class', 'wp-handle');
+        c.setAttribute('cx', p[0]);
+        c.setAttribute('cy', p[1]);
+        c.setAttribute('r', i === 0 || i === pts.length - 1 ? 6 : 5);
+        c.dataset.eid = id;
+        c.dataset.idx = String(i);
+        handlesG.appendChild(c);
+      });
+    });
+  }
+
+  function applyAll() {
+    applyNodes();
+    applyGate();
+    applyLabels();
+    rebuildEdges();
+  }
+
+  function svgPt(ev) {
+    var r = svg.getBoundingClientRect();
+    var vb = svg.viewBox.baseVal;
+    if (!r.width || !r.height) return { x: 0, y: 0 };
+    return {
+      x: (ev.clientX - r.left) / r.width * vb.width + vb.x,
+      y: (ev.clientY - r.top) / r.height * vb.height + vb.y
+    };
+  }
+
+  function nearBox(pt, box) {
+    var x = pt[0], y = pt[1];
+    var onX = x >= box.x - ATTACH && x <= box.x + box.w + ATTACH;
+    var onY = y >= box.y - ATTACH && y <= box.y + box.h + ATTACH;
+    return (Math.abs(x - box.x) <= ATTACH && onY) ||
+           (Math.abs(x - (box.x + box.w)) <= ATTACH && onY) ||
+           (Math.abs(y - box.y) <= ATTACH && onX) ||
+           (Math.abs(y - (box.y + box.h)) <= ATTACH && onX);
+  }
+
+  function attachedTo(box) {
+    var out = [];
+    Object.keys(layout.edges).forEach(function (id) {
+      layout.edges[id].forEach(function (pt, i) {
+        if (nearBox(pt, box)) out.push({ id: id, i: i });
+      });
+    });
+    return out;
+  }
+
+  function snapOrtho(pts, i, x, y, free) {
+    if (free) return [Math.round(x), Math.round(y)];
+    var prev = pts[i - 1], next = pts[i + 1];
+    var nx = x, ny = y;
+    function pull(q) {
+      if (!q) return;
+      if (Math.abs(x - q[0]) < SNAP) nx = q[0];
+      if (Math.abs(y - q[1]) < SNAP) ny = q[1];
+    }
+    pull(prev); pull(next);
+    return [Math.round(nx), Math.round(ny)];
+  }
+
+  function setEditing(on) {
+    editing = on;
+    card.classList.toggle('is-editing', on);
+    document.getElementById('btn-edit-layout').classList.toggle('is-on', on);
+    document.getElementById('btn-edit-layout').textContent = on ? '退出编辑' : '编辑布局';
+    document.querySelectorAll('#elabels text').forEach(function (t) {
+      t.classList.toggle('edit-on', on);
+    });
+    hideTip();
+    setFocus(null);
+    rebuildEdges();
+  }
+
+  function bindDrag(el, onMove, onUp) {
+    function move(ev) { onMove(ev); }
+    function up(ev) {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (onUp) onUp(ev);
+      persist();
+    }
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  }
+
+  card.addEventListener('pointerdown', function (ev) {
+    if (!editing) return;
+    var h = ev.target.closest && ev.target.closest('.wp-handle');
+    if (h && handlesG.contains(h)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var eid = h.dataset.eid, idx = +h.dataset.idx;
+      bindDrag(h, function (e) {
+        var p = svgPt(e);
+        var pts = layout.edges[eid];
+        pts[idx] = snapOrtho(pts, idx, p.x, p.y, e.altKey);
+        rebuildEdges();
+      });
+      return;
+    }
+    var node = ev.target.closest && ev.target.closest('.node');
+    if (node && card.contains(node)) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var id = node.id;
+      var start = svgPt(ev);
+      var orig = clone(layout.nodes[id]);
+      var box = { x: orig.x, y: orig.y, w: orig.w, h: orig.h };
+      var att = attachedTo(box);
+      var origPts = att.map(function (a) { return { a: a, pt: layout.edges[a.id][a.i].slice() }; });
+      bindDrag(node, function (e) {
+        var p = svgPt(e);
+        var dx = Math.round(p.x - start.x), dy = Math.round(p.y - start.y);
+        layout.nodes[id].x = orig.x + dx;
+        layout.nodes[id].y = orig.y + dy;
+        origPts.forEach(function (o) {
+          layout.edges[o.a.id][o.a.i] = [o.pt[0] + dx, o.pt[1] + dy];
+        });
+        applyNodes();
+        rebuildEdges();
+      });
+      return;
+    }
+    if (ev.target.closest && ev.target.closest('#gate')) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var gStart = svgPt(ev);
+      var gOrig = clone(layout.gate);
+      var gBox = { x: gOrig.cx - 16, y: gOrig.cy - 16, w: 32, h: 32 };
+      var gAtt = attachedTo(gBox);
+      var gPts = gAtt.map(function (a) { return { a: a, pt: layout.edges[a.id][a.i].slice() }; });
+      bindDrag(ev.target, function (e) {
+        var p = svgPt(e);
+        var dx = Math.round(p.x - gStart.x), dy = Math.round(p.y - gStart.y);
+        layout.gate.cx = gOrig.cx + dx;
+        layout.gate.cy = gOrig.cy + dy;
+        gPts.forEach(function (o) {
+          layout.edges[o.a.id][o.a.i] = [o.pt[0] + dx, o.pt[1] + dy];
+        });
+        applyGate();
+        rebuildEdges();
+      });
+      return;
+    }
+    var lab = ev.target.closest && ev.target.closest('#elabels text');
+    if (lab && lab.dataset.lk) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var lk = lab.dataset.lk;
+      var lStart = svgPt(ev);
+      var lOrig = clone(layout.labels[lk]);
+      bindDrag(lab, function (e) {
+        var p = svgPt(e);
+        layout.labels[lk].x = Math.round(lOrig.x + p.x - lStart.x);
+        layout.labels[lk].y = Math.round(lOrig.y + p.y - lStart.y);
+        applyLabels();
+      });
+    }
+  });
+
+  card.addEventListener('click', function (ev) {
+    if (!editing) return;
+    var seg = ev.target.closest && ev.target.closest('.wp-seg');
+    if (!seg) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    var eid = seg.dataset.eid;
+    var i = +seg.dataset.seg;
+    var p = svgPt(ev);
+    var pts = layout.edges[eid];
+    var a = pts[i], b = pts[i + 1];
+    var nx = Math.round(p.x), ny = Math.round(p.y);
+    if (Math.abs(a[0] - b[0]) < Math.abs(a[1] - b[1])) nx = a[0];
+    else ny = a[1];
+    pts.splice(i + 1, 0, [nx, ny]);
+    persist();
+    rebuildEdges();
+  });
+
+  card.addEventListener('dblclick', function (ev) {
+    if (!editing) return;
+    var h = ev.target.closest && ev.target.closest('.wp-handle');
+    if (!h) return;
+    ev.preventDefault();
+    var eid = h.dataset.eid, idx = +h.dataset.idx;
+    var pts = layout.edges[eid];
+    if (pts.length <= 2) return;
+    if (idx === 0 || idx === pts.length - 1) return;
+    pts.splice(idx, 1);
+    persist();
+    rebuildEdges();
+  });
+
+  document.getElementById('btn-edit-layout').addEventListener('click', function () {
+    setEditing(!editing);
+  });
+  var resetArmed = 0;
+  var resetBtn = document.getElementById('btn-reset-layout');
+  function doResetLayout() {
+    try { localStorage.removeItem(STORE); } catch (e) {}
+    layout = clone(DEFAULT);
+    window.__MEMORY_FLOW_LAYOUT__ = layout;
+    try { persist(); } catch (e) {}
+    applyAll();
+    resetArmed = 0;
+    resetBtn.textContent = '已重置';
+    resetBtn.classList.remove('is-on');
+    setTimeout(function () { resetBtn.textContent = '重置'; }, 1200);
+  }
+  resetBtn.addEventListener('click', function (ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    var now = Date.now();
+    if (now - resetArmed < 4000) {
+      doResetLayout();
+      return;
+    }
+    resetArmed = now;
+    resetBtn.textContent = '再点确认重置';
+    resetBtn.classList.add('is-on');
+    setTimeout(function () {
+      if (Date.now() - resetArmed >= 4000) {
+        resetArmed = 0;
+        resetBtn.textContent = '重置';
+        resetBtn.classList.remove('is-on');
+      }
+    }, 4000);
+  });
+  document.getElementById('btn-export-layout').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(layout, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'memory-flow-layout.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  applyAll();
+
+  /* ===== 页签 ===== */
+  var TABS = [
+    { id: '总览' },
+    { id: '条目总览' },
+    { id: '用户画像' },
+    { id: '晋升审阅' },
+    { id: '审批队列', badge: '3' },
+    { id: '意图管理' },
+    { id: '索引状态' },
+    { id: '回收站' }
+  ];
+  var PAGES = 'memory-center-pages.html';
+  var tabsEl = document.getElementById('tabs');
+  var viewOverview = document.getElementById('view-overview');
+  var viewPh = document.getElementById('view-placeholder');
+  var phTitle = document.getElementById('ph-title');
+
+  TABS.forEach(function (t) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tab' + (t.id === '总览' ? ' is-active' : '');
+    b.textContent = t.id;
+    if (t.badge) {
+      var s = document.createElement('span');
+      s.className = 'badge';
+      s.textContent = t.badge;
+      b.appendChild(s);
+    }
+    b.addEventListener('click', function () { switchTab(t.id); });
+    b.dataset.tabId = t.id;
+    tabsEl.appendChild(b);
+  });
+
+  function switchTab(id) {
+    if (id !== '总览') {
+      window.location.href = PAGES + '#' + encodeURIComponent(id);
+      return;
+    }
+    Array.prototype.forEach.call(tabsEl.children, function (b) {
+      b.classList.toggle('is-active', b.dataset.tabId === id);
+    });
+    viewOverview.classList.toggle('hidden', false);
+    viewPh.classList.toggle('hidden', true);
+  }
+  document.getElementById('ph-back').addEventListener('click', function () { switchTab('总览'); });
+
+  /* 节点 / 设施条 chip 的演示跳转 */
+  document.addEventListener('click', function (ev) {
+    if (editing) return;
+    var el = ev.target.closest('[data-tab]');
+    if (el && el.dataset.tab) switchTab(el.dataset.tab);
+  });
+
+  /* ===== tooltip + 悬停聚焦 ===== */
+  var tip = document.getElementById('tip');
+  var tipH = tip.querySelector('h3');
+  var tipP = tip.querySelector('p');
+
+  /* 节点 → 相连边（悬停时高亮整条路径、浮现其标注，其余压暗） */
+  var ADJ = {
+    'n-session': ['e-note', 'e-direct-1', 'e-usermd-branch', 'e-inject', 'e-fire'],
+    'n-staging': ['e-note', 'e-cand'],
+    'n-consolidation': ['e-cand', 'e-auto', 'e-review'],
+    'n-approval': ['e-review', 'e-approve', 'e-reject'],
+    'n-curated': ['e-cortex-branch', 'e-auto', 'e-approve', 'e-delrestore', 'e-inject'],
+    'n-usermd': ['e-usermd-branch', 'e-inject-ustub', 'e-inject'],
+    'n-intents': ['e-fire'],
+    'n-recycle': ['e-delrestore']
+  };
+  var EDGE_LABELS = {
+    'e-note': 'memory.note · 转录摄入', 'e-direct-1': '直写门',
+    'e-usermd-branch': '偏好 → 画像路由', 'e-cortex-branch': '任务事实 → 新皮层',
+    'e-cand': '候选', 'e-auto': '高置信 · 自动入池',
+    'e-review': '低置信 · 改写', 'e-approve': '批准', 'e-reject': '驳回即弃',
+    'e-delrestore': '⇅ 修剪 · 回滚',
+    'e-inject': '注入回路 · bootstrap 注入 · memory.search · trigger 命中', 'e-inject-ustub': '',
+    'e-fire': 'intents 命中'
+  };
+
+  function setFocus(nodeId) {
+    var litEdges = nodeId ? ADJ[nodeId] || [] : null;
+    svg.querySelectorAll('.edge').forEach(function (p) {
+      p.classList.toggle('dimmed', !!nodeId && litEdges.indexOf(p.id) < 0);
+    });
+    svg.querySelectorAll('text.elabel').forEach(function (t) {
+      var lit = false;
+      if (nodeId) litEdges.forEach(function (eid) { if (EDGE_LABELS[eid] && t.textContent === EDGE_LABELS[eid]) lit = true; });
+      t.classList.toggle('lit', lit);
+      t.classList.toggle('dimmed', !!nodeId && !lit && t.classList.contains('rest'));
+    });
+    svg.querySelectorAll('foreignObject').forEach(function (fo) {
+      var div = fo.querySelector('.node');
+      fo.classList.toggle('dimmed', !!nodeId && div && div.id !== nodeId);
+    });
+    ['gate'].forEach(function (gid) {
+      var g = document.getElementById(gid);
+      if (g) g.classList.toggle('dimmed', !!nodeId && nodeId !== 'n-session' && nodeId !== 'n-curated');
+    });
+  }
+
+  function showTip(el) {
+    tipH.textContent = el.dataset.tipTitle || '';
+    tipP.textContent = el.dataset.tip || '';
+    tip.classList.add('show');
+    var nav = el.dataset.tab ? '点击进入「' + el.dataset.tab + '」页签 →' : '';
+    var navEl = tip.querySelector('.nav');
+    if (!navEl && nav) { navEl = document.createElement('div'); navEl.className = 'nav'; tip.appendChild(navEl); }
+    if (navEl) navEl.textContent = nav;
+    /* 定位：目标上方居中，出界则夹回画布内 */
+    var cRect = card.getBoundingClientRect();
+    var r = el.getBoundingClientRect();
+    var x = r.left - cRect.left + r.width / 2 - tip.offsetWidth / 2;
+    x = Math.max(8, Math.min(x, card.clientWidth - tip.offsetWidth - 8));
+    var y = r.top - cRect.top - tip.offsetHeight - 10;
+    if (y < 8) y = r.bottom - cRect.top + 10;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.classList.remove('show'); }
+
+  card.addEventListener('mouseover', function (ev) {
+    if (editing) return;
+    var el = ev.target.closest('[data-tip-title]');
+    if (!el || !card.contains(el)) return;
+    showTip(el);
+    var node = el.classList.contains('node') ? el : null;
+    setFocus(node ? node.id : null);
+  });
+  card.addEventListener('mouseout', function (ev) {
+    var el = ev.target.closest('[data-tip-title]');
+    if (!el) return;
+    var to = ev.relatedTarget && ev.relatedTarget.closest ? ev.relatedTarget.closest('[data-tip-title]') : null;
+    if (to === el) return;
+    hideTip();
+    setFocus(null);
+  });
+
+  /* ===== 粒子流（循环装饰 · prefers-reduced-motion 降级为静态） ===== */
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!reduced) {
+    var layer = document.getElementById('particles');
+    var FLOW_EDGES = [
+      { id: 'e-note', n: 1, speed: 26, color: 'rgba(158,158,158,0.5)' },
+      { id: 'e-direct-1', n: 1, speed: 36, color: 'rgba(158,158,158,0.5)' },
+      { id: 'e-usermd-branch', n: 1, speed: 28, color: 'rgba(158,158,158,0.5)' },
+      { id: 'e-cortex-branch', n: 1, speed: 32, color: 'rgba(158,158,158,0.5)' },
+      { id: 'e-cand', n: 1, speed: 24, color: 'rgba(158,158,158,0.5)' },
+      { id: 'e-auto', n: 1, speed: 30, color: 'color-mix(in srgb, var(--green) 55%, transparent)' },
+      { id: 'e-review', n: 1, speed: 26, color: 'color-mix(in srgb, var(--yellow) 55%, transparent)' },
+      { id: 'e-approve', n: 1, speed: 30, color: 'color-mix(in srgb, var(--green) 55%, transparent)' },
+      { id: 'e-delrestore', n: 1, speed: 22, color: 'rgba(158,158,158,0.4)' },
+      { id: 'e-inject', n: 3, speed: 48, color: 'color-mix(in srgb, var(--blue) 60%, transparent)' },
+      { id: 'e-inject-ustub', n: 1, speed: 30, color: 'color-mix(in srgb, var(--blue) 60%, transparent)' },
+      { id: 'e-fire', n: 2, speed: 36, color: 'color-mix(in srgb, var(--purple) 55%, transparent)' }
+    ];
+    var SVGNS = 'http://www.w3.org/2000/svg';
+    FLOW_EDGES.forEach(function (cfg) {
+      var path = document.getElementById(cfg.id);
+      if (!path) return;
+      var len = path.getTotalLength();
+      for (var i = 0; i < cfg.n; i++) {
+        var c = document.createElementNS(SVGNS, 'circle');
+        c.setAttribute('r', '2.1');
+        c.setAttribute('class', 'particle');
+        c.setAttribute('fill', cfg.color);
+        layer.appendChild(c);
+        movers.push({
+          id: cfg.id, el: c, path: path, len: len, speed: cfg.speed,
+          t: Math.random() * (len / cfg.speed)
+        });
+      }
+    });
+    var last = performance.now();
+    (function tick(now) {
+      var dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      movers.forEach(function (m) {
+        m.t = (m.t + dt) % (m.len / m.speed);
+        var pt = m.path.getPointAtLength(Math.min(m.len, m.t * m.speed));
+        m.el.setAttribute('cx', pt.x);
+        m.el.setAttribute('cy', pt.y);
+      });
+      requestAnimationFrame(tick);
+    })(last);
+  }
+})();
+</script>
+</body>
+</html>

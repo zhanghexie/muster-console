@@ -1,0 +1,166 @@
+/* side.css — 由 styles.css 拆分（域：side）。规范见 /design.md。修改请守住 token。 */
+
+
+/* ---------- 侧栏工具（文件 | Git）---------- */
+
+.side-tools-panel {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  min-height: 0;
+}
+
+/* 嵌入工具栏的「文件 | Git」切换：药丸凹槽分段（格式对齐会话「对话|轨迹」.agent-chat-viewtabs）：
+   raised 凹槽底 + pill 圆角，选中片 selected-fill（hover 规则须在选中态之前）。
+ * 贴工具栏右缘（2026-08-28 起），与左侧工具的分界靠间距，不画竖线（design.md §3 工具条分区）。 */
+.side-tools-switcher {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  flex-shrink: 0;
+}
+
+.side-tools-switcher .git-btn {
+  border: none;
+  border-radius: var(--radius-pill);
+  min-height: 0;
+  min-width: 0;
+  /* 与中栏「对话|轨迹」切换（.agent-chat-viewtab）同高：定高 20（2026-09-07） */
+  height: 20px;
+  padding: 2px 10px;
+  font-size: var(--font-caption);
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.side-tools-switcher .git-btn:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.side-tools-switcher .git-btn.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+}
+
+.side-tools-switcher .git-btn.is-drop {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+  box-shadow: inset 0 0 0 1px var(--fg-primary);
+}
+
+/* 面板历史导航（‹ ›）：贴工具栏左端、常显；比 tab 弱一档的三级图标钮，
+ * 无历史时 disabled（透明度走 .git-btn 通用禁用态） */
+.side-tools-history-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.side-tools-history-nav .side-tools-history-btn {
+  color: var(--fg-muted);
+  min-width: 22px;
+  padding: 2px 4px;
+  margin-left: 2px;
+}
+
+.side-tools-history-nav .side-tools-history-btn:hover:not(:disabled) {
+  color: var(--fg-primary);
+}
+
+.side-tools-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* 两页叠放互切（.xfade 提供 opacity/visibility 过渡，动画骨架见 base.css）；
+   display 不再参与切换，CodeMirror/diff 等重内容切页不重排 */
+.side-tools-page {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.side-tools-page > .git-panel,
+.side-tools-page > .files-panel {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}

@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MetaAgent · 静态毛玻璃材质原型</title>
+  <style>
+    /* 独立设计稿：沿用现有框/工作面关系，未接入产品样式。 */
+    :root { color-scheme: dark; --radius-control: 8px; --radius-card: 12px; --radius-modal: 16px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #101113; color: #ededee; font: 13px/1.5 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+    button, input, select { font: inherit; }
+    button, select, input[type=color], input[type=range], input[type=checkbox] { cursor: pointer; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+    .study { max-width: 1552px; margin: auto; padding: 28px 32px 18px; }
+    .intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+    .eyebrow { color: #aaaeb6; font-size: 11px; letter-spacing: .1em; margin: 0 0 8px; }
+    h1 { margin: 0; font-size: 24px; font-weight: 500; letter-spacing: -.025em; }
+    .lead { margin: 7px 0 0; color: #a5a9b1; }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+    .control { display: flex; align-items: center; gap: 9px; }
+    .control-label { color: #aeb2ba; font-size: 12px; }
+    .segment { display: inline-flex; gap: 3px; padding: 3px; border: 1px solid #33363d; background: #191b1f; border-radius: var(--radius-control); }
+    .segment button { border: 0; background: transparent; color: #aeb2ba; border-radius: 5px; padding: 6px 11px; }
+    .segment button[aria-pressed=true] { color: #f5f5f6; background: #363940; }
+    .swatches { display: flex; align-items: center; gap: 7px; }
+    .swatch { padding: 0; width: 19px; height: 19px; border-radius: 50%; border: 2px solid #101113; outline: 1px solid #ffffff25; background: var(--swatch); }
+    .swatch[aria-pressed=true] { outline: 2px solid #eceef2; outline-offset: 2px; }
+    .custom-color { width: 22px; height: 22px; padding: 0; border: 0; background: transparent; }
+    .fog { width: 74px; accent-color: #c9cbd2; }
+    output { color: #b6bac2; font-size: 11px; min-width: 28px; }
+    .secondary-controls { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+    .mode-caption { display: flex; align-items: center; gap: 8px; color: #b9bdc5; font-size: 12px; }
+    .mode-dot { width: 6px; height: 6px; background: #b7c4d7; border-radius: 50%; }
+    .color-toggle { display: flex; align-items: center; gap: 7px; color: #adb1ba; font-size: 12px; }
+    .color-toggle input { accent-color: #c9cbd2; }
+    .shell {
+      --ink: #ededee; --muted: #b0b5bf; --dim: #969faa; --accent: #6287d8; --green: #62cdaa;
+      --raised: rgb(255 255 255 / .065); --hover: rgb(255 255 255 / .045);
+      --line: rgb(255 255 255 / .085); --rim: rgb(255 255 255 / .19);
+      --page-veil: rgb(17 19 24 / .72); --input-veil: rgb(26 29 36 / .83);
+      position: relative; isolation: isolate; overflow: hidden; border-radius: var(--radius-modal);
+      height: min(740px, calc(100vh - 220px)); min-height: 570px;
+      background-color: #2c3549; background-size: 100% 100%;
+      color: var(--ink); box-shadow: 0 24px 70px #0004, 0 0 0 1px #ffffff15;
+    }
+    .shell[data-theme=light] {
+      --ink: #272c35; --muted: #535d6d; --dim: #626e7e; --green: #237657;
+      --raised: rgb(255 255 255 / .49); --hover: rgb(255 255 255 / .22);
+      --line: rgb(48 59 78 / .095); --rim: rgb(255 255 255 / .82);
+      --page-veil: rgb(248 250 253 / .82); --input-veil: rgb(255 255 255 / .87);
+    }
+    .shell::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--fog-veil, transparent); z-index: -1; }
+    .shell::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 1px var(--rim); z-index: 3; }
+    .chrome { height: 48px; display: flex; align-items: center; gap: 23px; padding: 0 17px; }
+    .logo { width: 22px; height: 22px; flex: none; }
+    .chrome-item { white-space: nowrap; font-size: 12px; color: var(--muted); }
+    .workspace-name { color: var(--ink); }
+    .workspace-name span { margin-left: 9px; color: var(--dim); }
+    .grow { flex: 1; }
+    .window-actions { display: flex; gap: 20px; align-items: center; color: var(--muted); }
+    .icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+    .body { display: grid; grid-template-columns: 218px minmax(0, 1fr); height: calc(100% - 48px); padding: 0 8px 8px 0; }
+    .sidebar { display: flex; flex-direction: column; min-height: 0; padding: 15px 12px 10px; }
+    .section-title { color: var(--dim); font-size: 11px; margin: 0 8px 10px; }
+    .utilities { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 4px; margin-bottom: 27px; }
+    .utility { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; padding: 8px; border-radius: var(--radius-control); }
+    .utility .icon { width: 15px; height: 15px; }
+    .session { display: flex; align-items: center; gap: 10px; padding: 10px 9px; margin-bottom: 5px; border-radius: var(--radius-control); }
+    .selected { background: var(--raised); box-shadow: inset 0 1px 0 var(--line); }
+    .avatar { width: 25px; height: 25px; display: grid; place-items: center; flex: none; background: var(--raised); border-radius: 8px; font-size: 11px; color: var(--muted); }
+    .session-text { min-width: 0; flex: 1; }
+    .session-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .session-sub { margin-top: 3px; font-size: 11px; color: var(--dim); }
+    .status { color: var(--green); font-size: 10px; white-space: nowrap; }
+    .status.wait { color: #d4b37c; }
+    [data-theme=light] .status.wait { color: #835b22; }
+    .sidebar-note { font-size: 11px; color: var(--dim); margin: 18px 8px; }
+    .workspace-stack { margin-top: auto; display: grid; gap: 6px; }
+    .workspace-row { display: flex; align-items: center; gap: 9px; padding: 9px; border-radius: 10px; }
+    .workspace-row .grow { min-width: 0; font-size: 12px; }
+    .workspace-row small { font-size: 10px; color: var(--dim); }
+    .workspace-row .avatar { background: #6e809735; color: var(--ink); }
+    .work-surface { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) 268px; background: var(--page-veil); border-radius: var(--radius-card); overflow: hidden; box-shadow: inset 0 1px 0 var(--rim), 0 5px 24px #00000008; }
+    .chat { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+    .chat-header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; gap: 15px; }
+    .chat-heading { font-size: 13px; font-weight: 500; }
+    .chat-model { color: var(--dim); font-size: 11px; margin-top: 3px; }
+    .chat-meta { color: var(--dim); font-size: 11px; }
+    .conversation { padding: 20px 30px 10px; overflow: auto; flex: 1; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+    .turn { max-width: 690px; margin: 0 auto 27px; }
+    .byline { color: var(--muted); font-size: 11px; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .byline .avatar { width: 21px; height: 21px; border-radius: 6px; font-size: 10px; }
+    .byline time { color: var(--dim); margin-left: 3px; }
+    .message { line-height: 1.85; font-size: 13px; }
+    .message p { margin: 0 0 13px; }
+    .user-message { padding: 13px 16px; background: var(--raised); border-radius: var(--radius-card); }
+    .message h2 { font-size: 15px; font-weight: 500; margin: 20px 0 10px; }
+    .message ul { padding-left: 19px; margin: 0 0 15px; }
+    .message li { padding-left: 3px; margin-bottom: 7px; }
+    .tool-result { display: flex; align-items: center; gap: 9px; padding: 11px 13px; margin: 19px 0 14px; border: 1px solid var(--line); border-radius: var(--radius-control); font-size: 11px; color: var(--muted); }
+    .tool-result .check { color: var(--green); }
+    .message code { font: 11px Consolas, 'Microsoft YaHei', monospace; color: var(--muted); background: var(--raised); padding: 2px 5px; border-radius: 4px; }
+    .message-meta { color: var(--dim); font-size: 11px; }
+    .composer-wrap { padding: 14px 24px 18px; }
+    .composer { background: var(--input-veil); border: 1px solid var(--line); border-radius: var(--radius-modal); box-shadow: inset 0 1px 0 var(--rim), 0 4px 16px #0000000c; padding: 14px 15px 11px; }
+    .composer-placeholder { font-size: 13px; color: var(--dim); height: 38px; }
+    .composer-tools { display: flex; align-items: center; gap: 15px; color: var(--muted); font-size: 11px; }
+    .send { width: 27px; height: 27px; display: grid; place-items: center; border-radius: var(--radius-control); color: #fff; background: var(--accent); font-size: 18px; }
+    .composer-footnote { margin-top: 8px; color: var(--dim); font-size: 10px; text-align: center; }
+    .files { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--line); padding: 0 16px; }
+    .file-tabs { height: 59px; display: flex; align-items: center; gap: 20px; font-size: 12px; color: var(--dim); }
+    .file-tabs .active { color: var(--ink); }
+    .repo-heading { font-size: 11px; color: var(--muted); margin: 13px 7px 15px; }
+    .file-row { display: flex; gap: 9px; align-items: center; padding: 7px 8px; color: var(--muted); font-size: 12px; border-radius: var(--radius-control); }
+    .file-row .icon { width: 14px; height: 14px; color: var(--dim); }
+    .indent { padding-left: 25px; }
+    .deep { padding-left: 42px; }
+    .file-row.selected { color: var(--ink); }
+    .file-summary { margin: auto 7px 21px; padding-top: 20px; color: var(--dim); font-size: 11px; line-height: 1.8; }
+    .file-summary span { color: var(--green); }
+    .footer { display: flex; justify-content: space-between; gap: 24px; padding-top: 14px; color: #9398a2; font-size: 11px; }
+    .footer strong { color: #b5bac3; font-weight: 400; }
+    .shell[data-material=flat] { --page-veil: #141416; --input-veil: #161618; --rim: transparent; }
+    .shell[data-material=flat][data-theme=light] { --page-veil: #fff; --input-veil: #fff; }
+    .shell[data-material=flat] .work-surface, .shell[data-material=flat] .composer { box-shadow: none; }
+    @media (max-width: 1150px) { .intro { align-items: start; flex-direction: column; gap: 18px; } .shell { height: 680px; } .work-surface { grid-template-columns: minmax(0, 1fr) 230px; } .body { grid-template-columns: 196px minmax(0, 1fr); } .sidebar { padding-inline: 8px; } .conversation { padding-inline: 23px; } }
+    @media (max-width: 880px) { .study { padding: 22px 18px 15px; } .files { display: none; } .work-surface { grid-template-columns: minmax(0, 1fr); } .chrome { gap: 18px; } .optional-chrome { display: none; } }
+    @media (max-width: 560px) { .study { padding: 18px 12px; } h1 { font-size: 21px; } .lead { font-size: 12px; } .controls { gap: 12px 15px; } .control-label { font-size: 11px; } .shell { height: 650px; min-height: 0; } .body { grid-template-columns: 68px minmax(0, 1fr); } .sidebar { padding-inline: 8px; } .sidebar .section-title, .utility span, .session-text, .status, .sidebar-note, .workspace-row .grow, .workspace-row small { display: none; } .utilities { grid-template-columns: 1fr; margin-bottom: 14px; justify-items: center; } .utility { padding: 9px; } .session, .workspace-row { justify-content: center; padding: 10px 4px; } .chrome { height: 44px; padding-inline: 12px; gap: 12px; } .chrome-item { font-size: 11px; } .chrome-secondary { display: none; } .window-actions { gap: 15px; } .body { height: calc(100% - 44px); } .chat-header { padding-inline: 16px; height: 64px; } .chat-meta { display: none; } .conversation { padding: 15px 16px 0; } .message { font-size: 12px; } .user-message { padding: 10px 12px; } .composer-wrap { padding: 10px 12px 12px; } .composer-placeholder { font-size: 12px; } .composer-footnote { display: none; } .footer { flex-direction: column; gap: 4px; } }
+  </style>
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 6.5V12l3.5 2"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 19V13m7 6V5m7 14V9"/></symbol>
+    <symbol id="i-memory" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2.5"/><circle cx="16" cy="17" r="2.5"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h6l2 3h8a1 1 0 0 1 1 1v10H3Z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6Zm8 0v5h4M9 12h6m-6 4h6"/></symbol>
+  </defs></svg>
+  <main class="study">
+    <div class="intro">
+      <div><p class="eyebrow">METAAGENT / MATERIAL STUDY 01</p><h1>主题色，落在磨砂玻璃下。</h1><p class="lead">均匀的主题底色，细微的雾面颗粒。文字仍然是第一眼。</p></div>
+      <div class="controls" aria-label="材质原型控制">
+        <div class="control"><span class="control-label">外观</span><div class="segment" aria-label="深浅主题"><button type="button" data-theme-choice="dark" aria-pressed="true">深色</button><button type="button" data-theme-choice="light" aria-pressed="false">浅色</button></div></div>
+        <div class="control"><span class="control-label">底色</span><div class="swatches" aria-label="主题底色">
+          <button type="button" class="swatch" data-color="#6287d8" style="--swatch:#6287d8" aria-label="雾蓝" aria-pressed="true"></button>
+          <button type="button" class="swatch" data-color="#8f79bd" style="--swatch:#8f79bd" aria-label="烟紫" aria-pressed="false"></button>
+          <button type="button" class="swatch" data-color="#5b9b8b" style="--swatch:#5b9b8b" aria-label="苔绿" aria-pressed="false"></button>
+          <button type="button" class="swatch" data-color="#c48b72" style="--swatch:#c48b72" aria-label="暖砂" aria-pressed="false"></button>
+          <input id="custom-color" class="custom-color" type="color" value="#6287d8" aria-label="自定义底色">
+        </div></div>
+        <div class="control"><label for="fog" class="control-label">雾度</label><input class="fog" type="range" id="fog" min="35" max="85" value="62"><output for="fog" id="fog-value">62%</output></div>
+      </div>
+    </div>
+    <div class="secondary-controls">
+      <div class="mode-caption"><span class="mode-dot" aria-hidden="true"></span><span id="mode-caption" aria-live="polite">静态毛玻璃 · 雾蓝</span></div>
+      <div class="control"><label class="color-toggle"><input id="accent-enabled" type="checkbox" checked>主题色</label><div class="segment" aria-label="材质对照"><button type="button" data-material-choice="glass" aria-pressed="true">毛玻璃</button><button type="button" data-material-choice="flat" aria-pressed="false">原纯色</button></div></div>
+    </div>
+    <div class="shell" id="preview" data-theme="dark" data-material="glass" aria-label="三栏材质设计预览">
+      <header class="chrome">
+        <svg class="logo" viewBox="0 0 1024 1024" aria-label="MetaAgent"><rect x="32" y="32" width="960" height="960" rx="216" fill="#101010"/><circle cx="512" cy="512" r="296" fill="none" stroke="#e4e4e4" stroke-opacity=".4" stroke-width="46"/><circle cx="512" cy="512" r="120" fill="#e4e4e4"/><circle cx="682" cy="270" r="80" fill="#45d0a0"/><circle cx="221" cy="563" r="80" fill="#e4e4e4"/><circle cx="584" cy="799" r="80" fill="#e4e4e4"/></svg>
+        <span class="chrome-item workspace-name">metaagent <span>⌄</span></span><span class="chrome-item chrome-secondary">全局看板</span><span class="chrome-item optional-chrome">一键打包</span><span class="chrome-item optional-chrome">工作日报</span><span class="grow"></span>
+        <div class="window-actions" aria-hidden="true"><svg class="icon"><use href="#i-settings"/></svg><svg class="icon"><use href="#i-panel"/></svg><span class="optional-chrome">−</span><span class="optional-chrome">□</span><span class="optional-chrome">×</span></div>
+      </header>
+      <div class="body">
+        <aside class="sidebar" aria-label="侧栏材质示例">
+          <div class="section-title">实用功能</div>
+          <div class="utilities">
+            <div class="utility"><svg class="icon"><use href="#i-clock"/></svg><span>定时任务</span></div><div class="utility"><svg class="icon"><use href="#i-chart"/></svg><span>使用统计</span></div><div class="utility"><svg class="icon"><use href="#i-memory"/></svg><span>记忆中心</span></div><div class="utility"><svg class="icon"><use href="#i-grid"/></svg><span>扩展管理</span></div>
+          </div>
+          <div class="section-title">工作会话 <span style="float:right">＋</span></div>
+          <div class="session selected"><div class="avatar">C</div><div class="session-text"><div class="session-title">背景材质设计</div><div class="session-sub">Codex · 刚刚</div></div><span class="status">已完成</span></div>
+          <div class="session"><div class="avatar">P</div><div class="session-text"><div class="session-title">输入框交互优化</div><div class="session-sub">Pi · 12 分钟前</div></div><span class="status wait">待验收</span></div>
+          <div class="session"><div class="avatar">C</div><div class="session-text"><div class="session-title">文件预览修复</div><div class="session-sub">Claude · 1 小时前</div></div><span class="status">已完成</span></div>
+          <p class="sidebar-note">3 个会话 · 1 个待验收</p>
+          <div class="workspace-stack"><div class="workspace-row"><span class="avatar">F</span><span class="grow">Fieldradar</span><small>空闲</small></div><div class="workspace-row selected"><span class="avatar">M</span><span class="grow">metaagent</span><small>对话</small></div></div>
+        </aside>
+        <div class="work-surface">
+          <section class="chat" aria-label="阅读面材质示例">
+            <div class="chat-header"><div><div class="chat-heading">背景材质设计</div><div class="chat-model">Codex · 默认权限</div></div><div class="chat-meta">本地工作区　 ···</div></div>
+            <div class="conversation">
+              <div class="turn"><div class="byline"><span class="avatar">你</span>你 <time>14:32</time></div><div class="message user-message">主题色打开后，纯色背景有些单调。能不能让侧边栏和整个背景有毛玻璃的质感，主题色作为玻璃下的底色？</div></div>
+              <div class="turn"><div class="byline"><span class="avatar">C</span>Codex <time>14:33</time></div><div class="message"><p>可以。让均匀的主题底色隔着一层磨砂玻璃透出来，通过细颗粒和雾面保留材质感，保持工作台的安静和清晰。</p><h2>同一块底色，三种厚度</h2><ul><li>侧栏与顶栏：均匀透色，带细微的磨砂颗粒。</li><li>聊天与文件：雾面更厚，正文背景保持稳定。</li><li>输入区：再叠一层轻薄表面，用细高光区分层次。</li></ul><p>底色不添加渐变或光斑。列表选中态维持中性，颜色不会抢走文字的注意力。</p><div class="tool-result"><span class="check">✓</span>设计预览 <span class="grow"></span><span>侧栏 / 阅读面 / 输入区</span></div><p class="message-meta">切换上方底色和深浅主题，看看雾面质感。</p></div></div>
+            </div>
+            <div class="composer-wrap"><div class="composer"><div class="composer-placeholder">对这个方案说点什么…</div><div class="composer-tools"><span style="font-size:19px">＋</span><span>默认⌄</span><span class="grow"></span><span>Codex⌄</span><span class="send" aria-hidden="true">↑</span></div></div><div class="composer-footnote">Enter 发送 · Shift + Enter 换行</div></div>
+          </section>
+          <aside class="files" aria-label="文件面材质示例"><div class="file-tabs"><span class="active">文件</span><span>Git</span><span>浏览器</span></div><div class="repo-heading">metaagent-workbench</div>
+            <div class="file-row"><svg class="icon"><use href="#i-folder"/></svg>src</div><div class="file-row indent"><svg class="icon"><use href="#i-folder"/></svg>renderer</div><div class="file-row deep"><svg class="icon"><use href="#i-folder"/></svg>styles</div><div class="file-row deep selected"><svg class="icon"><use href="#i-file"/></svg>base.css</div><div class="file-row deep"><svg class="icon"><use href="#i-file"/></svg>chrome.css</div><div class="file-row deep"><svg class="icon"><use href="#i-file"/></svg>left.css</div><div class="file-row"><svg class="icon"><use href="#i-folder"/></svg>docs</div><div class="file-row indent"><svg class="icon"><use href="#i-folder"/></svg>prototypes</div><div class="file-row"><svg class="icon"><use href="#i-file"/></svg>design.md</div><div class="file-row"><svg class="icon"><use href="#i-file"/></svg>package.json</div>
+            <div class="file-summary"><span>●</span> 工作区已同步<br>main · 本地修改 3 个文件</div>
+          </aside>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span><strong>静态材质</strong> · 仅在改变外观参数时生成贴图，滚动与聊天更新不计算模糊。</span><span>独立视觉原型 · 内容为示例 · 未改动正式界面</span></div>
+  </main>
+  <script>
+    (() => {
+      const preview = document.querySelector('#preview');
+      const state = { theme: 'dark', material: 'glass', color: '#6287d8', fog: 62, enabled: true };
+      const names = { '#6287d8': '雾蓝', '#8f79bd': '烟紫', '#5b9b8b': '苔绿', '#c48b72': '暖砂' };
+      // 均匀透色基底与磨砂颗粒烘成一张图，不添加渐变或光斑。
+      // 不使用实时模糊、rAF、计时器或 ResizeObserver；雾度只调中性叠层。
+      const cache = new Map();
+      const rgb = hex => [1, 3, 5].map(index => parseInt(hex.slice(index, index + 2), 16));
+      const mix = (a, b, t) => a.map((v, i) => Math.round(v * (1 - t) + b[i] * t));
+      const css = values => `rgb(${values.join(',')})`;
+      function bake() {
+        const key = [state.theme, state.enabled ? state.color : 'neutral'].join('|');
+        if (cache.has(key)) return cache.get(key);
+        const canvas = document.createElement('canvas'); canvas.width = 1280; canvas.height = 800;
+        const context = canvas.getContext('2d');
+        const light = state.theme === 'light';
+        const base = light ? [237, 241, 248] : [32, 32, 35];
+        const tint = state.enabled ? rgb(state.color) : (light ? [179, 185, 197] : [91, 97, 111]);
+        context.fillStyle = css(mix(base, tint, light ? .21 : .30)); context.fillRect(0, 0, 1280, 800);
+        // 固定 seed 的微颗粒：只烘焙一次，不产生帧间闪烁。
+        const image = context.getImageData(0, 0, 1280, 800);
+        let seed = 374761393;
+        for (let i = 0; i < image.data.length; i += 4) {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          const noise = ((seed >>> 24) / 255 - .5) * (light ? 3.2 : 4.6);
+          for (let j = 0; j < 3; j++) image.data[i + j] += noise;
+        }
+        context.putImageData(image, 0, 0);
+        const url = canvas.toDataURL('image/png');
+        // 只留最近 10 张，防止自定义颜色累积大尺寸 data URL。
+        if (cache.size >= 10) cache.delete(cache.keys().next().value);
+        cache.set(key, url); return url;
+      }
+      function update() {
+        preview.dataset.theme = state.theme; preview.dataset.material = state.material;
+        preview.style.setProperty('--accent', state.enabled ? state.color : '#7b8493');
+        preview.style.backgroundColor = css(mix(state.theme === 'light' ? [240, 243, 249] : [32, 32, 35], rgb(state.color), state.enabled ? .28 : 0));
+        preview.style.backgroundImage = state.material === 'glass' ? `url("${bake()}")` : 'none';
+        const veil = state.theme === 'light' ? [248, 250, 253] : [17, 19, 24];
+        const alpha = .56 + state.fog / 100 * .35;
+        if (state.material === 'glass') {
+          preview.style.setProperty('--page-veil', `rgba(${veil.join(',')},${alpha})`);
+          preview.style.setProperty('--fog-veil', state.theme === 'light' ? `rgba(250,252,255,${state.fog / 100 * .22})` : `rgba(30,32,38,${state.fog / 100 * .23})`);
+        } else { preview.style.removeProperty('--page-veil'); preview.style.removeProperty('--fog-veil'); }
+        document.querySelectorAll('[data-theme-choice]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.themeChoice === state.theme)));
+        document.querySelectorAll('[data-material-choice]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.materialChoice === state.material)));
+        document.querySelectorAll('[data-color]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.color === state.color)));
+        document.querySelector('#custom-color').value = state.color;
+        document.querySelector('#fog-value').textContent = `${state.fog}%`;
+        document.querySelector('#fog').disabled = state.material === 'flat';
+        document.querySelector('#mode-caption').textContent = `${state.material === 'glass' ? '静态毛玻璃' : '原纯色对照'} · ${state.enabled ? names[state.color] || '自定义底色' : '中性底色'}`;
+      }
+      document.querySelectorAll('[data-theme-choice]').forEach(button => button.addEventListener('click', () => { state.theme = button.dataset.themeChoice; update(); }));
+      document.querySelectorAll('[data-material-choice]').forEach(button => button.addEventListener('click', () => { state.material = button.dataset.materialChoice; update(); }));
+      document.querySelectorAll('[data-color]').forEach(button => button.addEventListener('click', () => { state.color = button.dataset.color; update(); }));
+      document.querySelector('#custom-color').addEventListener('change', event => { state.color = event.target.value; update(); });
+      document.querySelector('#fog').addEventListener('input', event => { state.fog = Number(event.target.value); update(); });
+      document.querySelector('#accent-enabled').addEventListener('change', event => { state.enabled = event.target.checked; update(); });
+      update();
+    })();
+  </script>
+</body>
+</html>

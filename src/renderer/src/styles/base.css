@@ -1,0 +1,2967 @@
+/* base.css — 由 styles.css 拆分（域：core）。规范见 /design.md。修改请守住 token。 */
+/* ResolvedAppearance publishes the color roles. The generated dark fallback
+ * below is shared with the SDK; only geometry, typography and motion live here. */
+
+/* OPPO Sans 3.0 默认 UI 字体：OPPO 官网 CDN 全量 woff2（400/500/700，无 600——
+ * 600 处浏览器取最近的 700）；font-display:swap，离线/加载失败回退 body 栈后续项 */
+@font-face {
+  font-family: 'OPPO Sans';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OPPO Sans';
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OPPO Sans';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Bold.woff2') format('woff2');
+}
+
+/* resolved-appearance:start */
+:root {
+  --action-bg: #8b7bff;
+  --action-fg: #0f0f10;
+  --action-hover: #998bfd;
+  --action-hover-fg: #0f0f10;
+  --action-pressed: #a194fb;
+  --action-pressed-fg: #0f0f10;
+  --bg-canvas: #141416;
+  --bg-frame: #202023;
+  --bg-input: #161618;
+  --bg-overlay: #262629;
+  --bg-panel: #141416;
+  --bg-raised: #232326;
+  --blue: #6cc2ff;
+  --board-card-border: #2e2e30;
+  --board-card-border-focus: #777779;
+  --board-card-fg-muted: #98989d;
+  --board-card-fg-primary: #ededee;
+  --board-card-fg-secondary: #a3a3a8;
+  --board-card-fg-selected-muted: #b3b3b6;
+  --board-card-fg-selected-primary: #ededee;
+  --board-card-fg-selected-secondary: #b3b3b7;
+  --board-card-interaction-hover: #28282a;
+  --board-card-interaction-pressed: #2e2e30;
+  --board-card-interaction-selected: #404041;
+  --board-card-interaction-selected-hover: #464647;
+  --board-card-status-danger-bg: #3a2a2e;
+  --board-card-status-danger-border: #533238;
+  --board-card-status-danger-fg: #f3687b;
+  --board-card-status-info-bg: #2a343d;
+  --board-card-status-info-border: #334858;
+  --board-card-status-info-fg: #6cc2ff;
+  --board-card-status-neutral-bg: #2d2d2f;
+  --board-card-status-neutral-border: #3b3b3d;
+  --board-card-status-neutral-fg: #d9d9dc;
+  --board-card-status-success-bg: #253632;
+  --board-card-status-success-border: #2a4b41;
+  --board-card-status-success-fg: #45d0a0;
+  --board-card-status-warning-bg: #39352a;
+  --board-card-status-warning-border: #514930;
+  --board-card-status-warning-fg: #e8c65a;
+  --board-column-border-focus: #6d6d6f;
+  --board-column-fg-muted: #98989d;
+  --board-column-fg-primary: #ededee;
+  --board-column-fg-secondary: #a3a3a8;
+  --board-column-fg-selected-muted: #a4a4a9;
+  --board-column-fg-selected-primary: #ededee;
+  --board-column-fg-selected-secondary: #a4a4a9;
+  --board-column-interaction-hover: #1c1c1e;
+  --board-column-interaction-pressed: #222224;
+  --board-column-interaction-selected: #353536;
+  --board-column-interaction-selected-hover: #3b3b3c;
+  --board-column-status-danger-bg: #2f1e22;
+  --board-column-status-danger-border: #4a282e;
+  --board-column-status-danger-fg: #f3687b;
+  --board-column-status-info-bg: #1f2932;
+  --board-column-status-info-border: #293e4e;
+  --board-column-status-info-fg: #6cc2ff;
+  --board-column-status-neutral-bg: #212123;
+  --board-column-status-neutral-border: #303032;
+  --board-column-status-neutral-fg: #d9d9dc;
+  --board-column-status-success-bg: #1a2b27;
+  --board-column-status-success-border: #204137;
+  --board-column-status-success-fg: #45d0a0;
+  --board-column-status-warning-bg: #2d291e;
+  --board-column-status-warning-border: #473f26;
+  --board-column-status-warning-fg: #e8c65a;
+  --border-control: #363639;
+  --border-focus: #727274;
+  --border-subtle: #2a2a2d;
+  --canvas-border-focus: #727274;
+  --canvas-fg-muted: #98989d;
+  --canvas-fg-primary: #ededee;
+  --canvas-fg-secondary: #a3a3a8;
+  --canvas-fg-selected-muted: #a4a4a9;
+  --canvas-fg-selected-primary: #ededee;
+  --canvas-fg-selected-secondary: #a4a4a9;
+  --canvas-interaction-hover: #202022;
+  --canvas-interaction-pressed: #29292b;
+  --canvas-interaction-selected: #353536;
+  --canvas-interaction-selected-hover: #3b3b3c;
+  --canvas-status-danger-bg: #2f1e22;
+  --canvas-status-danger-border: #4a282e;
+  --canvas-status-danger-fg: #f3687b;
+  --canvas-status-info-bg: #1f2932;
+  --canvas-status-info-border: #293e4e;
+  --canvas-status-info-fg: #6cc2ff;
+  --canvas-status-neutral-bg: #212123;
+  --canvas-status-neutral-border: #303032;
+  --canvas-status-neutral-fg: #d9d9dc;
+  --canvas-status-success-bg: #1a2b27;
+  --canvas-status-success-border: #204137;
+  --canvas-status-success-fg: #45d0a0;
+  --canvas-status-warning-bg: #2d291e;
+  --canvas-status-warning-border: #473f26;
+  --canvas-status-warning-fg: #e8c65a;
+  --chrome-border-focus: #7a7a7c;
+  --chrome-fg-muted: #98989d;
+  --chrome-fg-primary: #ededee;
+  --chrome-fg-secondary: #a3a3a8;
+  --chrome-fg-selected-muted: #aeaeb2;
+  --chrome-fg-selected-primary: #ededee;
+  --chrome-fg-selected-secondary: #aeaeb2;
+  --chrome-interaction-hover: #28282a;
+  --chrome-interaction-pressed: #313133;
+  --chrome-interaction-selected: #3c3c3e;
+  --chrome-interaction-selected-hover: #424244;
+  --chrome-status-danger-bg: #37262a;
+  --chrome-status-danger-border: #502f35;
+  --chrome-status-danger-fg: #f3687b;
+  --chrome-status-info-bg: #26313a;
+  --chrome-status-info-border: #304555;
+  --chrome-status-info-fg: #6cc2ff;
+  --chrome-status-neutral-bg: #29292b;
+  --chrome-status-neutral-border: #373739;
+  --chrome-status-neutral-fg: #d9d9dc;
+  --chrome-status-success-bg: #22322e;
+  --chrome-status-success-border: #27483e;
+  --chrome-status-success-fg: #45d0a0;
+  --chrome-status-warning-bg: #353126;
+  --chrome-status-warning-border: #4e462d;
+  --chrome-status-warning-fg: #e8c65a;
+  --diff-add-bg: #1a2b27;
+  --diff-add-edit-bg: #1d362f;
+  --diff-add-fg: #45d0a0;
+  --diff-remove-bg: #2f1e22;
+  --diff-remove-edit-bg: #3c2328;
+  --diff-remove-fg: #f3687b;
+  --divider-active: #515152;
+  --divider-focus: #727274;
+  --divider-rest: #2e2e30;
+  --fg-disabled: #7b7b7f;
+  --fg-muted: #98989d;
+  --fg-primary: #ededee;
+  --fg-secondary: #a3a3a8;
+  --fg-selected-muted: #a4a4a9;
+  --fg-selected-primary: #ededee;
+  --fg-selected-secondary: #a4a4a9;
+  --fg-selected-tab-muted: #98989d;
+  --fg-selected-tab-primary: #ededee;
+  --fg-selected-tab-secondary: #a3a3a8;
+  --frame-border-focus: #7e7e7f;
+  --frame-edge: #39393b;
+  --frame-fg-muted: #9c9ca1;
+  --frame-fg-primary: #ededee;
+  --frame-fg-secondary: #a3a3a8;
+  --frame-fg-selected-muted: #b2b2b6;
+  --frame-fg-selected-primary: #ededee;
+  --frame-fg-selected-secondary: #b2b2b6;
+  --frame-interaction-hover: #2b2b2e;
+  --frame-interaction-pressed: #343437;
+  --frame-interaction-selected: #3f3f41;
+  --frame-interaction-selected-hover: #454547;
+  --frame-status-danger-bg: #39292e;
+  --frame-status-danger-border: #533138;
+  --frame-status-danger-fg: #f3687b;
+  --frame-status-info-bg: #29333d;
+  --frame-status-info-border: #324758;
+  --frame-status-info-fg: #6cc2ff;
+  --frame-status-neutral-bg: #2c2c2f;
+  --frame-status-neutral-border: #3a3a3d;
+  --frame-status-neutral-fg: #d9d9dc;
+  --frame-status-success-bg: #243532;
+  --frame-status-success-border: #294a41;
+  --frame-status-success-fg: #45d0a0;
+  --frame-status-warning-bg: #38342a;
+  --frame-status-warning-border: #504830;
+  --frame-status-warning-fg: #e8c65a;
+  --green: #45d0a0;
+  --hairline: #2a2a2d;
+  --hover-fill: rgba(255, 255, 255, 0.05);
+  --hover-fill-strong: rgba(255, 255, 255, 0.09);
+  --identity-border: #2a2a2d;
+  --identity-fg: #a3a3a8;
+  --identity-hover: #3f3f42;
+  --identity-hover-fg: #aaaaaf;
+  --identity-surface: #232326;
+  --ink: #ededee;
+  --ink-soft: #d9d9dc;
+  --input-border-focus: #808081;
+  --input-fg-muted: #9f9fa4;
+  --input-fg-primary: #ededee;
+  --input-fg-secondary: #a3a3a8;
+  --input-fg-selected-muted: #b5b5b8;
+  --input-fg-selected-primary: #ededee;
+  --input-fg-selected-secondary: #b5b5b9;
+  --input-focus-border: color-mix(in srgb, #363639 70%, #808081);
+  --input-interaction-hover: #2e2e31;
+  --input-interaction-pressed: #37373a;
+  --input-interaction-selected: #414144;
+  --input-interaction-selected-hover: #47474a;
+  --input-status-danger-bg: #3c2b30;
+  --input-status-danger-border: #55343a;
+  --input-status-danger-fg: #f36a7c;
+  --input-status-info-bg: #2c3640;
+  --input-status-info-border: #35495a;
+  --input-status-info-fg: #6cc2ff;
+  --input-status-neutral-bg: #2f2f32;
+  --input-status-neutral-border: #3c3c3f;
+  --input-status-neutral-fg: #d9d9dc;
+  --input-status-success-bg: #273835;
+  --input-status-success-border: #2b4d43;
+  --input-status-success-fg: #45d0a0;
+  --input-status-warning-bg: #3b372c;
+  --input-status-warning-border: #524a32;
+  --input-status-warning-fg: #e8c65a;
+  --interaction-hover: #202022;
+  --interaction-pressed: #29292b;
+  --interaction-selected: #353536;
+  --interaction-selected-hover: #3b3b3c;
+  --material-rim: rgba(237, 237, 238, 0.10);
+  --on-accent: #0f0f10;
+  --overlay-border-focus: #858586;
+  --overlay-fg-muted: #a3a3a8;
+  --overlay-fg-primary: #ededee;
+  --overlay-fg-secondary: #a3a3a8;
+  --overlay-fg-selected-muted: #b9b9bc;
+  --overlay-fg-selected-primary: #ededee;
+  --overlay-fg-selected-secondary: #b9b9bd;
+  --overlay-interaction-hover: #313134;
+  --overlay-interaction-pressed: #3a3a3c;
+  --overlay-interaction-selected: #444447;
+  --overlay-interaction-selected-hover: #4a4a4d;
+  --overlay-status-danger-bg: #3f2e33;
+  --overlay-status-danger-border: #57363d;
+  --overlay-status-danger-fg: #f47082;
+  --overlay-status-info-bg: #2e3943;
+  --overlay-status-info-border: #374b5c;
+  --overlay-status-info-fg: #6cc2ff;
+  --overlay-status-neutral-bg: #323235;
+  --overlay-status-neutral-border: #3f3f42;
+  --overlay-status-neutral-fg: #d9d9dc;
+  --overlay-status-success-bg: #2a3a37;
+  --overlay-status-success-border: #2d4f46;
+  --overlay-status-success-fg: #45d0a0;
+  --overlay-status-warning-bg: #3d392f;
+  --overlay-status-warning-border: #554c35;
+  --overlay-status-warning-fg: #e8c65a;
+  --primary-bg: #ededee;
+  --primary-fg: #141416;
+  --primary-hover: #d9d9dc;
+  --primary-hover-fg: #141416;
+  --primary-pressed: #c2c2c3;
+  --primary-pressed-fg: #141416;
+  --purple: #a88fff;
+  --raised-border-focus: #808081;
+  --raised-fg-muted: #9f9fa4;
+  --raised-fg-primary: #ededee;
+  --raised-fg-secondary: #a3a3a8;
+  --raised-fg-selected-muted: #b5b5b8;
+  --raised-fg-selected-primary: #ededee;
+  --raised-fg-selected-secondary: #b5b5b9;
+  --raised-interaction-hover: #2e2e31;
+  --raised-interaction-pressed: #37373a;
+  --raised-interaction-selected: #414144;
+  --raised-interaction-selected-hover: #47474a;
+  --raised-status-danger-bg: #3c2b30;
+  --raised-status-danger-border: #55343a;
+  --raised-status-danger-fg: #f36a7c;
+  --raised-status-info-bg: #2c3640;
+  --raised-status-info-border: #35495a;
+  --raised-status-info-fg: #6cc2ff;
+  --raised-status-neutral-bg: #2f2f32;
+  --raised-status-neutral-border: #3c3c3f;
+  --raised-status-neutral-fg: #d9d9dc;
+  --raised-status-success-bg: #273835;
+  --raised-status-success-border: #2b4d43;
+  --raised-status-success-fg: #45d0a0;
+  --raised-status-warning-bg: #3b372c;
+  --raised-status-warning-border: #524a32;
+  --raised-status-warning-fg: #e8c65a;
+  --red: #f3687b;
+  --scan-hover-bg: rgba(232, 198, 90, 0.12);
+  --scan-selected-bg: rgba(108, 194, 255, 0.16);
+  --scrim: rgba(0, 0, 0, 0.45);
+  --scroll-thumb: #3a3a3e;
+  --scroll-thumb-hover: #4c4c52;
+  --selected-fill: rgba(255, 255, 255, 0.08);
+  --selected-tab: #2c2c2e;
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.35), 0 16px 40px rgba(0, 0, 0, 0.28);
+  --shadow-input: none;
+  --shadow-page: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 20px 56px rgba(0, 0, 0, 0.6);
+  --shadow-tooltip: 0 4px 12px rgba(0, 0, 0, 0.28);
+  --skel-a: rgba(255, 255, 255, 0.04);
+  --skel-b: rgba(255, 255, 255, 0.09);
+  --status-danger-bg: #2f1e22;
+  --status-danger-border: #4a282e;
+  --status-danger-fg: #f3687b;
+  --status-info-bg: #1f2932;
+  --status-info-border: #293e4e;
+  --status-info-fg: #6cc2ff;
+  --status-neutral-bg: #212123;
+  --status-neutral-border: #303032;
+  --status-neutral-fg: #d9d9dc;
+  --status-success-bg: #1a2b27;
+  --status-success-border: #204137;
+  --status-success-fg: #45d0a0;
+  --status-warning-bg: #2d291e;
+  --status-warning-border: #473f26;
+  --status-warning-fg: #e8c65a;
+  --surface-board-card: #212123;
+  --surface-board-column: #141416;
+  --surface-canvas: #141416;
+  --surface-chrome: #1d1d1f;
+  --surface-drag-preview: rgba(20, 20, 22, 0.37);
+  --surface-frame: #202023;
+  --surface-handle-glow: rgba(20, 20, 22, 0.85);
+  --surface-input: #232326;
+  --surface-overlay: #262629;
+  --surface-raised: #232326;
+  --syn-blue: #8ac6ff;
+  --syn-cyan: #a5d8ff;
+  --syn-fg: #c9d1d9;
+  --syn-muted: #8b949e;
+  --syn-orange: #ffb37d;
+  --syn-purple: #c3b1ff;
+  --syn-red: #f88b9a;
+  --syn-yellow: #e8d47c;
+  --syntax-blue: #8ac6ff;
+  --syntax-cyan: #a5d8ff;
+  --syntax-fg: #c9d1d9;
+  --syntax-muted: #8b949e;
+  --syntax-orange: #ffb37d;
+  --syntax-purple: #c3b1ff;
+  --syntax-red: #f88b9a;
+  --syntax-yellow: #e8d47c;
+  --text-2: #a3a3a8;
+  --text-3: #98989d;
+  --user-bubble-bg: #232326;
+  --user-bubble-fg: #ededee;
+  --user-bubble-link: #8ac6ff;
+  --workspace-frame-color: #202023;
+  --workspace-native-tint: transparent;
+  --ws-accent: #8b7bff;
+  --yellow: #e8c65a;
+}
+/* resolved-appearance:end */
+
+:root {
+  color-scheme: dark;
+
+  /* 配色由上方生成表与 resolveAppearance 发布；本块仅定义结构和旧名映射。 */
+  /* Elevation: perimeter and cast shadow are separate, single-owner layers. */
+  --surface-edge: var(--material-rim);
+  --surface-rim: inset 0 0 0 1px var(--surface-edge);
+  --elevation-sheet: none; /* 面级容器去投影：纸边由 --surface-rim 单独承担 */
+  --elevation-raised: none; /* 卡片去投影只留描边：描边由 --border-control 单独承担 */
+  --backdrop-blur: blur(16px) saturate(1.2);
+  --frame-gap: 4px; /* 工作面外缘与底边留白。 */
+  --page-gap: var(--frame-gap); /* 中央页缝与外缘一致，默认 4px。 */
+  --page-gap-before: round(down, calc(var(--page-gap) / 2), 1px); /* 奇数页缝按整像素分配。 */
+  /* 左栏/顶栏左缘的统一内缩：底部框距的两倍（2026-10-10 用户定稿，先试两倍）。 */
+  --left-pad-x: calc(var(--frame-gap) * 1.5);
+  --selection-surface: var(--interaction-selected);
+  --bg-inset: var(--surface-raised);
+
+  /* 兼容旧组件的材质 token：统一为不透明实底，无背景模糊。 */
+  --glass-sheet: var(--surface-canvas);
+  --glass-float: var(--surface-canvas);
+  --glass-blur: none;
+  --input-surface: var(--surface-input);
+  --input-border: var(--border-control);
+  --composer-chip: var(--interaction-hover);
+  --composer-chip-hover: var(--interaction-pressed);
+
+  /* ===== 旧名兼容层（只映射，不新造值）===== */
+  --canvas: var(--surface-canvas);
+  --paper: var(--surface-raised);
+  --surface-alt: var(--surface-canvas);
+  --bg: var(--surface-canvas);
+  --bg-elevated: var(--surface-raised);
+  --border: var(--border-control);
+  --text: var(--fg-primary);
+  --text-dim: var(--fg-secondary);
+  --text-muted: var(--fg-muted);
+  --mid: var(--fg-secondary);
+  --accent: var(--fg-primary);
+  --accent-soft: var(--interaction-selected);
+
+  /* ===== 圆角：控件 8 / 页面与弹窗 10 / 卡片 12 / 会话卡片与输入框 20 / 胶囊 ===== */
+  --radius-control: 8px;
+  --radius-page: var(--radius-modal);
+  --radius-card: 12px;
+  --radius-modal: 10px;
+  --radius-composer: 20px;
+  --radius-chat-card: 20px;
+  --chat-card-header-height: 44px;
+  --chat-card-header-icon-size: 28px;
+  --chat-card-header-button-height: 28px;
+  --radius-pill: 999px;
+  --radius-small: 6px;
+  /* k→1 更圆、直边更短；k 越大越方。1.5 曲率连续，比 squircle(2)/4 圆 */
+  --corner-shape: superellipse(1.5);
+  --corner-shape-page: var(--corner-shape);
+
+  /* type scale（字阶之外的字号一律不许新增）
+   * 2026-09-21 整体上移 1px（OPPO Sans 字面偏秀气，原档偏小）+ 新增阅读标题档；
+   * 密度由行高/间距控制，不靠压字号——见 design.md §5 */
+  --font-micro: 10px;
+  --font-caption: 12px;
+  --font-ui: 13px;
+  --font-control: 14px;
+  --font-body: 15px;
+  --font-title: 17px;
+  /* 阅读标题档：仅 markdown 内容域 h1（.md-body h1）使用 */
+  --font-head: 20px;
+
+  /* 等宽栈：西文/数字走 Cascadia→Consolas（等宽不变）；三者均无中文字形，
+   * 中文落到 OPPO Sans（2026-09-21：原为系统雅黑，编辑器/代码块里的中文与 UI 字体不统一） */
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', 'Courier New', monospace;
+  /* 比例栈（UI 正文/文档感编辑共用）：OPPO Sans 首选，离线/未加载回退后续 */
+  --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+
+  /* 遮罩/禁用统一刻度 */
+  --disabled-opacity: 0.45;
+
+  /* 浮层层级（流内 1-5 不在此列；同档内用 calc(+1) 表达先后） */
+  --z-sticky: 10;
+  --z-overlay: 20;
+  --z-dropdown: 40;
+  --z-popover: 60;
+  --z-modal: 100;
+  --z-menu: 200;
+  --z-tooltip: 250; /* tooltip 浮在菜单之上、确认框之下 */
+  --z-confirm: 300;
+
+  /* 键盘焦点与选中状态分开；输入通过外壳边界表达焦点。 */
+  --focus-border: var(--border-focus);
+  --focus-ring: none;
+
+  /* ===== 动画 token（docs/audits/animation-system-research.md）：全应用唯一曲线/时长来源 =====
+   * 入场签名（快起缓收，easeOutExpo 型）；退场统一更快；动画属性只许 transform/opacity/grid-template-rows。 */
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); /* 入场：起步快、结尾长缓停 */
+  --ease-exit: cubic-bezier(0.4, 0, 0.2, 1); /* 退场：缓起快收 */
+  --ease-hover: ease-out; /* 微交互（hover/图标） */
+  --ease-move: cubic-bezier(0.33, 0.1, 0.25, 1); /* 大位移（虚拟屏条带/工作区胶片） */
+  --ease-loop: cubic-bezier(0.37, 0, 0.63, 1); /* 循环装饰（呼吸/轻浮；对称缓入缓出） */
+  --dur-micro: 120ms; /* hover/图标旋转 */
+  --dur-menu: 160ms; /* 菜单/小浮层 */
+  --dur-panel: 280ms; /* 面板/弹窗入场 */
+  --dur-exit: 200ms; /* 退场统一更快（菜单退场用 --dur-micro）；JS 侧 motion.tsx MOTION 须同步（test/motion-token-sync.mjs 守） */
+  --dur-move: 420ms; /* 大位移（虚拟屏/工作区胶片/全局看板整屏下拉） */
+  --dur-workspace: 360ms; /* 工作区胶片位移：比通用大位移更短，保留完整方向感 */
+  --dur-workspacefade: 160ms; /* 工作区胶片切区后的骨架淡出 */
+  --dur-stagger: 30ms; /* 级联步长（逐层/逐项延迟） */
+  --dur-loop: 900ms; /* 循环装饰：旋转/闪烁类（spinner、光标）；不参与 presence，motion.tsx loopMs 仅作对齐登记 */
+  --dur-breath: 1800ms; /* 循环装饰：呼吸/起伏类（=2×loop；需要你、打字点、脉冲、shimmer；更大面积取其倍数） */
+  --spinner-stroke: 1.4; /* 运行态 spinner 线宽（与 icons 细线家族对齐） */
+  --spinner-dash: 75 25; /* pathLength=100；75% 弧 + 25% 缺口 = 90° */
+}
+
+/* Reference curves for the native frame, inset by the window gutter. */
+:root[data-native-material='vibrancy'] {
+  --radius-page: max(0px, calc(17px - var(--frame-gap)));
+  --corner-shape-page: superellipse(1.2);
+}
+
+:root[data-native-material='mica'] {
+  --radius-page: max(0px, calc(8px - var(--frame-gap)));
+  --corner-shape-page: round;
+}
+
+/* 浅色输入使用主题的控件白底，以描边和轻微投影区分白色阅读面。 */
+:root[data-theme='light'] {
+  --input-surface: var(--surface-input);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+/* corner-shape 不继承，须写到每个盒子（含伪元）。胶囊/正圆见下方 opt-out。 */
+*,
+*::before,
+*::after {
+  corner-shape: var(--corner-shape);
+}
+
+/* 暗色细滚动条：默认隐藏，悬停可滚区域时再显现 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+/* 悬停可滚区域时显示滚动条。收敛自 `*:hover` 通配（任何 hover 边沿变化都会
+ * 触发全树 style recalc，流式输出时与逐 token 重渲叠加掉帧）：改为枚举
+ * styles/*.css 中全部 overflow:auto/scroll 的滚动容器；新增滚动容器时需在
+ * 此登记（xterm 自绘滚动条，不受此影响）。 */
+.board-panel:hover,
+.board-grid:hover,
+.board-column-body:hover,
+.service-view:hover,
+.chat-list:hover,
+.tool-detail pre:hover,
+.chat-input-row textarea:hover,
+.thinking-body:hover,
+.chrome-sandbox-menu:hover,
+.modal:hover,
+.confirm-detail:hover,
+.ext-ui-dialog-list:hover,
+.ext-confirm-modal > .ext-review:hover,
+.ext-review-modal > .ext-review:hover,
+.ext-import-list:hover,
+.file-tree-scroll:hover,
+.file-editor-preview:hover,
+.file-editor-folder:hover,
+.file-media-stage:hover,
+.quick-open-list:hover,
+.agent-composer-menu:hover,
+.agent-composer-model-menu:hover,
+.model-picker-harness:hover,
+.model-picker-models:hover,
+.model-picker-parameters:hover,
+.agent-composer-images:hover,
+.git-repo-quick-menu:hover,
+.git-repo-scroll:hover,
+.git-changes-scroll:hover,
+.git-diff-scroll:hover,
+.git-branch-list:hover,
+.git-hist-files:hover,
+.git-hist-scope-list:hover,
+.git-history-scroll:hover,
+.git-commit-input:hover,
+.left-panel:hover,
+.left-panel-scroll:hover,
+.md-body pre:hover,
+.md-table-scroll:is(:hover, :focus-within),
+.c-select-menu:hover,
+.sel-bang-mask:hover,
+.sel-bang-chips-wrap:hover,
+.settings-nav-groups:hover,
+.settings-tabpane:hover,
+.cap-preview:hover,
+.settings-split-list:hover,
+.settings-split-main:hover,
+.llm-add-menu-items:hover,
+.llm-dialog-body:hover,
+.prompt-task-panel:hover,
+.task-run-list:hover,
+.file-editor-cm:hover .cm-scroller,
+.file-doc:hover,
+.file-doc-sheet:is(:hover, :focus-within),
+.file-doc-sheet-tabs:is(:hover, :focus-within),
+.ac-approval-args:hover,
+.bg-task-list:hover,
+.bg-task-result:hover,
+.browser-tabbar-list:hover,
+.tool-diff:hover,
+.tool-diff-raw:hover,
+.composer-editable:hover,
+.agent-preset-menu:hover,
+.agent-composer-qslane-list:hover,
+.agent-composer-qip-list:hover,
+.md-mermaid:hover,
+.memory-overview-card:hover,
+.memory-scroll:hover,
+.ma-scroll:hover,
+.ma-root .msheet:hover,
+.ma-files-list:hover,
+.ma-files-detail:hover,
+.ma-files-pre:hover,
+.tt-card-body:hover,
+.settings-tabpane:hover,
+.trace-scroll:hover,
+.trace-inspector-body:hover,
+.trace-inspector-pre:hover,
+.plan-card-body-scroll:hover {
+  scrollbar-color: var(--scroll-thumb) transparent;
+}
+
+.board-panel:hover::-webkit-scrollbar-thumb,
+.board-grid:hover::-webkit-scrollbar-thumb,
+.board-column-body:hover::-webkit-scrollbar-thumb,
+.service-view:hover::-webkit-scrollbar-thumb,
+.chat-list:hover::-webkit-scrollbar-thumb,
+.tool-detail pre:hover::-webkit-scrollbar-thumb,
+.chat-input-row textarea:hover::-webkit-scrollbar-thumb,
+.thinking-body:hover::-webkit-scrollbar-thumb,
+.chrome-sandbox-menu:hover::-webkit-scrollbar-thumb,
+.modal:hover::-webkit-scrollbar-thumb,
+.confirm-detail:hover::-webkit-scrollbar-thumb,
+.ext-ui-dialog-list:hover::-webkit-scrollbar-thumb,
+.ext-confirm-modal > .ext-review:hover::-webkit-scrollbar-thumb,
+.ext-review-modal > .ext-review:hover::-webkit-scrollbar-thumb,
+.ext-import-list:hover::-webkit-scrollbar-thumb,
+.file-tree-scroll:hover::-webkit-scrollbar-thumb,
+.file-editor-preview:hover::-webkit-scrollbar-thumb,
+.file-editor-folder:hover::-webkit-scrollbar-thumb,
+.file-media-stage:hover::-webkit-scrollbar-thumb,
+.quick-open-list:hover::-webkit-scrollbar-thumb,
+.agent-composer-menu:hover::-webkit-scrollbar-thumb,
+.agent-composer-model-menu:hover::-webkit-scrollbar-thumb,
+.model-picker-harness:hover::-webkit-scrollbar-thumb,
+.model-picker-models:hover::-webkit-scrollbar-thumb,
+.model-picker-parameters:hover::-webkit-scrollbar-thumb,
+.agent-composer-images:hover::-webkit-scrollbar-thumb,
+.git-repo-quick-menu:hover::-webkit-scrollbar-thumb,
+.git-repo-scroll:hover::-webkit-scrollbar-thumb,
+.git-changes-scroll:hover::-webkit-scrollbar-thumb,
+.git-diff-scroll:hover::-webkit-scrollbar-thumb,
+.git-branch-list:hover::-webkit-scrollbar-thumb,
+.git-hist-files:hover::-webkit-scrollbar-thumb,
+.git-hist-scope-list:hover::-webkit-scrollbar-thumb,
+.git-history-scroll:hover::-webkit-scrollbar-thumb,
+.git-commit-input:hover::-webkit-scrollbar-thumb,
+.left-panel:hover::-webkit-scrollbar-thumb,
+.left-panel-scroll:hover::-webkit-scrollbar-thumb,
+.md-body pre:hover::-webkit-scrollbar-thumb,
+.md-table-scroll:is(:hover, :focus-within)::-webkit-scrollbar-thumb,
+.c-select-menu:hover::-webkit-scrollbar-thumb,
+.sel-bang-mask:hover::-webkit-scrollbar-thumb,
+.sel-bang-chips-wrap:hover::-webkit-scrollbar-thumb,
+.settings-nav-groups:hover::-webkit-scrollbar-thumb,
+.settings-tabpane:hover::-webkit-scrollbar-thumb,
+.cap-preview:hover::-webkit-scrollbar-thumb,
+.settings-split-list:hover::-webkit-scrollbar-thumb,
+.settings-split-main:hover::-webkit-scrollbar-thumb,
+.llm-add-menu-items:hover::-webkit-scrollbar-thumb,
+.llm-dialog-body:hover::-webkit-scrollbar-thumb,
+.prompt-task-panel:hover::-webkit-scrollbar-thumb,
+.task-run-list:hover::-webkit-scrollbar-thumb,
+.file-editor-cm:hover .cm-scroller::-webkit-scrollbar-thumb,
+.file-doc:hover::-webkit-scrollbar-thumb,
+.file-doc-sheet:is(:hover, :focus-within)::-webkit-scrollbar-thumb,
+.file-doc-sheet-tabs:is(:hover, :focus-within)::-webkit-scrollbar-thumb,
+.ac-approval-args:hover::-webkit-scrollbar-thumb,
+.bg-task-list:hover::-webkit-scrollbar-thumb,
+.bg-task-result:hover::-webkit-scrollbar-thumb,
+.browser-tabbar-list:hover::-webkit-scrollbar-thumb,
+.tool-diff:hover::-webkit-scrollbar-thumb,
+.tool-diff-raw:hover::-webkit-scrollbar-thumb,
+.composer-editable:hover::-webkit-scrollbar-thumb,
+.agent-preset-menu:hover::-webkit-scrollbar-thumb,
+.agent-composer-qslane-list:hover::-webkit-scrollbar-thumb,
+.agent-composer-qip-list:hover::-webkit-scrollbar-thumb,
+.md-mermaid:hover::-webkit-scrollbar-thumb,
+.memory-overview-card:hover::-webkit-scrollbar-thumb,
+.memory-scroll:hover::-webkit-scrollbar-thumb,
+.ma-scroll:hover::-webkit-scrollbar-thumb,
+.ma-root .msheet:hover::-webkit-scrollbar-thumb,
+.ma-files-list:hover::-webkit-scrollbar-thumb,
+.ma-files-detail:hover::-webkit-scrollbar-thumb,
+.ma-files-pre:hover::-webkit-scrollbar-thumb,
+.tt-card-body:hover::-webkit-scrollbar-thumb,
+.settings-tabpane:hover::-webkit-scrollbar-thumb,
+.trace-scroll:hover::-webkit-scrollbar-thumb,
+.trace-inspector-body:hover::-webkit-scrollbar-thumb,
+.trace-inspector-pre:hover::-webkit-scrollbar-thumb,
+.plan-card-body-scroll:hover::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.board-panel::-webkit-scrollbar-thumb:hover,
+.board-grid::-webkit-scrollbar-thumb:hover,
+.board-column-body::-webkit-scrollbar-thumb:hover,
+.service-view::-webkit-scrollbar-thumb:hover,
+.chat-list::-webkit-scrollbar-thumb:hover,
+.tool-detail pre::-webkit-scrollbar-thumb:hover,
+.chat-input-row textarea::-webkit-scrollbar-thumb:hover,
+.thinking-body::-webkit-scrollbar-thumb:hover,
+.chrome-sandbox-menu::-webkit-scrollbar-thumb:hover,
+.modal::-webkit-scrollbar-thumb:hover,
+.confirm-detail::-webkit-scrollbar-thumb:hover,
+.ext-ui-dialog-list::-webkit-scrollbar-thumb:hover,
+.ext-confirm-modal > .ext-review::-webkit-scrollbar-thumb:hover,
+.ext-review-modal > .ext-review::-webkit-scrollbar-thumb:hover,
+.ext-import-list::-webkit-scrollbar-thumb:hover,
+.file-tree-scroll::-webkit-scrollbar-thumb:hover,
+.file-editor-preview::-webkit-scrollbar-thumb:hover,
+.file-editor-folder::-webkit-scrollbar-thumb:hover,
+.file-media-stage::-webkit-scrollbar-thumb:hover,
+.quick-open-list::-webkit-scrollbar-thumb:hover,
+.agent-composer-menu::-webkit-scrollbar-thumb:hover,
+.agent-composer-model-menu::-webkit-scrollbar-thumb:hover,
+.model-picker-harness::-webkit-scrollbar-thumb:hover,
+.model-picker-models::-webkit-scrollbar-thumb:hover,
+.model-picker-parameters::-webkit-scrollbar-thumb:hover,
+.agent-composer-images::-webkit-scrollbar-thumb:hover,
+.git-repo-quick-menu::-webkit-scrollbar-thumb:hover,
+.git-repo-scroll::-webkit-scrollbar-thumb:hover,
+.git-changes-scroll::-webkit-scrollbar-thumb:hover,
+.git-diff-scroll::-webkit-scrollbar-thumb:hover,
+.git-branch-list::-webkit-scrollbar-thumb:hover,
+.git-hist-files::-webkit-scrollbar-thumb:hover,
+.git-hist-scope-list::-webkit-scrollbar-thumb:hover,
+.git-history-scroll::-webkit-scrollbar-thumb:hover,
+.git-commit-input::-webkit-scrollbar-thumb:hover,
+.left-panel::-webkit-scrollbar-thumb:hover,
+.left-panel-scroll::-webkit-scrollbar-thumb:hover,
+.md-body pre::-webkit-scrollbar-thumb:hover,
+.c-select-menu::-webkit-scrollbar-thumb:hover,
+.sel-bang-mask::-webkit-scrollbar-thumb:hover,
+.sel-bang-chips-wrap::-webkit-scrollbar-thumb:hover,
+.settings-nav-groups::-webkit-scrollbar-thumb:hover,
+.settings-tabpane::-webkit-scrollbar-thumb:hover,
+.cap-preview::-webkit-scrollbar-thumb:hover,
+.settings-split-list::-webkit-scrollbar-thumb:hover,
+.settings-split-main::-webkit-scrollbar-thumb:hover,
+.llm-add-menu-items::-webkit-scrollbar-thumb:hover,
+.llm-dialog-body::-webkit-scrollbar-thumb:hover,
+.prompt-task-panel::-webkit-scrollbar-thumb:hover,
+.task-run-list::-webkit-scrollbar-thumb:hover,
+.file-editor-cm .cm-scroller::-webkit-scrollbar-thumb:hover,
+.file-doc::-webkit-scrollbar-thumb:hover,
+.file-doc-sheet::-webkit-scrollbar-thumb:hover,
+.ac-approval-args::-webkit-scrollbar-thumb:hover,
+.bg-task-list::-webkit-scrollbar-thumb:hover,
+.bg-task-result::-webkit-scrollbar-thumb:hover,
+.browser-tabbar-list::-webkit-scrollbar-thumb:hover,
+.tool-diff::-webkit-scrollbar-thumb:hover,
+.tool-diff-raw::-webkit-scrollbar-thumb:hover,
+.composer-editable::-webkit-scrollbar-thumb:hover,
+.agent-preset-menu::-webkit-scrollbar-thumb:hover,
+.agent-composer-qslane-list::-webkit-scrollbar-thumb:hover,
+.agent-composer-qip-list::-webkit-scrollbar-thumb:hover,
+.md-mermaid::-webkit-scrollbar-thumb:hover,
+.memory-overview-card::-webkit-scrollbar-thumb:hover,
+.memory-scroll::-webkit-scrollbar-thumb:hover,
+.ma-scroll::-webkit-scrollbar-thumb:hover,
+.ma-root .msheet::-webkit-scrollbar-thumb:hover,
+.ma-files-list::-webkit-scrollbar-thumb:hover,
+.ma-files-detail::-webkit-scrollbar-thumb:hover,
+.ma-files-pre::-webkit-scrollbar-thumb:hover,
+.tt-card-body::-webkit-scrollbar-thumb:hover,
+.settings-tabpane::-webkit-scrollbar-thumb:hover,
+.trace-scroll::-webkit-scrollbar-thumb:hover,
+.trace-inspector-body::-webkit-scrollbar-thumb:hover,
+.trace-inspector-pre::-webkit-scrollbar-thumb:hover,
+.plan-card-body-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--scroll-thumb-hover);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  /* OPPO Sans 首选（本文件顶部 @font-face 经 OPPO 官网 CDN 加载）；离线/未加载时回退后续栈 */
+  font-family: var(--font-sans);
+  background: var(--surface-frame);
+  color: var(--fg-primary);
+  font-size: var(--font-body);
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 原生表单控件默认用 Arial/monospace，不自动继承 body 的 OPPO Sans。
+   只统一字体族；代码编辑器等显式指定等宽字体的规则继续覆盖。 */
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+/* 产品输入框不提供拖拽缩放；已有页面的局部 resize 声明也不得恢复手柄。 */
+textarea {
+  resize: none !important;
+}
+
+/* 操作控件的标签不参与文字框选；阅读内容仍保持浏览器默认行为。 */
+button,
+[role='tab'],
+[role='menuitem'],
+[role='menuitemcheckbox'],
+[role='menuitemradio'] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+/* ========== UI atoms（跨面板共用） ========== */
+
+.ui-list {
+  padding: 0 8px;
+}
+
+.ui-list-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  margin: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-list-row:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-hover);
+}
+
+.ui-list-row.is-selected,
+.ui-list-row.active {
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.ui-btn.danger,
+.btn.danger {
+  background: transparent;
+  color: var(--status-danger-fg);
+  border-color: var(--status-danger-border);
+}
+
+.ui-btn.danger:hover:not(:disabled):not([aria-disabled='true']),
+.btn.danger:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--status-danger-bg);
+}
+
+.ui-input.compact {
+  border-radius: var(--radius-small);
+  padding: 5px 10px;
+  font-size: var(--font-ui);
+  min-height: 28px;
+}
+
+.ui-menu {
+  min-width: 140px;
+  padding: 4px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+.ui-menu,
+.c-select-menu,
+.split-expand-btn,
+.split-mode-drop,
+.split-size-drop {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+}
+
+.ui-input,
+.git-repo-search,
+.git-branch-search,
+.git-hist-scope-search,
+.session-header-search,
+.ctrl-search,
+.search-bar,
+.c-select-trigger {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+}
+
+.ws-resize-card {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+}
+
+/* ---------- 按钮（共享原子，design.md §9）：次按钮=淡填充底、无描边（框与页）；主/危险/幽灵在此分层 ---------- */
+.ui-btn,
+.btn,
+.git-btn,
+.task-toolbar-button,
+.task-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+  border-radius: var(--radius-control);
+  padding: 4px 12px;
+  font: inherit;
+  font-size: var(--font-control);
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 28px;
+  box-sizing: border-box;
+  transition: background-color var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+}
+
+.ui-btn:hover:not(:disabled):not([aria-disabled='true']),
+.btn:hover:not(:disabled):not([aria-disabled='true']),
+.git-btn:hover:not(:disabled):not([aria-disabled='true']),
+.task-toolbar-button:hover:not(:disabled):not([aria-disabled='true']),
+.task-actions button:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-pressed);
+}
+
+.ui-btn.ghost:hover:not(:disabled):not([aria-disabled='true']),
+.btn.ghost:hover:not(:disabled):not([aria-disabled='true']),
+.git-btn.ghost:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-hover);
+}
+
+.ui-btn:active:not(:disabled):not([aria-disabled='true']),
+.btn:active:not(:disabled):not([aria-disabled='true']),
+.git-btn:active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-pressed);
+  transform: scale(0.98);
+}
+
+.ui-btn.primary,
+.btn.primary,
+.git-btn.primary,
+.task-toolbar-button.primary,
+.task-actions button.primary {
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  border-color: transparent;
+}
+
+.ui-btn.primary:hover:not(:disabled):not([aria-disabled='true']),
+.btn.primary:hover:not(:disabled):not([aria-disabled='true']),
+.git-btn.primary:hover:not(:disabled):not([aria-disabled='true']),
+.task-toolbar-button.primary:hover:not(:disabled):not([aria-disabled='true']),
+.task-actions button.primary:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--primary-hover);
+  color: var(--primary-hover-fg);
+}
+
+.ui-btn.primary:active:not(:disabled):not([aria-disabled='true']),
+.btn.primary:active:not(:disabled):not([aria-disabled='true']),
+.git-btn.primary:active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--primary-pressed);
+  color: var(--primary-pressed-fg);
+}
+
+.ui-btn.ghost,
+.btn.ghost,
+.git-btn.ghost {
+  border-color: transparent;
+  background: transparent;
+}
+
+.ui-btn.ghost.is-on,
+.git-btn.ghost.is-on,
+.ui-btn.ghost.is-on:hover:not(:disabled):not([aria-disabled='true']),
+.git-btn.ghost.is-on:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.ui-btn.tiny,
+.git-btn.tiny {
+  padding: 2px 8px;
+  font-size: var(--font-caption);
+  min-width: 22px;
+  min-height: 24px;
+  border-radius: var(--radius-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.ui-btn:disabled,
+.btn:disabled,
+.git-btn:disabled,
+.task-toolbar-button:disabled,
+.task-actions button:disabled,
+.ui-btn[aria-disabled='true'],
+.btn[aria-disabled='true'] {
+  opacity: 1;
+  color: var(--fg-disabled);
+  cursor: not-allowed;
+}
+
+/* ---------- 输入（共享原子）：凹槽底+hairline；focus 只换细描边，表面不动 ---------- */
+.ui-input,
+.git-repo-search,
+.git-branch-search,
+.git-hist-scope-search,
+.session-header-search,
+.ctrl-search,
+input[type='search'].ctrl-search {
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: var(--font-control);
+  outline: none;
+  box-sizing: border-box;
+  min-height: 28px;
+}
+
+.ui-input:focus,
+.ui-input:focus-visible,
+.git-repo-search:focus,
+.git-branch-search:focus,
+.git-hist-scope-search:focus,
+.session-header-search:focus,
+.ctrl-search:focus {
+  border-color: var(--border-focus);
+}
+
+.ui-input:disabled,
+.ui-input[aria-disabled='true'] {
+  color: var(--fg-disabled);
+  border-color: var(--border-subtle);
+}
+
+/* ---------- 统一搜索条（SearchBar）：悬浮条视觉（图标+输入+计数+操作） ---------- */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 0 6px 0 10px;
+  box-sizing: border-box;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  transition: border-color var(--dur-micro) var(--ease-hover);
+}
+
+.search-bar:focus-within {
+  border-color: var(--border-focus);
+}
+
+.search-bar.is-disabled {
+  color: var(--fg-disabled);
+  border-color: var(--border-subtle);
+  pointer-events: none;
+}
+
+.search-bar-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+.search-bar:focus-within .search-bar-icon {
+  color: var(--fg-secondary);
+}
+
+.search-bar-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-control);
+  outline: none;
+  padding: 4px 0;
+}
+
+.search-bar-input::placeholder {
+  color: var(--fg-muted);
+}
+
+.search-bar-input::-webkit-search-cancel-button,
+.search-bar-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-bar-count {
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.search-bar-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  --corner-shape: round;
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.search-bar-clear:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.search-bar.is-float {
+  width: min(520px, 92vw);
+  min-width: 360px;
+  box-shadow: var(--shadow-pop);
+}
+
+.search-bar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.search-bar-btn:hover:not(:disabled):not([aria-disabled='true']) {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.search-bar-btn.is-on {
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+}
+
+.search-bar-btn:disabled {
+  opacity: 1;
+  color: var(--fg-disabled);
+  cursor: default;
+}
+
+/* 图标槽基线：扩展内置资源与旧文本图标共用同一槽位。 */
+
+/* ---------- 主题下拉（CustomSelect；现代 picker 与旧浏览器回退共用 token） ---------- */
+.c-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-control);
+  text-align: left;
+  cursor: pointer;
+}
+
+.c-select-trigger:hover:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-hover);
+}
+
+.c-select-trigger:focus-visible {
+  outline: none;
+}
+
+/* 只读态（编辑门外）与输入一致：透明底无边框保持可读 */
+.c-select-trigger:disabled {
+  color: var(--fg-disabled);
+  border-color: var(--border-subtle);
+  background: var(--surface-input);
+  cursor: default;
+}
+
+.c-select-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.c-select-value.is-placeholder {
+  color: var(--fg-muted);
+}
+
+/* 选项右侧胶囊（运行方式的 GUI / TUI）：只做视觉标注 */
+.c-select-badge {
+  flex: none;
+  margin-left: 8px;
+}
+
+.c-select-item-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-select-trigger .c-select-value {
+  flex: 1;
+}
+
+.c-select-caret {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.c-select-caret.is-open {
+  transform: rotate(180deg);
+  color: var(--fg-secondary);
+}
+
+.c-select-menu {
+  position: fixed;
+  /* 下拉 portal 到 body：须压过弹窗遮罩。新建任务已升到 --z-confirm（压看板），故 +1 */
+  z-index: calc(var(--z-confirm) + 1);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+.c-select-item {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-control);
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.c-select-item.is-active {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.c-select-item.is-selected {
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.c-select-item.is-selected.is-active {
+  background: var(--interaction-selected-hover);
+}
+
+.c-select-group {
+  padding: 8px 10px 4px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+}
+
+/* The UA owns the picker in the top layer. Only this shared component may use
+   base-select; unsupported clients render CustomSelectFallback instead. */
+@supports (appearance: base-select) {
+  .c-select-native,
+  .c-select-native::picker(select) { appearance: base-select; }
+  .c-select-native { min-width: 0; }
+  .c-select-native::picker-icon { display: none; }
+  .c-select-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: inherit;
+  }
+  .c-select-native:open .c-select-caret { transform: rotate(180deg); }
+  .c-select-native:focus-visible { outline: 1px solid var(--border-focus); outline-offset: 2px; }
+  .c-select-native::picker(select) {
+    box-sizing: border-box;
+    min-width: anchor-size(width);
+    max-width: calc(100dvw - 16px);
+    max-height: min(260px, calc(100dvh - 16px));
+    margin-block: 4px;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 4px;
+    background: var(--surface-overlay);
+    color: var(--overlay-fg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-pop);
+    opacity: 0;
+    transform: scale(0.985);
+    transition: opacity var(--dur-micro) var(--ease-exit),
+      transform var(--dur-micro) var(--ease-exit),
+      display var(--dur-micro), overlay var(--dur-micro);
+    transition-behavior: allow-discrete;
+  }
+  .c-select-native[data-placement='above']::picker(select) {
+    position-area: block-start span-inline-end;
+    position-try-fallbacks: flip-inline;
+    position-try-order: normal;
+    inset: auto;
+    align-self: end;
+    justify-self: start;
+    max-height: min(260px, calc(100% - 12px));
+  }
+  .c-select-native:open::picker(select) {
+    opacity: 1;
+    transform: none;
+    transition-duration: var(--dur-menu);
+    transition-timing-function: var(--ease-standard);
+  }
+  .c-select-native option { box-sizing: border-box; gap: 6px; }
+  .c-select-native option[hidden] { display: none; }
+  .c-select-native option::checkmark { flex: none; }
+  .c-select-native option:not(:disabled):is(:hover, :focus) { background: var(--interaction-hover); color: var(--fg-primary); outline: none; }
+  .c-select-native option:checked { background: var(--interaction-selected); color: var(--fg-selected-primary); }
+  .c-select-native option:checked:not(:disabled):is(:hover, :focus) { background: var(--interaction-selected-hover); }
+  .c-select-native option:disabled { color: var(--fg-muted); cursor: not-allowed; }
+  .c-select-native option:checked .c-select-option-description { color: var(--fg-selected-secondary); }
+  .c-select-native option:disabled .c-select-option-description { color: var(--fg-muted); }
+  .c-select-native optgroup { padding: 0; }
+  .c-select-native optgroup::picker-icon { display: none; }
+  .c-select-native optgroup > legend { padding: 8px 10px 4px; font-size: var(--font-caption); font-weight: 500; color: var(--fg-muted); }
+  .c-select-option-content { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+  .c-select-native .c-select-option-detail { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+  .c-select-native .c-select-option-description { color: var(--fg-muted); font-size: var(--font-caption); line-height: 1.4; white-space: normal; overflow-wrap: anywhere; }
+  .c-select-native .c-select-option-icon { display: inline-flex; flex: none; }
+}
+@starting-style {
+  .c-select-native:open::picker(select) { opacity: 0; transform: scale(0.98); }
+}
+:root[data-ui-motion='subtle'] .c-select-native::picker(select) { transform: none; }
+:root[data-ui-motion='reduced'] .c-select-native::picker(select) { transition: none; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .c-select-native::picker(select) { transition: none; transform: none; }
+}
+
+.c-select-native option,
+.c-select-native optgroup {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+}
+
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--fg-secondary);
+}
+
+.ui-empty-title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.ui-empty-desc {
+  margin: 0;
+  font-size: var(--font-control);
+  line-height: 1.45;
+  max-width: 28em;
+}
+
+.ui-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* 框底随当前工作区色切换纯色；未启用工作区色时回到主题框色。 */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--workspace-frame-color, var(--surface-frame));
+}
+
+/* 退出终端焦点后的按键落点：不在 .terminal-wrap 内，避免 isTerminalTarget 仍为真 */
+.app-key-sink {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.icon-btn.active {
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+  border-color: transparent;
+}
+
+/* ---------- 主视图：静态会话列 + 终端/Git 横向虚拟屏 + Agent 悬浮 ---------- */
+
+.main-view {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  /* clip：禁止 scrollIntoView / 焦点把横向 scrollLeft 卷走（虚拟屏左缘被裁） */
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
+  /* 共同框底始终露出底边，侧栏收起/划开时也不会被工作面盖住。 */
+  background: var(--workspace-frame-color, var(--surface-frame));
+  display: flex;
+  flex-direction: row;
+}
+
+.work-area {
+  flex: 0 0 auto;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: clip;
+  overflow-y: visible;
+  position: relative;
+  z-index: 1;
+}
+
+/* 会话 + 终端：虚拟屏同一页，一起平移 */
+.workspace-page {
+  display: flex;
+  flex-direction: row;
+  background: transparent;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+}
+
+/* 左栏宽度手柄：骑在左栏右缘，拖动占中栏宽度（页总宽不变） */
+.left-col-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  /* left = 栏宽 = 左栏宿主右缘；命中区略偏左以便从左栏触达。 */
+  transform: translateX(calc(-50% - 4px));
+  z-index: var(--z-sticky);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.left-col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: transparent;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.left-col-resizer:hover::after,
+.left-col-resizer.is-resizing::after {
+  background: var(--divider-active);
+}
+
+.left-col-resizer:focus-visible::after {
+  background: var(--divider-focus);
+}
+
+.main-view.is-left-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* 专注模式（is-focus 由 App 按 focusMode && 非窄屏挂载）：只改主区几何（会话+Git
+   并肩恒满全宽），**不再触碰会话栏显隐**——展开/折叠由右上角开关与左缘热区控制
+   （与专注解耦，用户定稿）。左栏 DOM 常驻范式不变，React/终端状态零损失 */
+
+/* 对话面板跟随侧边栏显隐（App 按 sidebarVisible 挂 sessions-hidden）：折叠态
+   未速览时 .agent-float 根（对话面板 + 幽灵占位）display:none（React 状态保留，
+   侧边栏再现即恢复）。工作区胶囊栈本体已 portal 进左栏槽位（.left-ws-slot），
+   随侧边栏本体显隐，不再依赖本规则；「需要你」提醒由全局看板探条独立承担 */
+.main-view.sessions-hidden .agent-float {
+  display: none;
+}
+
+.h-strip {
+  position: relative;
+  left: 0;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+}
+
+.h-strip.vs-axis {
+  /* transition 期间由浏览器提升层；静止时不强制合成，保留正文次像素抗锯齿。 */
+  transition: transform var(--dur-move) var(--ease-move);
+}
+
+.h-strip > .mp-pop[data-h-strip-overlay] {
+  position: absolute;
+}
+
+/* 拖分割边界调大小时必须逐帧跟手：禁用条带平移过渡 */
+.main-view.is-reshaping .h-strip.vs-axis {
+  transition: none;
+}
+
+/* 拖动调宽期间（虚拟屏比例 / 左栏宽）掩盖重内容区逐帧重排掉帧：
+ * 禁指针 + 微降不透明度做「调整中」示意；transition 只动 opacity（合成器友好） */
+.main-view.is-reshaping .terminal-page,
+.main-view.is-reshaping .git-page,
+.main-view.is-left-resizing .terminal-page {
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.terminal-page,
+.git-page {
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+/* 中栏与右页各自为圆角阅读卡。页缝按整像素分配，默认 2px + 2px。
+ * 外缘只在当前激活侧露出，底边由 main-view 的框底统一提供。 */
+.terminal-page {
+  padding: 0;
+}
+
+.h-vs-on .terminal-page,
+.main-view.is-focus .terminal-page {
+  padding-right: var(--page-gap-before);
+}
+
+.main-view.h-vs-off:not(.is-focus) .terminal-page {
+  padding-right: var(--frame-gap);
+}
+
+.main-view.sessions-hidden:not(.h-git) .terminal-page {
+  padding-left: var(--frame-gap);
+}
+
+.main-view.is-focus.sessions-hidden .terminal-page {
+  padding-left: var(--frame-gap);
+}
+
+.git-page {
+  padding: 0;
+}
+
+.h-vs-on .git-page,
+.main-view.is-focus .git-page {
+  padding-left: calc(var(--page-gap) - var(--page-gap-before));
+}
+
+.main-view.h-git .git-page,
+.main-view.is-focus .git-page {
+  padding-right: var(--frame-gap);
+}
+
+.terminal-page > .center-panel,
+.git-page > .side-tools-panel,
+.settings-page > .settings-sheet {
+  border-radius: var(--radius-page);
+  corner-shape: var(--corner-shape-page);
+  box-shadow: var(--elevation-sheet);
+  overflow: hidden;
+  contain: layout paint;
+}
+
+/* 纸边画在内容之上，避免满铺的终端/编辑器背景盖住细边。 */
+.terminal-page > .center-panel::after,
+.git-page > .side-tools-panel::after,
+.settings-page > .settings-sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  corner-shape: inherit;
+  box-shadow: var(--surface-rim);
+  pointer-events: none;
+  z-index: var(--z-overlay);
+}
+
+.ws-resize-ind-pos {
+  /* 调宽时只浮百分比指示卡，无遮罩：活内容两侧直接实时重排
+   * （2026-10-10 用户定稿，普通 VS 与双栏全屏两态一致） */
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 与被调侧等宽高比的实底指示卡：随边界逐帧变比，比例一目了然。
+ * 整体是一张圆角矩形（无外框线），内部 ▮▯▮ 三色段铺满、段间两道
+ * 直切的缝，呼应终端空白页的占位图；实底保证压在活内容上依然清晰 */
+@keyframes ws-resize-card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+.ws-resize-card {
+  position: relative;
+  box-sizing: border-box;
+  min-width: 170px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 10px;
+  border-radius: var(--radius-modal);
+  overflow: hidden;
+  /* 毛玻璃：半透明底 + backdrop blur，压在拖动中实时重排的活内容上
+   * （2026-10-10 用户定稿）；blur 半径与 .center-pane-blur 同档（16px）。
+   * 卡片面积小，拖动中逐帧重算 blur 可接受 */
+  background: color-mix(in srgb, var(--surface-raised) 62%, transparent);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px var(--border-subtle), var(--shadow-pop);
+  animation: ws-resize-card-in var(--dur-micro) var(--ease-hover);
+}
+
+/* 素色段 ▮：直角，外圈圆角由容器裁切；半透明水洗让玻璃底透出 */
+.ws-resize-card-bar {
+  flex: 1;
+  background: color-mix(in srgb, var(--raised-interaction-hover) 50%, transparent);
+}
+
+/* 着色段：直角，承载区域名 + 百分比；稍高不透明度保文字可读 */
+.ws-resize-card-mid {
+  flex: 1.8;
+  background: color-mix(in srgb, var(--raised-interaction-selected) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.ws-resize-card-label {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  letter-spacing: 0.1em;
+}
+
+.ws-resize-card-num {
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--fg-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* 拖大小时分割线转焦点色，提示边界正在被拖 */
+.main-view.is-reshaping .pane-split-line {
+  background: var(--border-focus);
+}
+
+.h-page {
+  flex: 0 0 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+}
+
+/*
+ * 分割条：挂在 h-strip 内，跟虚拟屏 transform 一起动。
+ * 静息露出框底，压线时显线。全高 28px 检测带（.pane-split-hit）兼触发区：
+ * 压线任意位置即召出按钮（.hot），按钮锚点随指针纵向位置落点——旧版只有
+ * 竖直居中一小段触发区 + 幽灵胶囊指示（两屏贴死年代怕热区难触发的妥协），
+ * 页缝已有框色间隔后整条即热区，胶囊指示删除。按钮是检测带子节点，
+ * 指针移到按钮上不触发热区 leave，避免交替闪烁。
+ */
+.pane-split {
+  position: absolute;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pane-split-v {
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  transform: translateX(-50%);
+}
+
+/* 页缝有框色间隔时热区收窄到缝本身：28px 检测带会盖住两侧页面边缘的滚动条，
+   指针还没进缝就召出按钮、拖不了滚动条（2026-10-10 用户反馈）。VS 开启与
+   专注并肩都有页缝，热区=缝宽；VS 关闭时分割条贴右缘无缝可依，保持 28px
+   边缘条作为再开虚拟屏的入口。 */
+.main-view.h-vs-on .pane-split-v,
+.main-view.is-focus .pane-split-v {
+  width: var(--page-gap, 4px);
+  transform: translateX(calc(-1 * var(--page-gap-before)));
+}
+
+/* 页缝本身标识边界，静息不画线；悬停与调宽反馈沿用原热态。 */
+.pane-split-line {
+  background: transparent;
+  pointer-events: none;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.pane-split-v .pane-split-line {
+  width: 1px;
+  height: 100%;
+}
+
+.pane-split.hot .pane-split-line {
+  background: var(--divider-active);
+}
+
+.pane-split-v.hot .pane-split-line {
+  width: 1px;
+}
+
+/* 全高检测带兼触发区：整条压线即召出按钮 */
+.pane-split-hit {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: auto;
+  cursor: col-resize;
+}
+
+.split-expand-anchor {
+  position: absolute;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: var(--z-dropdown);
+}
+
+.split-expand-btn {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: var(--z-dropdown);
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  border: 1px solid var(--border-control);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  border-radius: var(--radius-pill);
+  --corner-shape: round;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: var(--font-ui);
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-pop);
+  touch-action: none;
+  user-select: none;
+}
+
+.split-expand-btn:hover {
+  color: var(--fg-primary);
+  border-color: var(--border-control);
+  background: var(--overlay-interaction-pressed);
+}
+
+.split-expand-btn.is-on {
+  color: var(--fg-primary);
+  border-color: var(--border-control);
+}
+
+.split-expand-btn.is-picking {
+  cursor: grabbing;
+  color: var(--fg-primary);
+  background: var(--overlay-interaction-pressed);
+  box-shadow: var(--shadow-pop);
+  z-index: calc(var(--z-dropdown) + 2);
+}
+
+.split-mode-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: calc(var(--z-dropdown) + 1);
+  pointer-events: none;
+  min-width: 44px;
+  height: 24px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1;
+  box-shadow: var(--shadow-pop);
+  white-space: nowrap;
+}
+
+.split-mode-drop.is-current {
+  color: var(--fg-primary);
+  border-color: var(--border-focus);
+}
+
+.split-mode-drop.is-armed {
+  color: var(--fg-primary);
+  background: var(--overlay-interaction-pressed);
+  border-color: var(--fg-primary);
+}
+
+/* 把手悬停提示（自绘替代原生 title——preventDefault 抑制鼠标事件后捕获中
+ * title 无法消散）：悬停显示、按下/长按菜单即隐，让位到按钮左侧。
+ * width:max-content 必须显式给：定位上下文是 0 宽锚点（且在缝宽热区内），
+ * auto 收缩适配会塌到最小内容宽——中文一字一行变竖条 */
+.split-hint-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: var(--z-dropdown);
+  pointer-events: none;
+  width: max-content;
+  max-width: 340px;
+  padding: 5px 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.5;
+  box-shadow: var(--shadow-pop);
+  transform: translate(calc(-100% - 10px), -50%);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * 长按调节指示：左右两个圆形图标，仅按拖动方向点亮（非落点）。
+ */
+.split-size-drop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: calc(var(--z-dropdown) + 1);
+  pointer-events: none;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  --corner-shape: round;
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1;
+  box-shadow: var(--shadow-pop);
+  transition: color var(--dur-micro) var(--ease-hover), background var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+}
+
+.split-size-drop.is-armed {
+  color: var(--fg-primary);
+  background: var(--overlay-interaction-pressed);
+}
+
+/* 工作区整屏胶片：固定骨架 ↔ 实况纵向滑动（不截屏） */
+.ws-stage {
+  position: absolute;
+  inset: 0 0 var(--frame-gap);
+  z-index: 1;
+  /* 几何仍在底边上方 6px 结束；仅给纸张投影开放框边范围。
+   * 工作区切换仍裁切整条胶片，不能改成完全 visible。 */
+  overflow: clip;
+  overflow-clip-margin: var(--frame-gap);
+  transition: transform var(--dur-exit) var(--ease-exit);
+}
+
+.main-view.sessions-hidden .ws-stage {
+  /* 盖住下层侧栏，同时让页面 padding 露出与窗口一致的框色。 */
+  background: var(--workspace-frame-color, var(--surface-frame));
+  border-radius: var(--radius-card) 0 0 var(--radius-card);
+}
+
+.main-view.h-git.sessions-hidden:not(.is-focus) .ws-stage {
+  border-radius: 0;
+}
+
+.main-view.sessions-peek .ws-stage:not(.is-sliding) {
+  transform: translateX(var(--sessions-col-w));
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+
+.ws-stage.is-sliding {
+  pointer-events: none;
+  /* 滑动时下一格的内容紧接视口，保持原胶片裁切，防其漏进底边。 */
+  overflow-clip-margin: 0px;
+}
+
+.ws-stage .work-area {
+  height: 100%;
+}
+
+.ws-rail {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  will-change: transform;
+}
+
+.ws-rail.ws-rail-idle {
+  height: 100%;
+  transform: none;
+  will-change: auto;
+}
+
+.ws-rail.ws-rail-idle .ws-pane-skel {
+  display: none;
+}
+
+.ws-rail.ws-rail-idle .ws-pane-live {
+  flex: 1 1 auto;
+  height: 100%;
+}
+
+.ws-rail.is-transit {
+  height: 200%;
+}
+
+.ws-rail.is-transit .ws-pane {
+  flex: 0 0 50%;
+  height: 50%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* DOM 固定 [骨架][实况]；from-above 时视觉上下对调 */
+.ws-rail.dir-from-above {
+  flex-direction: column-reverse;
+}
+
+.ws-rail.dir-from-below {
+  flex-direction: column;
+}
+
+/*
+ * from-above：translate 0 = 实况；-50% = 骨架
+ * from-below：translate 0 = 骨架；-50% = 实况
+ * arm → to-skel：滑到骨架；fade：停在骨架位，骨架淡出、实况淡入
+ */
+.ws-rail.dir-from-above.phase-arm {
+  transition: none;
+  transform: translate3d(0, 0, 0);
+}
+
+.ws-rail.dir-from-above.phase-to-skel {
+  transition: transform var(--dur-workspace) var(--ease-move);
+  transform: translate3d(0, -50%, 0);
+}
+
+.ws-rail.dir-from-below.phase-arm {
+  transition: none;
+  transform: translate3d(0, -50%, 0);
+}
+
+.ws-rail.dir-from-below.phase-to-skel {
+  transition: transform var(--dur-workspace) var(--ease-move);
+  transform: translate3d(0, 0, 0);
+}
+
+.ws-rail.dir-from-above.phase-fade,
+.ws-rail.dir-from-below.phase-fade {
+  transition: none;
+  transform: none;
+}
+
+/* fade 阶段：骨架与实况叠在同一视口；实况在下保持不透明，只有上层（不透明底的）骨架
+ * 淡出——若两层同时交叉淡化，交叉期总不透明度 <1 会透出框底 */
+.ws-rail.phase-fade {
+  height: 100% !important;
+}
+
+.ws-rail.phase-fade .ws-pane {
+  flex: none !important;
+  position: absolute !important;
+  inset: 0;
+  height: 100% !important;
+}
+
+.ws-rail.phase-fade .ws-pane-skel {
+  z-index: 2;
+  opacity: 0;
+  transition: opacity var(--dur-workspacefade) var(--ease-exit);
+}
+
+.ws-rail.phase-fade .ws-pane-live {
+  z-index: 1;
+}
+
+.ws-pane-live {
+  min-height: 0;
+}
+
+.ws-pane-skel {
+  min-height: 0;
+  background: var(--surface-canvas);
+}
+
+/* 拖拽中：全屏同向光标 + 禁选择，防止文字选中/指针闪烁 */
+body.is-panel-resizing {
+  cursor: nesw-resize;
+  user-select: none;
+}
+
+/* 通用两栏拖拽分割 */
+.split-pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.split-pane-panel > .split-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-pane-row {
+  flex-direction: row;
+}
+
+/* reverse：主栏视觉换边（DOM 顺序不变，比例语义仍指主栏） */
+.split-pane-row.is-reversed {
+  flex-direction: row-reverse;
+}
+
+.split-pane-column {
+  flex-direction: column;
+}
+
+.split-pane-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-pane-handle {
+  flex: 0 0 6px;
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+
+.split-pane-handle-row {
+  cursor: col-resize;
+}
+
+.split-pane-handle-column {
+  cursor: row-resize;
+}
+
+.split-pane-handle-line {
+  background: var(--divider-rest);
+  pointer-events: none;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.split-pane-handle-row .split-pane-handle-line {
+  width: 1px;
+  height: 100%;
+}
+
+.split-pane-handle-column .split-pane-handle-line {
+  width: 100%;
+  height: 1px;
+}
+
+.split-pane-handle.is-hot .split-pane-handle-line,
+.split-pane-handle:hover .split-pane-handle-line {
+  background: var(--divider-active);
+  box-shadow: none;
+}
+
+.split-pane-handle-row.is-hot .split-pane-handle-line,
+.split-pane-handle-row:hover .split-pane-handle-line {
+  width: 1px;
+}
+
+.split-pane-handle-column.is-hot .split-pane-handle-line,
+.split-pane-handle-column:hover .split-pane-handle-line {
+  height: 1px;
+}
+
+.split-pane-handle:focus-visible .split-pane-handle-line {
+  background: var(--divider-focus);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+}
+
+.runtime-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 148px;
+  /* padding-top 桥接按钮与菜单，避免移入时闪关 */
+  padding: 6px 0 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--dur-micro) var(--ease-hover), visibility var(--dur-micro) var(--ease-hover);
+}
+
+.panel-header.sub {
+  margin-top: 16px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--fg-secondary);
+}
+
+/* 兼容旧 class（若别处仍引用） */
+.dot.running,
+.dot.working {
+  background: var(--fg-primary);
+  opacity: 0.85;
+}
+
+.dot.starting {
+  background: var(--fg-secondary);
+}
+
+.dot.idle {
+  background: transparent;
+  border: 1px solid var(--fg-secondary);
+  box-sizing: border-box;
+}
+
+.dot.blocked {
+  background: var(--fg-primary);
+  opacity: 0.7;
+}
+
+/* 圆点脉冲：合成器友好版（transform/opacity）。当前无引用（历史遗留），
+ * 若再启用需挂在圆点的 ::after 圆环上（参考 board.css 的 board-dot-pulse），
+ * 原 box-shadow 扩散写法会逐帧重绘、掉帧成「一闪一闪」，不再使用 */
+@keyframes dot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  70%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes dot-pulse-blocked {
+  0% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  70%,
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.dot.exited {
+  background: var(--fg-secondary);
+  opacity: 0.45;
+}
+
+.dot.scheduled {
+  background: var(--yellow);
+}
+
+/* 运行态 spinner 唯一点（IconSpinner / .ui-spinner）：线宽与缺口走 --spinner-*，时长走 --dur-loop。
+ * session-state-spin 是状态图标侧的别名，禁止再写第二套 keyframes / border 环。
+ * 相位由 IconSpinner 按全局时钟写负 animation-delay 对齐，此处勿覆写 animation-delay。 */
+.ui-spinner,
+.session-state-spin {
+  display: block;
+  animation: session-state-spin var(--dur-loop) linear infinite;
+  transform-origin: center;
+  transform-box: view-box;
+}
+
+.ui-spinner circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: var(--spinner-stroke);
+  stroke-linecap: round;
+  stroke-dasharray: var(--spinner-dash);
+}
+
+@keyframes session-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.empty-hint {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  padding: 10px 12px;
+  line-height: 1.6;
+}
+
+/* ---------- 中栏 ---------- */
+
+.center-panel {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  background: var(--surface-canvas);
+  display: flex;
+  flex-direction: column;
+}
+
+/* 工具面板（任务/看板/统计/扩展…）统一覆盖层：presence 动画挂在层上，
+ * 内部面板（prompt-task-panel 自带 absolute / board-panel 文档流）都填满本层。
+ * 层不涂底，透出页的半透明底；改为把底下的终端/对话视图藏起（否则半透明底透出终端字），
+ * 顺带让 xterm 画面退出合成。退场中（out）不再遮，终端与淡出的面板交叉淡入 */
+.center-utility-layer {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+}
+
+.center-panel:has(> .center-utility-layer.utility-placement-center:not([data-mp-stage='out'])) > .xfade,
+.center-panel:has(> .center-utility-layer.utility-placement-center:not([data-mp-stage='out'])) > .right-dock-home > .right-dock-surface > .xfade {
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+}
+
+/* 先出后入（同 .xfade）：层不涂底，两层同时交叉淡化会叠印文字。换下的层 --dur-micro 快速
+ * 淡出；有层在退场时，新层延迟 --dur-micro 的一半再入场。A→null 时终端 .xfade 自带同款延迟 */
+.center-utility-layer.mp-panel[data-mp-stage='out'] {
+  transition-duration: var(--dur-micro), var(--dur-micro);
+}
+
+.center-panel:has(> .center-utility-layer[data-mp-stage='out'])
+  > .center-utility-layer.mp-panel[data-mp-stage='in'] {
+  transition-delay: calc(var(--dur-micro) / 2);
+}
+
+@property --scan-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.center-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--fg-secondary);
+}
+
+/* 空状态品牌图标（环轨）：各空白页共用 */
+.empty-logo {
+  display: flex;
+  justify-content: center;
+}
+
+code.ok {
+  color: var(--green);
+}
+
+code.warn {
+  color: var(--yellow);
+}
+
+.hint-muted {
+  display: inline-block;
+  margin-top: 8px;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+}
+
+.tool-capture-preview {
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: #000;
+}
+
+.tool-capture-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.queued-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.queued-cancel {
+  background: transparent;
+  border: 1px solid var(--border-control);
+  color: var(--fg-secondary);
+  border-radius: var(--radius-control);
+  padding: 2px 10px;
+  font-size: var(--font-caption);
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+}
+
+.queued-cancel:hover {
+  color: var(--status-danger-fg);
+  border-color: var(--status-danger-border);
+}
+
+.aborted-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-control);
+  border-radius: 999px;
+  padding: 2px 10px;
+  user-select: none;
+}
+
+.utility-placeholder-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+/* ============================================================
+ * 动画系统骨架（motion tokens 见 :root；调研与决策见
+ * docs/audits/animation-system-research.md）。
+ * 核心约定：进出场一律 transition（改目标值即从当前插值续走，
+ * 反向打断天然成立），不用 keyframes；[data-mp-stage] 三态由
+ * usePresence 驱动（components/motion.tsx）。
+ * ============================================================ */
+
+/* 弹窗/大面板：淡入 + 轻微上浮入场；退场反向更快 */
+.mp-panel {
+  transition:
+    opacity var(--dur-panel) var(--ease-standard),
+    transform var(--dur-panel) var(--ease-standard);
+}
+
+.mp-panel[data-mp-stage='enter'] {
+  opacity: 0;
+  transform: translateY(8px) scale(0.985);
+  transition: none; /* 起始态：usePresence 在 layout 阶段落成计算样式后切 in 起播 */
+}
+
+.mp-panel[data-mp-stage='in'] {
+  opacity: 1;
+  transform: none;
+}
+
+.mp-panel[data-mp-stage='out'] {
+  opacity: 0;
+  transform: translateY(6px) scale(0.992);
+  transition-duration: var(--dur-exit), var(--dur-exit);
+  transition-timing-function: var(--ease-exit), var(--ease-exit);
+  pointer-events: none; /* 退场层不可交互：既避免误点，也免去调用方闭包悬空 */
+}
+
+/* 顶部对齐浮层（命令面板等）：入场方向改为自上而下 */
+.mp-panel-top[data-mp-stage='enter'] {
+  transform: translateY(-8px) scale(0.99);
+}
+
+.mp-panel-top[data-mp-stage='out'] {
+  transform: translateY(-6px) scale(0.995);
+}
+
+/* 顶栏下方整面板不透底，磨砂由前面的兄弟层单独淡化。
+ * 飞出距离额外覆盖 shadow-pop 的下沿，避免退场卸载时顶缘残影跳变。 */
+.mp-panel-fly {
+  --mp-fly-gap: 72px;
+  --mp-fly-offset: calc(-100% - var(--mp-fly-gap) - 80px);
+  position: relative;
+  z-index: 1;
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+
+.mp-panel-fly[data-mp-stage='enter'],
+.mp-panel-fly[data-mp-stage='out'] {
+  opacity: 1;
+  transform: translateY(var(--mp-fly-offset));
+}
+
+.mp-panel-fly[data-mp-stage='out'] {
+  transition-duration: var(--dur-exit);
+  transition-timing-function: var(--ease-exit);
+}
+
+.mp-fly-overlay[data-mp-stage='out'] {
+  pointer-events: none;
+}
+
+.mp-scrim-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 菜单/小浮层：更快一档，位移更小（默认万向：scale+opacity，不带轴向位移） */
+.mp-pop {
+  transition:
+    opacity var(--dur-menu) var(--ease-standard),
+    transform var(--dur-menu) var(--ease-standard);
+}
+
+.mp-pop[data-mp-stage='enter'] {
+  opacity: 0;
+  transform: scale(0.98);
+  transition: none;
+}
+
+.mp-pop[data-mp-stage='in'] {
+  opacity: 1;
+  transform: none;
+}
+
+.mp-pop[data-mp-stage='out'] {
+  opacity: 0;
+  transform: scale(0.985);
+  transition-duration: var(--dur-micro), var(--dur-micro);
+  transition-timing-function: var(--ease-exit), var(--ease-exit);
+  pointer-events: none;
+}
+
+/* 向上弹出的菜单（composer 菜单等）：自下而上 4px 入场 */
+.mp-pop-up[data-mp-stage='enter'] {
+  transform: translateY(4px) scale(0.98);
+}
+
+.mp-pop-up[data-mp-stage='out'] {
+  transform: translateY(2px) scale(0.985);
+}
+
+/* 全屏 scrim 遮罩：只动 opacity */
+.mp-scrim {
+  transition: opacity var(--dur-panel) var(--ease-standard);
+}
+
+/* 公共磨砂层保持固定滤镜，进出场由 mp-scrim 过渡透明度。 */
+.backdrop-blur-overlay {
+  background: var(--scrim);
+  backdrop-filter: var(--backdrop-blur);
+  -webkit-backdrop-filter: var(--backdrop-blur);
+}
+
+.mp-scrim[data-mp-stage='enter'] {
+  opacity: 0;
+  transition: none;
+}
+
+.mp-scrim[data-mp-stage='in'] {
+  opacity: 1;
+}
+
+.mp-scrim[data-mp-stage='out'] {
+  opacity: 0;
+  transition-duration: var(--dur-exit);
+  transition-timing-function: var(--ease-exit);
+  pointer-events: none;
+}
+
+/* 视图切换「先出后入」：常驻视图叠放互切（父容器挂 .xfade-stack 需 position:relative）。
+ * 旧视图 --dur-micro 快速淡出，新视图等旧视图淡出过半再淡入——两屏文字不在同一时刻
+ * 以可辨认的透明度叠印（同时交叉淡化会叠字）。叠放宿主底色须与所在页一致，否则
+ * 两层之间的空档会闪出另一种底色。
+ * visibility 延迟到 opacity 结束后切换：隐藏期不可交互/不可聚焦，切换期可过渡。 */
+.xfade-stack {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.xfade {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-micro) var(--ease-exit),
+    visibility 0s linear var(--dur-micro);
+}
+
+.xfade.is-shown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--dur-panel) var(--ease-standard) calc(var(--dur-micro) / 2),
+    visibility 0s;
+}
+
+/* 高频切换（会话实例）瞬切：保留叠放保活结构，只去掉过渡 */
+.xfade.xfade-instant,
+.xfade.xfade-instant.is-shown {
+  transition: none;
+}
+
+/* 嵌套不变量：外层 xfade 隐藏时，内层 is-shown 不得把可见/可命中写回去。
+ * visibility 与 pointer-events 都能被后代显式覆盖——不补这条，隐藏页里
+ * 常驻叠放（如未激活 Git 页的 .git-detail-pane.is-shown）会变成「看不见
+ * 但吃掉点击/滚轮」的透明层。退场沿用延后 visibility 的时序，不破坏外层淡出 */
+.xfade:not(.is-shown) .xfade.is-shown {
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--dur-micro) var(--ease-exit),
+    visibility 0s linear var(--dur-micro);
+}
+
+/* 手风琴/折叠体：grid 行高过渡（内容保活、纯 transition 可打断）。
+ * 用法：外壳 .acc（display:grid; grid-template-rows:0fr↔1fr）+ 内容 .acc-body（overflow:hidden; min-height:0） */
+.acc {
+  display: grid;
+  transition:
+    grid-template-rows var(--dur-panel) var(--ease-standard),
+    opacity var(--dur-panel) var(--ease-standard);
+}
+
+.acc.is-open {
+  grid-template-rows: 1fr;
+}
+
+/* 收起走退场档（更快、缓起快收） */
+.acc:not(.is-open) {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition-duration: var(--dur-exit), var(--dur-exit);
+  transition-timing-function: var(--ease-exit), var(--ease-exit);
+}
+
+.acc-body {
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 复制反馈：常驻同一个 12px 图标槽，用伪元素对勾避免成功文案撑宽或替换图标 DOM。 */
+.copy-feedback {
+  position: relative;
+  display: inline-flex;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  vertical-align: middle;
+}
+.copy-feedback > svg,
+.copy-feedback::after {
+  transition: opacity var(--dur-micro) var(--ease-standard), transform var(--dur-micro) var(--ease-standard);
+}
+.copy-feedback > svg {
+  display: block;
+  opacity: 1;
+  transform: none;
+}
+.copy-feedback::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(2px) scale(0.7);
+}
+.copy-feedback[data-copied='true'] > svg {
+  opacity: 0;
+  transform: scale(0.65);
+}
+.copy-feedback[data-copied='true']::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* 用户轻微档：保留现有时长/曲线，只缩小公共面板与菜单的位移和缩放。 */
+:root[data-ui-motion='subtle'] .mp-panel[data-mp-stage='enter'] {
+  transform: translateY(3px) scale(0.995);
+}
+:root[data-ui-motion='subtle'] .mp-panel[data-mp-stage='out'] {
+  transform: translateY(2px) scale(0.997);
+}
+:root[data-ui-motion='subtle'] .mp-panel-top[data-mp-stage='enter'] {
+  transform: translateY(-3px) scale(0.995);
+}
+:root[data-ui-motion='subtle'] .mp-panel-top[data-mp-stage='out'] {
+  transform: translateY(-2px) scale(0.997);
+}
+:root[data-ui-motion='subtle'] .mp-panel-fly[data-mp-stage='enter'],
+:root[data-ui-motion='subtle'] .mp-panel-fly[data-mp-stage='out'] {
+  transform: translateY(var(--mp-fly-offset));
+}
+:root[data-ui-motion='subtle'] .mp-pop[data-mp-stage='enter'] {
+  transform: scale(0.995);
+}
+:root[data-ui-motion='subtle'] .mp-pop[data-mp-stage='out'] {
+  transform: scale(0.997);
+}
+:root[data-ui-motion='subtle'] .mp-pop-up[data-mp-stage='enter'] {
+  transform: translateY(2px) scale(0.995);
+}
+:root[data-ui-motion='subtle'] .mp-pop-up[data-mp-stage='out'] {
+  transform: translateY(1px) scale(0.997);
+}
+
+/* 有效减少档由本地偏好/系统实时驱动；系统媒体查询仍覆盖启动脚本执行之前。 */
+:root[data-ui-motion='reduced'] :is(.mp-panel, .mp-pop, .mp-scrim, .xfade, .acc,
+  .agent-float-panel, .agent-ws-stack-row, .agent-ws-stack-rest) {
+  transition: none !important;
+}
+:root[data-ui-motion='reduced'] :is(.mp-panel[data-mp-stage='enter'], .mp-pop[data-mp-stage='enter'],
+  .mp-scrim[data-mp-stage='enter'], .agent-float-panel.is-entering) {
+  opacity: 1;
+  transform: none;
+}
+:root[data-ui-motion='reduced'],
+:root[data-ui-motion='reduced'] *,
+:root[data-ui-motion='reduced'] *::before,
+:root[data-ui-motion='reduced'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0s !important;
+  scroll-behavior: auto !important;
+}
+
+/* 静态焦点标记在减少档直接取目标值：极短的非零时长仍会创建 transition，
+ * 不能保证点击后的同步样式读取已经越过起态。这里明确移除过渡属性。 */
+:root[data-ui-motion='reduced'] .left-panel .session-item::after,
+:root[data-ui-motion='reduced'] .left-panel .utility-feature-item::after,
+:root[data-ui-motion='reduced'] .ext-nav-row::before {
+  transition: none !important;
+}
+
+/* 减弱动态：全部进出场退化为瞬时（token 换值一处生效，循环装饰类另行按需登记） */
+@media (prefers-reduced-motion: reduce) {
+  .mp-panel,
+  .mp-pop,
+  .mp-scrim,
+  .xfade,
+  .acc,
+  .agent-float-panel,
+  .agent-ws-stack-row,
+  .agent-ws-stack-rest {
+    transition: none !important;
+  }
+
+  .mp-panel[data-mp-stage='enter'],
+  .mp-pop[data-mp-stage='enter'],
+  .mp-scrim[data-mp-stage='enter'],
+  .agent-float-panel.is-entering {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* 全局兜底：循环装饰（spinner/shimmer/呼吸/跑马灯等）一并静止 */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+
+  .left-panel .session-item::after,
+  .left-panel .utility-feature-item::after,
+  .ext-nav-row::before {
+    transition: none !important;
+  }
+}
+
+/* 会话卡片：审阅、交互 UI 与问答共用紧凑表头和图标底座。 */
+.chat-card-header:is(.turn-changes-header, .ma-ui-toolbar, .ac-uq-head) {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: var(--chat-card-header-height);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: calc(var(--radius-chat-card) - 1px) calc(var(--radius-chat-card) - 1px) 0 0;
+  background: var(--surface-raised);
+  color: var(--raised-fg-primary);
+}
+.chat-card-header .chat-card-header-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--chat-card-header-icon-size);
+  height: var(--chat-card-header-icon-size);
+  border-radius: var(--radius-control);
+  background: var(--surface-canvas);
+  color: var(--canvas-fg-secondary);
+}
+.chat-card-header :is(.btn.small, .ma-ui-collapse) {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  height: var(--chat-card-header-button-height);
+  min-height: var(--chat-card-header-button-height);
+  padding: 0 10px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--raised-fg-secondary);
+  box-shadow: none;
+  font: inherit;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.chat-card-header :is(.btn.small, .ma-ui-collapse):hover:not(:disabled) {
+  background: var(--raised-interaction-hover);
+  color: var(--raised-fg-primary);
+}
+.chat-card-header :is(.btn.small, .ma-ui-collapse):focus-visible {
+  outline: 1px solid var(--raised-border-focus);
+  outline-offset: 2px;
+}
+.chat-card-header :is(.btn.small, .ma-ui-collapse):disabled {
+  border-color: var(--border-subtle);
+  background: transparent;
+  color: var(--fg-disabled);
+  opacity: 1;
+  cursor: default;
+}

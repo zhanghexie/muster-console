@@ -1,0 +1,41 @@
+/** 后台任务区词条（key = 中文原文）：胶囊 / 面板 / 唤醒通知 */
+export const frag: Record<string, string> = {
+  '应用重启，任务中断': 'Task interrupted by app restart',
+  '后台任务': 'Background tasks',
+  '后台 {{n}}': 'Background {{n}}',
+  '{{n}} 个结果': '{{n}} result(s)',
+  '有未读结果': 'Unread results',
+  '拖动调整大小': 'Drag to resize',
+  '终止': 'Kill',
+  '关闭面板': 'Close panel',
+  '清除已完成': 'Clear finished',
+  '取消定时': 'Cancel timer',
+  '子代理': 'Subagent',
+  '子代理已启动，正在后台执行任务…': 'Subagent launched, working in the background…',
+  '后台终端': 'Background terminal',
+  '定时器': 'Timer',
+  '运行中': 'Running',
+  '运行中（剩约 {{n}} 分钟）': 'Running (~{{n}} min left)',
+  '运行中（剩约 {{n}} 秒）': 'Running (~{{n}} s left)',
+  '已完成': 'Completed',
+  '失败': 'Failed',
+  '失败（exit {{n}}）': 'Failed (exit {{n}})',
+  '【后台任务】定时器（{{id}}）到点：{{reason}}。请继续处理之前安排的相关事项。':
+    '[Background task] Timer ({{id}}) fired: {{reason}}. Please pick up what you scheduled earlier.',
+  '【后台任务】{{label}}（{{id}}）{{state}}{{summary}}。请查看并继续处理。':
+    '[Background task] {{label}} ({{id}}) {{state}}{{summary}}. Please review and continue.',
+  '，结果摘要：\n{{summary}}': ', summary:\n{{summary}}',
+  '当前会话 runtime 不支持后台子代理': 'Current session runtime does not support background subagents',
+  '后台命令启动失败：{{message}}': 'Failed to start background command: {{message}}',
+  '后台命令清理失败：{{message}}': 'Failed to clean up background command: {{message}}',
+  '进程清理失败：{{error}}': 'Failed to clean up process: {{error}}',
+  '后台任务服务已停止': 'Background task service has stopped',
+  'sleep 命令超时（预期行为）': 'Sleep command timed out (expected behavior)',
+  '超时 {{ms}}ms 自动转后台（命令继续运行）': 'Timed out after {{ms}}ms, auto-backgrounded (command still running)',
+  '会话已归档': 'Session archived',
+  '会话已清空': 'Session cleared',
+  '{{n}} 分钟后': 'in {{n}} min',
+  '{{n}} 秒后': 'in {{n}} s',
+  '暂无后台任务。可以让 Agent 在后台跑命令或设定时提醒。':
+    'No background tasks yet. Ask the Agent to run commands in the background or set a timed reminder.'
+};

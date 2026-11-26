@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- E5 环轨·加大版：轨道 r296/线宽46，核心 r120，卫星 r80；底 #101010 -->
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="#101010"/>
+  <rect x="33" y="33" width="958" height="958" rx="215" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="2"/>
+  <circle cx="512" cy="512" r="296" fill="none" stroke="#E4E4E4" stroke-opacity="0.4" stroke-width="46"/>
+  <circle cx="512" cy="512" r="120" fill="#E4E4E4"/>
+  <circle cx="682" cy="270" r="80" fill="#58A6FF"/>
+  <circle cx="221" cy="563" r="80" fill="#E4E4E4"/>
+  <circle cx="584" cy="799" r="80" fill="#E4E4E4"/>
+</svg>

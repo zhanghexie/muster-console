@@ -1,0 +1,5 @@
+.s-path-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.s-path-control > .s-input { flex: 1 1 12rem; width: 0; min-width: min(12rem, 100%); font-family: var(--font-mono); }
+.s-path-control > .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex-shrink: 0; }
+.s-path-label { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.s-field-readonly { color: var(--fg-muted); font-size: var(--font-caption); font-weight: 400; }

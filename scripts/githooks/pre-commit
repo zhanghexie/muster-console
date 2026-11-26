@@ -1,0 +1,8 @@
+#!/bin/sh
+#
+# 提交门禁（快档）：类型检查 + 只跑受暂存改动影响的自测。逻辑在 scripts/gate.mjs。
+# node 不在 PATH 时 sh 返回 127，提交被拦——失败即拦，不会静默放行。
+# 跳过：git commit --no-verify 或 SKIP_TESTS=1 git commit。
+#
+# 本文件必须是 LF 行尾（.gitattributes 已锁定；PowerShell Set-Content 会写成 CRLF）。
+exec node scripts/gate.mjs --mode staged

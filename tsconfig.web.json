@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    // 死代码在这个仓库是零容忍项：让 npm run typecheck 直接挡住，别靠人眼 review
+    "noUnusedLocals": true,
+    "useDefineForClassFields": true,
+    "incremental": true,
+    "tsBuildInfoFile": "./.tmp/tsbuildinfo/web.tsbuildinfo"
+  },
+  "include": ["src/renderer/**/*", "src/shared/**/*", "src/preload/index.d.ts"]
+}

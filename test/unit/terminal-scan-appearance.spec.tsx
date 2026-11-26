@@ -1,0 +1,22 @@
+import React from 'react';
+import { act, render, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+const state = vi.hoisted(() => ({ appearance: { cssVars: { '--scrim': 'rgba(12, 14, 20, 0.4)' } }, listeners: new Set<(a: unknown) => void>() }));
+vi.mock('../../src/renderer/src/theme', () => ({ getResolvedAppearance: () => state.appearance, subscribeAppearance: (fn: (a: unknown) => void) => { state.listeners.add(fn); return () => state.listeners.delete(fn); } }));
+vi.mock('../../src/renderer/src/keybindings/KeybindingHost', () => ({ useOverlayDismiss: () => {} }));
+import { TerminalScanOverlay } from '../../src/renderer/src/components/TerminalScanOverlay';
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); state.listeners.clear(); });
+it('paints the resolved scrim and repaints the actual snapshot canvas on appearance changes', async () => {
+  const paints: string[] = [];
+  const context = { fillStyle: '', filter: '', drawImage: vi.fn(), setTransform: vi.fn(), clearRect: vi.fn(), fillRect() { paints.push(this.fillStyle); } };
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => context as unknown as CanvasRenderingContext2D);
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, toJSON: () => ({}) });
+  vi.stubGlobal('Image', class { naturalWidth = 200; naturalHeight = 100; onload: (() => void) | null = null; set src(_value: string) { queueMicrotask(() => this.onload?.()); } });
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  const view = render(<TerminalScanOverlay hits={[]} snapshot="data:image/png;base64,fixture" onClose={() => {}} onTip={() => {}} onPreviewFile={() => {}} />);
+  await waitFor(() => expect(paints).toContain('rgba(12, 14, 20, 0.4)'));
+  state.appearance = { cssVars: { '--scrim': 'rgba(30, 24, 28, 0.2)' } };
+  act(() => { for (const fn of state.listeners) fn(state.appearance); });
+  await waitFor(() => expect(paints).toContain('rgba(30, 24, 28, 0.2)'));
+  view.unmount(); expect(state.listeners.size).toBe(0);
+});

@@ -1,0 +1,12 @@
+import { fixture } from '../../.agents/skills/ui-verification/assets/fixture-api';
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import '@workbench/src/renderer/src/i18n';
+import { StoreProvider } from '@workbench/src/renderer/src/store';
+import { AgentComposer } from '@workbench/src/renderer/src/components/AgentComposer';
+import { applyTheme } from '@workbench/src/renderer/src/theme';
+import { builtinTheme } from '@workbench/src/shared/theme';
+const theme = new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+applyTheme(builtinTheme(theme)!);
+const replies = ['好的', '请先检查现有测试结果，再整理需要我确认的具体问题和建议的下一步。', '再说明一下'];
+createRoot(document.getElementById('root')!).render(<StoreProvider><main style={{ padding: 16, minHeight: '100vh', background: 'var(--bg-panel)' }}><AgentComposer workspaceId="reply-visual" surfaceKind="gui-session" busy={false} replySuggestions={{ messageId: 'one', replies }} onClearReplySuggestions={async () => ({ ok: true, cleared: true })} onClear={async () => {}} onSend={async text => { fixture.sent.push(text); return true; }}/></main></StoreProvider>);

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 术语与叙事统一（条目7）逐区块对照</title>
+<!-- 记忆面板改造计划 · 条目 7 原型：脑图文案/图例/页签头叙事/全局术语对照。左右=现状/改后。token 抄自 base.css。 -->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-panel: #1e1e1e; --bg-raised: #252526; --bg-overlay: #2a2a2a;
+    --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e; --hairline: #2c2c2c;
+    --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --bg-inset: rgba(127,127,127,0.08); --selected-fill: rgba(250,250,250,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', Consolas, 'OPPO Sans', monospace;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.65; padding: 26px 0 80px; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 18px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  h2 { font-size: var(--font-control); font-weight: 500; margin: 30px 0 12px; color: var(--text-2); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pair .col { border-radius: var(--radius-card); padding: 14px 16px; }
+  .pair .before { background: color-mix(in srgb, var(--bg-raised) 55%, transparent); border: 1px dashed var(--hairline); }
+  .pair .after { background: var(--bg-raised); box-shadow: var(--shadow-card); }
+  .col-label { font-size: 10.5px; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .before .col-label { color: var(--text-3); } .after .col-label { color: var(--green); }
+  .node-card { padding: 10px 14px; border-radius: var(--radius-control); background: var(--bg-canvas); margin-bottom: 8px; }
+  .node-card .t { font-weight: 500; } .node-card .s { font-size: var(--font-caption); color: var(--text-3); }
+  .tip-mock { padding: 10px 12px; border-radius: var(--radius-small); background: var(--bg-canvas); font-size: var(--font-caption); color: var(--text-2); margin-top: 4px; }
+  .tip-mock b { color: var(--ink); font-weight: 500; display: block; margin-bottom: 2px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: var(--font-caption); color: var(--text-2); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .tabbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+  .tab { padding: 3px 12px; border-radius: var(--radius-pill); font-size: var(--font-caption); color: var(--text-2); background: var(--bg-inset); }
+  .tab.is-active { background: var(--selected-fill); color: var(--ink); }
+  .narrative { margin-top: 8px; padding: 8px 12px; border-radius: var(--radius-small); background: color-mix(in srgb, var(--blue) 7%, transparent); color: var(--text-2); font-size: var(--font-caption); }
+  .narrative b { color: var(--blue); font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--font-caption); }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--hairline); vertical-align: top; }
+  th { color: var(--text-3); font-weight: 500; }
+  td.old { color: var(--text-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--red) 45%, transparent); white-space: nowrap; }
+  td.new { color: var(--ink); }
+  .del-note { color: var(--red); font-size: var(--font-caption); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 7 · 术语与叙事统一）。四组对照：①脑图节点与悬停解释去黑话 ②图例收敛 ③每个页签顶部加一句"你在看什么" ④全局黑话对照表（含条目 2 已定的部分，此处全局化）。左侧现状、右侧改后。</div>
+
+  <h2>① 脑图节点与悬停解释</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="node-card"><div class="t">情景暂存池</div><div class="s">SQLite · 永不自动注入</div></div>
+      <div class="tip-mock"><b>海马体 · 情景暂存池（staging）</b>memory.note 与转录摄入的候选先落这里，等巩固流程按真实召回信号决定去留。永不自动注入会话。</div>
+      <div class="node-card"><div class="t">策展核心 · MEMORY.md</div><div class="s">worker + scheduler 双库 · 预算 16K</div></div>
+      <div class="tip-mock"><b>新皮层 · 策展核心（长期存储）</b>markdown 为 canonical，SQLite 只是派生索引；bootstrap 注入 + 逐回合预算装箱（16K）。</div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="node-card"><div class="t">情景暂存池</div><div class="s">记忆的排队区 · 不会自动带进对话</div></div>
+      <div class="tip-mock"><b>情景暂存池 —— 记忆的排队区</b>Agent 的新记忆先落在这里排队，等巩固引擎按"有没有真的被用到"决定去留：用得多就转正，没用就过期清掉。</div>
+      <div class="node-card"><div class="t">策展核心</div><div class="s">长期记忆库 · 注入对话有字数预算</div></div>
+      <div class="tip-mock"><b>策展核心 —— 长期记忆库</b>保留下来的记忆存在两个 markdown 文件里（Worker 共享 / 调度专用）；每次对话开始按优先级装进有限字数预算注入。</div>
+    </div>
+  </div>
+
+  <h2>② 图例（六色 → 四色，砍「门禁」「记录流转」）</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>自动通过</span>
+        <span><i style="background:var(--yellow)"></i>需人工把关</span>
+        <span><i style="background:var(--blue)"></i>注入与检索</span>
+        <span><i style="background:var(--purple)"></i>意图提醒</span>
+        <span><i style="background:var(--red)"></i>门禁</span>
+        <span><i style="background:rgba(158,158,158,0.6)"></i>记录流转</span>
+      </div>
+      <div class="del-note">红「门禁」在图上无线条对应；「记录流转」含义过泛——都砍。</div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="legend">
+        <span><i style="background:var(--green)"></i>自动通过</span>
+        <span><i style="background:var(--yellow)"></i>需要你把关</span>
+        <span><i style="background:var(--blue)"></i>带进对话</span>
+        <span><i style="background:var(--purple)"></i>主动提醒</span>
+      </div>
+    </div>
+  </div>
+
+  <h2>③ 页签头叙事行（每页一句"你在看什么"）</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="tabbar"><span class="tab">总览</span><span class="tab is-active">晋升审阅</span><span class="tab">审批队列</span><span class="tab">索引状态</span></div>
+      <div class="tip-mock">（进入后直接是统计卡，不知道这一页在系统里扮演什么角色）</div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="tabbar"><span class="tab">总览</span><span class="tab is-active">晋升审阅</span><span class="tab">审批队列</span><span class="tab">索引状态</span></div>
+      <div class="narrative"><b>晋升审阅</b> · 记忆怎么被筛选入库：Agent 的新记忆先排队（暂存池），巩固引擎按"有没有被真用到"决定谁转正——这里能看到每一轮筛掉了什么、留下了什么。</div>
+    </div>
+  </div>
+
+  <h2>④ 全局黑话对照表（写入实施规约，逐页签生效）</h2>
+  <table>
+    <tr><th>现状用词</th><th>统一为人话</th><th>出现位置</th></tr>
+    <tr><td class="old">海马体 / 前额叶 / 新皮层 / 前扣带回 / 突触修剪</td><td class="new">删除脑区定语（机制人话为主标题，脑区词最多保留在图标级彩蛋）</td><td>脑图 tip 标题</td></tr>
+    <tr><td class="old">staging / bootstrap 注入 / Lane1 / canonical / 16K 装箱</td><td class="new">排队区 / 每次对话开始带入 / 基础注入方式 / 以 markdown 文件为准 / 字数预算</td><td>脑图 sub、tip、索引状态</td></tr>
+    <tr><td class="old">注入与检索</td><td class="new">带进对话</td><td>图例</td></tr>
+    <tr><td class="old">意图提醒 / standing intents</td><td class="new">主动提醒（"以后每当…就提醒我"）</td><td>图例、意图页空态</td></tr>
+    <tr><td class="old">worker / scheduler（对用户展示时）</td><td class="new">Worker 共享 / 调度专用</td><td>条目总览、脑图</td></tr>
+    <tr><td class="old">模糊命中 / 相关分 / 判重（给用户看时）</td><td class="new">与已有记忆相似 / 匹配程度 / 跟已有记忆几乎一样</td><td>审阅、审批、试验台</td></tr>
+    <tr><td class="old">条目 2 表内全部条目（污点/门过/ambiguous…）</td><td class="new">见条目 2 对照表，全局生效</td><td>全部页签</td></tr>
+  </table>
+  <div class="del-note" style="color:var(--text-3)">注：对照表是文案规约不是硬性清单——实施时以「用户第一次见到能懂」为准绳逐条过；工具名（memory.note 等）保留原名不翻译。</div>
+</div>
+</body>
+</html>

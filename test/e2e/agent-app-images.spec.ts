@@ -1,0 +1,93 @@
+import { test, expect, _electron } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { buildSync } from 'esbuild';
+
+test('相册通过真实手机界面导入、显示和重启恢复', async () => {
+  test.setTimeout(115_000);
+  const root = path.resolve(__dirname, '../..'), appRoot = path.resolve(process.env.PHONE_TEST_BUILD_ROOT || root);
+  const temp = path.join(root, '.tmp'); fs.mkdirSync(temp, { recursive: true });
+  const fixture = fs.mkdtempSync(path.join(temp, 'phone-images-e2e-'));
+  if (path.dirname(path.resolve(fixture)) !== path.resolve(temp)) throw new Error('Unexpected fixture directory');
+  const data = path.join(fixture, '.dev-sandbox/userData'), project = path.join(fixture, 'work');
+  fs.mkdirSync(data, { recursive: true }); fs.mkdirSync(project);
+  fs.writeFileSync(path.join(data, 'config.json'), JSON.stringify({ locale: 'zh-CN', workspace: project, activeWorkspaceId: 'phone-test', workspaces: [{ id: 'phone-test', name: '图片实验室', path: project }], mcp: { enabled: false, servers: [] } }));
+  const bundle = path.join(fixture, 'seed.cjs');
+  buildSync({ entryPoints: [path.join(appRoot, 'src/main/agentApps/service.ts')], outfile: bundle, bundle: true, platform: 'node', format: 'cjs', logLevel: 'silent' });
+  const { AgentAppsService } = require(bundle);
+  const seed = new AgentAppsService({ root: path.join(data, 'agent-apps'), workspaces: () => ['phone-test'], emit() {}, encrypt: (x: string) => x, decrypt: (x: string) => x, confirmSend: async () => false, authorizeDefinition: async () => true, deliver: async () => ({ muted: true }), connectors: { feed: async () => [], sync: async () => ({ records: [], cursor: {} }), send: async () => { throw new Error('No external send in fixture'); }, test: async () => {}, listFeishuChats: async () => ({ chats: [] }) } });
+  const album = await seed.installFromLibrary('phone-test', 'template:photo-album');
+  await seed.install('phone-test', { ...album, version: album.version + 1, views: [...album.views, { id: 'sandbox-preview', title: '沙箱预览', kind: 'custom', collection: 'items', commands: ['create', 'update', 'remove'], html: `<img id="preview" alt="沙箱图片"><script>let old;app.onPresent(async()=>{const r=await app.query({limit:1});if(!r.records?.length)return;if(old)app.releaseAsset(old);old=await app.asset(r.records[0].values.image,true);document.getElementById('preview').src=old});</script>` }] });
+  seed.store.close();
+  const image = path.join(fixture, 'fixture.png');
+  fs.writeFileSync(image, await require('sharp')({ create: { width: 480, height: 240, channels: 3, background: '#317eae' } }).png().toBuffer());
+  const capture = path.join(root, '.tmp/ui-captures/agent-app-images'); fs.mkdirSync(capture, { recursive: true });
+  const env = Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  for (const key of ['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'MUSTER_NO_SANDBOX', 'MUSTER_DEVTOOLS_PORT', 'MUSTER_WEB_PORT']) delete env[key];
+  const fixtureHome = path.join(fixture, 'user-profile'); fs.mkdirSync(fixtureHome, { recursive: true });
+  env.USERPROFILE = fixtureHome; env.APPDATA = path.join(fixture, 'appdata'); env.LOCALAPPDATA = path.join(fixture, 'localappdata');
+  fs.mkdirSync(env.APPDATA, { recursive: true }); fs.mkdirSync(env.LOCALAPPDATA, { recursive: true });
+  if (process.platform !== 'win32') env.HOME = fixtureHome;
+  env.MUSTER_SANDBOX = '1'; env.MUSTER_INSTANCE_ID = `phone-images-${process.pid}`;
+  const bootstrap = path.join(fixture, 'bootstrap.cjs');
+  fs.writeFileSync(bootstrap, `const {app}=require('electron');app.setPath('appData',${JSON.stringify(env.APPDATA)});app.setPath('userData',${JSON.stringify(data)});app.setAppPath(${JSON.stringify(appRoot)});require(${JSON.stringify(path.join(appRoot, 'out/main/index.js'))});`);
+  let application: Awaited<ReturnType<typeof _electron.launch>> | undefined;
+  const openPhone = async () => {
+    const win = await application!.firstWindow();
+    await win.locator('.app-shell').waitFor({ timeout: 60_000 });
+    const boot = await win.evaluate(() => window.api.app.bootWait());
+    expect(boot.ok, JSON.stringify(boot)).toBe(true);
+    await expect.poll(async () => (await win.evaluate(() => window.api.workspaces.list())).activeWorkspaceId).toBe('phone-test');
+    await expect.poll(async () => (await win.evaluate(() => window.api.extensions.snapshot('phone-test')))
+      .listing.global.find(item => item.id === 'daily-report')?.status, { timeout: 30_000 }).toBe('approved');
+    await expect(win.getByTestId('confirm-mask')).toHaveCount(0);
+    const installed = await win.evaluate(() => window.api.agentApps.snapshot('phone-test'));
+    expect(installed.apps.some(item => item.definition.id === 'example-photo-album')).toBe(true);
+    const activeWorkspace = win.locator('.agent-ws-stack-item.is-active');
+    if (!await activeWorkspace.evaluate(node => node.classList.contains('is-chatting'))) await activeWorkspace.getByRole('button', { name: '对话', exact: true }).click();
+    await expect(win.locator('.agent-phone-toggle')).toBeEnabled();
+    await win.locator('.agent-phone-toggle').click();
+    const phone = win.getByRole('region', { name: '图片实验室的手机' });
+    await expect(phone.getByRole('heading', { name: '我的应用' })).toBeVisible();
+    return { win, phone };
+  };
+  try {
+    application = await _electron.launch({ executablePath: require('electron'), args: [bootstrap], cwd: fixture, env });
+    await application.evaluate(({ dialog, BrowserWindow }, source) => {
+      BrowserWindow.getAllWindows()[0].setSize(1100, 850);
+      (dialog as any).showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
+    }, image);
+    let { win, phone } = await openPhone();
+    await phone.getByRole('button', { name: /相册/ }).click();
+    await phone.getByRole('button', { name: '新增', exact: true }).click();
+    await phone.getByLabel('名称').fill('海边');
+    await phone.getByRole('button', { name: '选择图片' }).click();
+    await expect(phone.getByRole('img', { name: '图片' })).toBeVisible();
+    await phone.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(phone.getByRole('button', { name: '海边' })).toBeVisible();
+    await expect.poll(() => phone.locator('.ap-image-thumb').evaluate((node: HTMLImageElement) => node.naturalWidth)).toBeGreaterThan(0);
+    await phone.screenshot({ path: path.join(capture, 'album-dark.png'), animations: 'disabled' });
+    await phone.getByRole('button', { name: '海边' }).click();
+    await expect(phone.getByRole('img', { name: '海边' })).toBeVisible();
+    await expect.poll(() => phone.getByRole('img', { name: '海边' }).evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(480);
+    await phone.screenshot({ path: path.join(capture, 'detail-dark.png'), animations: 'disabled' });
+    await win.evaluate(() => window.api.themes.activate('light'));
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+    await phone.screenshot({ path: path.join(capture, 'detail-light.png'), animations: 'disabled' });
+    await phone.getByRole('button', { name: '返回', exact: true }).click();
+    await phone.getByRole('button', { name: '沙箱预览', exact: true }).click();
+    const customImage = phone.locator('.ap-scene[data-active="true"] .ap-custom').frameLocator('iframe').getByRole('img', { name: '沙箱图片' });
+    await expect(customImage).toBeVisible();
+    await expect.poll(() => customImage.evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(256);
+    await application.close(); application = undefined;
+    application = await _electron.launch({ executablePath: require('electron'), args: [bootstrap], cwd: fixture, env });
+    ({ win, phone } = await openPhone());
+    await phone.getByRole('button', { name: /相册/ }).click();
+    await phone.getByRole('button', { name: '海边' }).click();
+    await expect.poll(() => phone.getByRole('img', { name: '海边' }).evaluate((node: HTMLImageElement) => node.naturalWidth)).toBe(480);
+    expect(fs.readdirSync(path.join(data, 'agent-apps')).some(file => file.endsWith('.sqlite'))).toBe(true);
+  } finally {
+    await application?.close();
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
+});

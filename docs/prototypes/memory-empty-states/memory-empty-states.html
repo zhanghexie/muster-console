@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 空态引导与冷启动（条目8）对照</title>
+<!-- 记忆面板改造计划 · 条目 8 原型：描述式空态 → 引导式空态（会发生什么 + 现在能做什么）。token 抄自 base.css。 -->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-raised: #252526; --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e;
+    --hairline: #2c2c2c; --green: #45d0a0; --yellow: #dcc765; --blue: #6cc2ff; --purple: #a88fff;
+    --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.65; padding: 26px 0 80px; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 18px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  h2 { font-size: var(--font-control); font-weight: 500; margin: 28px 0 12px; color: var(--text-2); }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col { border-radius: var(--radius-card); padding: 14px 16px; min-height: 150px; }
+  .before { background: color-mix(in srgb, var(--bg-raised) 55%, transparent); border: 1px dashed var(--hairline); }
+  .after { background: var(--bg-raised); box-shadow: var(--shadow-card); }
+  .col-label { font-size: 10.5px; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .before .col-label { color: var(--text-3); } .after .col-label { color: var(--green); }
+  .empty { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 22px 6px; }
+  .empty .title { font-weight: 500; }
+  .empty .desc { font-size: var(--font-caption); color: var(--text-3); }
+  .empty .acts { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .ui-btn { padding: 4px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn.is-primary { background: var(--selected-fill); border-color: transparent; }
+  .ui-btn:hover { background: rgba(250,250,250,0.05); }
+  .step-list { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; font-size: var(--font-caption); color: var(--text-2); }
+  .step-list .st { display: flex; gap: 8px; align-items: baseline; }
+  .step-list .n { flex: none; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-inset); color: var(--text-2); font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 8 · 空态引导与冷启动）。三组代表性空态对照。原则：<b>描述式 → 引导式</b>——每个空态回答"这里将来会出现什么 + 现在能做什么"，并给可点行动。</div>
+
+  <h2>① 条目总览（全新工作区，一条记忆都没有）</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="empty"><span class="title">AI 还没有记住任何东西</span><span class="desc">Workers distill decisions, preferences and lessons into docs/memory/MEMORY.md while working (contract in AGENTS.md); you can also add entries here manually.（中英混排的长说明）</span></div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="empty">
+        <span class="title">还没有记忆——它们会随着干活慢慢长出来</span>
+        <div class="step-list">
+          <span class="st"><span class="n">1</span>你派活时强调的决策、踩过的坑，会被 Worker 沉淀到这里</span>
+          <span class="st"><span class="n">2</span>你说「记住…」的句子会立刻入库（唯一不等巩固的通道）</span>
+          <span class="st"><span class="n">3</span>先有一条：点下面手动写一条试试，看它怎么被注入对话</span>
+        </div>
+        <div class="acts"><button class="ui-btn is-primary">＋ 手动写第一条</button><button class="ui-btn">去总览看原理</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>② 审批队列（没有待审项）</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="empty"><span class="title">暂无待审批操作</span><span class="desc">巩固产生的删除 / 取代 / 低置信晋升会进入这里，等待你批准或驳回；待审期间旧条目继续生效。</span></div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="empty">
+        <span class="title">没有需要你把关的改动</span>
+        <span class="desc">这不是坏事：大多数记忆由巩固引擎自动入库；只有「把握不足」或「要改写旧记忆」的操作才会来这等你点头。出现时会有角标和系统通知。</span>
+        <div class="acts"><button class="ui-btn">看自动入库了什么</button></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>③ 暂存池（候选全空——配合条目 6）</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="empty"><span class="title">（区块不存在/无候选时无说明）</span></div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="empty">
+        <span class="title">暂存池是空的</span>
+        <span class="desc">Agent 产生新记忆时会先到这里排队（每次对话、每个会话收尾都可能进几条），巩固引擎空闲时按召回信号筛选。池子空 = 暂时没有新记忆在排队。</span>
+        <div class="acts"><button class="ui-btn">了解筛选规则</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="proto-note" style="margin-top:22px"><b>统一规约</b>：空态 = 一句状态判断（人话）+ 一句机制预告（会发生什么）+ 0~2 个行动按钮（能做的立即做，不能做的指向讲解）。全部空态文案进条目 7 的术语规约统一审。</div>
+</div>
+</body>
+</html>

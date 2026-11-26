@@ -1,0 +1,83 @@
+export default async function ({ page, capture, assert }) {
+  const select = page.getByRole('combobox', { name: '工作区', exact: true });
+  assert.equal(await select.evaluate(el => getComputedStyle(el).appearance), 'base-select');
+  const open = async locator => {
+    await locator.click();
+    await page.waitForFunction(() => { const el = document.querySelector('select:open'); return el && getComputedStyle(el, '::picker(select)').opacity === '1'; });
+  };
+  const closed = async () => page.waitForFunction(() => !document.querySelector('select:open'));
+  await capture('closed');
+  await select.press('ArrowDown');
+  await page.waitForFunction(() => !!document.querySelector('select:open'));
+  await page.keyboard.press('End');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), '工作区 20');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('select:open'), '::picker(select)').opacity === '1');
+  await capture('long-list-end');
+  await page.keyboard.press('ArrowUp');
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), '工作区 18', 'disabled option is skipped');
+  await page.keyboard.press('Enter');
+  await closed();
+  assert.equal(await select.inputValue(), '18');
+  assert.equal(await page.getByTestId('changes').textContent(), '1');
+  assert.equal(await select.evaluate(el => el === document.activeElement), true);
+  await open(select);
+  await page.keyboard.press('Escape');
+  await closed();
+  assert.equal(await page.getByTestId('closed').textContent(), '0', 'Escape must not close parent');
+  await select.press('ArrowDown');
+  await page.keyboard.press('Tab');
+  await closed();
+  await page.waitForFunction(() => document.activeElement?.textContent === '后一个控件');
+  await open(select);
+  await page.keyboard.press('Shift+Tab');
+  await closed();
+  await page.waitForFunction(() => document.activeElement?.textContent === '关闭顶层');
+
+  await open(select);
+  await page.getByRole('option', { name: '工作区 18', exact: true }).click();
+  assert.equal(await page.getByTestId('changes').textContent(), '2', 'explicit same-value selection still confirms the choice');
+  await open(select);
+  await page.keyboard.press('Enter');
+  assert.equal(await page.getByTestId('changes').textContent(), '3', 'same-value keyboard activation reports once');
+
+  const permission = page.getByRole('combobox', { name: '权限', exact: true });
+  await open(permission);
+  await capture('rich-options');
+  await page.getByRole('option', { name: /完全访问/ }).click();
+  await closed();
+  assert.equal(await permission.inputValue(), 'full');
+  assert.equal(await permission.locator('.c-select-button').textContent(), '◇完全访问TUI');
+  const compact = page.getByRole('combobox', { name: '紧凑权限', exact: true });
+  await open(compact);
+  await page.getByRole('option', { name: /安全执行/ }).hover();
+  await page.getByRole('tooltip').filter({ hasText: '允许读取文件' }).waitFor();
+  assert.equal(await page.getByRole('tooltip').evaluate(el => el.matches(':popover-open')), true);
+  await capture('compact-tooltip');
+  await page.keyboard.press('Escape');
+  await closed();
+
+  const path = page.getByRole('combobox', { name: '运行位置' });
+  await open(path);
+  await capture('bottom-paths');
+  const bounds = await path.locator('option').evaluateAll(elements => elements.map(e => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; }));
+  const viewport = page.viewportSize();
+  assert.ok(bounds.every(r => r.top >= 0 && r.bottom <= viewport.height && r.left >= 0 && r.right <= viewport.width));
+  assert.ok(bounds.at(-1).bottom <= (await path.boundingBox()).y, 'bottom picker flips above the trigger');
+  await page.keyboard.press('Escape');
+  await closed();
+  await open(select);
+  // A host confirmation taking focus must dismiss the old UA top layer.
+  await page.getByRole('button', { name: '后一个控件' }).focus();
+  await closed();
+  assert.equal(await page.evaluate(() => document.activeElement?.textContent), '后一个控件');
+  await open(select);
+  await page.keyboard.press('Escape');
+  await select.press('ArrowDown');
+  await page.waitForFunction(() => !!document.querySelector('select:open'));
+  await page.keyboard.press('Escape');
+  await closed();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await open(select);
+  assert.equal(await select.evaluate(el => getComputedStyle(el, '::picker(select)').transitionDuration), '0s');
+  await page.keyboard.press('Escape');
+}

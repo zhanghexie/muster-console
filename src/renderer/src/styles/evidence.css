@@ -1,0 +1,353 @@
+/* ---------- 证据页（T4.5）：时间线弹窗 ----------
+ * 进出场走 mp-panel/mp-scrim 骨架（dialogs.css .modal-mask/.modal 外壳），
+ * 条目展开走 .acc 手风琴（base.css）；本文件只做布局与内容样式，
+ * 时长/曲线一律 token（--dur-* / --ease-*），无字面量。 */
+
+.evidence-modal {
+  width: min(720px, calc(100vw - 48px));
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  max-height: 82vh;
+  overflow: hidden; /* 滚动下放 ev-body */
+}
+
+.evidence-modal .modal-head {
+  flex: none;
+}
+
+.ev-head-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.ev-refresh:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+.ev-refresh:disabled:hover {
+  background: transparent;
+}
+
+.ev-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ev-empty {
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-muted);
+}
+
+.ev-meta {
+  flex: none;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.ev-meta-span {
+  font-family: var(--font-mono);
+}
+
+/* 时间线：左竖线 + 节点点（kind 色） */
+.ev-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 2px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+}
+
+.ev-timeline::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: var(--border-subtle);
+}
+
+.ev-item {
+  position: relative;
+  padding-left: 16px;
+}
+
+.ev-item::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 13px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-muted);
+}
+
+.ev-item.ev-flip::before {
+  background: var(--status-info-fg);
+}
+
+.ev-item.ev-bgtask::before {
+  background: var(--purple);
+}
+
+.ev-item.ev-shot::before {
+  background: var(--status-success-fg);
+}
+
+/* 留言账本：中性灰，session_ended 转警示红 */
+
+.ev-item.ev-msg::before {
+  background: var(--fg-muted);
+}
+
+.ev-item.ev-msg.is-ended::before {
+  background: var(--status-danger-fg);
+}
+
+/* 头行：整行可点（翻转/摘要条目展开收起） */
+.ev-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 6px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ev-item-head:hover {
+  background: var(--interaction-hover);
+}
+
+.ev-item-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+
+
+.ev-item-side {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ev-item-src {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.ev-flip-after {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 0 4px;
+}
+
+.ev-bgtask-cmd {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ev-item-chev {
+  flex: none;
+  color: var(--fg-muted);
+  transition: transform var(--dur-menu) var(--ease-standard);
+}
+
+.ev-item-chev.is-open {
+  transform: rotate(180deg);
+}
+
+/* 展开体：凹槽底（confirm-detail 同款视觉） */
+.ev-item-body {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin: 2px 6px 8px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  padding: 8px 10px;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+.ev-flip-pre,
+.ev-bgtask-pre {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+/* browser 截图条目：行内缩略，点击放大（ImageLightbox） */
+.ev-shot-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+.ev-shot-label {
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+  /* 回合截图带 tab url（可能很长）：单行省略，全文走 title */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-shot-thumb {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: none;
+  margin-left: auto;
+  height: 44px;
+  max-width: 160px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color var(--dur-micro) var(--ease-hover);
+}
+
+.ev-shot-thumb:hover {
+  border-color: var(--border-focus);
+}
+
+.ev-shot-thumb img {
+  display: block;
+  height: 100%;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.ev-shot-missing {
+  margin-left: auto;
+  font-size: var(--font-caption);
+}
+
+
+
+
+.ev-item-note {
+  margin: 0 6px 4px;
+  padding-left: 2px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 留言账本条目（O10）：头行时间+发信人+正文摘要+回执胶囊 */
+.ev-msg-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px 6px;
+}
+
+.ev-msg-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ev-msg.is-ended .session-capsule {
+  color: var(--status-danger-fg);
+}

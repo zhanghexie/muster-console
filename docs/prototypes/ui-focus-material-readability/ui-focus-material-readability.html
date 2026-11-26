@@ -1,0 +1,747 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MetaAgent · 色彩、材质与空间层级对照</title>
+  <style>
+    @font-face {
+      font-family: 'OPPO Sans';
+      font-weight: 400;
+      font-display: swap;
+      src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'OPPO Sans';
+      font-weight: 500;
+      font-display: swap;
+      src: url('https://www.oppo.com/content/dam/statics/fonts/cn/OPPOSans3.0cn-Medium.woff2') format('woff2');
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: #101012;
+      color: #e9e9eb;
+      font: 13px/1.45 'OPPO Sans', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .study {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px;
+    }
+    .controls {
+      align-self: start;
+      position: sticky;
+      top: 18px;
+      padding: 22px;
+      border: 1px solid #343439;
+      border-radius: 16px;
+      background: #1c1c1f;
+      box-shadow: 0 18px 44px #0005;
+    }
+    .eyebrow { margin: 0 0 8px; color: #9b9ba1; font-size: 11px; letter-spacing: .07em; }
+    .controls h1 { margin: 0; font-size: 20px; font-weight: 500; line-height: 1.3; }
+    .lead { color: #a7a7ae; line-height: 1.6; margin: 10px 0 22px; }
+    .control-block { border-top: 1px solid #343439; padding: 17px 0 0; margin: 17px 0 0; }
+    .control-title { margin: 0 0 10px; font-size: 12px; color: #c8c8cd; font-weight: 500; }
+    .mode-switch, .structure-switch, .dock-mode-switch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .mode-switch button, .structure-switch button, .dock-mode-switch button, .theme-switch button, .sample-actions button {
+      min-height: 34px;
+      padding: 6px 9px;
+      background: #29292d;
+      border: 1px solid #39393f;
+      border-radius: 8px;
+      color: #bcbcc2;
+    }
+    .mode-switch button[aria-pressed="true"], .structure-switch button[aria-pressed="true"], .dock-mode-switch button[aria-pressed="true"], .theme-switch button[aria-pressed="true"] {
+      background: #e2e2e6;
+      border-color: #e2e2e6;
+      color: #17171a;
+      font-weight: 500;
+    }
+    .toggle-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      margin: 11px 0;
+      color: #e0e0e4;
+      cursor: pointer;
+    }
+    .toggle-row input { margin: 3px 0 0; accent-color: #d9d9de; }
+    .toggle-row small { display: block; margin-top: 2px; color: #8e8e96; line-height: 1.5; }
+    .theme-switch { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .swatches { display: flex; gap: 9px; margin-top: 12px; }
+    .swatch {
+      width: 28px;
+      height: 28px;
+      border: 2px solid transparent;
+      border-radius: 50%;
+      background: var(--swatch);
+    }
+    .swatch[aria-pressed="true"] { outline: 1px solid #eee; outline-offset: 2px; }
+    .note { margin: 18px 0 0; color: #9b9ba1; font-size: 12px; line-height: 1.55; }
+    .preview-wrap { min-width: 0; }
+    .preview-heading {
+      height: 42px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      color: #aaaab1;
+    }
+    .preview-heading strong { color: #e8e8eb; font-weight: 500; }
+    .preview-heading span { font-size: 12px; text-align: right; }
+    .app-preview {
+      --accent: #ef8155;
+      --frame: #111112;
+      --canvas: #141416;
+      --panel: #1b1b1d;
+      --raised: #232326;
+      --ink: #ededee;
+      --text-2: #a3a3a8;
+      --text-3: #74747a;
+      --hairline: #2a2a2d;
+      --selected-fill: rgba(255,255,255,.08);
+      --hover-fill: rgba(255,255,255,.05);
+      --input-surface: color-mix(in srgb, var(--raised) 86%, transparent);
+      --shadow-input: inset 0 1px 0 rgba(255,255,255,.08), inset 0 16px 28px -16px rgba(255,255,255,.06), 0 1px 2px rgba(0,0,0,.35), 0 14px 36px -10px rgba(0,0,0,.55);
+      position: relative;
+      isolation: isolate;
+      height: min(810px, calc(100vh - 90px));
+      min-height: 670px;
+      overflow: hidden;
+      border: 1px solid #37373c;
+      border-radius: 15px;
+      background: var(--frame);
+      color: var(--ink);
+      box-shadow: 0 20px 60px #0007;
+    }
+    .app-preview::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(440px 460px at 9% 94%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 78%);
+    }
+    .app-preview[data-theme="light"] {
+      --frame: #ebeae6;
+      --canvas: #f2f1ee;
+      --panel: #fff;
+      --raised: #f5f4f1;
+      --ink: #202024;
+      --text-2: #626269;
+      --text-3: #898990;
+      --hairline: #d6d5d2;
+      --selected-fill: rgba(0,0,0,.07);
+      --hover-fill: rgba(0,0,0,.04);
+      --input-surface: color-mix(in srgb, var(--raised) 91%, transparent);
+      --shadow-input: inset 0 1px 0 rgba(255,255,255,.9), inset 0 16px 28px -16px rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.10), 0 12px 30px -10px rgba(0,0,0,.13);
+    }
+    .app-preview.readable:not([data-theme="light"]) { --text-3: #98989d; }
+    .app-preview.readable[data-theme="light"] { --text-3: #65656c; }
+    .app-top {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      gap: 19px;
+      padding: 0 14px;
+      color: var(--text-2);
+      font-size: 12px;
+    }
+    .app-top .brand { display: flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 500; }
+    .brand-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+    .app-top .spacer { flex: 1; }
+    .mini-icon { color: var(--text-3); font-size: 16px; }
+    .app-body { display: grid; grid-template-columns: 210px minmax(0, 1fr) 214px; gap: 8px; height: calc(100% - 44px); padding: 0 8px 8px; }
+    .sheet {
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent), 0 2px 6px #0003;
+    }
+    .left { display: flex; flex-direction: column; padding: 15px 10px 8px; }
+    .section-label { color: var(--text-3); font-size: 12px; font-weight: 500; letter-spacing: .02em; }
+    .utility-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin: 10px 0 23px; }
+    .utility {
+      min-height: 55px;
+      border: 0;
+      border-radius: 12px;
+      background: var(--hover-fill);
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 4px;
+      padding: 6px 3px;
+      font-size: 12px;
+    }
+    .utility .symbol { font-size: 16px; line-height: 1; }
+    .utility.active { color: var(--ink); background: color-mix(in srgb, var(--ink) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 2px #0003; }
+    .session-list { margin-top: 8px; }
+    .session {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+    }
+    .session + .session { margin-top: 3px; }
+    .session .status { color: #45d0a0; font-size: 15px; }
+    .session .info { flex: 1; min-width: 0; }
+    .session .name, .session .sub { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session .name { font-size: 13px; font-weight: 500; }
+    .session .sub, .session .age { color: var(--text-3); font-size: 12px; }
+    .session .age { align-self: flex-start; margin-top: 2px; }
+    .session.active { background: color-mix(in srgb, var(--ink) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 1px 2px #0003; }
+    .workspace-list { margin-top: auto; display: grid; gap: 6px; padding: 10px 3px 2px; }
+    .workspace-row { min-height: 32px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--hairline); border-radius: 18px; background: var(--raised); box-shadow: var(--shadow-input); color: var(--text-2); }
+    .workspace-row.active { border-color: color-mix(in srgb, var(--accent) 38%, var(--hairline)); color: var(--ink); }
+    .workspace-row .avatar { width: 18px; height: 18px; flex: 0 0 18px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--accent) 24%, var(--panel)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent); color: var(--ink); font-size: 10px; }
+    .workspace-row .workspace-trigger { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0; border: 0; background: none; color: inherit; text-align: left; }
+    .workspace-row .ws-action { min-width: 38px; padding: 3px 7px; border: 1px solid var(--hairline); border-radius: 999px; background: transparent; color: var(--text-3); font-size: 11px; line-height: 1; }
+    .workspace-row:not(.active) .ws-action { pointer-events: none; }
+    .app-preview.scheduler-open .workspace-row.active .ws-action { border-color: transparent; background: var(--accent); color: #151517; font-weight: 500; }
+    .chat { display: flex; flex-direction: column; min-width: 0; }
+    .chat-head { height: 53px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; }
+    .chat-head strong { font-size: 14px; font-weight: 500; }
+    .chat-head .detail { color: var(--text-3); font-size: 12px; }
+    .conversation { flex: 1; min-height: 0; overflow: auto; padding: 20px max(28px, 8%); }
+    .turn { max-width: 690px; margin: 0 auto 27px; }
+    .turn-label { margin-bottom: 7px; color: var(--text-3); font-size: 12px; }
+    .bubble { border-radius: 12px; background: var(--raised); padding: 13px 15px; font-size: 15px; line-height: 1.6; }
+    .answer { color: var(--ink); font-size: 15px; line-height: 1.55; }
+    .answer p { margin: 0 0 9px; }
+    .answer h2 { margin: 16px 0 5px; font-size: 15px; font-weight: 500; }
+    .answer .meta { margin: 9px 0 0; color: var(--text-3); font-size: 12px; line-height: 1.35; }
+    .answer .tagline { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px; }
+    .tag { padding: 2px 6px; border-radius: 5px; background: var(--hover-fill); color: var(--text-3); font-size: 11px; }
+    .tag.accent { background: color-mix(in srgb, var(--accent) 18%, var(--raised)); color: color-mix(in srgb, var(--accent) 72%, var(--ink)); }
+    .composer-area { padding: 7px 23px 18px; }
+    .composer {
+      min-height: 115px;
+      padding: 12px 14px 10px;
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--hairline));
+      border-radius: 16px;
+      background: var(--input-surface);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), 0 10px 40px -12px color-mix(in srgb, var(--accent) 30%, transparent), var(--shadow-input);
+    }
+    .composer-text { color: var(--ink); font-size: 14px; line-height: 1.55; }
+    .caret { border-left: 1px solid var(--ink); margin-left: 2px; }
+    .composer-foot { display: flex; align-items: center; gap: 12px; margin-top: 38px; color: var(--text-3); font-size: 12px; }
+    .composer-foot .spacer { flex: 1; }
+    .send { width: 25px; height: 25px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: #151517; }
+    .app-preview:not(.quiet-color) .send.is-stop { background: var(--ink); color: var(--canvas); }
+    .files { padding: 17px 8px; }
+    .files-head { display: flex; justify-content: space-between; align-items: center; padding: 0 7px 17px; font-size: 12px; }
+    .files-head .tabs { color: var(--text-3); }
+    .files-title { margin: 0 7px 10px; color: var(--text-3); font-size: 12px; }
+    .file {
+      width: 100%;
+      min-height: 29px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 7px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text-2);
+      text-align: left;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .file .file-name { overflow: hidden; text-overflow: ellipsis; }
+    .file .file-icon { color: var(--text-3); }
+    .file.indent { padding-left: 18px; }
+    .file.deep { padding-left: 30px; }
+    .file.active { background: var(--selected-fill); color: var(--ink); }
+    .file-hint { padding: 15px 8px; color: var(--text-3); font-size: 12px; line-height: 1.45; }
+
+    /* 候选一：前景色彩只留给收起、发送与终止；聚焦边框保留但不染色、不发光。 */
+    .app-preview.quiet-color .composer {
+      border-color: color-mix(in srgb, var(--ink) 28%, var(--hairline));
+      box-shadow: var(--shadow-input), inset 0 0 0 1px color-mix(in srgb, var(--ink) 7%, transparent);
+    }
+    .app-preview.quiet-color .tag.accent { background: var(--hover-fill); color: var(--text-2); }
+    .app-preview.quiet-color .brand-dot { background: var(--text-2); box-shadow: none; }
+    .app-preview.quiet-color .workspace-row.active { border-color: var(--hairline); background: var(--raised); box-shadow: var(--shadow-input); }
+    .app-preview.quiet-color .workspace-row .avatar { background: var(--raised); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent); }
+    .app-preview.quiet-color .scheduler-panel { background: color-mix(in srgb, var(--panel) 96%, transparent); border-color: var(--hairline); }
+    .app-preview.quiet-color .scheduler-panel .panel-close { background: var(--accent); border-color: transparent; color: #151517; }
+
+    /* 调度对话样本：点击工作区行打开；候选态的面板外壳中性，两个“收起”和发送/停止按钮保留工作区色。 */
+    .scheduler-panel {
+      position: absolute;
+      z-index: 5;
+      left: 226px;
+      bottom: 15px;
+      width: min(470px, calc(100% - 250px));
+      height: 545px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--hairline));
+      border-radius: 16px;
+      background: radial-gradient(90% 120px at 0% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 100%), color-mix(in srgb, var(--panel) 96%, transparent);
+      backdrop-filter: blur(14px) saturate(1.3);
+      box-shadow: 0 22px 56px #0009;
+    }
+    .scheduler-panel[hidden] { display: none; }
+    .scheduler-head { min-height: 65px; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 14px; }
+    .scheduler-head .identity { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; }
+    .scheduler-head .panel-avatar { width: 25px; height: 25px; display: grid; place-items: center; border: 1px solid var(--hairline); border-radius: 50%; background: var(--raised); font-size: 12px; }
+    .scheduler-head button { padding: 5px 8px; border: 1px solid var(--hairline); border-radius: 8px; background: transparent; color: var(--text-2); font-size: 12px; }
+    .scheduler-head .panel-reset { color: var(--text-3); }
+    .scheduler-body { flex: 1; min-height: 0; padding: 12px 19px; overflow: auto; }
+    .scheduler-time { text-align: center; color: var(--text-3); font-size: 11px; }
+    .scheduler-user { width: fit-content; margin: 19px 0 32px auto; padding: 9px 11px; border-radius: 10px; background: var(--raised); font-size: 13px; }
+    .scheduler-reply { font-size: 13px; line-height: 1.7; }
+    .scheduler-reply .byline { margin: 0 0 9px; color: var(--text-3); font-size: 11px; }
+    .scheduler-reply p { margin: 0 0 12px; }
+    .scheduler-composer { padding: 9px; }
+    .scheduler-composer .composer { min-height: 79px; padding: 9px 11px; border-radius: 12px; }
+    .scheduler-composer .composer-text { font-size: 12px; color: var(--text-3); }
+    .scheduler-composer .composer-foot { margin-top: 23px; }
+    .sample-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .sample-actions button:disabled { cursor: default; opacity: .48; }
+
+    /* 候选二：输入框材质的轻量亲属。无 36px 远影，适合连续列表。 */
+    .app-preview.material .session.active,
+    .app-preview.material .utility.active,
+    .app-preview.material .file.active {
+      background: color-mix(in srgb, var(--raised) 88%, transparent);
+      box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ink) 11%, transparent), inset 0 13px 20px -16px color-mix(in srgb, var(--ink) 10%, transparent), 0 0 0 1px color-mix(in srgb, var(--ink) 12%, transparent), 0 2px 4px #0003;
+      color: var(--ink);
+    }
+    .app-preview.material[data-theme="light"] .session.active,
+    .app-preview.material[data-theme="light"] .utility.active,
+    .app-preview.material[data-theme="light"] .file.active {
+      box-shadow: inset 0 1px 0 #fff, 0 0 0 1px #0002, 0 2px 5px #0001;
+    }
+
+    /* 候选三：只抬辅助阅读层；正文展开一点，低价值元信息收住。 */
+    .app-preview.readable .answer { line-height: 1.72; }
+    .app-preview.readable .answer p { margin-bottom: 15px; }
+    .app-preview.readable .answer h2 { margin: 22px 0 8px; }
+    .app-preview.readable .answer .meta { font-size: 13px; line-height: 1.5; }
+    .app-preview.readable .extra-meta { display: none; }
+    .app-preview.readable .session .sub { font-size: 12px; line-height: 1.5; }
+
+    /* 空间对照：文字、字号、色彩与列宽固定，只改整高边界和页内次级表面。 */
+    .app-preview.soft-boundaries .app-body { gap: 0; padding-left: 0; }
+    .app-preview.soft-boundaries .sheet { background: var(--panel); box-shadow: none; }
+    .app-preview.soft-boundaries .left { background: var(--frame); border-radius: 0; }
+    .app-preview.soft-boundaries .chat { border-radius: 12px 0 0 12px; }
+    .app-preview.soft-boundaries .files {
+      border-radius: 0 12px 12px 0;
+      background: color-mix(in srgb, var(--panel) 95%, var(--raised));
+    }
+    .app-preview.flat-interior .utility:not(.active) { background: transparent; }
+    .app-preview.flat-interior .workspace-row:not(.active) { background: transparent; border-color: transparent; box-shadow: none; }
+    .app-preview.flat-interior .bubble { background: color-mix(in srgb, var(--panel) 70%, var(--raised)); border-radius: 8px; }
+    .app-preview.flat-interior .tag,
+    .app-preview.flat-interior .tag.accent { background: transparent; padding-left: 0; padding-right: 0; margin-right: 8px; }
+
+    /* 独立原型复用 base.css 的 motion token 值；真正动画声明只引用 token。 */
+    .app-preview {
+      --dock-width: 210px;
+      --dur-panel: 280ms;
+      --dur-exit: 200ms;
+      --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-exit: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .app-body { grid-template-columns: var(--dock-width) minmax(0, 1fr); position: relative; }
+    .main-surface {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 214px;
+      gap: 8px;
+      min-width: 0;
+      min-height: 0;
+      transform: translateX(0);
+    }
+    .app-preview.soft-boundaries .main-surface { gap: 0; }
+    .dock-hotspot {
+      position: absolute;
+      z-index: 8;
+      left: 0;
+      top: calc(50% - 72px);
+      width: 17px;
+      height: 144px;
+      border: 1px solid var(--hairline);
+      border-left: 0;
+      border-radius: 0 10px 10px 0;
+      background: var(--raised);
+      color: var(--text-2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--dur-panel) var(--ease-standard);
+    }
+    .app-preview[data-dock-state="closed"] .dock-hotspot { opacity: .9; pointer-events: auto; }
+    .app-preview[data-dock-state="closed"] .app-body,
+    .app-preview[data-dock-state="peek"] .app-body { display: block; padding-left: 0; }
+    .app-preview[data-dock-state="closed"] .left,
+    .app-preview[data-dock-state="peek"] .left {
+      position: absolute;
+      z-index: 1;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: var(--dock-width);
+      height: auto;
+    }
+    .app-preview[data-dock-state="closed"] .main-surface,
+    .app-preview[data-dock-state="peek"] .main-surface {
+      position: absolute;
+      z-index: 2;
+      inset: 0 8px 0 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--panel);
+      transition: transform var(--dur-exit) var(--ease-exit);
+    }
+    .app-preview[data-dock-state="peek"][data-dock-mode="slide"] .main-surface {
+      transform: translateX(var(--dock-width));
+      transition: transform var(--dur-panel) var(--ease-standard);
+    }
+    .app-preview[data-dock-mode="overlay"][data-dock-state="closed"] .left,
+    .app-preview[data-dock-mode="overlay"][data-dock-state="peek"] .left {
+      z-index: 3;
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 16px 36px #0006;
+      transform: translateX(-105%);
+      transition: transform var(--dur-exit) var(--ease-exit);
+    }
+    .app-preview[data-dock-mode="overlay"][data-dock-state="peek"] .left {
+      transform: translateX(0);
+      transition: transform var(--dur-panel) var(--ease-standard);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .app-preview .main-surface, .app-preview .left, .dock-hotspot { transition: none !important; }
+    }
+
+    @media (max-width: 1180px) {
+      .study { grid-template-columns: 1fr; }
+      .controls { position: static; }
+      .app-preview { height: 760px; }
+    }
+    @media (max-width: 760px) {
+      .app-preview { --dock-width: 185px; }
+      .main-surface { grid-template-columns: minmax(0, 1fr); }
+      .files { display: none; }
+      .preview-heading { height: auto; min-height: 42px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="study">
+    <aside class="controls" aria-label="原型控制">
+      <p class="eyebrow">UI STUDY · 2026.09.29</p>
+      <h1>少一点颜色，多一点秩序</h1>
+      <p class="lead">同一组内容即时切换，观察色彩、选中材质和空间层级怎样影响阅读。这里是视觉原型，不代表已修改应用。</p>
+      <div class="mode-switch" role="group" aria-label="整体方案">
+        <button type="button" id="current" aria-pressed="false">当前近似</button>
+        <button type="button" id="candidate" aria-pressed="true">候选方案</button>
+      </div>
+      <div class="control-block">
+        <p class="control-title">逐项拆开看</p>
+        <label class="toggle-row"><input type="checkbox" id="quiet" checked><span>收敛工作区色<small>圆点、工作区行、调度面板及输入聚焦回中性。</small></span></label>
+        <label class="toggle-row"><input type="checkbox" id="material" checked><span>统一选中材质<small>三种列表共用轻量高光与浮起层次。</small></span></label>
+        <label class="toggle-row"><input type="checkbox" id="readable" checked><span>提高阅读清晰度<small>辅助文字更清楚，正文节奏更松。</small></span></label>
+      </div>
+      <div class="control-block">
+        <p class="control-title">空间结构 · 固定内容与配色</p>
+        <div class="structure-switch" role="group" aria-label="空间结构对照">
+          <button type="button" data-structure="baseline" aria-pressed="true">原三页</button>
+          <button type="button" data-structure="shell" aria-pressed="false">连成一面</button>
+          <button type="button" data-structure="inner" aria-pressed="false">压平页内</button>
+          <button type="button" data-structure="both" aria-pressed="false">两者叠加</button>
+        </div>
+        <p class="note" id="structure-note" aria-live="polite">基线：左、中、右三张整高浮动页；页内保留现有次级表面。</p>
+      </div>
+      <div class="control-block">
+        <p class="control-title">左栏折叠 · 动态对照</p>
+        <div class="dock-mode-switch" role="group" aria-label="左栏速览方式">
+          <button type="button" data-dock-mode="overlay" aria-pressed="false">现有覆盖式</button>
+          <button type="button" data-dock-mode="slide" aria-pressed="true">主面划开</button>
+        </div>
+        <div class="sample-actions" style="margin-top:8px">
+          <button type="button" id="dock-toggle">折叠左栏</button>
+          <button type="button" id="dock-peek" disabled>左缘唤出</button>
+        </div>
+        <p class="note" id="dock-note" aria-live="polite">固定展开：左栏占位。折叠后可按“左缘唤出”，也可把鼠标移到预览左缘的把手。</p>
+      </div>
+      <div class="control-block">
+        <p class="control-title">环境检查</p>
+        <div class="theme-switch" role="group" aria-label="主题">
+          <button type="button" id="dark" aria-pressed="true">深色</button>
+          <button type="button" id="light" aria-pressed="false">浅色</button>
+        </div>
+        <div class="swatches" role="group" aria-label="工作区色">
+          <button class="swatch" type="button" style="--swatch:#ef8155" data-accent="#ef8155" aria-label="橘色工作区" aria-pressed="true"></button>
+          <button class="swatch" type="button" style="--swatch:#8b7bff" data-accent="#8b7bff" aria-label="紫色工作区" aria-pressed="false"></button>
+          <button class="swatch" type="button" style="--swatch:#48c6a2" data-accent="#48c6a2" aria-label="绿色工作区" aria-pressed="false"></button>
+        </div>
+      </div>
+      <div class="control-block">
+        <p class="control-title">交互样本</p>
+        <div class="sample-actions">
+          <button type="button" id="panel-toggle">展开调度面板</button>
+          <button type="button" id="busy-toggle">查看终止态</button>
+        </div>
+      </div>
+      <p class="note">这个原型只检验方向：页面内容为示例，当前态按项目色值和样式关系近似重建。折叠动作是同屏模拟；真实右侧还有虚拟屏和内置浏览器，正式修改前会逐项验证。</p>
+    </aside>
+
+    <section class="preview-wrap" aria-label="界面预览">
+      <div class="preview-heading"><strong>工作页样本</strong><span id="mode-label">当前近似 · 三项未调整</span></div>
+      <div class="app-preview" id="preview" data-theme="dark">
+        <header class="app-top">
+          <span class="mini-icon">◉</span>
+          <span class="brand"><i class="brand-dot" aria-hidden="true"></i> metaagent ⌄</span>
+          <span>▥ 全局看板</span><span>📦 一键打包</span><span class="spacer"></span><span>设置 ⚙</span>
+        </header>
+        <div class="app-body">
+          <nav class="sheet left" aria-label="工作会话与实用功能">
+            <div class="section-label">实用功能</div>
+            <div class="utility-grid">
+              <button class="utility" type="button"><span class="symbol">◷</span>定时任务</button>
+              <button class="utility" type="button"><span class="symbol">▥</span>使用统计</button>
+              <button class="utility active" type="button"><span class="symbol">▣</span>记忆管理</button>
+              <button class="utility" type="button"><span class="symbol">⬡</span>扩展管理</button>
+            </div>
+            <div class="section-label">工作会话</div>
+            <div class="session-list">
+              <button class="session active" type="button"><span class="status">●</span><span class="info"><span class="name">UI 改版讨论</span><span class="sub">正在整理视觉方案</span></span><span class="age">刚刚</span></button>
+              <button class="session" type="button"><span class="status">◌</span><span class="info"><span class="name">修复文件预览</span><span class="sub">等待确认</span></span><span class="age">2h</span></button>
+              <button class="session" type="button"><span class="status">✓</span><span class="info"><span class="name">定时任务检查</span><span class="sub">已完成</span></span><span class="age">1d</span></button>
+            </div>
+            <div class="workspace-list">
+              <div class="workspace-row"><span class="avatar">F</span><span class="workspace-trigger">Fieldradar</span><span class="ws-action">空闲</span></div>
+              <div class="workspace-row active"><span class="avatar">M</span><button class="workspace-trigger" id="workspace-trigger" type="button">metaagent</button><button class="ws-action" id="workspace-action" type="button">对话</button></div>
+            </div>
+          </nav>
+
+          <div class="main-surface" id="main-surface">
+          <section class="sheet chat" aria-label="活跃会话示例">
+            <div class="chat-head"><strong>UI 改版讨论</strong><span class="detail">Claude Code · 正在对话</span></div>
+            <div class="conversation">
+              <div class="turn"><div class="turn-label">你 · 10:24</div><div class="bubble">主题色用得太频繁，输入框选中时的彩色光晕也影响阅读。列表选中态能不能和输入框用同一套材质？</div></div>
+              <div class="turn"><div class="turn-label">Agent · 10:25 <span class="extra-meta">· 已读取 7 个文件 · 3 次工具调用</span></div>
+                <div class="answer">
+                  <p>我把这次调整拆为色彩、选中材质和文字三个部分。每部分都能单独切换，便于判断到底是哪一处在制造视觉负担。</p>
+                  <h2>先处理聚焦与选中</h2>
+                  <p>顶栏圆点、工作区行、调度面板和输入聚焦回到中性；两个“收起”及发送/终止按钮保留工作区色。会话、文件和功能项使用同一套轻量选中表面。</p>
+                  <p>阅读区域先提高辅助文字的清晰度，再检查正文的行距和段落。较长的技术细节不挤在第一眼必须读完的位置。</p>
+                  <div class="tagline"><span class="tag accent">工作区色</span><span class="tag">选中材质</span><span class="tag extra-meta">样式 token</span><span class="tag extra-meta">交互状态</span></div>
+                  <p class="meta">下一步：确认这一版的方向，再应用到真实界面。<span class="extra-meta"> · 样例记录 2026-09-29 10:25:41</span></p>
+                </div>
+              </div>
+            </div>
+            <div class="composer-area"><div class="composer" role="textbox" aria-label="输入框聚焦态示例" aria-readonly="true"><div class="composer-text">我想先看原型里的选中态<span class="caret" aria-hidden="true">&nbsp;</span></div><div class="composer-foot"><span>＋</span><span>默认</span><span class="spacer"></span><span>模型 ▾</span><button class="send" type="button" aria-label="发送示意">↑</button></div></div></div>
+          </section>
+
+          <aside class="sheet files" aria-label="文件列表示例">
+            <div class="files-head"><strong>文件</strong><span class="tabs">Git　浏览器</span></div>
+            <div class="files-title">metaagent-workbench</div>
+            <button class="file" type="button"><span class="file-icon">▣</span><span class="file-name">src</span></button>
+            <button class="file indent" type="button"><span class="file-icon">▣</span><span class="file-name">renderer</span></button>
+            <button class="file deep" type="button"><span class="file-icon">▣</span><span class="file-name">styles</span></button>
+            <button class="file deep active" type="button"><span class="file-icon">◇</span><span class="file-name">chat.css</span></button>
+            <button class="file deep" type="button"><span class="file-icon">◇</span><span class="file-name">left.css</span></button>
+            <button class="file" type="button"><span class="file-icon">▣</span><span class="file-name">docs</span></button>
+            <button class="file" type="button"><span class="file-icon">◇</span><span class="file-name">design.md</span></button>
+            <div class="file-hint">选中 chat.css 时，看看它是否和左侧会话、功能项属于同一套表面。</div>
+          </aside>
+          </div>
+          <button class="dock-hotspot" id="dock-hotspot" type="button" aria-label="左缘唤出侧栏">›</button>
+        </div>
+        <section class="scheduler-panel" id="scheduler-panel" aria-label="调度面板示例" hidden>
+          <div class="scheduler-head">
+            <button class="panel-reset" type="button">重置</button>
+            <div class="identity"><span class="panel-avatar">M</span>metaagent</div>
+            <button class="panel-close" id="panel-close" type="button">收起</button>
+          </div>
+          <div class="scheduler-body">
+            <div class="scheduler-time">今天 10:18</div>
+            <div class="scheduler-user">帮我整理一下目前的 UI 问题。</div>
+            <div class="scheduler-reply">
+              <p class="byline">调度 Agent · 已完成</p>
+              <p>目前最明显的是工作区色使用得太密。选中行、顶栏标记和面板描边一起发亮，会持续分走阅读时的注意力。</p>
+              <p>候选方案让面板回到中性材质，保留两处“收起”作为可见的工作区操作。发送与终止仍使用工作区色。</p>
+            </div>
+          </div>
+          <div class="scheduler-composer"><div class="composer" role="textbox" aria-label="调度输入示例" aria-readonly="true"><div class="composer-text">对调度 Agent 说点什么…</div><div class="composer-foot"><span>＋</span><span>默认</span><span class="spacer"></span><span>模型 ▾</span><button class="send" type="button" aria-label="调度发送示意">↑</button></div></div></div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script>
+    const preview = document.getElementById('preview');
+    const toggles = [document.getElementById('quiet'), document.getElementById('material'), document.getElementById('readable')];
+    const currentButton = document.getElementById('current');
+    const candidateButton = document.getElementById('candidate');
+    const modeLabel = document.getElementById('mode-label');
+    const structureNotes = {
+      baseline: '基线：左、中、右三张整高浮动页；页内保留现有次级表面。',
+      shell: '连成一面：顶栏与侧栏共用框底，中间会话和右侧文件合为一张主内容页。',
+      inner: '压平页内：三张外页保留；减少未选中的功能格、工作区行、气泡和标签的表面感。',
+      both: '两者叠加：连续外壳加简化页内；选中行和输入框仍保留必要的材质。'
+    };
+
+    function setStructure(variant) {
+      if (!Object.hasOwn(structureNotes, variant)) variant = 'baseline';
+      preview.classList.toggle('soft-boundaries', variant === 'shell' || variant === 'both');
+      preview.classList.toggle('flat-interior', variant === 'inner' || variant === 'both');
+      document.querySelectorAll('[data-structure]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.structure === variant));
+      });
+      document.getElementById('structure-note').textContent = structureNotes[variant];
+      const url = new URL(location.href);
+      url.searchParams.set('structure', variant);
+      history.replaceState(null, '', url);
+    }
+    document.querySelectorAll('[data-structure]').forEach(button => button.addEventListener('click', () => setStructure(button.dataset.structure)));
+    setStructure(new URL(location.href).searchParams.get('structure') || 'baseline');
+
+    function refresh() {
+      const [quiet, material, readable] = toggles.map(toggle => toggle.checked);
+      preview.classList.toggle('quiet-color', quiet);
+      preview.classList.toggle('material', material);
+      preview.classList.toggle('readable', readable);
+      const count = Number(quiet) + Number(material) + Number(readable);
+      currentButton.setAttribute('aria-pressed', String(count === 0));
+      candidateButton.setAttribute('aria-pressed', String(count === 3));
+      modeLabel.textContent = count === 0 ? '当前近似 · 三项未调整' : count === 3 ? '候选方案 · 三项全部调整' : `自选对照 · 已调整 ${count} 项`;
+    }
+    currentButton.addEventListener('click', () => { toggles.forEach(toggle => toggle.checked = false); refresh(); });
+    candidateButton.addEventListener('click', () => { toggles.forEach(toggle => toggle.checked = true); refresh(); });
+    toggles.forEach(toggle => toggle.addEventListener('change', refresh));
+    for (const theme of ['dark', 'light']) {
+      document.getElementById(theme).addEventListener('click', () => {
+        preview.dataset.theme = theme;
+        for (const button of ['dark', 'light']) document.getElementById(button).setAttribute('aria-pressed', String(theme === button));
+      });
+    }
+    document.querySelectorAll('.swatch').forEach(button => button.addEventListener('click', () => {
+      preview.style.setProperty('--accent', button.dataset.accent);
+      document.querySelectorAll('.swatch').forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+    }));
+
+    const panel = document.getElementById('scheduler-panel');
+    const panelToggle = document.getElementById('panel-toggle');
+    const busyToggle = document.getElementById('busy-toggle');
+    const workspaceAction = document.getElementById('workspace-action');
+    let panelOpen = false;
+    let busy = false;
+    function refreshSamples() {
+      panel.hidden = !panelOpen || dockState === 'closed';
+      preview.classList.toggle('scheduler-open', panelOpen);
+      workspaceAction.textContent = panelOpen ? '收起' : '对话';
+      panelToggle.textContent = panelOpen ? '收起调度面板' : '展开调度面板';
+      busyToggle.textContent = busy ? '查看发送态' : '查看终止态';
+      document.querySelectorAll('.send').forEach(button => {
+        button.classList.toggle('is-stop', busy);
+        button.textContent = busy ? '■' : '↑';
+        button.setAttribute('aria-label', busy ? '终止示意' : '发送示意');
+      });
+    }
+    function togglePanel() { panelOpen = !panelOpen; refreshSamples(); }
+    panelToggle.addEventListener('click', togglePanel);
+    document.getElementById('workspace-trigger').addEventListener('click', togglePanel);
+    workspaceAction.addEventListener('click', togglePanel);
+    document.getElementById('panel-close').addEventListener('click', togglePanel);
+    busyToggle.addEventListener('click', () => { busy = !busy; refreshSamples(); });
+    document.querySelectorAll('.send').forEach(button => button.addEventListener('click', () => { busy = !busy; refreshSamples(); }));
+
+    const mainSurface = document.getElementById('main-surface');
+    const dockToggle = document.getElementById('dock-toggle');
+    const dockPeek = document.getElementById('dock-peek');
+    const dockHotspot = document.getElementById('dock-hotspot');
+    const dockLeft = preview.querySelector('.left');
+    const dockQuery = new URL(location.href).searchParams;
+    let dockMode = dockQuery.get('dock') === 'overlay' ? 'overlay' : 'slide';
+    let dockState = ['open', 'closed', 'peek'].includes(dockQuery.get('dockState')) ? dockQuery.get('dockState') : 'open';
+    let dockMotionTimer = 0;
+    let dockCloseTimer = 0;
+    function clearDockClose() { window.clearTimeout(dockCloseTimer); dockCloseTimer = 0; }
+    function refreshDock(animateCover = false) {
+      preview.dataset.dockMode = dockMode;
+      preview.dataset.dockState = dockState;
+      document.querySelectorAll('[data-dock-mode]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.dockMode === dockMode));
+      });
+      dockToggle.textContent = dockState === 'open' ? '折叠左栏' : '固定展开';
+      dockPeek.disabled = dockState === 'open';
+      dockPeek.textContent = dockState === 'peek' ? '收回速览' : '左缘唤出';
+      dockHotspot.tabIndex = dockState === 'closed' ? 0 : -1;
+      const behavior = dockMode === 'slide' ? '主工作面整体划开，右缘暂时被裁切。' : '左栏覆盖主内容，主内容保持原位。';
+      const state = dockState === 'open' ? '固定展开：左栏占位。' : dockState === 'closed' ? '固定折叠：主内容满宽。' : '临时速览：左栏已露出。';
+      document.getElementById('dock-note').textContent = state + behavior;
+      const url = new URL(location.href);
+      url.searchParams.set('dock', dockMode);
+      url.searchParams.set('dockState', dockState);
+      history.replaceState(null, '', url);
+      if (animateCover && dockMode === 'slide') {
+        mainSurface.style.transition = 'none';
+        mainSurface.style.transform = 'translateX(var(--dock-width))';
+        mainSurface.getBoundingClientRect();
+        requestAnimationFrame(() => {
+          mainSurface.style.transition = '';
+          mainSurface.style.transform = '';
+        });
+      }
+      refreshSamples();
+    }
+    function setDockState(next, animateCover = false) {
+      window.clearTimeout(dockMotionTimer);
+      clearDockClose();
+      dockState = next;
+      refreshDock(animateCover);
+    }
+    function toggleDock() {
+      if (dockState === 'open') { setDockState('closed', true); return; }
+      if (dockMode === 'overlay') { setDockState('open'); return; }
+      setDockState('peek');
+      const panelMs = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : Number.parseFloat(getComputedStyle(preview).getPropertyValue('--dur-panel'));
+      dockMotionTimer = window.setTimeout(() => { dockState = 'open'; refreshDock(); }, panelMs);
+    }
+    dockToggle.addEventListener('click', toggleDock);
+    dockPeek.addEventListener('click', () => setDockState(dockState === 'peek' ? 'closed' : 'peek'));
+    document.querySelectorAll('[data-dock-mode]').forEach(button => button.addEventListener('click', () => {
+      if (dockState === 'peek') setDockState('closed');
+      dockMode = button.dataset.dockMode;
+      refreshDock();
+    }));
+    dockHotspot.addEventListener('pointerenter', () => { if (dockState === 'closed') setDockState('peek'); });
+    dockHotspot.addEventListener('click', () => { if (dockState === 'closed') setDockState('peek'); });
+    dockLeft.addEventListener('pointerenter', clearDockClose);
+    dockLeft.addEventListener('pointerleave', () => {
+      if (dockState !== 'peek' || panelOpen) return;
+      clearDockClose();
+      dockCloseTimer = window.setTimeout(() => setDockState('closed'), 500);
+    });
+    dockLeft.querySelectorAll('.session, .utility').forEach(button => button.addEventListener('click', () => {
+      if (dockState === 'peek') setDockState('closed');
+    }));
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && dockState === 'peek' && !event.target.closest('input, textarea, [contenteditable]')) setDockState('closed');
+    });
+    refresh();
+    refreshDock();
+  </script>
+</body>
+</html>

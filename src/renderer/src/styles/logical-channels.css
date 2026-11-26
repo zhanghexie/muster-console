@@ -1,0 +1,49 @@
+.logical-channels { min-width: 0; container: logical-channels / inline-size; }
+.logical-channel-toolbar, .logical-channel-actions, .logical-channel-setting, .logical-channel-source-heading {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px;
+}
+.logical-channel-toolbar { margin-bottom: 20px; }
+.logical-channel-toolbar > p { flex: 1; min-width: 160px; }
+.logical-channel-page { min-width: 0; }
+.logical-channel-page[data-mp-stage="in"] { transform: none; }
+.logical-channel-grid { display: grid; grid-template-columns: minmax(130px, 180px) minmax(0, 1fr); gap: 24px; }
+.logical-channel-sidebar, .logical-channel-detail { min-width: 0; }
+.logical-channel-list { display: grid; gap: 4px; margin-bottom: 16px; }
+.logical-channel-choice { position: relative; display: grid; text-align: start; gap: 4px; width: 100%; padding: 12px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--fg-secondary); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.logical-channel-choice:hover { background: var(--surface-raised); color: var(--fg-primary); }
+.logical-channel-choice[aria-current="page"] { color: var(--fg-selected-tab-primary); background: var(--selected-tab); }
+.logical-channel-choice[aria-current="page"]::before { content: ''; position: absolute; inset: 12px auto 12px 0; border-inline-start: 2px solid currentColor; }
+.logical-channel-choice small { color: inherit; font-size: var(--font-caption); }
+.logical-channel-form, .logical-channel-field, .logical-channel-remote-form { display: grid; gap: 12px; min-width: 0; }
+.logical-channel-form label, .logical-channel-field { display: grid; gap: 6px; }
+.logical-channel-form :is(input, .c-select), .logical-channel-field .c-select { width: 100%; min-width: 0; max-width: 100%; }
+.logical-channel-form input { padding: 8px 10px; border: 1px solid var(--surface-edge); border-radius: var(--radius-control); background: var(--surface-input); color: var(--fg-primary); font: inherit; }
+.logical-channel-form > .btn { justify-self: start; }
+.logical-channel-actions { justify-content: flex-start; }
+.logical-channel-actions > label { flex: 1; min-width: 120px; }
+.logical-channel-detail .s-sec { margin-top: 0; }
+.logical-channel-sources { display: grid; gap: 20px; margin-bottom: 16px; }
+.logical-channel-source { display: grid; gap: 10px; min-width: 0; }
+.logical-channel-source-heading strong { font-weight: 500; overflow-wrap: anywhere; }
+.logical-channel-source-heading p { margin: 4px 0 0; font-size: var(--font-caption); color: var(--fg-secondary); overflow-wrap: anywhere; }
+.logical-channel-source-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+.logical-channel-source-controls > * { flex: 1; min-width: 140px; max-width: 100%; }
+.logical-channel-setting { margin: 12px 0; }
+.logical-channel-setting > .c-select { min-width: 140px; max-width: 100%; }
+.logical-channel-notice { margin: 8px 0 0; color: var(--fg-secondary); font-size: var(--font-control); overflow-wrap: anywhere; }
+.logical-channel-notice:empty { margin: 0; }
+.logical-channel-empty { padding: 24px 0; }
+.logical-channel-empty h3 { margin: 0 0 8px; font-size: var(--font-ui); }
+.logical-channel-route { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border-radius: var(--radius-control); background: var(--surface-chrome); color: var(--surface-chrome-fg-primary); overflow-wrap: anywhere; }
+.logical-channel-code { display: grid; gap: 8px; padding: 12px 0; }
+.logical-channel-code p { margin: 0; }
+.logical-channel-code code { font-size: var(--font-ui); letter-spacing: .12em; user-select: text; }
+.logical-channel-diagnostics { display: grid; gap: 8px; margin: 0; }
+.logical-channel-diagnostics > div { display: flex; justify-content: space-between; gap: 16px; }
+.logical-channel-diagnostics dd { margin: 0; font-variant-numeric: tabular-nums; }
+.logical-channel-remote-form p { overflow-wrap: anywhere; }
+@container logical-channels (max-width: 560px) {
+  .logical-channel-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .logical-channel-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .logical-channel-choice { width: auto; flex: 1 1 140px; }
+}

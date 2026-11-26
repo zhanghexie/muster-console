@@ -1,0 +1,4761 @@
+/* settings.css — 由 styles.css 拆分（域：settings）。规范见 /design.md。修改请守住 token。 */
+
+
+.settings-ok {
+  margin: 0 0 8px;
+  font-size: var(--font-ui);
+  color: var(--status-success-fg);
+}
+
+/* 特异性压过 .settings-section label/input 的块级布局，无需 !important */
+.settings-section label.settings-check,
+.settings-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-control);
+}
+
+.settings-check input[type='checkbox'] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--fg-primary);
+}
+
+/* 设置页内所有复选框统一画成开关（保留原生 checkbox：可访问名/键盘/测试查询不变）。
+ * 特异性 0,2,1 且写在上条之后：压过 .settings-section input 的块级输入框样式 */
+.settings-page input[type='checkbox'],
+input.s-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--interaction-selected-hover);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.settings-page input[type='checkbox']::before,
+input.s-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--fg-secondary);
+  transition:
+    transform var(--dur-menu) var(--ease-standard),
+    background var(--dur-micro) var(--ease-hover);
+}
+
+.settings-page input[type='checkbox']:checked,
+input.s-switch:checked {
+  background: var(--action-bg);
+  box-shadow: none;
+}
+
+.settings-page input[type='checkbox']:checked::before,
+input.s-switch:checked::before {
+  background: var(--action-fg);
+  transform: translateX(14px);
+}
+
+.settings-page input[type='checkbox']:focus-visible,
+input.s-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--border-focus);
+}
+
+.settings-page input[type='checkbox']:disabled,
+input.s-switch:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+
+  background: var(--surface-raised);
+}
+
+.settings-page input[type='checkbox']:disabled::before,
+input.s-switch:disabled::before { background: var(--fg-disabled); }
+
+/* 开关打头、后接文字的行内 label（服务商思考选项/全局规约行等）：与文字留间距 */
+.settings-page label:not(.settings-check):has(> input[type='checkbox']:first-child) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mcp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.mcp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-card {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.mcp-card-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mcp-card-title {
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mcp-card-meta {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+/* 状态胶囊：soft 底 + 状态色文字（design.md §9）；中性态用灰 */
+.mcp-badge {
+  font-size: var(--font-caption);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  /* 默认态也给描边与底色，和 .s-tag 同一档可见度 */
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mcp-badge.on {
+  color: var(--status-success-fg);
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+}
+
+.mcp-badge.off {
+  color: var(--fg-muted);
+  border-color: color-mix(in srgb, currentColor 26%, transparent);
+  background: var(--surface-input);
+}
+
+.mcp-badge.warn {
+  color: var(--status-danger-fg);
+  border-color: var(--status-danger-border);
+  background: var(--status-danger-bg);
+}
+
+/* runtime 预检问题清单（设置 → Worker 终端） */
+.runtime-preflight-problems {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.runtime-preflight-problem code {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  font-size: var(--font-caption);
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--surface-input);
+}
+
+.mcp-card-body {
+  padding: 0 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mcp-card-body textarea {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  padding: 8px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-control);
+  background: var(--surface-input);
+  color: inherit;
+}
+
+.mcp-card-body textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.mcp-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.mcp-card-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mcp-scope-label {
+  flex: 1;
+  min-width: 180px;
+}
+
+.mcp-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.mcp-mode-toggle button {
+  margin: 0;
+  width: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg-secondary);
+  padding: 6px 12px;
+  font-size: var(--font-control);
+  cursor: pointer;
+}
+
+.mcp-mode-toggle button + button {
+  border-left: 1px solid var(--border-subtle);
+}
+
+.mcp-mode-toggle button.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.mcp-kv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mcp-kv-label {
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+}
+
+.mcp-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mcp-kv-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.mcp-kv-row input {
+  margin-top: 0;
+}
+
+.mcp-kv-remove {
+  padding: 6px 10px;
+  min-width: 32px;
+}
+
+.mcp-kv-add {
+  align-self: flex-start;
+}
+
+.mcp-json-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mcp-json-editor {
+  min-height: 180px;
+  font-family: var(--font-mono);
+}
+
+.mcp-json-error {
+  font-size: var(--font-caption);
+  color: var(--status-danger-fg);
+}
+
+:is(.settings-section, .s-sec) code {
+  font-size: var(--font-ui);
+  padding: 1px 4px;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+}
+
+.waiting-tips-list { padding: 12px 0 16px; color: var(--fg-secondary); font-size: var(--font-ui); }
+.waiting-tips-heading { color: var(--fg-primary); font-weight: 500; }
+.waiting-tips-list ul { margin: 8px 0; padding-left: 20px; line-height: 1.6; }
+.waiting-tips-list p { margin: 8px 0 0; overflow-wrap: anywhere; }
+.waiting-tips-path { color: var(--fg-muted); }
+
+/* ===== 设置页外壳：整窗「框与页」（design.md §1.1）=====
+ * 框 = 左导航直接画在工作区纯色上，页 = 右侧内容卡。
+ * 顶部 36px 留给窗口拖拽带与 Windows titleBarOverlay 按钮（与 .chrome-bar 同高）。 */
+.settings-page {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  padding-top: 36px;
+  box-sizing: border-box;
+  background: var(--surface-frame);
+  outline: none;
+}
+
+.settings-page--embedded {
+  position: absolute;
+  z-index: auto;
+  padding-top: 0;
+}
+
+.settings-page--embedded::before { display: none; }
+.settings-page--inactive { display: none; }
+.settings-center-host { position: relative; flex: 1; min-width: 0; min-height: 0; container: settings-host / inline-size; }
+
+@container settings-host (max-width: 560px) {
+  .settings-page--embedded { grid-template-columns: 104px minmax(0, 1fr); }
+  .settings-page--embedded .settings-nav { padding-inline: 4px; }
+  .settings-page--embedded .settings-kbd { display: none; }
+  .settings-page--embedded .settings-search { padding-inline: 5px; }
+  .settings-page--embedded .settings-back { padding-inline: 4px; }
+  .settings-page--embedded .settings-col { padding-inline: 12px; }
+}
+
+.settings-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 36px;
+  -webkit-app-region: drag;
+}
+
+/* 导航本身不裁剪（搜索浮层比导航宽，需压到页上）；滚动只下放给分组列表 */
+.settings-nav {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 4px 14px 16px;
+  -webkit-app-region: no-drag;
+}
+
+.settings-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--frame-fg-secondary);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover);
+}
+
+.settings-back:hover {
+  background: var(--frame-interaction-hover);
+  color: var(--frame-fg-primary);
+}
+
+.settings-kbd {
+  margin-left: auto;
+  padding: 1px 5px;
+  border-radius: var(--radius-small);
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+  font-family: inherit;
+  font-size: var(--font-micro);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.settings-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px 0 10px;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    box-shadow var(--dur-micro) var(--ease-hover);
+}
+
+.settings-search:focus-within {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  background: var(--surface-input);
+  box-shadow: 0 0 0 1px var(--border-focus);
+}
+
+.settings-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+}
+
+.settings-search input::placeholder {
+  color: var(--fg-muted);
+}
+
+.settings-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.settings-search-hits {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 340px;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px;
+  border-radius: var(--radius-card);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+  transform-origin: top left;
+}
+
+.settings-search-hit {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  cursor: pointer;
+}
+
+.settings-search-hit.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.settings-search-hit.is-active .settings-search-hit-d { color: var(--fg-selected-muted); }
+
+.settings-search-hit-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-search-hit-d {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.settings-search-hit mark {
+  background: var(--status-warning-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+.settings-search-empty {
+  padding: 10px 8px;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+
+/* 分组靠留白成块（2026-10-19）：原 14px 组距 + 无标记让 4 组读成一条 12 项长列表，
+ * 现用 36px 组距把组切开，组标题贴在本组上方；分组之间不画线。 */
+.settings-nav-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  flex: 1;
+  min-height: 0;
+  margin-top: 6px;
+  overflow-y: auto;
+}
+
+.settings-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-nav-group-title {
+  padding: 0 12px 6px;
+  color: var(--frame-fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* 列表行：中性选中填充与前景配对；主题色只作为框材质。 */
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--frame-fg-secondary);
+  font-size: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover);
+}
+
+.settings-nav-item:hover {
+  background: var(--frame-interaction-hover);
+  color: var(--frame-fg-primary);
+}
+
+.settings-nav-item.active {
+  --fg-primary: var(--frame-fg-selected-primary);
+  --fg-secondary: var(--frame-fg-selected-secondary);
+  --fg-muted: var(--frame-fg-selected-muted);
+
+  background: var(--frame-interaction-selected);
+  color: var(--frame-fg-selected-primary);
+}
+
+.settings-nav-item.active .settings-nav-label { font-weight: 500; }
+
+.settings-nav-item svg {
+  flex: none;
+  color: var(--frame-fg-muted);
+  transition: color var(--dur-micro) var(--ease-hover);
+}
+
+.settings-nav-item.active svg {
+  color: var(--frame-fg-selected-secondary);
+}
+
+.settings-nav-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 页：右侧内容卡，与主工作台中栏同一层级（L1） */
+.settings-sheet {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  margin: 0 8px 8px 0;
+  background: var(--surface-canvas);
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.settings-sheet > .empty-hint {
+  margin: auto;
+}
+
+/* 内容列 800px（888 含 44 左右留白）：920 太宽时行标题与右侧控件脱开，
+ * 收窄后一行读得完，行组也读成一整块。 */
+.settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  max-width: 888px;
+  margin: 0 auto;
+  padding: 0 44px 96px;
+  box-sizing: border-box;
+}
+
+/* 页标题与内容一起滚动，分组靠间距和内容框区分。 */
+.settings-pane-title {
+  position: static;
+  margin: 0 -44px;
+  padding: 24px 44px 0;
+  background: var(--surface-canvas);
+  border-bottom: 0;
+}
+
+.settings-pane-title h1 {
+  margin: 0 0 24px;
+  color: var(--fg-primary);
+  font-size: var(--font-head);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.settings-pane-title p {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1.5;
+}
+
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 外观页分区（design.md §3/§10：分区靠 caption 分组标题 + 间距，不画线） */
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group + .settings-group {
+  margin-top: 8px;
+}
+
+.settings-group-title {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+}
+
+/* 字体设置：样本预览行 */
+.font-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.font-preview {
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-control);
+  font-size: var(--font-body);
+  line-height: 1.6;
+  color: var(--fg-primary);
+  user-select: none;
+}
+
+:is(.settings-section, .s-sec) label {
+  display: block;
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+}
+
+:is(.settings-section, .s-sec) input,
+:is(.settings-section, .s-sec) select,
+:is(.settings-section, .s-sec) textarea {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  padding: 8px 10px;
+  font-size: var(--font-control);
+}
+
+:is(.settings-section, .s-sec) textarea {
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  line-height: 1.45;
+  resize: vertical;
+  min-height: 160px;
+}
+
+:is(.settings-section, .s-sec) :is(input, select, textarea):disabled {
+  color: var(--fg-disabled);
+  cursor: default;
+}
+
+/* 输入 focus：细描边 --focus-border，表面不动 */
+:is(.settings-section, .s-sec) input:focus,
+:is(.settings-section, .s-sec) select:focus,
+:is(.settings-section, .s-sec) textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+/* select：隐藏系统箭头，右侧自绘 chevron（原生的贴右边框太难看） */
+:is(.settings-section, .s-sec) select.s-native-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg-muted) 50%), linear-gradient(135deg, var(--fg-muted) 50%, transparent 50%);
+  background-repeat: no-repeat;
+  background-position: right 16px center, right 12px center;
+  background-size: 4px 4px;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+.cap-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cap-badge {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  display: inline-block;
+  font-size: var(--font-caption);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--interaction-selected);
+  color: var(--fg-selected-secondary);
+}
+
+.cap-badge.warn {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+}
+
+.cap-tool-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cap-tool-list li {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  font-size: var(--font-ui);
+  line-height: 1.4;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.cap-tool-name {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.cap-tool-desc {
+  display: block;
+  margin-top: 2px;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.cap-init-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+
+/* 全局行为规约：规则行（沉浸式，行内启停/编辑；编辑时摘要行变 textarea） */
+.cap-rule-row .s-input {
+  width: 100%;
+  margin: 0 0 8px;
+  resize: vertical;
+}
+
+/* 只读态：规则/提示词只露一行摘要，点「编辑」才进编辑态 */
+.cap-rule-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.cap-rule-line {
+  /* inline 元素上的 overflow:hidden 不生效，长规则会顶出 .s-row-l 压到右侧动作上 */
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  cursor: default;
+}
+
+.cap-prompt-line {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.cap-prompt-editor {
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* 代码内容块：L0 暗一档于所在 L2 卡片（design.md §1.1） */
+.cap-preview {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+  padding: 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+  color: var(--fg-secondary);
+  margin: 0;
+}
+
+/* 子页分区卡：L2 + hairline + radius-card + 内边距 12（design.md §9） */
+.settings-subsection {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  margin-top: 4px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-subsection-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.settings-hint-inline {
+  font-weight: 400;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.settings-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* 各页常驻挂载、叠放淡切（.xfade 过渡，栈容器 .settings-tabpanes 挂 xfade-stack）：
+   每页独立滚动、切页保留滚动位置与未保存草稿 */
+.settings-tabpane {
+  overflow-y: auto;
+  /* Keep the shared header aligned when switching between page and inner scrolling. */
+  scrollbar-gutter: stable;
+}
+
+/* 模型与输入使用同一个页签滚动容器，页标题和设置内容一起滚动。 */
+.settings-tabpane[data-settings-item='agent'] {
+  overflow-y: auto;
+}
+
+.settings-tabpane[data-settings-item='agent'] .settings-col {
+  height: auto;
+  padding-bottom: 96px;
+}
+
+.settings-tabpane[data-settings-item='agent'] .settings-col > .settings-section {
+  flex: 0 0 auto;
+}
+
+.settings-tabpane[data-settings-item='agent'] .llm-section,
+.settings-tabpane[data-settings-item='agent'] .model-input-settings {
+  height: auto;
+  overflow: visible;
+}
+
+[data-settings-item].is-settings-flash {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  border-radius: var(--radius-control);
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+/* 可折叠 subsection（<details> 版）：头行整行可点，箭头展开时旋转 90°。
+ * details 本身必须保持 block：设成 flex 会让展开体变成 flex item，
+ * 撑高不计入 details 盒高 → 祖先滚动容器 scrollHeight 偏小，长列表
+ * （注入清单等）视觉被裁切却滚不到底。summary / body 各自再 flex。 */
+.settings-subsection.collapsible {
+  display: block;
+  padding: 0;
+  gap: 0;
+}
+
+.settings-subsection.collapsible > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.settings-subsection.collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-subsection.collapsible > .collapsible-body {
+  padding: 2px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-subsection-title {
+  min-width: 0;
+}
+
+.settings-subsection-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+  flex: none;
+}
+
+.settings-chev {
+  color: var(--fg-muted);
+  flex: none;
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.settings-subsection.collapsible[open] > summary .settings-chev {
+  transform: rotate(90deg);
+}
+
+/* 设置内主从分栏统一格式（App Catalog / 文本工具等共用）：
+   默认固定 460px 不随内容撑高，左导航右内容各自内部滚动。L3 壳上的 L2 卡片（相邻层）。
+   模型服务商页由 .llm-section > .settings-split 覆盖为铺满 pane 余量。 */
+.settings-split {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: grid;
+  grid-template-columns: 224px 1fr;
+  height: 460px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.settings-split > * {
+  min-height: 0;
+}
+
+/* ===== App Catalog 分栏：共享 .settings-split 骨架，此处仅单行导航项与右栏内容补充 ===== */
+.cap-catalog-nav-item {
+  justify-content: space-between;
+}
+
+.cap-catalog-count {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  flex: none;
+}
+
+.cap-catalog-body {
+  padding: 12px 16px 16px;
+}
+
+.cap-catalog-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cap-catalog-filters input {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.cap-catalog-body .cap-tool-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 大模型服务商与模型管理（左右双列 Master-Detail） ---------- */
+
+.llm-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.llm-section-subhead {
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+.model-input-settings { overflow-y: auto; }
+.model-input-settings > .s-sec { flex-shrink: 0; }
+
+/* 本页分栏铺满 tabpane 余量（覆盖共享骨架 460px），左右同高、各自内滚。
+   Catalog / 文本工具仍走 .settings-split 默认高或各自覆盖（如 .tt-split）。 */
+.llm-section > .settings-split {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 0;
+}
+
+/* 左右两栏的共享骨架，模型服务商与 App Catalog 共用同一套：
+   左列 = nav（头 + 内滚列表 + 可选底栏），右列 = main（整体内滚，头部信息条 + 内容区）。 */
+
+/* ===== 左列导航骨架 =====
+   左右分界是 L2 卡片内部的 hairline 描边（design.md §1.1 认可的卡片内分区手段） */
+.settings-split-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  border-right: 1px solid var(--border-subtle);
+  padding: 12px 12px 12px 8px;
+}
+
+/* 栏头 = 分组标题：11px/500/--text-3，与列表用间距分区不画线 */
+.settings-split-nav-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 4px;
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+.settings-split-count {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+}
+
+.settings-split-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+/* 导航项外观：列表行规范（design.md §9）——radius-control、hover/选中只叠白，选中另加 2px 指示条 */
+.settings-split-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  min-width: 0;
+  color: var(--fg-primary);
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.settings-split-item:hover:not(.is-disabled) {
+  background: var(--interaction-hover);
+}
+
+.settings-split-item.is-selected {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+  
+}
+
+.settings-split-item.is-disabled {
+  opacity: 1; color: var(--fg-disabled);
+  background: transparent;
+}
+
+.settings-split-item.is-selected:hover:not(.is-disabled) { background: var(--interaction-selected-hover); }
+.settings-split-item.is-selected .settings-split-item-name { color: var(--fg-selected-primary); }
+.settings-split-item.is-selected .cap-catalog-count { color: var(--fg-selected-muted); }
+.settings-split-item.is-disabled .settings-split-item-name { color: var(--fg-disabled); }
+
+.settings-split-item-name {
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 右列骨架 ===== */
+.settings-split-main {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* 右列头部信息条（供应商详情 / 当前类别通用）：靠内边距分区不画线 */
+.settings-split-main-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 8px;
+  font-size: var(--font-control);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+/* ===== 左侧供应商导航（在共享骨架上补充：单行 = 头像+名称+状态指示） ===== */
+/* 头像归 pill 档（design.md §2）；emoji/首字符由 base.css 统一灰度 */
+.llm-sidebar-avatar {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.llm-sidebar-card-name {
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-primary);
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-sidebar-card-indicators {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.llm-sidebar-star {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  line-height: 1;
+}
+
+.llm-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-pill);
+  display: inline-block;
+}
+
+/* 状态点用统一状态前景，避免用光晕放大对比。 */
+.llm-status-dot.is-active {
+  background: var(--status-success-fg);
+  box-shadow: none;
+}
+
+.llm-status-dot.is-inactive {
+  background: var(--fg-muted);
+}
+
+.llm-sidebar-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  flex-shrink: 0;
+}
+
+/* 次按钮：透明底 + hairline 边，hover 只叠白（design.md §9） */
+.llm-sidebar-add-btn {
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.llm-sidebar-add-btn:hover {
+  background: var(--interaction-hover);
+}
+
+/* 内联展开面板（不 absolute，避免被 settings-pane overflow 裁切）。
+   浮层规范（design.md §7/§9）：L3 底 + shadow-pop + radius-card */
+.llm-add-menu-panel {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+}
+
+/* 菜单头 = 分组标题：caption/500/--text-3，与列表用间距分区不画线 */
+.llm-add-menu-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  padding: 2px 4px 4px;
+  flex-shrink: 0;
+}
+
+.llm-add-menu-close {
+  background: none;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.llm-add-menu-close:hover {
+  background: var(--interaction-hover);
+}
+
+.llm-add-menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* 菜单项：control 圆角、control 字阶，hover 叠白（design.md §9） */
+.llm-add-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-micro) var(--ease-hover);
+  width: 100%;
+  min-width: 0;
+}
+
+.llm-add-menu-item:hover {
+  background: var(--interaction-hover);
+}
+
+/* 菜单内 avatar 与侧栏统一 22px（design.md §6 固定尺寸） */
+.llm-add-menu-avatar {
+  width: 22px;
+  height: 22px;
+  font-size: var(--font-micro);
+}
+
+.llm-add-menu-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* 分组标题替代分隔线（design.md §3：优先分组标题，不画线） */
+.llm-add-menu-group-title {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+  padding: 6px 8px 2px;
+  flex-shrink: 0;
+}
+
+.llm-add-menu-item.is-custom {
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+/* ===== 右侧供应商详情配置（滚动由共享 .settings-split-main 提供） ===== */
+.llm-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: transparent;
+}
+
+.llm-detail-header-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.llm-detail-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.llm-detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.llm-detail-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.llm-detail-title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+/* 次按钮：透明底 + hairline 边；hover 只叠白 */
+.llm-icon-edit-btn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-control);
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.llm-icon-edit-btn:hover {
+  background: var(--interaction-hover);
+}
+
+.llm-name-edit-box {
+  display: flex;
+  align-items: center;
+}
+
+.llm-name-edit-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  font-size: var(--font-title);
+  font-weight: 500;
+  padding: 3px 8px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  outline: none;
+}
+
+.llm-name-edit-input:focus {
+  border-color: var(--border-focus);
+}
+
+/* 启用/禁用分段切换：凹槽底 + control 圆角；选中态按状态胶囊规范（soft 底 + 状态色文字），
+   状态色不做按钮主色（design.md §1.3）。内层片用 radius-small（嵌套递减：≤ control − 4px，design.md §2） */
+.llm-status-capsule-group {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: inline-flex;
+  align-items: center;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 2px;
+  gap: 2px;
+}
+
+.llm-capsule-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 10px;
+  border-radius: var(--radius-small);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+/* 未选中的半边 hover 叠白；选中态规则在其后，保持 soft 底不被覆盖 */
+.llm-capsule-btn:hover {
+  background: var(--interaction-hover);
+}
+
+.llm-capsule-btn.is-active-enabled {
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+  font-weight: 500;
+}
+
+.llm-capsule-btn.is-active-disabled {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  font-weight: 500;
+}
+
+.llm-detail-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.llm-badge-default-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+  border: 1px solid var(--border-subtle);
+  padding: 3px 8px;
+  border-radius: var(--radius-control);
+}
+
+/* 危险操作：红描边次按钮（design.md §10 全局弹窗行） */
+.llm-del-provider-btn {
+  background: transparent;
+  border: 1px solid var(--status-danger-border);
+  cursor: pointer;
+  font-size: var(--font-ui);
+  color: var(--status-danger-fg);
+  padding: 4px 8px;
+  border-radius: var(--radius-control);
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.llm-del-provider-btn:hover {
+  background: var(--status-danger-bg);
+}
+
+/* 连通性结果：soft 底 + 状态色文字（10–14% mix，design.md §1.3） */
+.llm-test-result-bar {
+  font-size: var(--font-ui);
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  margin-top: 4px;
+}
+
+.llm-test-result-bar.ok {
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+  border: 1px solid var(--status-success-border);
+}
+
+.llm-test-result-bar.error {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  border: 1px solid var(--status-danger-border);
+}
+
+/* 供应商配置表单区：右列 L2 上直排，靠 16px 间距与头部分区不画线 */
+.llm-detail-form-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.llm-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.llm-field-label {
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.llm-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.llm-field-label-tip {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+/* 思考强度映射：五档值一行排开（产品档名 + 服务商载荷值输入） */
+.llm-thinking-map-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.llm-thinking-map-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.llm-thinking-map-level {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.llm-thinking-map-flag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 思考方言下拉行：复用 flag 行距，但整行是控件不是可点 label */
+.llm-thinking-dialect-row {
+  cursor: default;
+  justify-content: flex-start;
+}
+
+.llm-thinking-dialect-row .llm-thinking-dialect-label {
+  flex: none;
+}
+
+.llm-thinking-dialect-row > :last-child {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 输入：凹槽底 + hairline 边 + focus 变 --text-2（design.md §9） */
+.llm-field-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  font-size: var(--font-control);
+  color: var(--fg-primary);
+  outline: none;
+  transition: border-color var(--dur-micro) var(--ease-hover), box-shadow var(--dur-micro) var(--ease-hover);
+}
+
+.llm-field-input:focus {
+  border-color: var(--border-focus);
+}
+
+.llm-password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.llm-password-input {
+  padding-right: 52px;
+}
+
+/* 输入框内嵌小钮：外层 control 6px 的嵌套递减取 4px（design.md §2） */
+.llm-password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.llm-password-toggle-btn:hover {
+  background: var(--interaction-hover);
+}
+
+/* 模型列表槽：L2 右列上的凹槽（暗一档），行 = L2 浮起 + 列表行规范 */
+.llm-model-card-list {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 2px;
+  padding: 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-input);
+}
+
+.llm-model-row-item {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 6px 10px;
+  transition: background var(--dur-micro) var(--ease-hover);
+  flex-shrink: 0;
+}
+
+.llm-model-row-item:hover {
+  background: var(--interaction-hover);
+}
+
+/* 当前项：叠白 + 左侧 2px 指示条（design.md §8），不换海拔不换边框 */
+.llm-model-row-item.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+  
+}
+
+.llm-model-row-item.is-active .llm-model-row-id { color: var(--fg-selected-primary); }
+.llm-model-row-item.is-active .llm-model-row-name { color: var(--fg-selected-secondary); }
+
+.llm-model-row-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.llm-model-star-badge {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  line-height: 1;
+}
+
+.llm-model-row-id {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-model-row-name {
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llm-model-row-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.llm-model-badge-ctx {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  padding: 1px 6px;
+  background: var(--interaction-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--fg-secondary);
+}
+
+.llm-model-meta-tag {
+  font-size: var(--font-micro);
+  padding: 1px 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--fg-secondary);
+  background: transparent;
+}
+
+/* 添加供应商菜单：目录项模型数 / 已添加态 */
+.llm-add-menu-count {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+}
+
+.llm-add-menu-added {
+  flex: none;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.llm-add-menu-item[data-already-added] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Catalog presence uses the shared panel skeleton. */
+.llm-catalog-picker {
+  width: 100%;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  padding: 6px;
+}
+
+.llm-catalog-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.llm-catalog-picker-item .llm-model-row-id { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.llm-catalog-feedback { flex-basis: 100%; margin: 4px 0; color: var(--fg-secondary); font-size: var(--font-caption); overflow-wrap: anywhere; }
+.llm-catalog-feedback span { display: block; }
+.llm-catalog-feedback.is-fallback { color: var(--fg-secondary); }
+
+.llm-catalog-picker-item:hover {
+  background: var(--interaction-hover);
+}
+
+.llm-model-tool-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  font-size: var(--font-caption);
+  padding: 2px 6px;
+  border-radius: var(--radius-control);
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.llm-model-tool-btn:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+/* 行内删除：hover 红字提示危险（design.md §1.3 文字着色） */
+.llm-model-tool-btn.is-delete:hover {
+  background: var(--interaction-hover);
+  color: var(--status-danger-fg);
+}
+
+/* 次按钮：透明底 + hairline 边，hover 只叠白 */
+.llm-add-model-trigger-btn {
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+  margin-top: 2px;
+}
+
+.llm-add-model-trigger-btn:hover {
+  background: var(--interaction-hover);
+}
+
+/* ===== 模型编辑 / 添加弹窗 =====
+   弹窗规范（design.md §7）：L3 底 + shadow-pop + radius-modal + --scrim 遮罩；
+   叠在设置弹窗(--z-modal)之上，取既有 --z-confirm 档（design.md §7 不新增 z 档） */
+.llm-modal-overlay {
+  z-index: var(--z-confirm);
+}
+
+.llm-model-dialog {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  width: 440px;
+  max-width: 90vw;
+  padding: 0;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-modal);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 弹窗头尾靠内边距分区，不画线（design.md §9） */
+.llm-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.llm-dialog-header h4 {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.llm-dialog-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.llm-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.llm-dialog-label {
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+/* F-06：添加模型命中同 ID 的覆盖确认提示（静态警示行，无进出场动画） */
+.llm-dialog-warn {
+  margin: 0;
+  font-size: var(--font-caption);
+  color: var(--status-warning-fg, var(--fg-muted));
+}
+
+.llm-dialog-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.llm-quick-ctx-group {
+  display: flex;
+  gap: 4px;
+}
+
+/* 快捷 chip：L3 弹窗内的 L2 小钮（相邻层），hover 只叠白 */
+.llm-quick-ctx-btn {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+  padding: 1px 5px;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.llm-quick-ctx-btn:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+/* 高级折叠：靠上距分区不画线 */
+.llm-dialog-accordion {
+  margin-top: 4px;
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.llm-accordion-btn {
+  background: none;
+  border: none;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  text-align: left;
+}
+
+.llm-accordion-btn:hover {
+  color: var(--fg-primary);
+}
+
+.llm-accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 6px;
+}
+
+.llm-dialog-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.llm-dialog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+/* 远程连接 · 网址列表：mono 等宽地址行 + 复制按钮 */
+.webaccess-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.webaccess-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.webaccess-url-row code {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webaccess-url-row .ui-btn {
+  flex: none;
+}
+
+.webaccess-url-tag {
+  flex: none;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+/* 二维码白底是扫码功能需求（内容对比度），非壳层用色 */
+.webaccess-qr {
+  display: block;
+  width: 224px;
+  height: 224px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+}
+
+/* 绑定码：数字状态码用 mono（design.md §5），字阶取 --font-title */
+
+.webaccess-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  line-height: 1.7;
+}
+
+/* 链接：单色体系下靠下划线区分，不用彩色（design.md §1.3） */
+
+/* 该区块被 ServiceView（定时任务服务面板）引用：布局保留，只修 token 违例 */
+.task-settings-grid {
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 20px 24px 0;
+}
+
+.task-settings-grid > div {
+  min-width: 0;
+}
+
+/* 分组标题：字重 500、字距 0.02em（design.md §5） */
+.task-settings-grid label {
+  margin-bottom: 8px;
+  color: var(--fg-muted);
+  font-size: var(--font-micro);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.task-settings-grid input,
+.task-settings-grid select,
+.task-settings-grid textarea {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  outline: none;
+}
+
+.task-settings-grid input:focus,
+.task-settings-grid select:focus,
+.task-settings-grid textarea:focus {
+  border-color: var(--border-focus);
+}
+
+/* 只读态（编辑门外）：内容保持可读，仅弱化描边与底色差异 */
+.task-settings-grid input:disabled,
+.task-settings-grid select:disabled,
+.task-settings-grid textarea:disabled,
+.task-settings-grid .weekday-toggle:disabled {
+  opacity: 1;
+  color: var(--fg-secondary);
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.task-settings-grid input,
+.task-settings-grid select {
+  min-height: 32px;
+  padding: 6px 8px;
+}
+
+.task-settings-grid textarea {
+  min-height: 190px;
+  padding: 12px;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: var(--font-control);
+  line-height: 1.6;
+}
+
+/* ---------- 定时任务：星期多选 ---------- */
+
+.weekday-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* chip：L2 底 + hairline，hover 只叠白；选中 = 主按钮式（--text 底近黑字，design.md §9） */
+.weekday-toggle {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  padding: 4px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.weekday-toggle:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.weekday-toggle.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  border-color: transparent;
+  color: var(--fg-selected-primary);
+}
+/* ---------- 主题外观：左列表 + 右 JSON 编辑器 ---------- */
+
+.theme-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.theme-list {
+  flex: 0 0 208px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+}
+
+/* 色卡：展示主题自己的颜色（inline style），双圆点示意文字/强调色 */
+.theme-swatch {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 22px;
+  height: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+}
+
+.theme-swatch i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+}
+
+.theme-row {
+  min-height: 32px;
+  padding: 4px 8px;
+}
+
+.theme-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 自定义主题行内删除：悬浮/聚焦/已武装才显形（时长/曲线只用 motion token） */
+.theme-row-del {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  opacity: 0;
+  /* 隐态不用隐藏语义属性：那会让 Tab 焦点遍历直接跳过该按钮、显形规则永不触发，
+     键盘用户到不了删除入口；收交互用 pointer-events */
+  pointer-events: none;
+  white-space: nowrap;
+  font: inherit;
+  font-size: var(--font-micro);
+  transition:
+    opacity var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover),
+    background var(--dur-micro) var(--ease-hover);
+}
+
+.theme-row:hover .theme-row-del,
+.theme-row:focus-within .theme-row-del,
+.theme-row-del:focus-visible,
+.theme-row-del.is-armed {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.theme-row-del:hover,
+.theme-row-del.is-armed {
+  color: var(--status-danger-fg);
+  background: var(--interaction-hover);
+}
+
+.theme-kind {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 0 5px;
+  line-height: 14px;
+}
+
+.theme-active-pill {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+  border-radius: var(--radius-pill);
+  padding: 0 5px;
+  line-height: 15px;
+}
+
+/* 「本工作区」徽标：工作区独立主题标记（theme-kind 的蓝色变体） */
+.theme-scope-ws {
+  color: var(--status-info-fg);
+  border-color: var(--status-info-border);
+}
+
+/* 当前工作区主题选择行（跟随全局 / 指定主题） */
+.theme-ws-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.theme-ws-row .lang-select {
+  width: 180px;
+  flex: none;
+}
+
+.theme-ws-row .lang-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.theme-list-sep {
+  padding: 10px 12px 2px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+}
+
+.theme-list-empty {
+  padding: 4px 12px 8px;
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+}
+
+.theme-new-btn {
+  margin-top: 8px;
+}
+
+.theme-create-box {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+.theme-create-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.theme-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 色盘编辑器：分组折叠（沉浸式，不再套卡） */
+.theme-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.theme-group > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 8px 0;
+  font-size: var(--font-ui);
+  font-weight: 500;
+  color: var(--fg-muted);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: color var(--dur-micro) var(--ease-hover);
+}
+
+.theme-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.theme-group > summary:hover {
+  color: var(--fg-primary);
+}
+
+.theme-group[open] > summary {
+  color: var(--fg-secondary);
+}
+
+.theme-group[open] > summary .settings-chev {
+  transform: rotate(90deg);
+}
+
+.theme-group-count {
+  margin-left: auto;
+  font-size: var(--font-micro);
+  font-family: var(--font-mono);
+  color: var(--fg-muted);
+}
+
+.theme-group-body {
+  padding: 2px 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 单行颜色：label + 取色器 + 透明度 + 色值文本。
+ * 选择器带 .settings-section 前缀：必须压过 .settings-section input 的
+ * width:100%/padding:8px 全局规则（否则取色器被撑成整行大色块）。 */
+.theme-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.theme-color-label {
+  flex: 0 0 150px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.settings-section .theme-color-swatch {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: inline-block;
+  flex: none;
+  width: 36px;
+  height: 24px;
+  margin-top: 0;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  cursor: pointer;
+}
+
+.settings-section .theme-color-swatch:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+.settings-section .theme-color-alpha {
+  display: inline-block;
+  flex: none;
+  width: 72px;
+  height: auto;
+  margin-top: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  accent-color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.settings-section .theme-color-alpha:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
+
+.settings-section .theme-color-text {
+  display: inline-block;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  min-height: 28px;
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+}
+
+.settings-section .theme-color-text.is-bad {
+  border-color: var(--red);
+}
+
+/* 主题名/外观编辑行 */
+.theme-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 界面语言行（外观页顶部）：与 theme-meta-row 同族栅格 */
+.lang-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lang-row .lang-select {
+  width: 160px;
+  flex: none;
+}
+
+.lang-row .lang-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.lang-row .settings-check {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.user-avatar-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.user-avatar-settings .lang-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  margin: 0;
+}
+
+.user-avatar-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.user-avatar-name-row .theme-meta-label {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.user-avatar-name-input {
+  width: 180px;
+  flex: none;
+}
+
+.theme-meta-row label {
+  display: inline;
+  margin-top: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.settings-section .theme-name-input {
+  display: inline-block;
+  width: 180px;
+  margin-top: 0;
+}
+
+.theme-appearance-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+/* 新建框内的输入同样要摆脱 .settings-section input 的 100% 宽 */
+.settings-section .theme-create-box input {
+  display: block;
+  width: 100%;
+  margin-top: 0;
+}
+
+.theme-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 0;
+  border-top: 0;
+  margin-top: 24px;
+}
+
+/* 删除两步确认的 armed 态：红底白字，提示即将真正删除 */
+.ui-btn.danger.is-armed {
+  background: var(--status-danger-bg);
+  border-color: transparent;
+  color: var(--status-danger-fg);
+}
+
+/* ---- 快捷键设置页 ---- */
+.kb-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.kb-lead {
+  margin: 0;
+}
+
+.kb-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-section input.kb-search {
+  flex: 1;
+  min-width: 160px;
+  margin-top: 0;
+}
+
+.kb-chord.is-recording,
+.kb-find-btn.is-recording,
+.kb-row.is-recording .kb-chord {
+  color: var(--fg-primary);
+  border-color: var(--fg-secondary);
+}
+
+.kb-find-chip {
+  font-size: var(--font-caption);
+}
+
+.kb-empty {
+  margin: 4px 0 0;
+}
+
+.kb-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kb-group-title {
+  margin: 10px 0 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.kb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 2px 6px 2px 8px;
+  border-radius: var(--radius-control);
+}
+
+.system-shortcut-form { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.system-shortcut-form .kb-search { flex: 1 1 180px; min-width: 0; }
+
+.kb-row:hover {
+  background: var(--interaction-hover);
+}
+
+.kb-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kb-row-title {
+  font-size: var(--font-control);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-conflict,
+.kb-custom {
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+}
+
+.kb-conflict {
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+}
+
+.kb-custom {
+  color: var(--fg-muted);
+  background: var(--interaction-hover);
+}
+
+.kb-chord {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex-shrink: 0;
+  min-width: 112px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  text-align: center;
+}
+
+.kb-chord:hover {
+  color: var(--fg-primary);
+  border-color: var(--fg-secondary);
+}
+
+.kb-icon-btn {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.kb-icon-btn:hover:not(:disabled) {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.kb-icon-btn:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+/* 聊天 Agent 接入：登记条目以留白分组。 */
+.driver-entry + .driver-entry {
+  border-top: 0;
+  margin-top: 24px;
+}
+
+.driver-entry .s-row-d {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.model-parameter-actions {
+  display: flex;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+/* ---------- Worker 注册表：可展开列表行（行内即编辑） ---------- */
+.rt-list,
+.llm-provider-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+/* 折叠行规格见文件末尾「折叠行统一规格」；这里只保留展开体与徽标列 */
+.llm-provider-body {
+  padding: 2px 12px 12px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.group-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px 0 6px;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.llm-add-model-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0 8px;
+}
+
+/* 目录供应商：Base URL 只读展示（pi 目录决定，不可调） */
+.llm-readonly-url {
+  display: inline-block;
+  max-width: 100%;
+  word-break: break-all;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+  line-height: 1.6;
+}
+
+.llm-add-anchor {
+  position: relative;
+}
+
+.llm-add-menu-search {
+  width: 100%;
+  flex: none;
+}
+
+.llm-add-menu-empty {
+  padding: 10px 8px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.llm-add-anchor .llm-add-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-popover);
+  width: 280px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.rt-row-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.rt-row-meta {
+  margin-left: auto;
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-family: var(--font-mono);
+}
+
+.rt-row-body {
+  padding: 2px 12px 10px 32px;
+}
+
+/* Worker 行：名称只留名字，「开箱 / GUI|TUI」这类固定属性与可用性一起做成右侧胶囊列，
+ * runtime id 不再单独占一列（与名称高度重复，改挂行 title）。
+ * 启用状态不再用行首小圆点（信息量低、每行都长一个点）：停用的行只把名称压暗。
+ * 注意：供应商行也复用 .rt-row-head，这里的 order 只能挂在 .rt-row 上。 */
+.rt-row > summary.rt-row-head > .settings-chev { order: 0; }
+.rt-row > summary.rt-row-head > .rt-row-title { order: 1; flex: 1; }
+.rt-row > summary.rt-row-head > .rt-row-tags { order: 2; margin-left: auto; }
+.rt-row > summary.rt-row-head > .mcp-badge { order: 3; }
+
+.rt-row.is-off > summary.rt-row-head > .rt-row-title {
+  color: var(--fg-muted);
+}
+
+.rt-row-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.rt-row-body .rt-variant {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- Worker 注册表：可展开列表行（行内即编辑）完 ---------- */
+
+/* ---------- 文本工具页（TextToolsPane）：功能手风琴（纵向展开，行内即编辑） ---------- */
+
+.tt-item > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.tt-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.tt-item > summary:hover {
+  background: var(--interaction-hover);
+}
+
+.tt-item > summary > .settings-chev {
+  color: var(--fg-muted);
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.tt-item[open] > summary > .settings-chev {
+  transform: rotate(90deg);
+}
+
+.tt-item-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-item > .s-adv-body {
+  padding: 4px 12px 8px 32px;
+}
+
+.tt-ai-error {
+  margin: 0;
+}
+
+.tt-prompt {
+  resize: vertical;
+  min-height: 120px;
+  font-family: var(--font-mono);
+  line-height: 1.5;
+}
+
+/* ── 关于页（版本 · 检查更新）── */
+.about-version {
+  margin: 4px 0 10px;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.about-version code {
+  font-family: var(--font-mono);
+}
+
+.about-download {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+/* 进度条只改 width 内联值、不加 transition（动画规约：避免 width 过渡） */
+.about-progress {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-input);
+  overflow: hidden;
+}
+
+.about-progress-fill {
+  height: 100%;
+  background: var(--status-info-fg);
+}
+
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.about-error {
+  color: var(--status-danger-fg);
+}
+
+/* ── 通知页（T1.4）：免打扰时段输入行 ── */
+.notify-dnd-times {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 0 4px;
+}
+
+.notify-dnd-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-control);
+  color: var(--fg-muted);
+}
+
+.notify-dnd-field input[type='time'] {
+  width: auto;
+  margin: 0;
+  color: var(--fg-primary);
+  accent-color: var(--fg-primary);
+}
+
+/* ============================================================
+ * 设置页行式原语（settings/shared.tsx：SettingsSection / SettingRow /
+ * FieldRow / Switch / Segmented / AdvancedDetails）
+ * 节标题与动作在外，整组内容使用统一圆角描边；行间不画线，
+ * 块间依靠 48px 留白（design.md §3/§10）
+ * ============================================================ */
+/* 节：标题 + 行组整块（2026-10-19 分区重构；序号已按用户意见去掉）。 */
+.settings-page { --settings-section-gap: 48px; --settings-group-content-gap: 12px; --settings-row-padding: 8px; --settings-row-min-height: 44px; --settings-field-gap: 6px; }
+
+.s-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.s-sec + .s-sec {
+  margin-top: var(--settings-section-gap, 48px);
+}
+
+/* 内容列已有 26px gap，直接相邻的分区补足统一节距。 */
+.settings-col > .s-sec + .s-sec {
+  margin-top: calc(var(--settings-section-gap, 48px) - 26px);
+}
+
+.s-sec-h {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 0;
+  padding: 0;
+}
+
+.settings-page .s-sec { gap: 0; }
+.settings-page .s-sec-h { margin-bottom: var(--settings-group-content-gap); padding: 0; border: 0; }
+.settings-page .settings-group-body { box-sizing: border-box; min-width: 0; padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: transparent; }
+.s-sec-body { display: flex; flex-direction: column; gap: 12px; }
+.attachment-input-groups { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+.settings-subgroup { min-width: 0; }
+.settings-subgroup-heading h3 { margin: 0; color: var(--fg-primary); font-size: var(--font-control); font-weight: 500; }
+.settings-subgroup-heading .s-sec-desc { margin: 4px 0 0; }
+.settings-subgroup > .s-rows { margin-top: 8px; }
+.s-sec-heading { flex: 1; min-width: 0; }
+.s-sec-heading .s-sec-desc { margin: 4px 0 0; }
+.s-sec-side { flex-shrink: 0; }
+
+.s-sec-h h2 {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: var(--font-title);
+  font-weight: 500;
+}
+
+.s-sec-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.s-sec-desc {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+  line-height: 1.6;
+}
+
+/* 整组由 settings-group-body 描边，内部行组不再重复套壳。 */
+[data-settings-layout='flat'] :is(.s-rows, .rt-list, .theme-groups) { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+
+/* 折叠列表（供应商 / Worker）和行组一样：块留 18px 内边距，行用负边距做 hover 底。
+ * 块若不留内边距、让行铺到块边，hover 底会盖住 1px inset 描边、并从圆角外露出来。 */
+
+/* 节级动作不参与拉伸，否则 flex 纵排会把按钮拉成整行。 */
+.s-sec-body > :is(.btn, .ui-btn) {
+  align-self: flex-start;
+}
+
+/* 行标题/说明：节内直接铺的按钮与提示不撑满整行 */
+.s-sec-body > .settings-hint {
+  margin: 0;
+}
+
+/* 节内动作行：保存类按钮靠右，不随 flex 纵排被拉成整行 */
+.s-sec-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* 行组：设置行/字段行的公共容器（不在 .s-sec 内时保持无壳） */
+.s-rows {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.s-card {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.s-card.s-card-pad {
+  gap: 12px;
+  padding: 16px;
+}
+
+.s-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--settings-row-min-height, 48px);
+  padding: var(--settings-row-padding, 13px) 0;
+  box-sizing: border-box;
+}
+
+/* 操作区以留白分组，不在块间添加分割线。 */
+.s-row.is-divided {
+  border-top: 0;
+  margin-top: 16px;
+}
+
+.s-row.is-stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+/* 字段行：标签在上、控件整行。输入框一律用字段行；开关/分段/下拉放设置行右侧 */
+.s-frow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--settings-field-gap, 7px);
+  padding: var(--settings-row-padding, 14px) 0;
+}
+
+.s-frow-label {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap; /* 长 tip 换行到标签下方，短 tip 仍同行 */
+  gap: 8px;
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.s-frow-title { margin: 0; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
+
+.s-frow-tip {
+  /* 800px 列下长提示与标签挤一行会顶到卡边；统一落到标签下一行 */
+  flex-basis: 100%;
+  font-size: var(--font-caption);
+  font-weight: 400;
+  color: var(--fg-muted);
+}
+
+.s-frow > .s-input,
+.s-frow > .llm-field-input {
+  width: 100%;
+}
+
+.s-row-l {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.s-row-t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.s-row-d {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1.6;
+}
+
+.s-row-d .settings-hint {
+  margin: 4px 0 0;
+}
+
+.s-row-r {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 60%;
+}
+
+/* 行右侧的短数值输入：标签在左、窄输入在右。字段行（标签在上、控件整行）
+ * 只留给 URL / 路径 / 长文；一串数字用字段行会被撑成每行一屏。 */
+.s-row-r > .s-input.is-num {
+  flex: none;
+  width: 104px;
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.s-row.is-stacked .s-row-r {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: none;
+}
+
+.s-row-preview {
+  padding-top: var(--settings-row-padding, 12px);
+  padding-bottom: var(--settings-row-padding, 12px);
+}
+
+.s-row-preview .font-preview {
+  flex: 1;
+}
+
+.s-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.s-inline > .s-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.s-muted {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.s-tag {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  /* 只靠 hover 底（浅色下 4.5% 黑）根本看不出边界。描边取自文字色的 26%：
+   * 不依赖作用域里 --border-control 的具体取值（浮层里会淡到 1.03:1）。 */
+  border: 1px solid color-mix(in srgb, currentColor 26%, transparent);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: var(--font-micro);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.s-tag.warn {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+}
+
+.s-tag.ok {
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+}
+
+.s-tag.info {
+  background: var(--status-info-bg);
+  color: var(--status-info-fg);
+}
+
+/* API Key 显示/隐藏：按钮与输入同排，不再撑高 */
+.llm-password-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 560px;
+}
+
+.llm-password-input-wrap .s-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.llm-password-input-wrap .btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* CustomSelect 触发器：行尾固定宽 */
+.c-select-trigger.s-select {
+  width: 220px;
+}
+
+.c-select-trigger.s-select.is-wide {
+  width: 300px;
+}
+
+/* 特异性压过 .settings-section input/select 的块级默认 */
+:is(.settings-section, .s-sec) .s-input, .s-rows .s-input, .s-frow .s-input, .worktree-storage-row .s-input {
+  display: block;
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  padding: 0 10px;
+  box-sizing: border-box;
+  font-size: var(--font-ui);
+}
+
+textarea:is(.s-input) {
+  height: auto;
+  min-height: 96px;
+  padding: 8px 10px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+:is(.settings-section, .s-sec) .s-input.mono {
+  font-family: var(--font-mono);
+}
+
+/* worktree 存储目录：手输框 + 浏览按钮同行（2026-10-07 报单⑥） */
+.worktree-storage-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.worktree-storage-row .s-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 560px;
+}
+
+.worktree-storage-row .ui-btn {
+  flex-shrink: 0;
+}
+
+.settings-section select.s-native-select {
+  width: 220px;
+  height: 32px;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: var(--font-ui);
+}
+
+.notify-dnd-times .s-input {
+  width: 112px;
+}
+
+/* 分段控件：凹槽底 + 选中项浮起（与 .mcp-mode-toggle 同语义） */
+.s-seg {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+/* One background moves between the original content-width buttons. Width is
+ * corrected instantly; only translation animates, never the labels or layout. */
+.s-seg-selection {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  border-radius: var(--radius-small);
+  background: var(--interaction-selected);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform var(--dur-menu) var(--ease-standard), opacity var(--dur-micro) var(--ease-hover);
+}
+.s-seg[data-seg-ready] .s-seg-selection { opacity: 1; }
+.s-seg[data-seg-ready] button { position: relative; }
+.s-seg[data-seg-ready] button.is-on,
+.s-seg[data-seg-ready] button.is-on:hover:not(:disabled) {
+  background: transparent;
+  /* The fallback fill must leave immediately when the plate takes ownership;
+   * animating it to transparent would double the translucent selected fill. */
+  transition-property: color;
+}
+.s-seg[data-seg-ready]:has(button.is-on:hover:not(:disabled)) .s-seg-selection { background: var(--interaction-selected-hover); }
+
+.s-seg button {
+  height: 26px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover);
+}
+
+.s-seg button:hover:not(:disabled) {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.s-seg button.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  box-shadow: none;
+}
+
+.s-seg button.is-on:hover:not(:disabled) { background: var(--interaction-selected-hover); }
+
+.s-seg button:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+/* 「高级」折叠：弱化的 summary 行，展开体沿用分区间距 */
+/* 折叠行统一规格（2026-10-19）：技术细节 .s-adv / Worker .rt-row / 供应商 .llm-provider
+ * 共用同一行——40 高、标题字阶 14/500、chevron 12 且打开时右转、hover 底铺到块边。
+ * 三者原来各写一套（.s-adv 甚至是 max-content + 12px 灰字），视觉上不像同一族控件。 */
+.s-adv > summary,
+.rt-row > summary,
+.llm-provider > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0;
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+/* 块内折叠行：负边距让 hover 底向内收 8px，既不盖住块的 1px 描边、也不从圆角外露；
+ * 文字左缘仍与 .s-row 齐平（块内边距 18，行再补 10）。 */
+:is(.s-rows, .rt-list, .llm-provider-list) > :is(.s-adv, .rt-row, .llm-provider) > summary,
+.s-sec-body > .s-adv > summary {
+  margin: 0 -10px;
+  padding: 0 10px;
+}
+
+.s-adv > summary::-webkit-details-marker,
+.rt-row > summary::-webkit-details-marker,
+.llm-provider > summary::-webkit-details-marker {
+  display: none;
+}
+
+.s-adv > summary:hover,
+.rt-row > summary:hover,
+.llm-provider > summary:hover {
+  background: var(--interaction-hover);
+}
+
+.s-adv > summary > .settings-chev,
+.rt-row > summary > .settings-chev,
+.llm-provider > summary > .settings-chev {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--fg-muted);
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.s-adv[open] > summary > .settings-chev,
+.rt-row[open] > summary > .settings-chev,
+.llm-provider[open] > summary > .settings-chev {
+  transform: rotate(90deg);
+}
+
+.s-adv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 8px;
+  /* 折叠体自带底边距：里面若再放行组/列表，不会顶到外层卡片的下缘描边 */
+  padding-bottom: 10px;
+}
+
+/* 块内折叠体：左右补回负边距，正文与标题齐平 */
+:is(.s-rows, .s-sec-body) > .s-adv > .s-adv-body {
+  padding: 0 10px 10px;
+}
+
+:is(.rt-list, .llm-provider-list) > .llm-provider > .llm-provider-body,
+:is(.rt-list, .llm-provider-list) > .rt-row > .rt-row-body {
+  padding-left: 22px;
+  padding-right: 10px;
+}
+
+/* ===== 外观页：主题卡片网格 ===== */
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 12px;
+}
+
+.theme-row.theme-card {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  outline: none;
+  cursor: pointer;
+  transition: box-shadow var(--dur-micro) var(--ease-hover);
+}
+
+.theme-row.theme-card:hover {
+  box-shadow: inset 0 0 0 1px var(--border-focus);
+}
+
+.theme-row.theme-card.is-selected {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  box-shadow: inset 0 0 0 1px var(--border-control);
+}
+
+.theme-row.theme-card:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--border-subtle),
+    0 0 0 2px var(--border-focus);
+}
+
+.theme-thumb {
+  position: relative;
+  display: block;
+  height: 72px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.theme-thumb i {
+  position: absolute;
+  display: block;
+}
+
+.theme-thumb-side {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 26%;
+  opacity: 0.08;
+}
+
+.theme-thumb-line {
+  top: 22px;
+  left: 34%;
+  width: 50%;
+  height: 5px;
+  border-radius: 4px;
+  opacity: 0.55;
+}
+
+.theme-thumb-line.is-short {
+  top: 34px;
+  width: 32%;
+  opacity: 0.28;
+}
+
+.theme-thumb-dot {
+  right: 10px;
+  bottom: 10px;
+  width: 18px;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.theme-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0 2px 2px;
+  font-size: var(--font-ui);
+}
+
+.theme-card .theme-row-del {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: var(--surface-overlay);
+}
+
+.theme-new-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 118px;
+  border: 1px dashed var(--border-focus);
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover);
+}
+
+.theme-new-card:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.theme-grid .theme-create-box {
+  margin-top: 0;
+  justify-content: center;
+  border-radius: var(--radius-card);
+}
+
+/* ===== 远程访问页：扫码主块（沉浸式，不套卡） ===== */
+.webaccess-hero {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 6px 0 2px;
+}
+
+.webaccess-hero .webaccess-qr {
+  flex: none;
+  width: 168px;
+  height: 168px;
+}
+
+.webaccess-hero-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.webaccess-hero-title {
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.webaccess-hero .webaccess-url-row {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  padding: 4px 4px 4px 10px;
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.webaccess-hero .webaccess-url-row code {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: none;
+}
+
+.webaccess-hero ol {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.7;
+}
+
+/* 状态点：跟随 s-tag 文字色 */
+.s-tag-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* 远程访问：飞书内嵌块（扫码接入/订阅回调/绑定账号） */
+
+/* ===== 底部浮动保存条：有未保存更改时从页底弹出 =====
+ * 居中用 left/right:0 + margin auto（transform 留给 mp-pop 进出场） */
+.settings-savebar {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 20px;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 48px);
+  margin: 0 auto;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-card);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.settings-savebar-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--status-warning-fg);
+}
+
+/* Buttons leave immediately on success; only text is retained for its exit.
+ * max-width above clamps the captured width synchronously on container resize,
+ * without resize observers, animated layout dimensions or stale button copies. */
+.settings-savebar.is-saved {
+  width: var(--savebar-retained-width, max-content);
+  min-height: var(--savebar-retained-height, 0px);
+}
+.settings-savebar-message-slot { display: grid; min-width: 0; }
+.settings-savebar-copy-layer {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity var(--dur-menu) var(--ease-standard), transform var(--dur-menu) var(--ease-standard);
+}
+.settings-savebar-copy-layer[data-mp-stage='enter'],
+.settings-savebar-copy-layer[data-mp-stage='out'] { opacity: 0; transform: translateY(2px); }
+.settings-savebar-copy-layer[data-mp-stage='enter'] { transition: none; }
+.settings-savebar-copy-layer[data-mp-stage='out'] {
+  pointer-events: none;
+  transition-duration: var(--dur-micro);
+  transition-timing-function: var(--ease-exit);
+}
+.settings-savebar-success-spacer { flex: none; width: 7px; }
+.settings-savebar-copy-layer[aria-hidden='true'] { pointer-events: none; }
+
+.settings-savebar-msg {
+  white-space: nowrap;
+}
+
+.settings-savebar-msg.is-ok {
+  padding-right: 10px;
+  color: var(--status-success-fg);
+}
+
+.settings-savebar.is-ask {
+  box-shadow:
+    inset 0 0 0 1px var(--status-warning-fg),
+    var(--shadow-pop);
+}
+
+.settings-savebar .btn .settings-kbd {
+  margin-left: 6px;
+  background: transparent;
+  color: inherit;
+}
+.workspace-accent-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 4px;
+}
+.workspace-accent-swatches.is-off { opacity: 0.5; }
+.workspace-accent-avatar,
+.workspace-accent-custom {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font: inherit;
+}
+.workspace-accent-avatar { cursor: pointer; }
+.workspace-accent-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--sw);
+  cursor: pointer;
+}
+.workspace-accent-swatch.is-selected,
+.workspace-accent-custom.is-selected,
+.workspace-accent-avatar.is-selected {
+  outline: 2px solid var(--fg-secondary);
+  outline-offset: 3px;
+}
+.workspace-accent-swatches .workspace-accent-custom {
+  display: inline-flex;
+  flex-direction: row;
+  margin: 0;
+  gap: 8px;
+}
+.workspace-accent-custom input[type='color'] {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.workspace-accent-swatches :disabled { cursor: default; }
+.model-parameter-editor { margin-top: 16px; padding-top: 12px; }
+.model-parameter-option { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; }
+.model-parameter-option input, .model-parameter-option select { flex: 1 1 100px; min-width: 0; width: 100px; }
+
+/* 供应商主从配置：按实际内容宽度切换，窄设置窗也能访问全部字段。 */
+.llm-provider-layout { container-type: inline-size; }
+.settings-split.llm-provider-list {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  height: clamp(480px, 70vh, 680px);
+  margin-top: 0;
+  gap: 0;
+}
+.llm-provider-choice { min-height: 64px; flex-shrink: 0; }
+.llm-provider-choice-copy { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.llm-provider-choice-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.llm-provider-heading { flex-wrap: wrap; justify-content: flex-start; }
+.llm-provider-list .llm-provider-body { padding: 0 16px 16px; }
+.llm-provider-list .s-row { flex-wrap: wrap; }
+.llm-provider-list .s-select { max-width: 100%; min-width: 0; }
+.llm-provider-list .llm-model-row-item { flex-wrap: wrap; }
+.llm-provider-list .llm-model-row-right { flex-wrap: wrap; }
+.llm-provider-list > .settings-split-main { scrollbar-width: none; }
+.llm-provider-list > .settings-split-main::-webkit-scrollbar { display: none; }
+@container (max-width: 620px) {
+  .settings-split.llm-provider-list { grid-template-columns: minmax(0, 1fr); height: auto; }
+  .llm-provider-list > .settings-split-nav { border-right: none; max-height: 180px; }
+  .llm-provider-list > .settings-split-main { overflow: visible; }
+}

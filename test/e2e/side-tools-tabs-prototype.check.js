@@ -1,0 +1,123 @@
+async (page) => {
+  await page.setViewportSize({ width: 1056, height: 820 });
+  page.setDefaultTimeout(6000);
+  const frame = page.frameLocator('iframe');
+  const out = 'output/playwright/side-tools-tabs';
+  const button = name => frame.getByRole('button', { name, exact: true });
+  const panel = name => frame.getByRole('tab', { name: name + '面板', exact: true }).click();
+  const follows = async (name, tree) => {
+    assert(await frame.getByRole('tab', { name: name + '面板', exact: true }).getAttribute('aria-selected') === 'true', 'Capsule did not follow content: ' + name);
+    assert(await frame.getByRole('navigation', { name: tree, exact: true }).isVisible(), 'Resource tree did not follow content: ' + tree);
+  };
+  const repaint = () => frame.locator('#side-tools-tabs-prototype').evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const assert = (value, message) => { if (!value) throw new Error(message); };
+  const settle = () => frame.locator('.st-resource-side').evaluate(async el => {
+    const deadline = performance.now() + 1000;
+    while (getComputedStyle(el).opacity !== '1') {
+      if (performance.now() > deadline) throw new Error('Resource panel animation did not settle');
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
+  });
+  await button('从聊天打开原型图片').click();
+  await follows('文件', '文件树');
+  await button('从聊天打开审核文件').click();
+  await follows('文件', '文件树');
+  const fileId = await frame.locator('[data-tab-id][aria-selected="true"]').getAttribute('data-tab-id');
+  await panel('浏览器');
+  assert(await frame.locator('[data-tab-id="' + fileId + '"]').getAttribute('aria-selected') === 'true', 'Manual capsule changed current content');
+  await frame.locator('[data-tab-id="' + fileId + '"]').click();
+  await follows('文件', '文件树');
+  await frame.getByRole('tab', { name: '代码审核', exact: true }).click();
+  await follows('Git', 'Git 仓库树');
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await page.mouse.move(0, 0);
+  await repaint();
+  await page.screenshot({ path: out + '/resources-dark-git.png', fullPage: true });
+  await page.setViewportSize({ width: 1056, height: 820 });
+  await button('在新标签打开此 Diff').click();
+  await follows('Git', 'Git 仓库树');
+  const diffId = await frame.locator('[data-tab-id][aria-selected="true"]').getAttribute('data-tab-id');
+  assert(fileId !== diffId, 'File and independent Diff did not retain separate content tabs');
+  await frame.locator('[data-tab-id="' + diffId + '"]').locator('..').getByRole('button', { name: '关闭 SideToolsPanel.tsx', exact: true }).click();
+  await follows('文件', '文件树');
+  await button('从聊天打开交互原型').click();
+  await follows('浏览器', '浏览器收藏夹');
+  await button('从聊天打开原型图片').click();
+  await follows('文件', '文件树');
+  await button('返回刚才查看的内容').click();
+  await follows('浏览器', '浏览器收藏夹');
+  await button('前进到下一处内容').click();
+  await follows('文件', '文件树');
+  await button('收起工具面板').click();
+  await frame.locator('.st-resource-side').waitFor({ state: 'detached' });
+  await frame.getByRole('tab', { name: '交互原型', exact: true }).click();
+  assert(await frame.getByRole('tab', { name: '浏览器面板', exact: true }).getAttribute('aria-selected') === 'true' && await frame.locator('.st-resource-side').count() === 0, 'Tab selection reopened a collapsed panel');
+  await button('展开工具面板').click();
+  await follows('浏览器', '浏览器收藏夹');
+  await button('从聊天打开原型图片').click();
+  await button('界面开发').click();
+  await follows('Git', 'Git 仓库树');
+  await button('代码审核').click();
+  await follows('文件', '文件树');
+  await panel('文件');
+  await settle();
+  await page.mouse.move(0, 0);
+  const wide = await frame.locator('#side-tools-tabs-prototype').evaluate(root => {
+    const bar = root.querySelector('.st-unified-bar').getBoundingClientRect(), controls = root.querySelector('.st-panel-controls'), tabs = controls.getBoundingClientRect(), sideElement = root.querySelector('.st-resource-side'), side = sideElement.getBoundingClientRect();
+    const active = root.querySelector('.st-panel-tab[aria-selected="true"]'), capsule = root.querySelector('.st-panel-tabs');
+    return { barHeight: bar.height, topTabHeight: tabs.height, topDivider: getComputedStyle(controls).borderLeftWidth, treeDivider: getComputedStyle(sideElement).borderLeftWidth, buttons: [...root.querySelectorAll('.st-panel-tab')].map(el => el.getBoundingClientRect().width), contentBottom: bar.bottom, sideTop: side.top, activeBackground: getComputedStyle(active).backgroundColor, capsuleBackground: getComputedStyle(capsule).backgroundColor, capsuleHeight: capsule.getBoundingClientRect().height, capsuleRadius: getComputedStyle(capsule).borderRadius, activeRadius: getComputedStyle(active).borderRadius, labelText: capsule.textContent.trim(), collapseInTop: !!root.querySelector('.st-panel-controls [aria-label="收起工具面板"]'), collapseInTree: !!sideElement.querySelector('[aria-label="收起工具面板"]') };
+  });
+  assert(wide.barHeight === 44 && wide.topTabHeight === 44 && wide.topDivider === '0px' && wide.treeDivider === '1px' && wide.buttons.every(width => width === 28) && wide.contentBottom === wide.sideTop && wide.capsuleHeight === 28 && wide.capsuleRadius === '9px' && wide.activeRadius === '5px' && wide.activeBackground !== wide.capsuleBackground && wide.labelText === '' && wide.collapseInTop && !wide.collapseInTree, 'Icon-only capsule did not match the requested layout');
+  await frame.getByRole('tab', { name: '文件面板', exact: true }).hover();
+  const hoverBackground = await frame.locator('.st-panel-tab[aria-selected="true"]').evaluate(el => getComputedStyle(el).backgroundColor);
+  assert(hoverBackground === wide.activeBackground, 'Hover replaced the capsule selected background');
+  await page.mouse.move(0, 0);
+  await button('收起工具面板').click();
+  await frame.locator('.st-resource-side').waitFor({ state: 'detached' });
+  const collapsedButtons = await frame.locator('.st-panel-tab').evaluateAll(els => els.map(el => el.getBoundingClientRect().width));
+  assert(JSON.stringify(collapsedButtons) === JSON.stringify(wide.buttons), 'Panel button sizes changed on collapse');
+  await button('展开工具面板').click();
+  await settle();
+  await button('从聊天打开交互原型').click();
+  await follows('浏览器', '浏览器收藏夹');
+  const overflow = await frame.getByRole('tablist', { name: '打开的内容', exact: true }).evaluate(el => {
+    const bounds = el.getBoundingClientRect(), selected = el.querySelector('[aria-selected="true"]').getBoundingClientRect();
+    return { client: el.clientWidth, scroll: el.scrollWidth, offset: el.scrollLeft, selectedVisible: selected.left >= bounds.left && selected.right <= bounds.right };
+  });
+  assert(overflow.scroll > overflow.client && overflow.offset > 0 && overflow.selectedVisible, 'Active tab not scrolled into view');
+  await button('从聊天打开原型图片').click();
+  await follows('文件', '文件树');
+  await page.emulateMedia({ colorScheme: 'dark' });
+  await repaint();
+  await page.screenshot({ path: out + '/resources-dark-image-files.png', fullPage: true });
+  const layouts = [];
+  for (const width of [768, 480, 320]) {
+    await page.setViewportSize({ width, height: 940 });
+    await settle();
+    const layout = await frame.locator('#side-tools-tabs-prototype').evaluate(root => {
+      const bar = root.querySelector('.st-unified-bar').getBoundingClientRect(), tabs = root.querySelector('.st-panel-controls').getBoundingClientRect(), side = root.querySelector('.st-resource-side').getBoundingClientRect(), right = root.querySelector('.st-right').getBoundingClientRect();
+      const tools = [...root.querySelectorAll('.st-unified-bar .st-tool,.st-panel-controls .st-tool,.st-panel-tab')].filter(el => el.getClientRects().length).map(el => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; });
+      return { width: root.clientWidth, rightWidth: root.querySelector('.st-right').clientWidth, scroll: root.scrollWidth, barHeight: bar.height, paneWidth: side.width, topConnected: side.top === bar.bottom, position: getComputedStyle(root.querySelector('.st-resource-side')).position, paneTabsX: tabs.left, barRight: bar.right, controlsInBar: tools.every(r => r.top >= bar.top && r.bottom <= bar.bottom && r.left >= right.left && r.right <= right.right), separated: tools.filter(r => r.left < tabs.left).every(r => r.right <= tabs.left) };
+    });
+    assert(layout.width === layout.scroll && layout.barHeight === 44 && layout.topConnected && layout.position === (layout.rightWidth <= 600 ? 'absolute' : 'static') && layout.controlsInBar && layout.separated, 'Toolbar overflow or overlap at ' + width + ': ' + JSON.stringify(layout));
+    layouts.push({ viewport: width, ...layout });
+    await page.screenshot({ path: out + '/resources-dark-' + width + '.png', fullPage: true });
+  }
+  await button('收起工具面板').click();
+  await frame.locator('.st-resource-side').waitFor({ state: 'detached' });
+  await page.screenshot({ path: out + '/resources-dark-320-collapsed.png', fullPage: true });
+  await button('展开工具面板').click();
+  await settle();
+  assert(await frame.getByRole('navigation', { name: '文件树', exact: true }).isVisible(), 'Right panel failed to reopen');
+  await page.setViewportSize({ width: 1056, height: 820 });
+  await page.emulateMedia({ colorScheme: 'light' });
+  await repaint();
+  await button('从聊天打开交互原型').click();
+  await panel('浏览器');
+  await settle();
+  await page.mouse.move(0, 0);
+  await repaint();
+  await page.screenshot({ path: out + '/resources-light-web-bookmarks.png', fullPage: true });
+  return { passed: true, followedKinds: ['file', 'git', 'diff', 'web', 'image'], manualOverridePreservesContent: true, collapsedFollow: true, sessionFollow: true, wide, hoverBackground, collapsedButtons, overflow, layouts };
+}

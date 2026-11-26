@@ -1,0 +1,2511 @@
+/* memory.css — 实用功能「记忆整理」面板（docs/memory/MEMORY.md 的行卡管理界面）。
+ * 布局参考定时任务面板：全宽行卡 + 点击行手风琴展开行内编辑（无抽屉/无底板）。
+ * 规范见 /design.md 与 docs/features/memory-panel.md；动效走 motion 体系 token，禁自造时长。 */
+
+.memory-panel {
+  position: relative; /* toast 的定位基准 */
+  overflow: hidden;
+}
+
+/* Typed knowledge: actionable conclusions, conditions and evidence precede statistics. */
+.knowledge-panel { display:flex;flex-direction:column;gap:16px;padding:24px;overflow:auto;min-height:0;color:var(--fg-primary); }
+.knowledge-center {display:flex;flex-direction:column;height:100%;min-height:0;}
+.knowledge-center-nav {display:flex;gap:8px;padding:12px 24px;flex-wrap:wrap;}
+.knowledge-center>.xfade-stack {flex:1;min-height:0;}
+.knowledge-center>.xfade-stack>.xfade {overflow:auto;min-height:0;}
+.knowledge-header { display:flex;align-items:flex-start;justify-content:space-between;gap:16px; }
+.knowledge-diff { white-space:pre-wrap;overflow-wrap:anywhere;max-height:400px;overflow:auto; }
+.knowledge-header h2 { margin:0;font-size:var(--font-title);font-weight:500; }
+.knowledge-header p,.knowledge-meta,.knowledge-empty p { color:var(--fg-secondary); }
+.knowledge-tabs,.knowledge-toolbar,.knowledge-actions,.knowledge-meta { display:flex;gap:8px;flex-wrap:wrap;align-items:center; }
+.knowledge-toolbar input { flex:1;min-width:180px; }
+.knowledge-toolbar > .c-select-trigger { width:auto;max-width:100%;flex:0 1 auto; }
+/* Controls inherit ui-input / CustomSelect unchanged; this domain owns layout only. */
+.knowledge-toolbar .ui-input,.knowledge-details .ui-input { min-width:0;max-width:100%; }
+.knowledge-governance { border-top:1px solid var(--border-subtle);margin-top:12px;padding-top:8px; }
+.knowledge-list>section { display:flex;flex-direction:column;gap:12px; }
+.knowledge-list { display:flex;flex-direction:column;gap:12px;max-width:1040px;width:100%;margin:0 auto; }
+.knowledge-card { padding:16px;border:1px solid var(--border-subtle);border-radius:var(--radius-card);background:var(--surface-canvas);overflow-wrap:anywhere; }
+.knowledge-card h3 { font-size:var(--font-ui);font-weight:500;margin:10px 0; }
+.knowledge-card p { margin:8px 0;line-height:1.6; }
+.knowledge-card strong { font-weight:500; }
+.memory-processing-view { flex: 1; }
+.memory-processing-view h2 { margin: 0; }
+.memory-processing-summary { display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:12px 16px; border:1px solid var(--border-subtle); border-radius:var(--radius-card); background:var(--surface-canvas); }
+.memory-processing-list { display:flex; flex-direction:column; gap:12px; }
+.memory-processing-text { white-space:pre-wrap; }
+.knowledge-meta { font-size:var(--font-caption); }
+.knowledge-actions { margin-top:12px; }
+.knowledge-details { border-top:1px solid var(--border-subtle);margin-top:12px;padding-top:8px; }
+.knowledge-details li { margin:8px 0;line-height:1.6; }
+.knowledge-details label { display:flex;flex-direction:column;gap:6px;margin:10px 0; }
+.knowledge-details textarea { resize:vertical;min-height:72px; }
+.knowledge-empty { text-align:center;padding:32px 16px; }
+@media(max-width:520px) { .knowledge-panel {padding:16px;} .knowledge-header {flex-wrap:wrap;} .knowledge-toolbar input {flex-basis:100%;} }
+
+/* Keep the shared settings controls; stack long model choices when their pane narrows. */
+.memory-settings { container-type:inline-size; }
+@container (max-width:520px) {
+  .memory-settings .s-row:has(.c-select-trigger) { flex-direction:column;align-items:stretch; }
+  .memory-settings .s-row:has(.c-select-trigger) .s-row-r { max-width:100%; }
+  .memory-settings .c-select-trigger.s-select { width:100%;min-width:0;max-width:100%; }
+}
+
+/* ── 提示条（错误 / 提示 / 重复预警） ── */
+.memory-banner {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-control);
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.memory-banner.is-warn {
+  border-color: var(--status-warning-border);
+  color: var(--fg-primary);
+}
+
+.memory-banner.is-info {
+  color: var(--fg-secondary);
+}
+
+/* ── 页体：各页签共用沟槽 + 居中栏（改后稿） ── */
+.memory-page {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 36px;
+}
+
+.memory-inner {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 工具行：搜索 + 标签筛选 ── */
+.memory-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.memory-toolbar-filters { flex-wrap: wrap; }
+.memory-budget-status { display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--fg-secondary); font-size: var(--font-caption); }
+.memory-budget-status.is-over { color: var(--status-warning-fg); }
+.profile-summary {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 4px 14px 14px;
+  border-bottom: 1px solid var(--border-control);
+}
+.profile-summary-copy { flex: 1; min-width: 0; }
+.profile-summary > .ui-btn { flex: none; }
+.profile-title { margin: 0; color: var(--fg-primary); font-size: 16px; font-weight: 500; line-height: 1.4; }
+.profile-summary-description { margin: 6px 0 0; color: var(--fg-secondary); font-size: var(--font-ui); line-height: 1.5; }
+.memory-retired-link { margin-left: auto; border: 0; background: transparent; color: var(--fg-secondary); cursor: pointer; white-space: nowrap; font: inherit; }
+.memory-retired-link:hover { color: var(--fg-primary); text-decoration: underline; }
+
+.memory-search {
+  width: 100%;
+  min-width: 180px;
+  flex: 1 1 220px;
+}
+
+.memory-toolbar-push {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.memory-tagfilter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.memory-viewtoggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: none;
+}
+
+/* 标签分组视图的组标题 */
+.memory-group {
+  margin-bottom: 14px;
+}
+
+.memory-group-title {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+
+/* 行元信息里的会话跳转（匹配到会话才渲染） */
+.memory-session-jump {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--dur-micro) var(--ease-hover);
+}
+
+.memory-session-jump:hover {
+  color: var(--fg-primary);
+}
+
+.memory-chip {
+  border: 1px solid var(--border-control);
+  background: transparent;
+  color: var(--fg-secondary);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    color var(--dur-micro) var(--ease-hover);
+}
+
+.memory-chip:hover {
+  background: var(--interaction-hover);
+}
+
+.memory-chip.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  border-color: var(--border-focus);
+  color: var(--fg-selected-primary);
+}
+
+/* 键盘焦点可见（全局 :focus-visible 被 base.css 关掉，逐交互元素补回） */
+.memory-row-main:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.memory-pair-item:focus-visible {
+  color: var(--fg-primary);
+}
+
+.memory-session-jump:focus-visible {
+  color: var(--fg-primary);
+  text-decoration-color: var(--border-focus);
+}
+
+/* ── 行卡流：全宽（宽屏不再 72ch 窄列） ── */
+.memory-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 24px;
+}
+
+.memory-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memory-row {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  background: var(--surface-raised);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  transition:
+    opacity var(--dur-exit) var(--ease-exit),
+    transform var(--dur-exit) var(--ease-exit),
+    border-color var(--dur-micro) var(--ease-hover);
+}
+
+.memory-row.is-open {
+  border-color: var(--border-control);
+}
+
+.memory-row.is-highlight {
+  border-color: var(--border-focus);
+}
+
+.memory-row.is-vanishing {
+  opacity: 0;
+  transform: scale(0.97);
+  pointer-events: none;
+}
+
+/* 行主体：标题 + 时间 / 第二行胶囊（改后稿） */
+.memory-row-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 16px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.memory-row-title {
+  min-width: 0;
+  font-size: var(--font-control);
+  line-height: 1.45;
+  color: var(--fg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.memory-row.is-open .memory-row-title {
+  white-space: normal;
+}
+
+.memory-row-when {
+  flex: none;
+  padding-top: 3px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.memory-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: none;
+}
+
+.memory-row-text {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-control);
+  line-height: 1.55;
+  color: var(--fg-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.memory-row-meta {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: none;
+}
+
+.memory-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.memory-row:hover .memory-row-actions,
+.memory-row:focus-within .memory-row-actions {
+  opacity: 1;
+}
+
+.memory-row-chevron {
+  display: flex;
+  align-items: center;
+  color: var(--fg-muted);
+}
+
+.memory-row-chevron svg {
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.memory-row-chevron svg.is-open {
+  transform: rotate(180deg);
+}
+
+.memory-row.is-recovery .memory-row-main {
+  cursor: default;
+}
+
+.memory-row.is-recovery .memory-row-text {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+}
+
+.memory-row.is-recovery .memory-row-actions {
+  opacity: 1;
+}
+
+.memory-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+  line-height: 17px;
+  border: 1px solid transparent;
+}
+
+/* 类别色板：同类色相的浅底描边，克制不花 */
+.memory-tag.is-decision {
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+}
+
+.memory-tag.is-preference {
+  color: var(--status-neutral-fg);
+  background: var(--status-neutral-bg);
+  border-color: var(--status-neutral-border);
+}
+
+.memory-tag.is-lesson {
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+}
+
+.memory-tag.is-bug {
+  color: var(--status-danger-fg);
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+}
+
+.memory-tag.is-other {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  color: var(--fg-secondary);
+  background: var(--surface-input);
+  border-color: var(--border-control);
+}
+
+.memory-tag.is-warn {
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+}
+
+.memory-tag.is-dim {
+  color: var(--fg-muted);
+  background: transparent;
+  border-color: var(--border-control);
+}
+
+.memory-link {
+  font-size: var(--font-caption);
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+  border-radius: var(--radius-control);
+  padding: 0 6px;
+  line-height: 18px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memory-meta-dim {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+/* ── 重复/矛盾条目对（横幅内，可点击定位） ── */
+.memory-pairs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.memory-pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.memory-pair-item {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+  cursor: pointer;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color var(--dur-micro) var(--ease-hover);
+}
+
+.memory-pair-item:hover {
+  color: var(--fg-primary);
+}
+
+/* ── 行内编辑器（手风琴展开区） ── */
+.memory-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 12px;
+  border-top: 1px solid var(--border-control);
+}
+
+.memory-editor-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg-muted);
+}
+
+.memory-editor .memory-textarea {
+  resize: vertical;
+  min-height: 72px;
+  max-height: 240px;
+  line-height: 1.55;
+}
+
+.memory-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+}
+
+.memory-field .ui-input {
+  width: 100%;
+}
+
+/* 索引状态页签 · 向量配置卡（字段纵排 + 勾选行；token 对齐 memory-field） */
+.memory-emb-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 60ch;
+}
+
+.memory-checkline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.memory-checkline input[type='checkbox'] {
+  accent-color: var(--action-bg);
+}
+
+.memory-field-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: -6px;
+}
+
+.memory-editor-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ── 空态 ── */
+.memory-empty {
+  max-width: 60ch;
+  margin: 48px auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+/* ── M4 条目 7C：页签头叙事行（每页一句「你在看什么」；总览不加） ── */
+.memory-narrative {
+  flex: none;
+  width: min(1040px, calc(100% - 40px));
+  box-sizing: border-box;
+  margin: 12px auto 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-small);
+  background: var(--status-info-bg);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.6;
+}
+
+.memory-narrative b {
+  color: var(--status-info-fg);
+  font-weight: 500;
+}
+
+/* ── M4 条目 8：空态三段式的步骤引导（条目总览冷启动） ── */
+.memory-empty-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  text-align: left;
+}
+
+.memory-empty-step {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  line-height: 1.6;
+}
+
+.memory-empty-step i {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: 10.5px;
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(2px);
+}
+
+/* ── M4 条目 10：双库语义与全局资产标注 ── */
+.memory-tag.is-sched {
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+}
+
+.ns-note {
+  margin: 10px 12px 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-small);
+  background: var(--status-info-bg);
+  font-size: var(--font-caption);
+  color: var(--status-info-fg);
+  line-height: 1.6;
+}
+
+.ns-note b {
+  color: var(--status-info-fg);
+  font-weight: 500;
+}
+
+/* ── M5 条目 3：生命周期徽标 / 来历行 / 血缘行 / 已取代档 ── */
+/* 现役条目常驻弱绿描边（阶段词汇表；不抢正文视觉） */
+.memory-tag.stage-curated {
+  color: var(--status-success-fg);
+  background: transparent;
+  border-color: var(--status-success-border);
+}
+
+.memory-tag.stage-retired {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  color: var(--fg-muted);
+  background: var(--surface-input);
+  border-color: transparent;
+}
+
+/* 已取代档 chip：黄色描边（与现役档视觉区分） */
+.memory-chip.is-add {
+  color: var(--status-warning-fg);
+  background: transparent;
+  border: 1px solid var(--status-warning-border);
+}
+
+.memory-chip.is-add.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+}
+
+.memory-toolbar.is-hidden {
+  display: none;
+}
+
+.memory-row.is-retired .memory-row-main {
+  cursor: default;
+}
+
+.memory-retired-text {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--status-danger-border);
+}
+
+/* 来历行：卡主体下的弱化一行（↳ 来自 …） */
+.memory-prov-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 12px 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-subtle);
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  line-height: 1.6;
+}
+.memory-row-meta .memory-prov-row { display: inline-flex; margin: 0; padding: 0; border: 0; }
+.memory-row-meta .memory-prov-ico { display: none; }
+
+.memory-prov-ico {
+  color: var(--fg-muted);
+  flex: none;
+}
+
+.memory-prov-link {
+  color: var(--fg-secondary);
+  cursor: pointer;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+
+.memory-prov-link:hover {
+  color: var(--fg-primary);
+  border-bottom-color: var(--fg-muted);
+}
+
+/* 血缘行：默认收起（head 可点），展开体走 acc 手风琴骨架 */
+.memory-lineage {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 8px 12px 0;
+  padding: 7px 10px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+}
+.memory-row-meta .memory-lineage { margin: 0; padding: 0; background: transparent; }
+.memory-row-meta .memory-lineage.is-open { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  flex-basis: 100%; padding: 7px 10px; background: var(--surface-canvas); }
+
+.memory-lineage-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.memory-lineage-head:hover {
+  color: var(--fg-primary);
+}
+
+.memory-lineage-body {
+  padding-top: 8px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  line-height: 1.6;
+}
+
+.memory-lineage-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.profile-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-globe {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--font-caption);
+  color: var(--status-info-fg);
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--radius-pill);
+  padding: 2px 10px;
+  white-space: nowrap;
+}
+
+/* ── 撤销 toast ── */
+.memory-toast {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--font-ui);
+  z-index: 32;
+}
+
+/* ── 记忆中心 hub：页签栏 + 页签体（§11 六页签） ── */
+.memory-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--border-control);
+  overflow-x: auto;
+}
+
+.memory-tab {
+  position: relative;
+  border: none;
+  background: none;
+  padding: 8px 10px 9px;
+  font: inherit;
+  font-size: 12.5px;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color var(--dur-micro) var(--ease-hover);
+}
+
+.memory-tab:hover {
+  color: var(--fg-primary);
+}
+
+.memory-tab.is-active {
+  color: var(--fg-primary);
+}
+
+.memory-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--fg-primary);
+  border-radius: var(--radius-pill);
+}
+
+.memory-tab:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.memory-tab-badge {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+/* xfade 叠放容器（base.css 骨架）：页签体常驻保活、切换淡切 */
+.memory-tabbody {
+  overflow: hidden;
+}
+
+.memory-tabwrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.memory-tab-loading {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: 12.5px;
+}
+
+/* ── 溯源徽标：origin 五类色点（§5；null 不渲染） ── */
+.origin-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
+.origin-dot.is-user {
+  background: var(--status-success-fg);
+}
+
+.origin-dot.is-scheduler {
+  background: var(--status-info-fg);
+}
+
+.origin-dot.is-worker {
+  background: var(--purple);
+}
+
+.origin-dot.is-untrusted {
+  background: var(--status-warning-fg);
+}
+
+.origin-dot.is-system {
+  background: var(--fg-muted);
+}
+
+/* 行内 trigger 词组（正文尾部弱化展示） */
+.memory-row-trigger {
+  color: var(--fg-muted);
+  font-size: 11.5px;
+}
+
+/* ── 行内编辑：注解区 ── */
+.memory-annotations {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-control);
+}
+
+.memory-annotation-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ── 晋升审阅 / 审批队列卡片 ── */
+/* .memory-row 基类无 padding：凡内部不走 .memory-row-main 的卡必须进本组，
+   否则内容全部贴卡缘（2026-09-27 试验台/暂存池贴边事故根因）。新增自定义卡时进本组。 */
+.review-card,
+.approval-card,
+.intent-card,
+.recycle-card,
+.index-card,
+.staging-card,
+.lab {
+  padding: 14px 16px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.review-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px 12px;
+}
+
+.review-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.review-card-counts {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.review-card-rollback,
+.approval-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  padding: 0;
+}
+
+.review-card-diff {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--fg-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.review-card-rejected {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.approval-diff-line {
+  padding: 1px 0;
+}
+
+.approval-diff-line.is-add {
+  color: var(--green);
+}
+
+.approval-diff-line.is-del {
+  color: var(--red);
+}
+
+.approval-card.is-decided {
+  color: var(--fg-secondary);
+}
+
+.approval-receipt {
+  margin-top: 10px;
+}
+
+.memory-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+/* ── 审阅统计 + 空转时间线 ── */
+.memory-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.memory-stat {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  padding: 14px 16px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.memory-stat-k {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.memory-stat-v {
+  margin-top: 6px;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.memory-stat-h {
+  margin-top: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.memory-quiet-list {
+  padding: 4px 0;
+}
+
+.memory-quiet {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 14px;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.memory-quiet-t {
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-fold {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 14px;
+  border: none;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  cursor: pointer;
+}
+
+.memory-fold:hover {
+  color: var(--fg-secondary);
+}
+
+/* ── 索引状态卡 ── */
+.memory-split {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 10px;
+}
+
+.index-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.index-source-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.memory-source {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: center;
+}
+
+.memory-source-name {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.memory-source-n {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-bar {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  height: 6px;
+  overflow: hidden;
+  background: var(--surface-input);
+  border-radius: var(--radius-pill);
+}
+
+.memory-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--status-neutral-bg);
+  border-radius: inherit;
+}
+
+.memory-callout {
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background: var(--status-warning-bg);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  line-height: 1.55;
+}
+
+@media (max-width: 820px) {
+  .memory-stat-grid,
+  .memory-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .profile-summary { align-items: stretch; flex-direction: column; gap: 12px; }
+  .profile-summary > .ui-btn { align-self: flex-start; }
+}
+
+/* ── 回收站：旧 recovery 折叠区 ── */
+.recovery-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-bottom: 6px;
+}
+
+.recovery-toggle svg {
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.recovery-toggle svg.is-open {
+  transform: rotate(180deg);
+}
+
+.recovery-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── 面板内确认小弹层 ── */
+.inline-confirm-mask {
+  z-index: 40;
+}
+
+.inline-confirm-foot {
+  padding-top: 14px;
+}
+
+/* ── 侧栏「记忆整理」入口的审批角标 ── */
+.memory-center-badge {
+  flex: none;
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+/* ── 总览首页（脑图回路，定稿自 docs/prototypes/memory-flow-overview-clean/memory-flow-overview-clean.html） ── */
+.memory-overview {
+  container: memory-overview / inline-size;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 16px 8px;
+}
+
+/* 横向双栏：左脑图卡（背景可撑满）+ 右「最近动态」独立圆角卡（2026-09-27 用户裁决） */
+.memory-overview-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.memory-overview-graph {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+.memory-overview-graph > .fc-help { z-index: 3; }
+.memory-overview-graph .fc-help-content { width: min(360px, calc(100cqw - 64px)); }
+
+.memory-overview-card {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  /* 画布撑满，内容按可用宽高适配；放大后保留原生滚动。 */
+  width: 100%;
+  background: var(--surface-canvas);
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--fg-primary) 8%, transparent);
+  overflow: auto;
+}
+
+.memory-overview-toolbar {
+  flex: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.memory-overview-zoom { display: flex; align-items: center; gap: 4px; }
+.memory-overview-scale { min-width: 40px; text-align: center; font-size: var(--font-caption); }
+.memory-overview-stage {
+  display: flex;
+  min-width: 100%;
+  min-height: 100%;
+  width: max-content;
+}
+.memory-overview-svg {
+  flex: none;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1090 / 700;
+  margin: auto;
+  display: block;
+}
+
+.mflow-brain {
+  fill: url(#mflow-brain);
+  stroke: color-mix(in srgb, var(--fg-primary) 22%, transparent);
+  stroke-width: 0.07;
+}
+
+.mflow-edge {
+  fill: none;
+  stroke-width: 1.6;
+  stroke: color-mix(in srgb, var(--fg-muted) 55%, transparent);
+}
+.mflow-edge.is-green { stroke: color-mix(in srgb, var(--green) 72%, transparent); }
+.mflow-edge.is-yellow { stroke: color-mix(in srgb, var(--yellow) 72%, transparent); }
+.mflow-edge.is-blue { stroke: color-mix(in srgb, var(--blue) 78%, transparent); stroke-width: 2.4; }
+.mflow-edge.is-purple { stroke: color-mix(in srgb, var(--purple) 72%, transparent); }
+.mflow-edge.is-dash { stroke-dasharray: 5 5; }
+.mflow-casing { stroke: var(--surface-canvas); stroke-width: 9; fill: none; }
+.mflow-glow { fill: none; stroke-width: 6; opacity: 0.16; filter: url(#mflow-glow); }
+.mflow-glow.is-blue { stroke: var(--blue); }
+.mflow-glow.is-purple { stroke: var(--purple); }
+.mflow-hit { stroke: transparent; stroke-width: 16; fill: none; pointer-events: stroke; cursor: help; }
+
+.mflow-elabel {
+  font-size: var(--font-caption);
+  fill: var(--fg-muted);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--surface-canvas);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity var(--dur-menu) var(--ease-hover);
+}
+.mflow-elabel.is-rest,
+.mflow-elabel.is-lit { opacity: 1; }
+.mflow-elabel.is-green { fill: color-mix(in srgb, var(--green) 75%, var(--fg-muted)); }
+.mflow-elabel.is-yellow { fill: color-mix(in srgb, var(--yellow) 78%, var(--fg-muted)); }
+.mflow-elabel.is-blue { fill: color-mix(in srgb, var(--blue) 80%, var(--fg-muted)); }
+.mflow-elabel.is-purple { fill: color-mix(in srgb, var(--purple) 78%, var(--fg-muted)); }
+
+.mflow-gate-diamond {
+  fill: var(--surface-raised);
+  stroke: color-mix(in srgb, var(--red) 80%, transparent);
+  stroke-width: 1.6;
+}
+.mflow-gate-core { fill: color-mix(in srgb, var(--red) 70%, transparent); }
+.mflow-gate-hit { fill: transparent; cursor: help; }
+.mflow-gate-halo {
+  fill: color-mix(in srgb, var(--red) 13%, transparent);
+  filter: url(#mflow-glow);
+  animation: mflow-gate-breathe calc(var(--dur-breath) * 2) var(--ease-loop) infinite;
+}
+.mflow-gate-core { animation: mflow-gate-breathe calc(var(--dur-breath) * 2) var(--ease-loop) infinite; }
+@keyframes mflow-gate-breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+.mflow-node {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: var(--surface-raised);
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--fg-primary) 12%, transparent);
+  padding: 8px 10px;
+  font-family: var(--font-sans);
+  color: var(--fg-primary);
+  overflow: hidden;
+  transition: background var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+}
+.mflow-node.is-link { cursor: pointer; }
+.mflow-node.is-link:hover {
+  background: var(--interaction-hover);
+  border-color: var(--border-control);
+}
+.mflow-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.mflow-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-muted); }
+.mflow-dot.is-green { background: var(--green); }
+.mflow-dot.is-yellow { background: var(--yellow); }
+.mflow-dot.is-purple { background: var(--purple); }
+.mflow-title {
+  flex-shrink: 0;
+  font-size: var(--font-ui);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mflow-badge {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin-left: auto;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+  line-height: 16px;
+  font-weight: 500;
+  color: var(--fg-secondary);
+  background: var(--surface-input);
+}
+.mflow-badge.is-green { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.mflow-badge.is-yellow { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+.mflow-badge.is-purple { color: var(--purple); background: color-mix(in srgb, var(--purple) 12%, transparent); }
+.mflow-sub { margin-top: 4px; font-size: var(--font-caption); color: var(--fg-secondary); line-height: 1.45; }
+.mflow-glyph { flex: none; }
+.mflow-particle { pointer-events: none; }
+
+.mflow-edge,
+.mflow-elabel,
+.mflow-casing,
+.mflow-glow,
+foreignObject,
+.mflow-gate-diamond,
+.mflow-gate-core,
+.mflow-gate-halo {
+  transition: opacity var(--dur-menu) var(--ease-hover);
+}
+.mflow-edge.is-dim,
+.mflow-elabel.is-dim,
+.mflow-casing.is-dim,
+.mflow-glow.is-dim,
+foreignObject.is-dim,
+g.is-dim {
+  opacity: 0.18;
+}
+
+.mflow-tip {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  z-index: 30;
+  max-width: min(320px, calc(100% - 16px));
+  padding: 10px 12px;
+  background: var(--surface-overlay);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-card);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity var(--dur-menu) var(--ease-hover), transform var(--dur-menu) var(--ease-hover);
+}
+.mflow-tip.is-show { opacity: 1; transform: translateY(0); }
+.mflow-tip h3 { margin: 0 0 5px; font-size: var(--font-ui); font-weight: 500; color: var(--fg-primary); }
+.mflow-tip p { margin: 0; font-size: var(--font-ui); line-height: 1.6; color: var(--fg-secondary); }
+.mflow-tip-nav { margin-top: 7px; font-size: var(--font-caption); color: var(--blue); }
+
+/* —— 右列「最近动态」：独立圆角矩形卡，钉在最右（不与脑图共背景，不再遮挡脑图） —— */
+.mflow-feed {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: none;
+  width: 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-card);
+  border: 1px solid color-mix(in srgb, var(--fg-primary) 8%, transparent);
+  background: var(--surface-canvas);
+  overflow: hidden;
+}
+/* 手动展开时下排动态；默认由实际面板尺寸自动收起。 */
+@container memory-overview (max-width: 1099px) {
+  .memory-overview-body { flex-direction: column; }
+  .mflow-feed { width: 100%; flex: 0 1 200px; min-height: 0; }
+}
+
+.mflow-feed-head {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 8px;
+}
+.mflow-feed-title {
+  margin: 0;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-secondary);
+  letter-spacing: 0.02em;
+}
+.mflow-feed-count {
+  flex: none;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--status-neutral-bg);
+  font-size: var(--font-micro);
+  line-height: 18px;
+  color: var(--fg-muted);
+}
+.mflow-feed-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 6px 10px;
+}
+.mflow-feed-empty {
+  margin: 6px 10px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  line-height: 1.6;
+}
+.mflow-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+.mflow-row + .mflow-row { margin-top: 1px; }
+.mflow-row.is-link { cursor: pointer; }
+.mflow-row.is-link:hover { background: var(--interaction-hover); }
+.mflow-row-time {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+  line-height: 1.8;
+  color: var(--fg-muted);
+}
+.mflow-row-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 5px;
+  background: var(--fg-muted);
+}
+.mflow-row-dot.is-green { background: var(--green); }
+.mflow-row-dot.is-yellow { background: var(--yellow); }
+.mflow-row-dot.is-red { background: var(--red); }
+.mflow-row-dot.is-purple { background: var(--purple); }
+.mflow-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--font-caption);
+  line-height: 1.55;
+  color: var(--fg-secondary);
+  overflow-wrap: break-word;
+}
+.mflow-row.is-link:hover .mflow-row-text { color: var(--fg-primary); }
+
+/* —— M3 条目 1B：边流量小计数芯片（边中点，近 24h 事件计数） —— */
+.mflow-chip circle {
+  fill: var(--surface-canvas);
+  stroke: color-mix(in srgb, var(--fg-primary) 18%, transparent);
+  stroke-width: 1;
+}
+.mflow-chip text {
+  font-size: 9px;
+  font-weight: 500;
+  fill: var(--fg-secondary);
+  pointer-events: none;
+}
+.mflow-chip:hover circle { stroke: color-mix(in srgb, var(--fg-primary) 36%, transparent); }
+
+.memory-overview-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 4px 0;
+  font-size: 10.5px;
+  color: var(--fg-muted);
+}
+.memory-overview-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.memory-overview-legend i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mflow-tip { transition: none; }
+  .mflow-gate-halo,
+  .mflow-gate-core { animation: none; }
+}
+
+/* ═══ 记忆面板 M2：晋升审阅展开体（条目 2B）/ 暂存池（6B）/ 检索试验台（5）/ 驳回去向（9） ══ */
+
+/* —— 巩固轮卡：整行可点开合 + 右缘展开箭头 —— */
+.review-card.is-clickable {
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+.review-card.is-clickable:hover {
+  background: var(--interaction-hover);
+}
+.review-card-rollback {
+  position: relative;
+  z-index: 1;
+}
+.review-card-chev {
+  flex: none;
+  align-self: center;
+  color: var(--fg-muted);
+  display: inline-flex;
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+.review-card-chev svg.is-open {
+  transform: rotate(180deg);
+}
+
+/* —— 展开体四组（自动入池 / 合并 / 取代 / 没入库的） —— */
+.expand-inner {
+  margin-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.exp-group-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-caption);
+}
+.exp-group-head .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--fg-muted);
+}
+.exp-group-head .dot.is-green { background: var(--status-success-fg); }
+.exp-group-head .dot.is-yellow { background: var(--status-warning-fg); }
+.exp-group-head .t { color: var(--fg-secondary); }
+.exp-group-head .n { color: var(--fg-muted); }
+.exp-group-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.entry-row,
+.pair-row {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  padding: 9px 11px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+}
+.entry-row.is-clickable,
+.pair-row.is-clickable {
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+.entry-row.is-clickable:hover,
+.pair-row.is-clickable:hover {
+  background: var(--interaction-hover);
+}
+.entry-text {
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+  word-break: break-word;
+}
+.entry-text .tagword {
+  color: var(--status-success-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.entry-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.pair-flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+}
+.pair-old {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--status-danger-border);
+}
+.pair-new { color: var(--fg-primary); word-break: break-word; }
+.pair-new .tagword {
+  color: var(--status-success-fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.pair-arrow { color: var(--fg-muted); flex: none; }
+
+.reject-block {
+  border-left: 2px solid var(--status-warning-border);
+  padding: 2px 0 2px 10px;
+}
+.reject-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.reject-head .txt {
+  font-size: 12.5px;
+  color: var(--fg-secondary);
+  word-break: break-word;
+}
+.reject-chev {
+  margin-left: auto;
+  color: var(--fg-muted);
+  display: inline-flex;
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+.reject-chev svg.is-open { transform: rotate(180deg); }
+.reject-why-inner {
+  padding-top: 6px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  line-height: 1.7;
+}
+.reject-why-inner b {
+  color: var(--status-warning-fg);
+  font-weight: 500;
+}
+
+/* —— 暂存池区块（条目 6B） —— */
+.staging-head-note {
+  margin: 2px 0 10px;
+}
+.stage-row {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  margin-top: 8px;
+}
+.stage-row .body {
+  flex: 1;
+  min-width: 0;
+}
+.stage-text {
+  font-size: var(--font-ui);
+  word-break: break-word;
+}
+.stage-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.stage-actions {
+  flex: none;
+  display: flex;
+  gap: 6px;
+}
+.stage-row.is-expired .stage-text {
+  color: var(--fg-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--status-danger-border);
+}
+.stage-row.is-discarded .stage-text {
+  color: var(--fg-secondary);
+}
+.stage-text.is-collapsed {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.approval-operation-list { display: grid; gap: 10px; margin-top: 10px; }
+.approval-operation { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  padding: 10px 12px; border: 1px solid var(--border-control); border-radius: var(--radius-small); background: var(--surface-canvas); }
+.approval-operation b { display: block; margin-top: 8px; font-size: var(--font-ui); font-weight: 500; }
+.approval-operation-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 5px 0 0; font: inherit; line-height: 1.55; user-select: text; }
+.approval-operation-text.is-old { color: var(--fg-secondary); }
+.memory-callout-link { width: 100%; text-align: left; cursor: pointer; font: inherit; }
+.index-card .memory-card-foot .ui-btn { flex: none; white-space: nowrap; }
+.stage-text-toggle {
+  margin-top: 4px;
+}
+
+/* —— 检索试验台（条目 5） —— */
+.lab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lab-input-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+/* flex 子项默认 min-width:auto 不缩到内容宽以下——input 默认 size 撑出固有宽，
+   会把右侧「检索」按钮挤出卡外被 overflow 裁掉（2026-09-27 贴边+裁切事故） */
+.lab-input-row .ui-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.lab-input-row .ui-btn {
+  flex: none;
+}
+.lab-suggest {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.lab-suggest-chip {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  cursor: pointer;
+  transition: color var(--dur-micro) var(--ease-hover), background var(--dur-micro) var(--ease-hover);
+}
+.lab-suggest-chip:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+.lab-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+.lab-switch {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: inline-flex;
+  border-radius: var(--radius-pill);
+  background: var(--surface-input);
+  padding: 2px;
+  gap: 2px;
+}
+.lab-switch button {
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-caption);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+.lab-switch button:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: not-allowed;
+}
+.lab-switch button.is-active {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  background: var(--surface-overlay);
+  color: var(--fg-primary);
+}
+.lab-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+.lab-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lab-hit {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  padding: 10px 12px;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  /* 一次性内容入场（motion 规约豁免：非进出场，结果出现即播一次） */
+  animation: memory-hit-in var(--dur-panel) var(--ease-standard) backwards;
+}
+@keyframes memory-hit-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hit-text {
+  font-size: var(--font-ui);
+  word-break: break-word;
+}
+.hit-text mark {
+  background: var(--status-warning-bg);
+  color: var(--fg-primary);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+.hit-why {
+  margin-top: 5px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  line-height: 1.6;
+}
+.hit-why b { font-weight: 500; }
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 7px;
+}
+.score-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  display: flex;
+  background: var(--surface-input);
+}
+.score-bar i {
+  height: 100%;
+  /* 动画规约属性白名单（transform/opacity/grid-template-rows）不含 width——
+     段宽随结果集一次性给出，不加越白名单的过渡（契约断言见 test/memory-overview-css.mjs） */
+}
+.score-bar .s-lex { background: color-mix(in srgb, var(--green) 70%, transparent); }
+.score-bar .s-vec { background: color-mix(in srgb, var(--blue) 70%, transparent); }
+.score-bar .s-fresh { background: color-mix(in srgb, var(--purple) 60%, transparent); }
+.score-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 10.5px;
+  color: var(--fg-muted);
+}
+.score-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: -1px;
+}
+.score-legend .s-lex { background: color-mix(in srgb, var(--green) 70%, transparent); }
+.score-legend .s-vec { background: color-mix(in srgb, var(--blue) 70%, transparent); }
+.score-legend .s-fresh { background: color-mix(in srgb, var(--purple) 60%, transparent); }
+.lab-empty {
+  padding: 14px 0 6px;
+  text-align: center;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+/* —— 向量卡健康态「详情」折叠（条目 5B 遥测人话化） —— */
+.emb-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0 4px;
+}
+
+/* —— 已驳回卡去向交代（条目 9） —— */
+.approval-card.is-clickable {
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+.approval-card.is-clickable:hover {
+  background: var(--interaction-hover);
+}
+.approval-card .review-card-chev { align-self: flex-start; }
+.fate-inner {
+  margin-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 10px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  line-height: 1.7;
+}
+.fate-inner b {
+  color: var(--fg-primary);
+  font-weight: 500;
+}
+.fate-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+.approval-payload-detail {
+  border-top: 1px dashed var(--border-subtle);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+.approval-payload-detail .review-card-diff {
+  margin-top: 4px;
+  max-height: 200px;
+  overflow: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-hit { animation: none; }
+  .review-card-chev,
+  .reject-chev { transition: none; }
+}
+
+/* 鼠标框选与平移；选框直接跟随指针，不添加尺寸过渡。 */
+.memory-overview-card { user-select: none; }
+.memory-overview-card.is-panning { cursor: grabbing; }
+.memory-overview-card.is-panning .mflow-node,
+.memory-overview-card.is-panning .mflow-hit { cursor: grabbing; }
+.memory-overview-card.is-selecting { cursor: crosshair; }
+.memory-overview-selection {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+  border: 1px solid var(--border-focus);
+}
+.memory-overview-selection::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--interaction-selected);
+  opacity: 0.2;
+}

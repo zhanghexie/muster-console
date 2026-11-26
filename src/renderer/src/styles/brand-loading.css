@@ -1,0 +1,40 @@
+/* Same orbit geometry at boot and inside controls; only compositor properties move. */
+.brand-loader { display: block; flex: none; overflow: visible; }
+.brand-loading { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: var(--fg-primary); vertical-align: middle; }
+.brand-loading-panel { display: grid; place-items: center; min-height: 120px; }
+.brand-loader-orbit {
+  transform-origin: 512px 512px;
+  animation: brand-orbit calc(var(--dur-breath) * 2) var(--ease-loop) infinite;
+}
+.brand-loader-core {
+  transform-origin: 512px 512px;
+  animation: brand-core var(--dur-breath) var(--ease-loop) infinite;
+}
+/* Kept-alive pages must not keep SVG layout running while hidden. A hidden outer
+ * page wins even when an inner page is selected; showing it resumes the same phase. */
+.xfade:not(.is-shown) :is(.brand-loader-core, .brand-loader-orbit) {
+  animation-play-state: paused;
+}
+@keyframes brand-orbit { to { transform: rotate(360deg); } }
+@keyframes brand-core {
+  0%, 100% { opacity: .85; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1); }
+}
+.boot-skel {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 24px;
+  background: var(--surface-frame); color: var(--fg-primary, #e4e4e4);
+}
+#boot-overlay { z-index: 2147483645; }
+.brand-boot-name { font: 500 15px/1.4 system-ui, sans-serif; letter-spacing: .08em; }
+button.send-btn.brand-loading-button {
+  background: var(--interaction-hover); color: var(--fg-primary); transition: none;
+}
+button.send-btn.brand-loading-button:hover:not(:disabled) {
+  background: var(--interaction-pressed); color: var(--fg-primary);
+}
+:root[data-ui-motion='reduced'] .brand-loader-orbit,
+:root[data-ui-motion='reduced'] .brand-loader-core { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-orbit, .brand-loader-core { animation: none; }
+}

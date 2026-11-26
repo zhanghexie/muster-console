@@ -1,0 +1,1 @@
+{"scene":"S3 交付检查单","render":{"mode":"inline","title":"当前交付检查单（本周）","preset":"checklist","data":{"items":[{"text":"路由映射表评审通过并归档","state":"done"},{"text":"依赖升级 PR 合入主干（CI 全绿）","state":"done"},{"text":"搜索组件首字耗时压进 300ms（当前 420ms）","state":"doing"},{"text":"内容迁移脚本 dry-run 全量通过","state":"todo"},{"text":"旧站 301 清单提审（阻塞：待运维开通网关配置权限）","state":"blocked"}]}}}

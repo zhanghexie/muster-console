@@ -1,0 +1,539 @@
+/* skel.css — 由 styles.css 拆分（域：skel）。规范见 /design.md。修改请守住 token。 */
+
+
+/* 骨架铺满胶片格 */
+.ws-pane-skel .ws-skeleton {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: absolute;
+  inset: 0;
+  z-index: auto;
+  display: flex;
+  flex-direction: row;
+  background: var(--ws-skel-frame-color, var(--surface-frame));
+  pointer-events: none;
+}
+
+/* 普通：左栏 + 终端 */
+.ws-skel-plain {
+  width: 100%;
+}
+
+/* 虚拟屏·终端主态：工作页 + 右侧 Git 露条（约 1/8） */
+.ws-skel-vs-terminal {
+  width: 100%;
+  min-width: 0;
+  gap: var(--page-gap, 4px);
+  overflow: hidden;
+}
+
+.ws-skel-vs-terminal .ws-skel-workspace {
+  flex: 0 0 calc(var(--ws-skel-term-share, 87.5%) - var(--page-gap-before, 2px));
+  width: calc(var(--ws-skel-term-share, 87.5%) - var(--page-gap-before, 2px));
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+}
+
+.ws-skel-vs-terminal .ws-skel-git.is-peek {
+  flex: 0 0 calc(100% - var(--ws-skel-term-share, 87.5%) - var(--page-gap-before, 2px));
+  width: calc(100% - var(--ws-skel-term-share, 87.5%) - var(--page-gap-before, 2px));
+}
+
+/* 虚拟屏·Git 主态：左侧工作页露条 + Git 主区 */
+.ws-skel-vs-git {
+  width: 100%;
+  min-width: 0;
+  gap: var(--page-gap, 4px);
+  overflow: hidden;
+}
+
+.ws-skel-vs-git .ws-skel-workspace-peek {
+  flex: 0 0 calc(100% - var(--ws-skel-git-share, 66.667%) - var(--page-gap-before, 2px));
+  width: calc(100% - var(--ws-skel-git-share, 66.667%) - var(--page-gap-before, 2px));
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  opacity: 0.92;
+}
+
+.ws-skel-vs-git .ws-skel-git:not(.is-peek) {
+  flex: 0 0 calc(var(--ws-skel-git-share, 66.667%) - var(--page-gap-before, 2px));
+  width: calc(var(--ws-skel-git-share, 66.667%) - var(--page-gap-before, 2px));
+  min-width: 0;
+}
+
+/* 模拟真实左栏（L1，与主区色差分界，不画线，design.md §3） */
+.ws-skel-left {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 0 0 auto;
+  height: 100%;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--ws-skel-frame-color, var(--surface-frame));
+  box-sizing: border-box;
+}
+
+.ws-skel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ws-skel-tools-grid {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.ws-skel-tool-tile {
+  min-width: 0;
+  min-height: 56px;
+  border-radius: var(--radius-card);
+}
+
+.ws-skel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-skel-main {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+  padding: 0;
+  box-sizing: border-box;
+  background: var(--ws-skel-canvas-color, var(--surface-canvas));
+  border-radius: var(--radius-page);
+  corner-shape: var(--corner-shape-page);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  overflow: hidden;
+}
+
+.ws-skel-main.is-peek {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  padding: 0;
+  border-radius: 0;
+  box-shadow: inset 1px 0 0 var(--border-subtle);
+  background: var(--ws-skel-canvas-color, var(--surface-canvas));
+}
+
+/* 行距贴近真实终端/消息内容行高（8px 行条 + 12px 间距） */
+.ws-skel-term {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(var(--chat-col-max, 760px), calc(100% - 2 * var(--chat-col-inset, 12px)));
+  max-width: none;
+  margin-inline: auto;
+  padding: 18px 16px 0;
+  box-sizing: border-box;
+}
+
+.ws-skel-block.ws-skel-content-block {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--canvas-fg-primary) 12%, transparent) 0%,
+    color-mix(in srgb, var(--canvas-fg-primary) 24%, transparent) 45%,
+    color-mix(in srgb, var(--canvas-fg-primary) 12%, transparent) 100%
+  );
+  background-size: 200% 100%;
+}
+
+/* 底部输入区：参考真实会话的居中长条与右侧动作位 */
+.ws-skel-composer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: min(
+    calc(var(--chat-col-max, 760px) + 12px),
+    calc(100% - 2 * var(--composer-dock-inset, 14px))
+  );
+  margin-inline: auto;
+  bottom: var(--composer-dock-inset, 14px);
+  height: calc(64px + 46px + 2px);
+  padding: 0 12px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 12px;
+  padding-bottom: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-input);
+  box-shadow: var(--shadow-input);
+}
+
+.ws-skel-composer-line {
+  flex: 0 0 auto;
+  height: 8px;
+  width: 68%;
+}
+
+.ws-skel-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.ws-skel-composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ws-skel-composer-tool {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-control);
+}
+
+.ws-skel-composer-tool.short {
+  width: 52px;
+}
+
+.ws-skel-composer-send {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+}
+
+/* 模拟真实 Git 工具面板（L1） */
+.ws-skel-git {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  height: 100%;
+  position: relative;
+  min-width: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--ws-skel-canvas-color, var(--surface-canvas));
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: var(--radius-page);
+  corner-shape: var(--corner-shape-page);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+}
+
+.ws-skel-git.is-peek {
+  box-shadow: inset 1px 0 0 var(--interaction-hover);
+}
+
+.ws-skel-git-head {
+  min-height: 44px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ws-skel-git-tabs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 10px 4px;
+  flex-shrink: 0;
+}
+
+.ws-skel-git-tab {
+  width: 28%;
+  height: 20px;
+}
+
+.ws-skel-git-tab.active {
+  width: 40%;
+}
+
+.ws-skel-git-tab.short {
+  width: 20%;
+}
+
+.ws-skel-git-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 12px 12px;
+}
+
+.ws-skel-git-body.is-peek {
+  padding: 8px 8px 12px;
+}
+
+.ws-skel-git-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ws-skel-git-dot {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.ws-skel-git-item .ws-skel-row {
+  width: auto;
+  flex: 1;
+}
+
+.ws-skel-git-bar {
+  height: 24px;
+  width: 100%;
+  border-radius: var(--radius-control);
+}
+
+.ws-skel-git-bar.short {
+  width: 70%;
+}
+
+/* 骨架条默认跟随列表行/控件档：radius-control（design.md §10 骨架屏行） */
+.ws-skel-block {
+  border-radius: var(--radius-control);
+  background: linear-gradient(90deg, var(--skel-a) 0%, var(--skel-b) 45%, var(--skel-a) 100%);
+  background-size: 200% 100%;
+  animation: ws-skel-shimmer var(--dur-breath) var(--ease-loop) infinite;
+}
+
+/* 模拟 panel-header 标题块与图标按钮 */
+.ws-skel-pill {
+  height: 28px;
+  width: 72%;
+  border-radius: var(--radius-control);
+}
+
+.ws-skel-icon {
+  height: 28px;
+  width: 28px;
+  border-radius: var(--radius-control);
+  flex-shrink: 0;
+}
+
+/* caption 分组标题条：嵌套递减档 4px（design.md §2） */
+.ws-skel-label {
+  height: 8px;
+  width: 36%;
+  border-radius: 4px;
+  opacity: 0.85;
+}
+
+/* 模拟会话列表行：高 28、radius-control */
+.ws-skel-row {
+  height: 28px;
+  width: 100%;
+  border-radius: var(--radius-control);
+}
+
+.ws-skel-row.short {
+  width: 78%;
+}
+
+.ws-skel-line {
+  height: 8px;
+  border-radius: 4px;
+}
+
+.ws-skel-line.w30 {
+  width: 30%;
+}
+.ws-skel-line.w40 {
+  width: 40%;
+}
+.ws-skel-line.w55 {
+  width: 55%;
+}
+.ws-skel-line.w60 {
+  width: 60%;
+}
+.ws-skel-line.w70 {
+  width: 70%;
+}
+.ws-skel-line.w75 {
+  width: 75%;
+}
+
+/* 终端 caret：直角矩形（结构面内内容元素，不占圆角档） */
+.ws-skel-cursor {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  width: 8px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 0;
+  background: var(--interaction-selected);
+  animation: ws-skel-blink var(--dur-loop) step-end infinite;
+}
+
+@keyframes ws-skel-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes ws-skel-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

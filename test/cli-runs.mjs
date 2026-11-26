@@ -1,0 +1,236 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawn } from 'node:child_process';
+import { build } from 'esbuild';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'metaagent-cli-test-'));
+const compile = createSharedCompiler(root, temp);
+const { CliRunStore } = await import(pathToFileURL(compile('main/cliRuns/runtime.ts')));
+const { CliRunService } = await import(pathToFileURL(compile('main/cliRuns/service.ts')));
+const { CliServer } = await import(pathToFileURL(compile('main/cliRuns/server.ts')));
+const { CLI_COMMANDS, cliSchema, validateCliArgs } = await import(pathToFileURL(compile('shared/cli.ts')));
+const { selectCliInstance, readCliInstances } = await import(pathToFileURL(compile('main/cliRuns/discovery.ts')));
+const schedulerEntry = path.join(temp, 'send-scheduler.mjs');
+await build({ entryPoints: [path.join(root, 'src/main/agent/orchestrator/sendPipeline.ts')], outfile: schedulerEntry,
+  bundle: true, platform: 'node', format: 'esm', logLevel: 'silent', plugins: [{ name: 'memory-resource-boundary', setup(builder) {
+    builder.onResolve({ filter: /^electron$/ }, () => ({ path: 'electron', namespace: 'fixture-electron' }));
+    builder.onLoad({ filter: /.*/, namespace: 'fixture-electron' }, () => ({ contents: `const blocked = new Proxy({}, {get(){throw Error('Unexpected Electron API in CLI scheduler regression');}}); export const app=blocked, BrowserWindow=blocked, ipcMain=blocked, dialog=blocked, Notification=blocked, nativeImage=blocked, safeStorage=blocked, shell=blocked, screen=blocked, session=blocked, webContents=blocked, desktopCapturer=blocked, clipboard=blocked, net=blocked, protocol=blocked, powerMonitor=blocked, powerSaveBlocker=blocked;`, loader: 'js' }));
+    builder.onResolve({ filter: /memory\/runtime$/ }, () => ({ path: 'memory', namespace: 'fixture' }));
+    builder.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export const getMemoryService=()=>null; export const resolveMemoryWorkspaceRoot=()=>undefined;', loader: 'js' }));
+  } }] });
+const { send: sendScheduler } = await import(pathToFileURL(schedulerEntry));
+const { assertCliWorkerOwnership, cliWorkerFromDelegate } = await import(pathToFileURL(compile('main/cliRuns/workers.ts')));
+const { createCliDelegateBridge } = await import(pathToFileURL(compile('main/cliRuns/delegateBridge.ts')));
+const dq = await import(pathToFileURL(compile('main/tasks/delegateQueue.ts')));
+const entry = path.join(temp, 'entry.mjs');
+await build({ entryPoints: [path.join(root, 'src/main/cliRuns/entry.ts')], outfile: entry, bundle: true, platform: 'node', format: 'esm', logLevel: 'silent' });
+const tick = () => new Promise(resolve => setTimeout(resolve, 5));
+const home = path.join(temp, 'discovery');
+const childCli = (args, input) => new Promise((resolve, reject) => {
+  const child = spawn(process.execPath, [fs.realpathSync(entry), ...args], { env: { ...process.env, MUSTER_CLI_HOME: home }, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+  let stdout = '', stderr = '';
+  child.stdout.on('data', data => stdout += data); child.stderr.on('data', data => stderr += data);
+  child.on('error', reject); child.on('close', code => resolve({ code, stdout, stderr, json: () => JSON.parse(stdout) })); child.stdin.end(input);
+});
+let server;
+try {
+  const releases = [], bucket = { busy: true, queue: Array(8).fill({}), display: [] };
+  let admitted = 0, started = 0;
+  const scheduler = { ensureBucket: () => bucket, checkSendImages: () => ({ ok: true }), maybeIdleMicrocompact: async () => {}, turnGate: { release: token => releases.push(token) }, emit: () => {}, persistBucket: () => {}, startTurn: async () => { assert.equal(admitted, 1); started++; } };
+  await sendScheduler(scheduler, 'external task', 'ws-a', undefined, { host: true, gateToken: 'one', requireIdle: true, beforeStart: () => { admitted++; return true; } });
+  assert.equal(admitted, 0); assert.equal(bucket.queue.length, 8); assert.equal(started, 0); assert.ok(releases.includes('one'));
+  bucket.busy = false;
+  await sendScheduler(scheduler, 'cancelled task', 'ws-a', undefined, { host: true, gateToken: 'two', requireIdle: true, beforeStart: () => false });
+  assert.equal(bucket.display.length, 0); assert.ok(releases.includes('two'));
+  await sendScheduler(scheduler, 'external task', 'ws-a', undefined, { host: true, gateToken: 'three', requireIdle: true, beforeStart: () => { admitted++; return true; } });
+  assert.equal(started, 1); assert.equal(bucket.display[0].host, true);
+  const store = new CliRunStore(path.join(temp, 'runs'));
+  const dispatched = [], interrupted = [];
+  const service = new CliRunService(store, {
+    workspaces: () => [{ id: 'ws-a', name: 'Workspace A' }, { id: 'ws-b', name: 'Workspace B' }],
+    dispatch: async (run, input, admit) => { dispatched.push([run.runId, input]); return admit(); },
+    delegate: async (_run, taskId, input, onQueued) => { if (input.queue) onQueued('queue-1'); return { taskId, sessionId: String(input.session), runtime: String(input.runtime) }; },
+    cancelQueued: () => true, interrupt: async (run, worker) => { interrupted.push([run.runId, worker.sessionId]); }, workerLogs: async (_run, worker) => `tail:${worker.runtime}`, open: async () => {}
+  });
+  const allRuns = store.all.bind(store);
+  store.all = () => { throw new Error('idle pump must not clone all historical runs'); };
+  await service.pump();
+  store.all = allRuns;
+  const queuedDirectly = store.submit('ws-a', 'pending-index');
+  const pendingEntry = store.pending().find(item => item.runId === queuedDirectly.runId);
+  assert.deepEqual(Object.keys(pendingEntry).sort(), ['input', 'runId', 'taskPath', 'workspaceId'], 'idle scheduling does not clone task history');
+  assert.equal(pendingEntry.taskPath, store.get(queuedDirectly.runId).taskPath, 'the scheduler can still read the original task');
+  store.cancel(queuedDirectly.runId);
+  assert.equal(store.pending().some(item => item.runId === queuedDirectly.runId), false, 'terminal runs leave the pending index');
+  const older = store.submit('ws-a', 'older');
+  store.change(older.runId, run => { run.pending = []; run.state = 'running'; }, 'test', 'admitted');
+  const newer = store.submit('ws-a', 'newer');
+  store.reply(older.runId, 'follow-up');
+  assert.deepEqual(store.pending().map(item => item.runId), [older.runId, newer.runId], 'the pending index preserves original run order');
+  store.cancel(older.runId); store.cancel(newer.runId);
+  const a = service.submit('ws-a', '第一项\n"quoted" `literal` $literal', 'key-a');
+  await tick();
+  assert.equal(store.get(a.runId).pending.length, 0);
+  assert.equal(service.submit('ws-a', '第一项\n"quoted" `literal` $literal', 'key-a').runId, a.runId);
+  assert.throws(() => service.submit('ws-a', 'different', 'key-a'), /different task content/);
+  assert.throws(() => service.submit('missing', 'task'), /Workspace is not open/);
+  assert.equal(fs.readFileSync(store.get(a.runId).taskPath, 'utf8'), '第一项\n"quoted" `literal` $literal');
+  const b = service.submit('ws-b', 'second'); await tick();
+  const beforeChoice = structuredClone(store.get(a.runId));
+  for (const input of [{}, {isolation:'auto'}, {isolation:'isolated'}, {isolation:'shared',isolationGroups:[]}]) {
+    await assert.rejects(service.delegate(a.runId,input), /isolation/);
+    assert.deepEqual(store.get(a.runId),beforeChoice,'invalid isolation cannot reserve or log a CLI worker');
+  }
+  await service.delegate(a.runId, { isolation: 'shared', session: 'gui-a', runtime: 'pi' });
+  assert.match(store.get(a.runId).workers[0].taskId, /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/, 'linked task ID satisfies the real shared-task contract');
+  await service.delegate(b.runId, { isolation: 'shared', session: 'tty-b', runtime: 'codex', queue: true });
+  store.question(a.runId, 'Which option?'); const question = store.get(a.runId).question;
+  assert.throws(() => store.reply(a.runId, 'answer', 'stale'), /stale/);
+  store.reply(a.runId, 'A', question.id, 'reply-key');
+  assert.equal(store.reply(a.runId, 'A', question.id, 'reply-key').deduplicated, true);
+  assert.throws(() => store.reply(a.runId, 'B', question.id, 'reply-key'), /different content/);
+  assert.throws(() => store.deliver(a.runId, 'premature', [], 'not checked'), /pending instructions/);
+  await service.pump(); await tick();
+  assert.equal(store.get(a.runId).state, 'running');
+  assert.equal(store.get(a.runId).result, undefined, 'scheduler admission is not delivery');
+  const firstLogs = await service.logs(a.runId, 0, 2);
+  assert.equal(firstLogs.events.length, 2); assert.equal(firstLogs.hasMore, true);
+  const nextLogs = await service.logs(a.runId, firstLogs.nextCursor, 200);
+  assert.ok(nextLogs.events.every(event => event.seq > firstLogs.nextCursor));
+  assert.ok(nextLogs.events.some(event => event.source === 'worker:gui-a'));
+  store.deliver(a.runId, 'complete A', [], 'Offline checks only');
+  assert.equal(store.reply(a.runId, 'A', question.id, 'reply-key').deduplicated, true, 'a retried accepted reply stays idempotent after delivery');
+  await service.cancel(b.runId);
+  assert.deepEqual(interrupted, [[b.runId, 'tty-b']], 'cancel does not interrupt unrelated worker');
+  assert.equal(store.get(a.runId).state, 'delivered'); assert.equal(store.get(b.runId).state, 'cancelled');
+  assert.throws(() => store.progress(b.runId, 'late'), /cancelled/);
+  assert.throws(() => service.store.deliver(b.runId, 'late', [], 'none'), /cancelled/);
+  const inflight = service.submit('ws-a', 'cancel during launch'); await tick();
+  let launchResolve;
+  const pending = new Promise(resolve => launchResolve = resolve);
+  const oldDelegate = service.deps.delegate;
+  service.deps.delegate = async (_run, taskId) => { await pending; return { taskId, sessionId: 'late-worker' }; };
+  const creating = service.delegate(inflight.runId, { isolation: 'shared',});
+  await service.cancel(inflight.runId); launchResolve(); await creating;
+  assert.ok(interrupted.some(([id, session]) => id === inflight.runId && session === 'late-worker'), 'late worker is interrupted');
+  service.deps.delegate = oldDelegate;
+  const retry = service.submit('ws-a', 'retry after invalid delegation'); await tick();
+  service.deps.delegate = async () => { throw new Error('invalid runtime'); };
+  await assert.rejects(service.delegate(retry.runId, { isolation: 'shared',}), /invalid runtime/);
+  assert.equal(store.get(retry.runId).workers.length, 0, 'a launch rejected before creation leaves no executor reservation');
+  service.deps.delegate = oldDelegate;
+  await service.delegate(retry.runId, { isolation: 'shared', session: 'retry-worker' });
+  assert.equal(store.get(retry.runId).workers.length, 1, 'corrected delegation has no poisoned empty reservation');
+  store.deliver(retry.runId, 'retry succeeded', [], 'fixture');
+  assert.equal(store.get(retry.runId).state, 'delivered');
+
+  const orphan = service.submit('ws-a', 'first mail launch failed after session creation'); await tick();
+  const session = { id: 'unbound-worker', workspaceId: 'ws-a', lifecycle: 'working' };
+  const oldInterrupt = service.deps.interrupt;
+  service.deps.delegate = async (_run, taskId) => { session.meta = { creationKey: 'cli:' + taskId }; throw Object.assign(new Error('PTY readiness failed'), { sessionId: session.id }); };
+  service.deps.interrupt = async (run, worker) => { assertCliWorkerOwnership(run, worker, session); interrupted.push([run.runId, worker.sessionId]); };
+  await assert.rejects(service.delegate(orphan.runId, { isolation: 'shared',}), /PTY readiness failed/);
+  assert.equal(store.get(orphan.runId).state, 'failed');
+  assert.equal(store.get(orphan.runId).workers[0].creationFailed, true);
+  assert.ok(interrupted.some(([id, worker]) => id === orphan.runId && worker === session.id), 'fresh unbound session is compensated using creation evidence');
+  await service.cancel(orphan.runId);
+  const orphanWorker = store.get(orphan.runId).workers[0];
+  assert.doesNotThrow(() => assertCliWorkerOwnership(store.get(orphan.runId), { ...orphanWorker, creationFailed: undefined }, session));
+  assert.throws(() => assertCliWorkerOwnership(store.get(orphan.runId), orphanWorker, { ...session, meta: { creationKey: 'cli:foreign' } }), /ownership changed/);
+  assert.throws(() => assertCliWorkerOwnership(store.get(orphan.runId), orphanWorker, { ...session, workspaceId: 'ws-b' }), /ownership changed/);
+  assert.throws(() => assertCliWorkerOwnership(store.get(orphan.runId), orphanWorker, { ...session, meta: undefined }), /ownership changed/);
+  assert.throws(() => cliWorkerFromDelegate({ session }), /without a linked worker/);
+  assert.deepEqual(cliWorkerFromDelegate({ session }, orphanWorker.taskId), { sessionId: session.id, taskId: orphanWorker.taskId, runtime: undefined });
+  service.deps.delegate = oldDelegate; service.deps.interrupt = oldInterrupt;
+  const lateFailure = service.submit('ws-a', 'cancel during launch with interruption failure'); await tick();
+  let finishLate;
+  const lateGate = new Promise(resolve => finishLate = resolve);
+  service.deps.delegate = async (_run, taskId) => { await lateGate; return { taskId, sessionId: 'late-interrupt-failure' }; };
+  service.deps.interrupt = async () => { throw new Error('temporary interruption error'); };
+  const lateAttempt = service.delegate(lateFailure.runId, { isolation: 'shared',});
+  await service.cancel(lateFailure.runId); finishLate();
+  await assert.rejects(lateAttempt, /temporary interruption error/);
+  assert.equal(store.get(lateFailure.runId).workers[0].sessionId, 'late-interrupt-failure', 'failed compensation retains the linked resource for another cancel');
+  service.deps.interrupt = oldInterrupt;
+  assert.deepEqual((await service.cancel(lateFailure.runId)).cancellationErrors, []);
+  assert.ok(interrupted.some(([id, worker]) => id === lateFailure.runId && worker === 'late-interrupt-failure'));
+  service.deps.delegate = oldDelegate;
+
+  // Real queue failure timing: the listener runs before the queue reinserts a
+  // failed item. CLI must remove its retry without touching other callers.
+  dq.resetDelegateQueueForTests();
+  const bridge = createCliDelegateBridge();
+  try {
+    const wsRoot = path.join(temp, 'queue-workspace'); fs.mkdirSync(wsRoot);
+    const queueCtx = { config: { get: () => ({ workspaces: [{ id: 'queue-ws', path: wsRoot }] }) }, sessions: { listByWorkspace: () => [] } };
+    const queued = dq.enqueueDelegate(queueCtx, 'queue-ws', { task: 'cli', isolate: false });
+    const waiting = bridge.waitQueued(queued.queueId, () => {});
+    const rejection = assert.rejects(waiting, error => error.sessionId === session.id);
+    dq.bindDelegateRunner(async () => { throw Object.assign(new Error('fixture startup failed'), { sessionId: session.id }); });
+    await dq.drainDelegateQueue('queue-ws'); await rejection; await tick();
+    assert.equal(dq.listDelegateQueue('queue-ws').length, 0, 'failed CLI creation is not silently retried');
+    dq.bindDelegateRunner(async () => { throw new Error('fixture failed before session creation'); });
+    dq.enqueueDelegate(queueCtx, 'queue-ws', { task: 'unrelated workflow', isolate: false });
+    await dq.drainDelegateQueue('queue-ws'); await tick();
+    assert.equal(dq.listDelegateQueue('queue-ws').length, 1, 'CLI bridge preserves other callers retry policy');
+    dq.cancelQueuedDelegate(dq.listDelegateQueue('queue-ws')[0].queueId);
+    dq.bindDelegateRunner(async () => { throw Object.assign(new Error('fixture failed after creation'), { sessionId: session.id }); });
+    dq.enqueueDelegate(queueCtx, 'queue-ws', { task: 'retained workflow worker', isolate: false });
+    await dq.drainDelegateQueue('queue-ws'); await tick();
+    assert.equal(dq.listDelegateQueue('queue-ws').length, 0, 'all callers preserve an already-created session instead of creating duplicates');
+  } finally { bridge.dispose(); dq.resetDelegateQueueForTests(); }
+  const failed = service.submit('ws-b', 'failed with worker'); await tick();
+  await service.delegate(failed.runId, { isolation: 'shared', session: 'failed-worker' }); store.fail(failed.runId, 'fixture error');
+  await service.cancel(failed.runId);
+  assert.ok(interrupted.some(([id, session]) => id === failed.runId && session === 'failed-worker'), 'explicit cancellation can clean up a failed run');
+  assert.equal(store.get(failed.runId).state, 'failed', 'cleanup preserves the original failure');
+  const restart = service.submit('ws-a', 'unfinished'); await tick();
+  const loaded = new CliRunStore(store.directory);
+  assert.equal(loaded.get(restart.runId).state, 'interrupted'); assert.equal(loaded.get(restart.runId).pending.length, 0);
+  assert.equal(loaded.get(a.runId).result.summary, 'complete A');
+
+  server = new CliServer(service); await server.start(home, 'instance-a', 'test-version');
+  const descriptor = JSON.parse(fs.readFileSync(path.join(home, 'instance-a.json'), 'utf8'));
+  assert.equal(selectCliInstance(readCliInstances(home)).id, 'instance-a');
+  assert.throws(() => selectCliInstance([descriptor, { ...descriptor, id: 'instance-b' }]), /Multiple/);
+  assert.equal(selectCliInstance([descriptor, { ...descriptor, id: 'instance-b' }], 'instance-b').id, 'instance-b');
+  const request = async (body, auth = descriptor.token, origin) => fetch(`http://127.0.0.1:${descriptor.port}/v1/command`, { method: 'POST', headers: { Authorization: `Bearer ${auth}`, ...(origin ? { Origin: origin } : {}) }, body: JSON.stringify(body) });
+  assert.equal((await request({ command: 'status', args: {} }, 'wrong')).status, 401);
+  assert.equal((await request({ command: 'status', args: {} }, descriptor.token, 'http://evil.test')).status, 401);
+  assert.equal((await request(null)).status, 400);
+  assert.equal((await request({ command: 'sessions.delete', args: {} })).status, 400);
+  assert.equal((await request({ command: 'run submit', args: { workspace: 'ws-a', text: 'x', __actorSessionId: 'host' } })).status, 400);
+  for (const command of CLI_COMMANDS) assert.ok(cliSchema(command).result);
+  assert.throws(() => validateCliArgs(CLI_COMMANDS.find(item => item.name === 'run logs'), { runId: a.runId, after: -1 }), /Invalid after/);
+  let result = await childCli(['--help']); assert.equal(result.code, 0); assert.match(result.stdout, /run submit/);
+  for (const command of CLI_COMMANDS) { result = await childCli([...command.name.split(' '), '--help']); assert.equal(result.code, 0, command.name); assert.ok(result.stdout.includes(command.description)); }
+  result = await childCli(['capabilities', '--json']); assert.equal(result.code, 0); assert.equal(result.json().result.commands.length, CLI_COMMANDS.length);
+  result = await childCli(['schema', 'run', 'submit', '--json']); assert.equal(result.code, 0); assert.equal(result.json().result.options.workspace.required, true);
+  result = await childCli(['status']); assert.equal(result.code, 0); assert.equal(result.json().result.version, 'test-version'); assert.ok(!result.stdout.includes(descriptor.token));
+  result = await childCli(['workspace', 'list', '--limit', '1']); assert.equal(result.json().result.workspaces.length, 1); assert.equal(result.json().result.nextOffset, 1);
+  result = await childCli(['run', 'submit', '--workspace', 'ws-a', '--stdin', '--idempotency-key', 'cli-stdin'], '多行\n"引号" & `echo nope` $HOME');
+  assert.equal(result.code, 0); const cliRunId = result.json().result.runId;
+  assert.equal(fs.readFileSync(store.get(cliRunId).taskPath, 'utf8'), '多行\n"引号" & `echo nope` $HOME');
+  result = await childCli(['run', 'wait', cliRunId, '--timeout', '0']); assert.equal(result.code, 7); assert.equal(result.json().result.timedOut, true); assert.equal(store.get(cliRunId).state, 'running');
+  result = await childCli(['run', 'result', cliRunId]); assert.equal(result.code, 3); assert.equal(result.json().result.ready, false);
+  store.question(cliRunId, 'Need info');
+  result = await childCli(['run', 'wait', cliRunId, '--timeout', '1']); assert.equal(result.code, 3); assert.equal(result.json().result.question.text, 'Need info');
+  result = await childCli(['run', 'reply', cliRunId, '--text', 'A']); assert.equal(result.code, 1); assert.equal(result.json().error.code, 'stale_question');
+  result = await childCli(['run', 'cancel', cliRunId]); assert.equal(result.code, 0);
+  result = await childCli(['run', 'wait', cliRunId]); assert.equal(result.code, 5);
+  result = await childCli(['run', 'result', a.runId]); assert.equal(result.code, 0); assert.equal(result.json().result.result.summary, 'complete A');
+  result = await childCli(['run', 'submit', '--workspace', 'ws-a', '--text', 'x', '--file', 'x']); assert.equal(result.code, 2);
+  result = await childCli(['run', 'get', a.runId, '--bogus', 'x']); assert.equal(result.code, 2);
+  await server.stop(); server = undefined;
+  result = await childCli(['doctor']); assert.equal(result.code, 1); assert.equal(result.json().error.code, 'not_running');
+  result = await childCli(['capabilities']); assert.equal(result.code, 0, 'discovery is offline');
+  console.log('CLI: store, identity, lifecycle, late cancellation, restart, HTTP and real subprocess discovery/help/commands passed');
+} finally {
+  await server?.stop();
+  assert.ok(path.resolve(temp).startsWith(path.resolve(os.tmpdir()) + path.sep)); fs.rmSync(temp, { recursive: true, force: true });
+}

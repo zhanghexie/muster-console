@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 晋升审阅「巩固轮展开」交互（条目2）</title>
+<!--
+  记忆面板改造计划 · 条目 2 交互原型（docs/plans/memory-panel-comprehension-plan.md）
+  独立可双击打开；样式 token 抄自 src/renderer/src/styles/base.css 与 memory.css（2026-09-25 快照）。
+  交互演示：①巩固轮卡整行可点展开/收起（grid-template-rows 动画，同 mp 体系）；
+  ②新增/合并/取代三组条目可点（原型内以 toast 示意「跳条目总览定位」）；
+  ③被拒候选可展开看原文与拒因。数据为虚构样例。
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-panel: #1e1e1e; --bg-raised: #252526; --bg-overlay: #2a2a2a; --bg-input: #232323;
+    --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e; --hairline: #2c2c2c;
+    --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(250,250,250,0.05); --selected-fill: rgba(250,250,250,0.08); --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px; --font-body: 15px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', 'Courier New', monospace;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-panel: 280ms; --dur-micro: 120ms;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 28px 0 80px; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 18px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+
+  h2 { font-size: var(--font-control); font-weight: 500; color: var(--text-2); margin: 26px 0 10px; }
+
+  /* —— 筛选行（现状，作上下文） —— */
+  .memory-tagfilter { display: flex; gap: 6px; margin-bottom: 12px; }
+  .memory-chip { padding: 3px 12px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .memory-chip.is-active { background: var(--selected-fill); color: var(--ink); }
+
+  /* —— 巩固轮卡（现状壳 + 新增展开体） —— */
+  .memory-list { display: flex; flex-direction: column; gap: 10px; }
+  .review-card { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px 16px; }
+  .review-card.is-clickable { cursor: pointer; transition: background var(--dur-micro) ease-out; }
+  .review-card.is-clickable:hover { background: color-mix(in srgb, var(--hover-fill) 60%, var(--bg-raised)); }
+  .review-card-head { display: flex; align-items: flex-start; gap: 8px 12px; }
+  .review-card-body { min-width: 0; flex: 1; }
+  .review-card-counts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-tag.is-warn   { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-other  { background: var(--bg-inset); color: var(--text-2); }
+  .memory-tag.is-dim    { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .review-card-diff { margin-top: 10px; padding: 8px 10px; border-radius: var(--radius-small); background: var(--bg-canvas); font-size: 12.5px; line-height: 1.55; color: var(--text-2); white-space: pre-wrap; word-break: break-word; }
+  .review-card-rejected { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chev { margin-left: auto; flex: none; color: var(--text-3); font-size: 11px; transition: transform var(--dur-panel) var(--ease-standard); }
+  .review-card.is-open .chev { transform: rotate(180deg); }
+
+  /* —— 展开体（grid-template-rows 动画，同 mp/acc 体系） —— */
+  .review-expand { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-panel) var(--ease-standard); }
+  .review-card.is-open .review-expand { grid-template-rows: 1fr; }
+  .review-expand > div { overflow: hidden; min-height: 0; }
+  .expand-inner { margin-top: 12px; border-top: 1px solid var(--hairline); padding-top: 12px; display: flex; flex-direction: column; gap: 12px; }
+
+  .exp-group-head { display: flex; align-items: center; gap: 8px; font-size: var(--font-caption); }
+  .exp-group-head .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .exp-group-head .dot.is-green { background: var(--green); }
+  .exp-group-head .dot.is-yellow { background: var(--yellow); }
+  .exp-group-head .t { color: var(--text-2); }
+  .exp-group-head .n { color: var(--text-3); }
+
+  .entry-row { padding: 9px 11px; border-radius: var(--radius-small); background: var(--bg-canvas); cursor: pointer; transition: background var(--dur-micro) ease-out; }
+  .entry-row:hover { background: color-mix(in srgb, var(--hover-fill) 90%, var(--bg-canvas)); }
+  .entry-text { font-size: var(--font-ui); color: var(--ink); }
+  .entry-text .tagword { color: var(--green); font-family: var(--font-mono); font-size: 12px; }
+  .entry-text .linkword { color: var(--blue); }
+  .entry-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+
+  .pair-row { padding: 9px 11px; border-radius: var(--radius-small); background: var(--bg-canvas); cursor: pointer; transition: background var(--dur-micro) ease-out; }
+  .pair-row:hover { background: color-mix(in srgb, var(--hover-fill) 90%, var(--bg-canvas)); }
+  .pair-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+  .pair-old { color: var(--text-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--red) 55%, transparent); }
+  .pair-new { color: var(--ink); }
+  .pair-arrow { color: var(--text-3); }
+
+  .reject-block { border-left: 2px solid color-mix(in srgb, var(--yellow) 45%, transparent); padding: 2px 0 2px 10px; }
+  .reject-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .reject-head .txt { font-size: 12.5px; color: var(--text-2); }
+  .reject-why { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-panel) var(--ease-standard); }
+  .reject-block.is-open .reject-why { grid-template-rows: 1fr; }
+  .reject-why > div { overflow: hidden; min-height: 0; }
+  .reject-why-inner { padding-top: 6px; font-size: var(--font-caption); color: var(--text-3); line-height: 1.7; }
+  .reject-why-inner b { color: var(--yellow); font-weight: 500; }
+
+  /* toast（示意「跳转条目总览定位」） */
+  .toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(8px); opacity: 0; background: var(--bg-overlay); color: var(--ink); font-size: var(--font-caption); padding: 8px 16px; border-radius: var(--radius-pill); box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08); pointer-events: none; transition: opacity var(--dur-micro) ease-out, transform var(--dur-micro) ease-out; }
+  .toast.is-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 空转行（现状对照） */
+  .memory-quiet-list { margin-top: 14px; border-top: 1px dashed var(--hairline); padding-top: 10px; display: flex; flex-direction: column; gap: 4px; }
+  .memory-quiet { display: flex; gap: 14px; font-size: var(--font-caption); color: var(--text-3); padding: 2px 4px; }
+  .memory-quiet .t { flex: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note">
+    <b>交互原型</b>（条目 2 · 自动晋升透明化）：<b>点击巩固轮卡片任意处展开</b>——新增/合并/取代三组列出本轮真实条目（原型用虚构样例），条目行可点（示意跳条目总览定位）；底部「被拒候选」可展开看原文与拒因。卡片顶部摘要行与现状一致，只是多了一个展开箭头。
+  </div>
+
+  <h2>晋升审阅 · 有改写的轮次</h2>
+  <div class="memory-tagfilter">
+    <button class="memory-chip is-active">有改写</button>
+    <button class="memory-chip">全部轮次</button>
+  </div>
+
+  <div class="memory-list">
+    <!-- 轮次 1：默认展开，展示形态 -->
+    <article class="review-card is-clickable is-open" id="run1">
+      <div class="review-card-head">
+        <div class="review-card-body">
+          <div class="review-card-counts">
+            <span class="memory-meta-dim">14:32</span>
+            <span class="memory-tag is-dim" title="触发时机">任务收口时自动检查</span>
+            <span class="memory-tag is-lesson">入库 2</span>
+            <span class="memory-tag is-other">合并 1</span>
+            <span class="memory-tag is-warn">取代 1</span>
+            <span class="memory-tag is-warn">待你裁决 2</span>
+          </div>
+          <div class="review-card-diff">本轮过了 6 条候选：2 条直接入库、2 条等你裁决、1 条与已有记忆重复、1 条来源不可信（来自网页/命令输出的推导，不自动入库）。</div>
+          <div class="review-card-rejected">
+            <span class="memory-meta-dim">没入库的：</span>
+            <span class="memory-tag is-other">与已有记忆重复 ×1</span>
+            <span class="memory-tag is-other">来源不可信 ×1</span>
+          </div>
+        </div>
+        <span class="chev">▼</span>
+      </div>
+      <div class="review-expand"><div><div class="expand-inner">
+
+        <div>
+          <div class="exp-group-head"><span class="dot is-green"></span><span class="t">自动入池</span><span class="n">· 高置信，未经审批直接写入策展核心</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div class="entry-row" data-jump="条目总览 · 定位「#decision 数据库统一 PostgreSQL」">
+              <div class="entry-text"><span class="tagword">#decision</span> 数据库统一 PostgreSQL，弃 MySQL。</div>
+              <div class="entry-meta">
+                <span class="memory-tag is-lesson">置信 0.78</span>
+                <span class="memory-tag is-dim">来自 会话 a1b2c3 · 任务收口回合</span>
+                <span class="memory-tag is-dim">召回信号：被检索命中 3 次 / 相关分 0.42</span>
+              </div>
+            </div>
+            <div class="entry-row" data-jump="条目总览 · 定位「#lesson 本机 Node 缺 fts5」">
+              <div class="entry-text"><span class="tagword">#lesson</span> <span class="linkword">[[fts5]]</span> 本机 Node 缺 fts5 时 memory 套件按惯例跳过。</div>
+              <div class="entry-meta">
+                <span class="memory-tag is-lesson">置信 0.71</span>
+                <span class="memory-tag is-dim">来自 会话 9f8e7d6 · journal 摄入</span>
+                <span class="memory-tag is-dim">召回信号：bootstrap 注入 2 次</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="exp-group-head"><span class="dot" style="background:var(--text-3)"></span><span class="t">合并</span><span class="n">· 语义相近，并入既有条目</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div class="pair-row" data-jump="条目总览 · 定位「#lesson Windows 反斜杠转义陷阱」">
+              <div class="pair-flow"><span class="pair-new"><span class="tagword">#lesson</span> Windows 反斜杠转义陷阱</span><span class="pair-arrow">⟵ 并入</span><span class="pair-old">heredoc 多层引号在 CMD 下不可靠</span></div>
+              <div class="entry-meta"><span class="memory-tag is-dim">判重 Jaccard 0.74 · 保留新表述，旧文退出</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="exp-group-head"><span class="dot is-yellow"></span><span class="t">取代</span><span class="n">· 旧结论退役，可在回收站回滚</span></div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">
+            <div class="pair-row" data-jump="回收站 · 改写前镜像 #29">
+              <div class="pair-flow"><span class="pair-new">派活默认 GLM-5.3-Flash（provider zhipu）</span><span class="pair-arrow">⟵ 取代</span><span class="pair-old">派活默认 DeepSeek</span></div>
+              <div class="entry-meta"><span class="memory-tag is-warn">前镜像已存 · 可一键回滚</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="exp-group-head"><span class="dot is-yellow"></span><span class="t">被拒候选</span><span class="n">· 未入池，点开看原因</span></div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <div class="reject-block" id="rej1">
+              <div class="reject-head">
+                <span class="txt">「用户偏好暗色主题。」</span>
+                <span class="memory-tag is-other">与已有记忆重复</span>
+                <span class="chev" style="margin-left:auto;font-size:11px;color:var(--text-3)">▾</span>
+              </div>
+              <div class="reject-why"><div><div class="reject-why-inner">
+                原因：<b>跟一条已有记忆几乎一样</b>——已有「外观偏好：深色 + 薄荷点缀」，相似度 <b>81%</b>（超过 72% 就算重复）。<br>
+                这条候选来自：会话 c4d5e6f · 你说过「界面还是深色看着舒服」→ 模型推导。
+              </div></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div></div></div>
+    </article>
+  </div>
+
+  <div class="memory-quiet-list">
+    <div class="memory-quiet"><span class="t">11:08</span><span>空闲时例行检查</span><span>过了 2 条候选：1 条来源不可信 · 没有条目变动</span></div>
+    <div class="memory-quiet"><span class="t">09:40</span><span>任务收口时自动检查</span><span>没有候选 · 没有条目变动</span></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // 巩固轮卡：整行点击开合（不拦截内部行自己的点击）
+  document.querySelectorAll('.review-card.is-clickable').forEach(function (card) {
+    card.addEventListener('click', function (ev) {
+      if (ev.target.closest('.entry-row, .pair-row, .reject-head')) return;
+      card.classList.toggle('is-open');
+    });
+  });
+  // 条目/取代行：示意跳转
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('is-show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('is-show'); }, 1800);
+  }
+  document.querySelectorAll('.entry-row, .pair-row').forEach(function (row) {
+    row.addEventListener('click', function () { toast('→ ' + row.getAttribute('data-jump')); });
+  });
+  // 被拒候选：头部点开看拒因
+  document.querySelectorAll('.reject-head').forEach(function (head) {
+    head.addEventListener('click', function () { head.parentElement.classList.toggle('is-open'); });
+  });
+</script>
+</body>
+</html>

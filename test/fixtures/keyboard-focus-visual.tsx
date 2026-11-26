@@ -1,0 +1,10 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import '@workbench/src/renderer/src/i18n';
+import {ExtensionNavigationTree} from '@workbench/src/renderer/src/components/ExtensionNavigationTree';
+import {applyTheme} from '@workbench/src/renderer/src/theme';
+import {builtinTheme} from '@workbench/src/shared/theme';
+const theme = new URLSearchParams(location.search).get('theme') === 'light' ? 'light' : 'dark';
+applyTheme(builtinTheme(theme)!);
+const nodes = [{id:'daily',kind:'extension',parentId:null,title:'工作日报',extensionId:'daily'}, {id:'game',kind:'extension',parentId:null,title:'五子棋',extensionId:'game'}] as any;
+createRoot(document.getElementById('root')!).render(<main style={{padding:16,background:'var(--bg-panel)',minHeight:'100vh'}}><div style={{width:280,maxWidth:'100%'}}><ExtensionNavigationTree nodes={nodes} selectedId={null} onSelect={()=>{}} onChange={()=>{}}/><button className="btn" type="button">普通按钮</button><input className="ui-input" placeholder="输入内容"/></div></main>);

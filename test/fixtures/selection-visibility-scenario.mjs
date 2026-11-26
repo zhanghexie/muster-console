@@ -1,0 +1,31 @@
+export default async function ({ page, capture, assert }) {
+  await page.locator('#selected').waitFor();
+  await page.locator('#scroll').evaluate(el => { el.scrollTop = 120; });
+  const text = await page.locator('#selected').boundingBox();
+  await page.mouse.move(text.x + 1, text.y + text.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(text.x + text.width - 1, text.y + text.height / 2, { steps: 12 });
+  await page.mouse.up();
+  const bar = page.getByRole('toolbar');
+  await bar.waitFor({ state: 'visible' });
+  const selected = await page.evaluate(() => window.getSelection().toString());
+  assert(selected.includes('queue'), '真实鼠标划选文本');
+  await capture('visible');
+  await page.mouse.move(50, 80);
+  await page.mouse.wheel(0, 320);
+  await bar.waitFor({ state: 'hidden' });
+  await capture('outside');
+  await page.mouse.wheel(0, -320);
+  await bar.waitFor({ state: 'visible' });
+  await capture('returned');
+  await page.mouse.wheel(0, -200);
+  await bar.waitFor({ state: 'hidden' });
+  const bounds = await page.locator('#selected').boundingBox();
+  const cover = await page.locator('#composer').boundingBox();
+  assert(bounds.y + bounds.height / 2 >= cover.y && bounds.y < cover.y + cover.height, '选区仍在视口内，但被输入框覆盖');
+  await capture('covered');
+  await page.mouse.wheel(0, 120);
+  await bar.waitFor({ state: 'visible' });
+  assert.equal(await page.evaluate(() => window.getSelection().toString()), selected, '暂隐不丢失选区');
+  await capture('uncovered');
+}

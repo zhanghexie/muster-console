@@ -1,0 +1,15 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
+const dir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(dir, '../../..');
+const base = await fs.readFile(path.join(root, 'src/renderer/src/styles/base.css'), 'utf8');
+const tokens = new Map();
+for (const [, name, value] of base.matchAll(/(--(?:dur|ease)-[\w-]+)\s*:\s*([^;]+);/g)) if (!tokens.has(name)) tokens.set(name, value.trim());
+const skeleton = [...base.matchAll(/^\.mp-(?:panel|pop|scrim)[^{]*\{[^}]*\}/gm)].map(m => m[0]).join('\n');
+const css = await fs.readFile(path.join(dir, 'metro.css'), 'utf8');
+const compiled = await build({ stdin: {contents: `import React from 'react';import{createRoot}from'react-dom/client';import{MetroApps}from'./MetroApps';createRoot(document.getElementById('root')).render(<MetroApps/>);`,resolveDir:dir,loader:'tsx'},loader:{'.png':'dataurl'},bundle:true,write:false,minify:true,format:'iife',jsx:'automatic',define:{'process.env.NODE_ENV':'"production"'} });
+const html = `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>调度的随身应用 · Metro 原型</title><style>:root{${[...tokens].map(([k,v])=>`${k}:${v};`).join('')}}\n${skeleton}\n${css}</style></head><body><div id="root"></div><script>${compiled.outputFiles[0].text.replaceAll('</script','<\\/script')}</script></body></html>`;
+await fs.writeFile(path.join(dir,'index.html'),html,'utf8');
+console.log(`Built agent-apps-metro/index.html (${Buffer.byteLength(html)} bytes)`);

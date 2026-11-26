@@ -1,0 +1,418 @@
+{
+ "scene": "S10 全仓测试明细（browser 宽表）",
+ "render": {
+  "mode": "browser",
+  "title": "全仓测试文件明细（22 个文件）",
+  "preset": "table",
+  "data": {
+   "columns": [
+    {
+     "key": "file",
+     "label": "文件",
+     "mono": true
+    },
+    {
+     "key": "type",
+     "label": "类型"
+    },
+    {
+     "key": "cases",
+     "label": "用例数",
+     "num": true
+    },
+    {
+     "key": "pass",
+     "label": "通过",
+     "num": true
+    },
+    {
+     "key": "fail",
+     "label": "失败",
+     "num": true
+    },
+    {
+     "key": "skip",
+     "label": "跳过",
+     "num": true
+    },
+    {
+     "key": "cov",
+     "label": "覆盖率%",
+     "num": true
+    },
+    {
+     "key": "dur",
+     "label": "耗时s",
+     "num": true
+    },
+    {
+     "key": "last",
+     "label": "最近运行"
+    },
+    {
+     "key": "owner",
+     "label": "维护人"
+    },
+    {
+     "key": "status",
+     "label": "状态",
+     "badge": true
+    }
+   ],
+   "rows": [
+    {
+     "file": "test/git-status-cache.mjs",
+     "type": "冒烟",
+     "cases": 14,
+     "pass": 14,
+     "fail": 0,
+     "skip": 0,
+     "cov": 91.2,
+     "dur": 8.6,
+     "last": "10-09",
+     "owner": "陈晓",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/compose-batch.mjs",
+     "type": "冒烟",
+     "cases": 9,
+     "pass": 9,
+     "fail": 0,
+     "skip": 0,
+     "cov": 88.4,
+     "dur": 5.1,
+     "last": "10-09",
+     "owner": "陈晓",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/ipc-contract.mjs",
+     "type": "回归",
+     "cases": 23,
+     "pass": 23,
+     "fail": 0,
+     "skip": 0,
+     "cov": 94.7,
+     "dur": 12.3,
+     "last": "10-10",
+     "owner": "李锐",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/workspace-json.mjs",
+     "type": "回归",
+     "cases": 11,
+     "pass": 10,
+     "fail": 1,
+     "skip": 0,
+     "cov": 76,
+     "dur": 6.8,
+     "last": "10-10",
+     "owner": "李锐",
+     "status": [
+      "失败",
+      "danger"
+     ]
+    },
+    {
+     "file": "test/unit/confirm-dialog.spec.tsx",
+     "type": "组件",
+     "cases": 12,
+     "pass": 12,
+     "fail": 0,
+     "skip": 0,
+     "cov": 96.3,
+     "dur": 4.2,
+     "last": "10-10",
+     "owner": "王芳",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/motion-presence.spec.tsx",
+     "type": "组件",
+     "cases": 8,
+     "pass": 8,
+     "fail": 0,
+     "skip": 0,
+     "cov": 92.1,
+     "dur": 3.5,
+     "last": "10-10",
+     "owner": "王芳",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/kanban-board.spec.tsx",
+     "type": "组件",
+     "cases": 15,
+     "pass": 15,
+     "fail": 0,
+     "skip": 0,
+     "cov": 89.8,
+     "dur": 6,
+     "last": "10-09",
+     "owner": "周杰",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/injection-registry.spec.tsx",
+     "type": "组件",
+     "cases": 10,
+     "pass": 10,
+     "fail": 0,
+     "skip": 0,
+     "cov": 95.2,
+     "dur": 3.8,
+     "last": "10-09",
+     "owner": "李锐",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/status-capsule.spec.tsx",
+     "type": "组件",
+     "cases": 7,
+     "pass": 6,
+     "fail": 0,
+     "skip": 1,
+     "cov": 71.4,
+     "dur": 2.9,
+     "last": "10-07",
+     "owner": "周杰",
+     "status": [
+      "告警",
+      "warning"
+     ]
+    },
+    {
+     "file": "test/unit/virtual-screen.spec.tsx",
+     "type": "组件",
+     "cases": 13,
+     "pass": 13,
+     "fail": 0,
+     "skip": 0,
+     "cov": 90.6,
+     "dur": 5.4,
+     "last": "10-09",
+     "owner": "陈晓",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/memory-panel.spec.tsx",
+     "type": "组件",
+     "cases": 9,
+     "pass": 9,
+     "fail": 0,
+     "skip": 0,
+     "cov": 84.2,
+     "dur": 4.1,
+     "last": "10-08",
+     "owner": "王芳",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/journal-parser.spec.tsx",
+     "type": "组件",
+     "cases": 11,
+     "pass": 11,
+     "fail": 0,
+     "skip": 0,
+     "cov": 93.5,
+     "dur": 3.3,
+     "last": "10-09",
+     "owner": "吴迪",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/unit/notify-center.spec.tsx",
+     "type": "组件",
+     "cases": 6,
+     "pass": 6,
+     "fail": 0,
+     "skip": 0,
+     "cov": 82.7,
+     "dur": 2.6,
+     "last": "10-06",
+     "owner": "吴迪",
+     "status": [
+      "新增",
+      "info"
+     ]
+    },
+    {
+     "file": "test/unit/api-mock.spec.tsx",
+     "type": "组件",
+     "cases": 5,
+     "pass": 5,
+     "fail": 0,
+     "skip": 0,
+     "cov": 100,
+     "dur": 1.8,
+     "last": "10-05",
+     "owner": "王芳",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/e2e/git-commit.spec.ts",
+     "type": "链路",
+     "cases": 8,
+     "pass": 8,
+     "fail": 0,
+     "skip": 0,
+     "cov": 78.9,
+     "dur": 65.2,
+     "last": "10-09",
+     "owner": "陈晓",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/e2e/agent-dispatch.spec.ts",
+     "type": "链路",
+     "cases": 10,
+     "pass": 10,
+     "fail": 0,
+     "skip": 0,
+     "cov": 81.3,
+     "dur": 88.7,
+     "last": "10-09",
+     "owner": "李锐",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/e2e/virtual-screen.spec.ts",
+     "type": "链路",
+     "cases": 7,
+     "pass": 7,
+     "fail": 0,
+     "skip": 0,
+     "cov": 74.6,
+     "dur": 54.3,
+     "last": "10-08",
+     "owner": "周杰",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/e2e/kanban-dnd.spec.ts",
+     "type": "链路",
+     "cases": 9,
+     "pass": 8,
+     "fail": 0,
+     "skip": 1,
+     "cov": 69.2,
+     "dur": 92.5,
+     "last": "10-07",
+     "owner": "周杰",
+     "status": [
+      "告警",
+      "warning"
+     ]
+    },
+    {
+     "file": "test/e2e/settings-injection.spec.ts",
+     "type": "链路",
+     "cases": 6,
+     "pass": 6,
+     "fail": 0,
+     "skip": 0,
+     "cov": 77.8,
+     "dur": 47.9,
+     "last": "10-06",
+     "owner": "吴迪",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    },
+    {
+     "file": "test/e2e/first-run.spec.ts",
+     "type": "链路",
+     "cases": 5,
+     "pass": 5,
+     "fail": 0,
+     "skip": 0,
+     "cov": 63.5,
+     "dur": 39.4,
+     "last": "09-30",
+     "owner": "吴迪",
+     "status": [
+      "告警",
+      "warning"
+     ]
+    },
+    {
+     "file": "test/unit/host-protocol.spec.tsx",
+     "type": "组件",
+     "cases": 12,
+     "pass": 12,
+     "fail": 0,
+     "skip": 0,
+     "cov": 91.9,
+     "dur": 4.7,
+     "last": "10-10",
+     "owner": "李锐",
+     "status": [
+      "新增",
+      "info"
+     ]
+    },
+    {
+     "file": "test/memory-consolidation.mjs",
+     "type": "回归",
+     "cases": 13,
+     "pass": 13,
+     "fail": 0,
+     "skip": 0,
+     "cov": 86.1,
+     "dur": 9.7,
+     "last": "10-08",
+     "owner": "王芳",
+     "status": [
+      "稳定",
+      "success"
+     ]
+    }
+   ]
+  }
+ }
+}

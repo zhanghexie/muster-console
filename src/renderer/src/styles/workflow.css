@@ -1,0 +1,422 @@
+/* ===== 脚本工作流：调度输入栏旁胶囊 + 上弹面板（布局/进出场复用 bgTasks.css 的 .bg-tasks-pop） ===== */
+
+.wf-capsule.has-ask {
+  color: var(--status-warning-fg);
+}
+
+.bg-capsule-dot.is-ask {
+  background: var(--status-warning-fg);
+}
+
+.wf-capsule-badge {
+  background: var(--status-warning-fg);
+}
+
+.wf-pop {
+  height: auto;
+  max-height: min(600px, 72vh);
+}
+
+.wf-tabs {
+  margin-left: 10px;
+}
+
+.wf-tab-count {
+  margin-left: 4px;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.wf-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wf-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wf-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wf-section-title {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.wf-empty {
+  padding: 6px 0;
+  font-size: var(--font-caption);
+}
+
+.wf-run,
+.wf-def,
+.wf-recent {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-raised);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wf-recent {
+  padding: 0;
+}
+
+.wf-run-head,
+.wf-recent-row,
+.wf-run-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wf-recent-row {
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wf-recent-detail {
+  padding: 0 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wf-run-name {
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wf-chip {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: var(--font-micro);
+  line-height: 16px;
+}
+
+.wf-run.is-waiting .wf-chip:first-of-type,
+.wf-chip.is-trust-changed {
+  color: var(--status-warning-fg);
+}
+
+.wf-run.is-running .wf-chip:first-of-type,
+.wf-chip.is-trigger {
+  color: var(--status-info-fg);
+}
+
+.wf-recent.is-completed .wf-chip:first-of-type,
+.wf-chip.is-trust-trusted {
+  color: var(--status-success-fg);
+}
+
+.wf-recent.is-failed .wf-chip:first-of-type,
+.wf-recent.is-interrupted .wf-chip:first-of-type {
+  color: var(--status-danger-fg);
+}
+
+.wf-run-meta {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.wf-run-line {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  overflow-wrap: anywhere;
+}
+
+.wf-run-line.is-dim,
+.wf-run-line.is-sub {
+  color: var(--fg-muted);
+}
+
+.wf-run-line.is-waiting {
+  color: var(--status-info-fg);
+}
+
+.wf-run-line.is-warn {
+  color: var(--status-warning-fg);
+}
+
+.wf-ask {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin-top: 2px;
+  padding: 6px 8px;
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wf-ask.is-human {
+  border: 1px solid var(--yellow);
+}
+
+.wf-ask-label {
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.wf-ask-q {
+  font-size: var(--font-caption);
+  color: var(--fg-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.wf-ask-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wf-ask-input {
+  display: flex;
+  gap: 6px;
+}
+
+.wf-ask-input input[type='text'] {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: var(--font-caption);
+}
+
+.wf-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.wf-log {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  list-style: none;
+  max-height: 180px;
+  overflow-y: auto;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+}
+
+.wf-log li {
+  display: flex;
+  gap: 8px;
+}
+
+.wf-log-ts {
+  flex-shrink: 0;
+  color: var(--fg-muted);
+}
+
+.wf-result {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0;
+  padding: 6px 8px;
+  max-height: 140px;
+  overflow: auto;
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  font-size: var(--font-micro);
+  white-space: pre-wrap;
+}

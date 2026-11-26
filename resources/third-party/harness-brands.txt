@@ -1,0 +1,31 @@
+Harness brand assets
+
+Brand names and marks identify the corresponding third-party products; they
+belong to their respective owners and do not imply endorsement.
+
+The following assets are bundled locally in src/renderer/src/assets/harness-brands:
+
+claude.svg: Claude wordmark spark, https://claude.com/
+openai.svg: OpenAI monoblossom, https://openai.com/brand/
+kimi.png: https://github.com/MoonshotAI/kimi-cli/blob/main/web/public/logo.png
+opencode.png: https://opencode.ai/favicon-96x96-v3.png
+glm.svg: https://z-cdn.chatglm.cn/z-ai/static/logo.svg
+antigravity.png: https://antigravity.google/assets/image/antigravity-logo.png
+grok.png: https://grok.com/images/android-chrome-192x192.png
+mimo.png: https://platform.xiaomimimo.com/favicon.png
+commandcode.png: https://commandcode.ai/favicon/2024/android-chrome-192x192.png
+muse.svg: https://static.xx.fbcdn.net/rsrc.php/yf/r/-7pQO6hUGK_.svg
+omp.svg: https://github.com/can1357/oh-my-pi/blob/main/packages/collab-web/public/favicon.svg
+hermes.svg: https://github.com/NousResearch/hermes-agent/blob/main/assets/icon-master.svg
+github-copilot.svg: https://github.com/primer/octicons/blob/main/icons/copilot-16.svg
+cline.svg: icon.svg from the official @cline/cli-darwin-arm64 3.0.73 package
+devin.svg: https://devin.ai/favicon.svg
+kilo.svg: https://github.com/Kilo-Org/kilocode/blob/main/packages/kilo-docs/public/img/logo.svg
+
+pi.svg, deepseek-color.svg, cursor.svg, geminicli-color.svg and zcode.png are
+distributed in Magpie: https://github.com/yetone/magpie/tree/main/site/public/icons
+Magpie identifies LobeHub Icons as a source: https://github.com/lobehub/lobe-icons
+See the accompanying Magpie, LobeHub Icons and Octicons license notices.
+
+The Muster Console mark is drawn by this application. An unknown custom
+Harness is represented by its initial rather than a third-party logo.

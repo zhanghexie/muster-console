@@ -1,0 +1,2557 @@
+/* git.css — 由 styles.css 拆分（域：git）。规范见 /design.md。修改请守住 token。 */
+
+
+/* 共享按钮/输入原子已收归 styles/base.css（design.md §9 单一来源） */
+
+/* 页宿主：透明落在框上；页皮肤挂在 .side-tools-panel（base.css 页节） */
+.git-page {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* ---------- Git 面板 ---------- */
+
+.git-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 面板工具栏下缘锚定线（用户验收口径：design.md §3 第 2 条 sticky 头部下缘语义；本工具栏非 sticky，用户明确要线） */
+/* 与 .files-panel-toolbar 保持同构：定高 36px，切面板顶栏不跳高（2026-09-07 统一三栏顶栏） */
+.git-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.git-panel-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.git-panel-current-repo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.git-repo-quick {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.git-repo-quick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+/* hover 纯叠白，边框不参与（design.md §8） */
+.git-repo-quick-btn:hover,
+.git-repo-quick.is-open .git-repo-quick-btn {
+  background: var(--interaction-hover);
+}
+
+.git-repo-quick-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-repo-quick-caret {
+  color: var(--fg-muted);
+  font-size: var(--font-micro);
+  flex-shrink: 0;
+}
+
+.git-repo-quick-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  min-width: 200px;
+  max-width: min(360px, 50vw);
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+}
+
+.git-repo-quick-menu .git-dirty-dot {
+  margin-right: 4px;
+}
+
+/* 折叠仓库列表（动画）：primary 列宽度收拢 + 详情列 basis 展开（inline flex 由
+   !important 覆盖）、拖拽条让位——display 硬切换改为可过渡的宽度动画（可打断） */
+.git-repo-split > .split-pane-primary {
+  overflow: hidden;
+  max-width: 50%;
+  transition:
+    max-width var(--dur-panel) var(--ease-standard),
+    opacity var(--dur-exit) var(--ease-exit);
+}
+
+.git-repo-split.is-repo-list-collapsed > .split-pane-primary {
+  max-width: 0;
+  min-width: 0 !important;
+  opacity: 0;
+}
+
+.git-repo-split > .split-pane-secondary {
+  transition: flex-basis var(--dur-panel) var(--ease-standard);
+}
+
+.git-repo-split > .split-pane-handle {
+  transition:
+    width var(--dur-panel) var(--ease-standard),
+    opacity var(--dur-micro) var(--ease-exit);
+}
+
+.git-repo-split.is-repo-list-collapsed > .split-pane-handle {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 折叠仓库列表：只作用外层分栏的直接子面板（> 避免误伤详情区里嵌套 SplitPane 的 primary/handle）；
+   primary/handle 的收拢动画见上段，secondary 铺满用 basis 过渡 */
+.git-repo-split.is-repo-list-collapsed > .split-pane-secondary {
+  flex: 1 1 100% !important;
+  max-width: none;
+}
+
+.git-empty-state {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+/* 空态：mono 装饰符 + --text-3 一句话，不做插画化图形（design.md §9 空态） */
+.git-empty-icon {
+  font-size: var(--font-title);
+  line-height: 1;
+  color: var(--fg-secondary);
+}
+
+.git-empty-title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.git-empty-desc {
+  margin: 0;
+  max-width: 360px;
+  font-size: var(--font-control);
+  line-height: 1.55;
+  color: var(--fg-secondary);
+}
+
+.git-empty-path {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: block;
+  max-width: min(420px, 100%);
+  padding: 6px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--border-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.git-status-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 3px 10px;
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+  font-size: var(--font-caption);
+}
+.git-status-warning > span { flex: 1; min-width: 0; white-space: pre-wrap; max-height: 96px; overflow: auto; }
+.git-sync-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px 12px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 2px 10px 2px 12px;
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  flex-wrap: wrap;
+}
+.git-sync-summary { display: flex; align-items: baseline; flex-wrap: wrap; gap: 2px 8px; min-width: 0; }
+.git-sync-counts { font-weight: 500; }
+.git-sync-freshness { color: var(--fg-muted); }
+.git-sync-freshness::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-inline-end: 8px;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: currentColor;
+}
+.git-sync-actions { display: flex; align-items: center; gap: 2px; margin-inline-start: auto; }
+.git-sync-actions .git-btn { color: var(--fg-secondary); gap: 4px; }
+.git-sync-operation { display: flex; align-items: center; gap: 5px; flex: 1 1 150px; min-width: 0; white-space: nowrap; }
+.git-sync-operation[data-empty="true"] { display: none; }
+.git-sync-operation > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.git-sync-operation > svg { flex-shrink: 0; }
+.git-sync-freshness.is-warning { color: var(--status-warning-fg); }
+@container git-detail (max-width: 450px) {
+  .git-sync-operation { order: 2; flex-basis: 100%; }
+}
+
+.git-panel-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+
+.git-discovery-notice {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  max-height: 200px;
+  overflow: auto;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  background: var(--status-warning-bg);
+  overflow-wrap: anywhere;
+}
+.git-discovery-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--status-warning-fg);
+}
+.git-discovery-notice p { margin: 4px 0; }
+.git-discovery-issue { margin-top: 8px; font-size: var(--font-caption); }
+.git-discovery-issue strong { color: var(--fg-primary); }
+
+.git-repo-list {
+  container-type: inline-size;
+  container-name: git-repositories;
+  width: auto;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: none;
+  min-height: 0;
+}
+
+.git-repo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 6px 8px 4px 8px;
+  flex-shrink: 0;
+  min-height: 32px;
+  position: relative;
+}
+
+.git-repo-toolbar-label {
+  padding: 4px 6px;
+}
+
+.git-repo-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  margin-left: auto;
+  align-items: center;
+  gap: 2px;
+}
+
+.git-repo-search {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: inherit;
+  padding: 5px 8px;
+  font: inherit;
+  font-size: var(--font-ui);
+  outline: none;
+}
+
+.git-repo-search::placeholder {
+  color: var(--fg-secondary);
+}
+
+.git-repo-search:focus {
+  border-color: var(--border-focus);
+}
+
+.git-sort-wrap {
+  position: relative;
+}
+
+/* 浮层一律 L3 + shadow-pop + radius-card（design.md §7） */
+.git-sort-menu {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: var(--z-dropdown);
+  min-width: 120px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  padding: 4px;
+  box-shadow: var(--shadow-pop);
+}
+
+.git-sort-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--font-ui);
+  padding: 6px 8px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.git-sort-option:hover {
+  background: var(--interaction-hover);
+}
+
+.git-sort-option.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.git-repo-scroll,
+.git-changes-scroll,
+.git-diff-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.git-repo-scroll {
+  --git-tree-step: 12px;
+  padding: 0 5px 8px;
+}
+
+.git-repo-scroll .file-tree-row {
+  --git-tree-indent: calc(var(--git-tree-depth, 0) * var(--git-tree-step));
+  gap: 6px;
+  min-inline-size: calc(88px + var(--git-tree-indent));
+  padding-inline: calc(7px + var(--git-tree-indent)) 6px;
+}
+
+/* Git 域树行 = 列表行规范：高 28–32、radius-control（design.md §9）；
+ * .file-tree-row 基础定义在 files.css，这里只做本域覆盖 */
+.git-repo-scroll .file-tree-row,
+.git-change-tree .file-tree-row {
+  min-height: 28px;
+  margin: 1px 0;
+  border-radius: var(--radius-control);
+}
+
+.git-repo-scroll .file-tree-row:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.git-repo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  margin-inline-end: auto;
+}
+
+.git-repo-branch {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 42%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+@container git-repositories (max-width: 240px) {
+  .git-repo-scroll { --git-tree-step: 10px; }
+  .git-repo-branch { display: none; }
+}
+
+/* The context menu remains available by pointer and keyboard at narrow widths. */
+@container git-repositories (max-width: 220px) {
+  .git-repo-scroll { --git-tree-step: 8px; }
+  .git-repo-scroll .git-repo-item-actions { display: none; }
+}
+
+.git-repo-tree-leaf.is-hidden-repo {
+  color: var(--fg-muted);
+}
+
+.git-repo-tree-leaf.is-hidden-repo.is-active {
+  color: var(--fg-selected-secondary);
+}
+
+.git-repo-scroll .file-tree-row.is-active .git-repo-branch { color: var(--fg-selected-muted); }
+
+.git-repo-scroll .git-pin-btn {
+  width: 20px;
+  height: 20px;
+}
+
+.git-repo-scroll .file-tree-row:hover .git-pin-btn,
+.git-repo-scroll .file-tree-row:focus-within .git-pin-btn,
+.git-repo-scroll .file-tree-row.is-active .git-pin-btn {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* 分组标题：11 / 500 / --text-3 / 0.02em（design.md §5） */
+.git-col-title {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-secondary);
+  padding: 8px 12px 4px;
+  flex-shrink: 0;
+}
+
+.git-col-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding-right: 8px;
+  flex-shrink: 0;
+}
+
+.git-repo-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.git-hidden-tag {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  font-weight: 500;
+  color: var(--fg-muted);
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
+
+.git-hidden-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  border-color: var(--border-control);
+  padding: 1px 3px;
+}
+
+.git-hidden-tag svg {
+  width: 11px;
+  height: 11px;
+}
+
+.git-toolbar-count {
+  margin-left: 2px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.git-hide-btn {
+  color: var(--fg-muted);
+}
+
+.git-hide-btn.is-hidden {
+  visibility: visible;
+  color: var(--fg-primary);
+}
+
+.git-pin-btn svg,
+.git-hide-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.git-dirty-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-warning-fg);
+  flex-shrink: 0;
+}
+
+.git-detail {
+  container: git-detail / inline-size;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.git-repo-split {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.git-repo-split .split-pane-panel {
+  min-height: 0;
+}
+
+.git-branch-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.git-branch-info {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: visible;
+}
+
+.git-branch-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  margin: 0;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* hover 纯叠白（design.md §8） */
+.git-branch-name-btn:hover:not(:disabled),
+.git-branch-name-btn.is-open {
+  background: var(--interaction-hover);
+}
+
+.git-branch-name-btn:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+.git-branch-name {
+  font-weight: 500;
+  font-size: var(--font-control);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-branch-caret {
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+  flex-shrink: 0;
+}
+
+.git-branch-info .git-worktree-picker {
+  flex: none;
+  width: auto;
+  min-height: 25px;
+  padding: 0 7px;
+  gap: 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+.git-worktree-picker .c-select-button { gap: 4px; }
+.git-branch-info .git-worktree-picker:focus-visible { outline: 1px solid var(--border-focus); outline-offset: 1px; }
+.git-worktree-menu:not(.c-select-native) { width: min(300px, calc(100vw - 16px)); }
+@supports (appearance: base-select) {
+  .c-select-native.git-worktree-menu::picker(select) { width: min(300px, calc(100dvw - 16px)); }
+}
+
+/* 浮层：L3 底 + --shadow-pop + --radius-card（design.md §7） */
+.git-branch-pop {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-popover);
+  width: min(320px, 70vw);
+  max-height: min(420px, 60vh);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+}
+
+.git-branch-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.git-branch-search {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: inherit;
+  font-size: var(--font-ui);
+  outline: none;
+}
+
+.git-branch-search::placeholder {
+  color: var(--fg-secondary);
+}
+
+.git-branch-search:focus {
+  border-color: var(--border-focus);
+}
+
+.git-branch-create {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.git-branch-create .git-branch-search {
+  flex: 1;
+  min-width: 0;
+}
+
+.git-branch-hint {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  padding: 0 2px;
+}
+
+/* 列表容器不描边：浮层内分区靠内边距（design.md §3） */
+.git-branch-list {
+  flex: 1;
+  min-height: 120px;
+  max-height: 260px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.git-branch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--font-ui);
+}
+
+.git-branch-item:hover:not(:disabled) {
+  background: var(--interaction-hover);
+}
+
+.git-branch-item.is-current,
+.git-branch-item.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.git-branch-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 当前分支徽章：blue soft 胶囊（design.md §1.3 soft 底用法） */
+.git-branch-badge {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+}
+
+.git-branch-foot {
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+}
+
+.git-branch-dirty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.git-branch-dirty-title {
+  font-weight: 500;
+  font-size: var(--font-control);
+}
+
+.git-branch-dirty-desc {
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  line-height: 1.4;
+}
+
+.git-branch-dirty .git-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.git-tracking,
+.git-ab {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.git-remote-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* 工具条分区用 8px 间距，不画竖线（design.md §3） */
+.git-detail-tabs {
+  display: flex;
+  gap: 4px;
+  margin-right: 8px;
+}
+
+/* 提交历史 = 贴地内容面 L0（design.md §1.1），L1 面板上的列井 */
+.git-history-pane {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  overflow: hidden;
+}
+
+.git-hist-split-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.git-hist-list-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.git-hist-detail {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  overflow: hidden;
+}
+
+/* 详情头与滚动内容分界靠内边距与字阶，不画线（design.md §3） */
+.git-hist-detail-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 8px 12px 6px;
+  font-size: var(--font-ui);
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.git-hist-detail-head .git-hist-msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-hist-detail-body {
+  flex: 1;
+  min-height: 0;
+}
+
+.git-hist-files {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.git-hist-diff {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.git-hist-diff .git-diff-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.git-hist-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  /* 面板内两道锚定线之二（历史页）：工具条与提交列表的边界（design.md §3 配额 ≤2） */
+  border-bottom: 1px solid var(--border-control);
+}
+
+.git-hist-scope-label {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  flex-shrink: 0;
+}
+
+.git-hist-scope-wrap {
+  position: relative;
+  min-width: 0;
+  max-width: min(420px, 70%);
+}
+
+/* 范围选择 = 次按钮：透明底 + hairline（design.md §9） */
+.git-hist-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  cursor: pointer;
+}
+
+.git-hist-scope-btn:hover,
+.git-hist-scope-btn.is-open {
+  background: var(--interaction-hover);
+}
+
+.git-hist-scope-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 浮层：L3 + shadow-pop + radius-card（design.md §7） */
+.git-hist-scope-menu {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-popover);
+  width: min(360px, 70vw);
+  max-height: min(360px, 50vh);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  background: var(--surface-overlay);
+  color: var(--fg-primary);
+  box-shadow: var(--shadow-pop);
+}
+
+.git-hist-scope-group {
+  margin-top: 4px;
+  padding: 4px 8px 2px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.git-hist-scope-search {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  outline: none;
+}
+
+.git-hist-scope-search::placeholder {
+  color: var(--fg-secondary);
+}
+
+.git-hist-scope-search:focus {
+  border-color: var(--border-focus);
+}
+
+.git-hist-scope-list {
+  flex: 1;
+  min-height: 0;
+  max-height: 220px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.git-hist-scope-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 7px 8px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.git-hist-scope-option:hover {
+  background: var(--interaction-hover);
+}
+
+.git-hist-scope-option.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.git-hist-scope-option-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 「当前」徽章：blue soft 胶囊，与分支弹窗同款 */
+.git-hist-scope-badge {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+}
+
+.git-hist-scope-empty {
+  padding: 10px 8px;
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+}
+
+.git-history-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 0 12px;
+}
+
+.git-hist-body {
+  position: relative;
+  width: 100%;
+}
+
+.git-hist-graph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.git-hist-svg {
+  display: block;
+}
+
+/* 文案区整体在图右侧起排（Fork：不跟泳道左右飘） */
+.git-hist-rows {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 提交行 = 列表行：radius-control、hover 叠白、选中 --selected-fill（design.md §9） */
+.git-hist-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0 12px 0 4px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.git-hist-row:hover {
+  background: var(--interaction-hover);
+}
+
+.git-hist-row.is-selected {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.git-hist-row.is-selected:hover { background: var(--interaction-selected-hover); }
+.git-hist-row.is-selected .git-hist-msg { color: var(--fg-selected-primary); }
+.git-hist-row.is-selected .git-hist-meta { color: var(--fg-selected-secondary); }
+.git-hist-row.is-selected .git-hist-branch-more { color: var(--fg-selected-muted); }
+
+.git-hist-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.git-hist-msg {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-control);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+/* 泳道颜色只保留在边界；普通正文跟当前行前景，当前分支使用 info 成对底 / 字。 */
+.git-hist-branch {
+  flex-shrink: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-micro);
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid;
+  background: transparent;
+}
+
+.git-hist-branch.is-current {
+  border-color: transparent;
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+}
+
+.git-hist-branch-more {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+/* 右栏固定列宽，像 Fork */
+/* 行内 meta 右对齐 --text-3；sha 单独 mono + --text-2（design.md §5/§9） */
+.git-hist-meta {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 88px 64px 132px;
+  align-items: center;
+  column-gap: 10px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
+.git-hist-author {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.git-hist-sha {
+  font-family: var(--font-mono);
+  color: var(--fg-secondary);
+  text-align: left;
+}
+
+.git-hist-date {
+  color: var(--fg-muted);
+  text-align: right;
+}
+
+.git-hist-more {
+  padding: 8px 12px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  text-align: center;
+}
+
+/* 工作↔历史叠放容器（.xfade-stack/.xfade 见 base.css）：双视图常驻淡切 */
+.git-detail-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.git-work {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.git-changes {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.git-changes-section {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.git-changes-section .git-changes-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+/* status 拉取期间 Changes 区骨架（行条复用 skel.css 的 shimmer 块） */
+.git-changes-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+/* Diff 拉取期间按内容区高度铺 shimmer 行 */
+.git-diff-skel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  height: 100%;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+/* 大 diff 截断后的「展开剩余 N 行」 */
+.git-diff-expand {
+  margin: 8px auto;
+  display: block;
+}
+
+.git-file-badge {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--status-warning-fg);
+  font-weight: 500;
+}
+
+.git-file-badge.is-staged {
+  color: var(--status-success-fg);
+}
+
+.git-file-badge[data-kind='D'],
+.git-file-badge[data-kind='U'] {
+  color: var(--status-danger-fg);
+}
+
+.git-file-badge.is-staged[data-kind='D'] {
+  color: var(--status-danger-fg);
+}
+
+.git-file-badge[data-kind='A'] {
+  color: var(--status-success-fg);
+}
+
+/* Git 变更树复用 .file-tree-*；勿覆盖 hover/active 背景 */
+.git-change-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.git-change-tree .file-tree-row.is-busy {
+  opacity: 1;
+  cursor: not-allowed;
+
+  color: var(--fg-disabled);
+}
+
+.git-tree-count {
+  flex-shrink: 0;
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+  margin-left: auto;
+  padding-right: 4px;
+}
+
+.git-diff-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.git-diff-toggle {
+  display: flex;
+  gap: 4px;
+}
+
+.git-diff-empty,
+.git-diff-raw {
+  padding: 12px;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.git-diff-raw {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  color: inherit;
+}
+
+.git-diff-view {
+  font-size: var(--font-ui);
+  --diff-background-color: var(--surface-canvas);
+  --diff-text-color: var(--fg-primary);
+  --diff-font-family: var(--font-mono);
+  --diff-selection-background-color: var(--interaction-selected);
+  --diff-selection-text-color: var(--fg-primary);
+  /* 增/删浓度下调到与状态色 soft 同档 10–14%（design.md §1.3） */
+  --diff-gutter-insert-background-color: color-mix(in srgb, var(--green) 12%, var(--surface-canvas));
+  --diff-gutter-insert-text-color: var(--green);
+  --diff-gutter-delete-background-color: color-mix(in srgb, var(--red) 12%, var(--surface-canvas));
+  --diff-gutter-delete-text-color: var(--red);
+  --diff-gutter-selected-background-color: color-mix(in srgb, var(--yellow) 12%, var(--surface-canvas));
+  --diff-gutter-selected-text-color: var(--fg-primary);
+  /* 行背景着色，正文保持默认色以便语法高亮 */
+  --diff-code-insert-background-color: color-mix(in srgb, var(--green) 12%, transparent);
+  --diff-code-insert-text-color: var(--fg-primary);
+  --diff-code-delete-background-color: color-mix(in srgb, var(--red) 12%, transparent);
+  --diff-code-delete-text-color: var(--fg-primary);
+  --diff-code-insert-edit-background-color: color-mix(in srgb, var(--green) 18%, transparent);
+  --diff-code-insert-edit-text-color: var(--fg-primary);
+  --diff-code-delete-edit-background-color: color-mix(in srgb, var(--red) 18%, transparent);
+  --diff-code-delete-edit-text-color: var(--fg-primary);
+  --diff-code-selected-background-color: color-mix(in srgb, var(--yellow) 12%, transparent);
+  --diff-code-selected-text-color: var(--fg-primary);
+  --diff-omit-gutter-line-color: var(--red);
+}
+
+.git-diff-view .diff {
+  background-color: var(--diff-background-color);
+  color: var(--diff-text-color);
+}
+
+.git-diff-view.is-comment-mode .diff-code,
+.git-diff-view.is-comment-mode .diff-gutter {
+  cursor: pointer;
+}
+
+.git-diff-comments {
+  flex: none;
+  max-height: 40%;
+  overflow: auto;
+  border-top: 1px solid var(--border-control);
+  background: var(--surface-canvas);
+  padding: 8px;
+}
+
+.git-diff-comments-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.git-diff-comments-title {
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.git-diff-comments-hint {
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+  margin-bottom: 6px;
+}
+
+.git-diff-comments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.git-diff-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.git-diff-comment-meta code {
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.git-diff-comment-status {
+  font-size: var(--font-micro);
+  color: var(--fg-secondary);
+}
+
+.git-diff-comment-orig {
+  margin: 4px 0;
+  padding: 4px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+  background: var(--surface-canvas);
+  overflow: auto;
+  max-height: 4.5em;
+}
+
+.git-diff-comment-body {
+  width: 100%;
+  resize: vertical;
+  font: inherit;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-control);
+  border-radius: 4px;
+  padding: 4px 6px;
+}
+
+.git-diff-comment.is-sent .git-diff-comment-body,
+.git-diff-comment.is-injected .git-diff-comment-body {
+  color: var(--fg-secondary);
+}
+
+.git-diff-view .diff-code {
+  color: var(--fg-primary);
+}
+
+/* 不要整行染绿/红，否则盖住 refractor token */
+.git-diff-view .diff-code-insert,
+.git-diff-view .diff-code-delete {
+  color: inherit;
+}
+
+.git-diff-view .diff-gutter {
+  color: var(--fg-muted);
+  background-color: var(--surface-canvas);
+}
+
+/* 统一 Diff 合并旧/新行号：第一格与对应 col 不再占布局。 */
+.git-diff-view.is-unified .diff-gutter-col:first-child,
+.git-diff-view.is-unified .diff-gutter:first-child {
+  display: none;
+}
+
+.git-diff-view .diff-gutter-insert {
+  color: var(--green);
+}
+
+.git-diff-view .diff-gutter-delete {
+  color: var(--red);
+}
+
+/* Prism / refractor token colors — 只用 --syn-* 语法色 token（design.md §1.4） */
+.git-diff-view .token.comment,
+.git-diff-view .token.prolog,
+.git-diff-view .token.doctype,
+.git-diff-view .token.cdata {
+  color: var(--syn-muted);
+}
+
+.git-diff-view .token.punctuation {
+  color: var(--syn-fg);
+}
+
+.git-diff-view .token.property,
+.git-diff-view .token.tag,
+.git-diff-view .token.boolean,
+.git-diff-view .token.number,
+.git-diff-view .token.constant,
+.git-diff-view .token.symbol,
+.git-diff-view .token.deleted {
+  color: var(--syn-blue);
+}
+
+.git-diff-view .token.selector,
+.git-diff-view .token.attr-name,
+.git-diff-view .token.string,
+.git-diff-view .token.char,
+.git-diff-view .token.builtin,
+.git-diff-view .token.inserted {
+  color: var(--syn-cyan);
+}
+
+.git-diff-view .token.operator,
+.git-diff-view .token.entity,
+.git-diff-view .token.url,
+.git-diff-view .language-css .token.string,
+.git-diff-view .style .token.string {
+  color: var(--syn-red);
+}
+
+.git-diff-view .token.atrule,
+.git-diff-view .token.attr-value,
+.git-diff-view .token.keyword {
+  color: var(--syn-red);
+}
+
+.git-diff-view .token.function,
+.git-diff-view .token.class-name {
+  color: var(--syn-purple);
+}
+
+.git-diff-view .token.regex,
+.git-diff-view .token.important,
+.git-diff-view .token.variable {
+  color: var(--syn-orange);
+}
+
+.git-diff-view .diff-code-edit {
+  background: transparent;
+}
+
+/* Diff = 贴地内容面 L0（design.md §1.1） */
+/* 差异区 = 页内嵌卡（圆角 + 细环）；工具页内拖拽条静息不画线，悬停/拖动才显 */
+.git-diff-scroll {
+  background: var(--surface-canvas);
+  margin: 1px 4px 10px 11px;
+  border-radius: var(--radius-card);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+}
+
+.side-tools-panel .split-pane-handle:not(:hover):not(.is-hot) .split-pane-handle-line {
+  background: transparent;
+}
+
+/* 历史列表与提交详情、文件树与 Diff 的分界始终可见。 */
+.side-tools-panel .git-history-pane .split-pane-handle:not(:hover):not(.is-hot):not(:focus-visible) .split-pane-handle-line {
+  background: var(--divider-rest);
+}
+
+.side-tools-panel .git-history-pane .split-pane-handle:focus-visible .split-pane-handle-line {
+  background: var(--divider-focus);
+}
+
+.git-commit-bar {
+  padding: 8px 10px 10px;
+  flex-shrink: 0;
+}
+
+.git-commit-compose {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+}
+.git-commit-compose:focus-within { border-color: var(--input-focus-border); }
+
+.git-commit-input {
+  min-width: 0;
+  min-height: 28px;
+  /* 与 GitPanel CommitBar 的 JS 自动增高上限保持一致 */
+  max-height: 240px;
+  resize: none;
+  overflow-y: auto;
+  background: transparent;
+  border: 0;
+  color: var(--input-fg-primary);
+  padding: 5px 8px;
+  font: inherit;
+  font-size: var(--font-control);
+  line-height: 1.4;
+  outline: none;
+  box-sizing: border-box;
+}
+.git-commit-input::placeholder { color: var(--input-fg-muted); }
+.git-commit-input:disabled { color: var(--input-fg-muted); }
+.git-commit-action { padding-inline: 9px; }
+.git-commit-action:disabled {
+  background: var(--input-interaction-hover);
+  color: var(--input-fg-muted);
+}
+
+.git-pin-btn,
+.ctrl-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: var(--font-ui);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.git-pin-btn:hover,
+.ctrl-pin:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.git-pin-btn.is-pinned,
+.ctrl-pin.is-pinned {
+  opacity: 0.85;
+  visibility: visible;
+  color: var(--fg-primary);
+}
+
+.git-repo-scroll .file-tree-row:hover .git-pin-btn.is-pinned {
+  opacity: 1;
+}
+
+.git-repo-item:hover .git-pin-btn.is-pinned {
+  opacity: 1;
+}
+
+/* Git 面板：会话 worktree 快捷按钮 */
+.git-session-worktree-btn {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* ---------- 部分采纳（T5.5）：hunk 勾选 diff 视图 ---------- */
+
+.adopt-diff-view .adopt-file {
+  margin-bottom: 8px;
+}
+
+.adopt-file-head {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  background: var(--surface-canvas);
+  border-bottom: 1px solid var(--border-control);
+  padding: 4px 8px;
+}
+
+.adopt-hunk-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  cursor: pointer;
+  font-size: var(--font-ui);
+}
+
+.adopt-hunk-check input[type='checkbox'] {
+  accent-color: var(--action-bg);
+  margin: 0;
+  flex: none;
+}
+
+.adopt-file-path {
+  font-family: var(--font-mono);
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adopt-file-count {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: calc(var(--font-ui) - 1px);
+}
+
+/* hunk 勾选行：与 diff 表格同宽，铺在对应 hunk 正上方 */
+.adopt-diff-view .adopt-hunk-row > td {
+  --fg-primary: var(--chrome-fg-primary);
+  --border-focus: var(--chrome-border-focus);
+  --fg-secondary: var(--chrome-fg-secondary);
+  --fg-muted: var(--chrome-fg-muted);
+
+  background: var(--surface-chrome);
+  border-top: 1px solid var(--border-control);
+  border-bottom: 1px dashed var(--border-control);
+  padding: 3px 8px;
+}
+
+.adopt-hunk-head {
+  font-family: var(--font-mono);
+  font-size: calc(var(--font-ui) - 1px);
+  color: var(--fg-muted);
+}
+
+.adopt-truncated {
+  padding: 8px 12px;
+  color: var(--fg-muted);
+  font-size: calc(var(--font-ui) - 1px);
+}
+
+/* ---------- GitHub PR ---------- */
+
+.git-pr-pane {
+  container: pr-pane / inline-size;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 6px 8px;
+  gap: 6px;
+}
+
+.pr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: none;
+}
+
+.pr-toolbar-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.pr-viewer {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  overflow-wrap: anywhere;
+}
+
+.pr-guide {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+}
+
+.pr-guide > .git-btn {
+  align-self: flex-start;
+}
+
+.pr-device-code {
+  color: var(--fg-primary);
+  font: 500 var(--font-title) var(--font-mono);
+  user-select: all;
+}
+
+.pr-content {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+.pr-board,
+.pr-review {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.pr-board[hidden] {
+  display: none;
+}
+
+.pr-detail-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.pr-toolbar-actions,
+.pr-filter-bar,
+.pr-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pr-filter-bar,
+.pr-section-head {
+  justify-content: space-between;
+}
+
+.pr-toolbar-actions button[aria-pressed='true'],
+.pr-filter-bar button[aria-pressed='true'] {
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+}
+
+.pr-feedback {
+  display: grid;
+  gap: 4px;
+}
+
+.pr-feedback button {
+  justify-self: start;
+}
+
+.pr-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.pr-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.pr-row:hover {
+  background: var(--interaction-hover);
+  border-color: var(--border-control);
+}
+
+.pr-row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-number {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.pr-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+}
+
+.pr-draft-tag {
+  flex: none;
+  padding: 0 5px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.pr-unread-badge {
+  flex: none;
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--status-info-bg);
+  color: var(--status-info-fg);
+  font-size: var(--font-micro);
+  text-align: center;
+}
+
+.pr-row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pr-branches {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.pr-checks-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-micro);
+}
+
+.pr-checks-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--fg-muted);
+}
+
+.pr-checks-badge.is-pass .pr-checks-dot {
+  background: var(--status-success-fg);
+}
+
+.pr-checks-badge.is-pass .pr-checks-text {
+  color: var(--status-success-fg);
+}
+
+.pr-checks-badge.is-failure .pr-checks-dot {
+  background: var(--status-danger-fg);
+}
+
+.pr-checks-badge.is-failure .pr-checks-text {
+  color: var(--status-danger-fg);
+}
+
+.pr-checks-badge.is-pending .pr-checks-dot {
+  background: var(--status-warning-fg);
+}
+
+.pr-checks-badge.is-pending .pr-checks-text {
+  color: var(--status-warning-fg);
+}
+
+.pr-checks-badge.is-unknown .pr-checks-text {
+  color: var(--fg-muted);
+}
+
+.pr-state-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.pr-review-scroll {
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 2px 6px 16px 2px;
+}
+
+.pr-review-intro h2 {
+  margin: 0 0 6px;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+  overflow-wrap: anywhere;
+}
+
+.pr-review-meta {
+  flex-wrap: wrap;
+}
+
+.pr-review-meta code,
+.pr-file-summary code,
+.pr-thread-label code {
+  font: var(--font-caption) var(--font-mono);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+}
+
+.pr-review-text {
+  margin: 4px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+}
+
+.pr-review-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-review-section h3 {
+  margin: 0;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  font-weight: 500;
+}
+
+.pr-detail-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pr-check-line,
+.pr-file-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: var(--font-caption);
+  overflow-wrap: anywhere;
+}
+
+.pr-check-line .git-btn {
+  white-space: normal;
+  text-align: start;
+}
+
+.pr-muted,
+.pr-notice {
+  margin: 0;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.pr-notice { color: var(--status-success-fg); }
+
+.pr-files,
+.pr-discussion-entry {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  min-width: 0;
+}
+
+.pr-file summary {
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.pr-file-summary { display: inline-flex; width: calc(100% - 1.25em); }
+
+.pr-patch {
+  overflow: auto;
+  overscroll-behavior: contain;
+  max-height: 28rem;
+  padding: 3px 0;
+}
+
+.pr-patch-row {
+  display: grid;
+  grid-template-columns: 4em max-content;
+  gap: 8px;
+  min-width: 100%;
+  width: max-content;
+  padding-inline-end: 8px;
+  font: var(--font-caption) var(--font-mono);
+}
+
+.pr-patch-row code { white-space: pre; font: inherit; }
+.pr-patch-row.is-add { background: var(--status-success-bg); }
+.pr-patch-row.is-remove { background: var(--status-danger-bg); }
+.pr-patch-row.is-hunk { color: var(--fg-muted); }
+
+.pr-patch-number {
+  color: var(--fg-muted);
+  text-align: end;
+  padding-inline: 4px;
+  font: inherit;
+}
+
+button.pr-patch-number {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+button.pr-patch-number:hover { background: var(--interaction-hover); }
+
+.pr-discussion-entry,
+.pr-inline-draft {
+  padding: 7px 8px;
+  overflow-wrap: anywhere;
+  font-size: var(--font-caption);
+}
+
+.pr-discussion-entry > strong + .pr-muted { margin-inline-start: 6px; }
+
+.pr-thread-label {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.pr-thread-comment { margin-block-start: 8px; }
+.pr-inline-draft .pr-field { margin-block-end: 5px; }
+.pr-review-section > .git-btn { align-self: flex-start; }
+
+.pr-review-editor textarea { width: 100%; }
+
+@container pr-pane (max-width: 420px) {
+  .pr-review-meta { justify-content: flex-start; }
+  .pr-patch-row { grid-template-columns: 3em max-content; }
+  .pr-review .pr-toolbar-actions { gap: 4px; }
+}
+
+/* 开 PR 对话框 */
+.pr-create-modal {
+  width: min(560px, 92vw);
+}
+
+.pr-create-hint {
+  padding: 0 16px 6px;
+  color: var(--fg-muted);
+  font-size: var(--font-micro);
+}
+
+.pr-create-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 4px 16px 8px;
+}
+
+.pr-setup-dialog .modal-actions { flex-wrap: wrap; }
+.pr-setup-error { color: var(--status-danger-fg); }
+
+.pr-setup-manual > summary {
+  cursor: pointer;
+  padding-block: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.pr-setup-manual .pr-field { padding-block-start: 4px; }
+
+.pr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pr-field-label {
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+}
+
+.pr-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.pr-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  font-family: inherit;
+}
+
+.pr-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.pr-textarea {
+  resize: vertical;
+  font-family: var(--font-mono);
+}

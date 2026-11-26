@@ -1,0 +1,1206 @@
+/* ============================================================
+ * 手机端表面（mobile-remote-interaction-plan）：三级页面栈样式。
+ * 仅在 html.is-mobile 时由 MobileApp 渲染，桌面布局不加载本表的 DOM；
+ * 颜色/间距全部走 base.css token，时长/曲线只用 duration/easing tokens（动画规约）。
+ * 页面转场复用 mp-panel 骨架（base.css），.mpage 只覆盖位移方向与层级。
+ * ============================================================ */
+
+/* ── 根容器：fixed 全屏；软键盘弹出时由 MobileApp 按 visualViewport 改 height/top ── */
+.ma-root {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  background: var(--surface-canvas);
+  color: var(--fg-primary);
+  font-size: 14px;
+}
+
+/* ── 页面栈：全屏页叠放；入栈自右滑入 / 出栈滑回右侧（覆盖 mp-panel 的 Y 轴位移） ── */
+.ma-root .mpage {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  box-shadow: var(--shadow-card);
+  will-change: transform, opacity;
+}
+
+.ma-root .mpage[data-mp-stage='enter'] {
+  transform: translateX(100%);
+}
+
+.ma-root .mpage[data-mp-stage='out'] {
+  transform: translateX(100%);
+}
+
+/* 非顶层页不响应点击（out 态的 pointer-events 归 mp-panel 规则） */
+.ma-root .mpage:not(.is-top) {
+  pointer-events: none;
+}
+
+/* ── 页面骨架：顶栏 + 滚动区 ── */
+.ma-page-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ma-topbar {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 4px 8px 4px 4px;
+  padding-top: calc(4px + env(safe-area-inset-top));
+  flex: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+}
+
+.ma-topbar-spacer {
+  width: 40px;
+  flex: none;
+}
+
+.ma-topbar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 18px;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.ma-topbar-btn:active {
+  background: var(--interaction-hover);
+}
+
+.ma-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ma-topbar-name {
+  font-weight: 500;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 返回/更多 图标：纯 CSS，避免引图片资源 */
+.ma-icon-back {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  margin-right: -3px;
+}
+
+.ma-icon-more {
+  display: inline-block;
+  width: 18px;
+  height: 4px;
+  background:
+    radial-gradient(circle 2px at 3px 2px, currentColor 2px, transparent 2px),
+    radial-gradient(circle 2px at 9px 2px, currentColor 2px, transparent 2px),
+    radial-gradient(circle 2px at 15px 2px, currentColor 2px, transparent 2px);
+}
+
+.ma-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 10px 10px calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ma-empty {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--fg-secondary);
+  font-size: 13px;
+}
+
+/* ── L1 工作区卡 ── */
+.ma-ws-card,
+.ma-dispatch-card,
+.ma-session-row {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+  color: var(--fg-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.ma-ws-card:active,
+.ma-dispatch-card:active,
+.ma-session-row:active {
+  background: var(--interaction-hover);
+}
+
+.ma-ws-card.needs,
+.ma-session-row.needs {
+  border-color: var(--status-warning-border);
+}
+
+.ma-ws-avatar,
+.ma-dispatch-icon {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  font-size: 18px;
+  overflow: hidden;
+}
+
+.ma-dispatch-icon {
+  color: var(--fg-primary);
+}
+
+.ma-ws-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ma-ws-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ma-ws-name {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ma-ws-sub {
+  font-size: 12px;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ma-ws-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex: none;
+}
+
+/* 徽标配色对齐左栏胶囊（left.css session-capsule* 的 color-mix 口径） */
+.ma-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: center;
+  padding: 3px 9px;
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.ma-badge.needs {
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+}
+
+.ma-badge.work {
+  color: var(--fg-secondary);
+  background: var(--status-neutral-bg);
+}
+
+/* ── L2 ── */
+.ma-dispatch-card {
+  border-left: 3px solid var(--border-focus);
+}
+
+.ma-dispatch-card.busy {
+  border-left-color: var(--status-success-fg);
+}
+
+.ma-section-title {
+  padding: 8px 4px 0;
+  font-size: 12px;
+  color: var(--fg-secondary);
+}
+
+.ma-session-row.is-cli {
+
+  color: var(--fg-muted);
+}
+
+/* 迷你胶囊（调度卡/对话页顶栏状态；区别于左栏 session-capsule 全局类） */
+.ma-mini-capsule {
+  flex: none;
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--fg-secondary);
+  background: var(--status-neutral-bg);
+}
+
+.ma-mini-capsule.work {
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+}
+
+.ma-mini-capsule.needs {
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+}
+
+.ma-mini-capsule.error {
+  color: var(--status-danger-fg);
+  background: var(--status-danger-bg);
+}
+
+/* done 与中性底同灰（对齐左栏 session-capsule.done）；arch 仅降透明度 */
+.ma-mini-capsule.arch {
+
+  color: var(--fg-muted);
+}
+
+/* 新建会话 FAB */
+.ma-fab {
+  position: absolute;
+  right: 16px;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--action-bg);
+  color: var(--action-fg);
+  font-size: 26px;
+  line-height: 1;
+  box-shadow: var(--shadow-pop);
+  cursor: pointer;
+  z-index: 5;
+}
+
+/* ── 底部抽屉（mp-panel 骨架 + 自底向上） ── */
+.ma-sheet-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+}
+
+.ma-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+}
+
+.ma-sheet-scrim[data-mp-stage='in'] {
+  opacity: 1;
+}
+
+.ma-root .msheet {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 70%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 12px calc(14px + env(safe-area-inset-bottom));
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--surface-canvas);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ma-root .msheet[data-mp-stage='enter'] {
+  transform: translateY(100%);
+}
+
+.ma-root .msheet[data-mp-stage='out'] {
+  transform: translateY(100%);
+}
+
+.ma-sheet-title {
+  padding: 6px 4px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.ma-sheet-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 14px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ma-sheet-item:active {
+  background: var(--interaction-hover);
+}
+
+.ma-sheet-item.danger {
+  color: var(--status-danger-fg);
+}
+
+.ma-sheet-note {
+  padding: 8px 4px 14px;
+  font-size: 13px;
+  color: var(--fg-secondary);
+  line-height: 1.6;
+}
+
+.ma-sheet-row {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+.ma-sheet-btn {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1 1 0;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ma-sheet-btn.danger {
+  background: var(--status-danger-bg);
+  border-color: transparent;
+  color: var(--status-danger-fg);
+}
+
+/* ── 连接状态 ── */
+.ma-conn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--status-success-fg);
+  flex: none;
+}
+
+.ma-conn-dot.off {
+  background: var(--status-danger-fg);
+}
+
+/* ── toast ── */
+.ma-toast {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  max-width: 78%;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-overlay);
+  color: var(--fg-primary);
+  font-size: 13px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-pop);
+  z-index: 50;
+  animation: ma-toast-in var(--dur-menu) var(--ease-standard);
+  pointer-events: none;
+}
+
+/* 一次性内容入场（非进出场骨架）：keyframes 仅做 toast 淡入 */
+@keyframes ma-toast-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 可点 toast（session-status 推送 needs_you 的深链出口）：重置 button 默认样式，
+ * 尾巴高亮提示可点；其余视觉与纯提示形态一致 */
+.ma-toast.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.ma-toast-act {
+  color: var(--fg-primary);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── L3 对话页：复用 ChatSurfaceView（agent-chat.css/chat.css），壳只做紧凑化 ── */
+.ma-chat-page {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  background: var(--surface-canvas);
+}
+
+.ma-chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ma-pty-reply {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+  gap: 12px;
+}
+
+.ma-pty-reply .chat-welcome {
+  flex: 1 1 auto;
+}
+
+.ma-pty-reply-note {
+  font-size: 13px;
+  color: var(--fg-secondary);
+}
+
+.ma-pty-reply-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: none;
+}
+
+.ma-pty-reply-input {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-canvas);
+  color: var(--fg-primary);
+  font: inherit;
+}
+
+.ma-pty-reply-send {
+  align-self: flex-end;
+  min-height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: var(--action-bg);
+  color: var(--action-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ma-pty-reply-send:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+/* 视图要求父容器是纵向 flex（agent-chat.css 注释合同）；手机壳同构 */
+html.is-mobile .chat-surface-view {
+  flex: 1 1 auto;
+}
+
+html.is-mobile .agent-chat-composer-wrap {
+  /* safe-area 用 padding，背景会铺满 padding 区，不留透明缝 */
+  padding-bottom: calc(6px + env(safe-area-inset-bottom));
+}
+
+html.is-mobile .chat-surface-view .chat-input-row {
+  padding: 0;
+}
+
+html.is-mobile .chat-input-row {
+  padding: 8px 6px;
+  gap: 6px;
+}
+
+html.is-mobile .chat-list-shell {
+  padding: 10px 10px 14px;
+}
+
+/* Markdown 代码块窄屏横向滚动 */
+html.is-mobile .chat-surface-view pre {
+  max-width: 100%;
+}
+
+/* ── 文件抽屉（右侧 90% 宽侧栏；mp-panel 骨架 + .mfiles 覆盖为自右滑入） ── */
+.ma-files-layer {
+  position: absolute;
+  inset: 0;
+  /* L3 全屏层：压过全部常规 UI 但让位弹层——介于 --z-dropdown(40) 与 --z-popover(60) 之间 */
+  z-index: 42;
+}
+
+.ma-files-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  opacity: 0;
+}
+
+.ma-files-scrim[data-mp-stage='in'] {
+  opacity: 1;
+}
+
+.ma-root .mfiles {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.ma-root .mfiles[data-mp-stage='enter'],
+.ma-root .mfiles[data-mp-stage='out'] {
+  transform: translateX(100%);
+}
+
+.ma-files-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 4px 6px;
+  padding-top: calc(4px + env(safe-area-inset-top));
+  flex: none;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.ma-files-head-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ma-files-head-title {
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ma-files-head-sub {
+  font-size: 11px;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 关闭 ✕：纯 CSS 双杠（旋转 45°），避免引图片资源 */
+.ma-files-icon-close {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+
+.ma-files-icon-close::before,
+.ma-files-icon-close::after {
+  content: '';
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  top: 50%;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
+
+.ma-files-icon-close::before {
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.ma-files-icon-close::after {
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.ma-files-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 2px 8px calc(12px + env(safe-area-inset-bottom));
+}
+
+.ma-files-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 8px;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ma-files-row:active {
+  background: var(--interaction-hover);
+}
+
+.ma-files-row .ma-files-ico,
+.ma-files-row svg {
+  flex: none;
+}
+
+.ma-files-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 子目录指示箭头（纯 CSS） */
+.ma-files-chev {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--fg-secondary);
+  border-top: 2px solid var(--fg-secondary);
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
+.ma-files-note {
+  padding: 44px 16px;
+  text-align: center;
+  color: var(--fg-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ma-files-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--border-control);
+}
+
+.ma-files-source-name {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font: inherit;
+}
+
+.ma-files-root-info {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.ma-files-root-path {
+  display: block;
+  margin-top: 4px;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+/* ── 文件详情 ── */
+.ma-files-detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 文本/代码：行号 + 目标行高亮；行内横向滚动 */
+.ma-files-code {
+  padding: 8px 0 calc(16px + env(safe-area-inset-bottom));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ma-files-ln {
+  display: flex;
+  gap: 10px;
+  padding: 0 10px;
+  white-space: pre;
+}
+
+.ma-files-ln.is-target {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.ma-files-ln-n {
+  flex: none;
+  min-width: 34px;
+  text-align: right;
+  color: var(--fg-muted);
+  user-select: none;
+}
+
+/* 超大文本退化整块 pre（行号 DOM 让位） */
+.ma-files-pre {
+  margin: 0;
+  padding: 10px 12px calc(16px + env(safe-area-inset-bottom));
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.ma-files-detail .md-body {
+  padding: 12px 14px calc(20px + env(safe-area-inset-bottom));
+  font-size: 14px;
+  /* 与桌面 md 预览同因：卸 paint 合成层，避免文字发虚（markdown.css 已覆盖） */
+  contain: none;
+  transform: none;
+  will-change: auto;
+}
+
+/* html / PDF：整幅内嵌框架（html 一律 sandbox 禁脚本） */
+.ma-files-frame {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: var(--surface-canvas);
+}
+
+.ma-files-media {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+}
+
+.ma-files-media img,
+.ma-files-media video {
+  max-width: 100%;
+  border-radius: var(--radius-control);
+}
+
+.ma-files-media audio {
+  width: 100%;
+}
+
+/* ── 系统动效退化（对齐 base.css prefers-reduced-motion 约定） ── */
+@media (prefers-reduced-motion: reduce) {
+  .ma-root .mpage,
+  .ma-root .msheet,
+  .ma-root .mfiles,
+  .ma-root .ma-sheet-scrim,
+  .ma-root .ma-files-scrim {
+    transition: none;
+  }
+
+  .ma-toast {
+    animation: none;
+  }
+}

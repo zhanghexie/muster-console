@@ -1,0 +1,15 @@
+.capability-usage { margin-block: 16px; min-width: 0; color: var(--fg-primary); }
+.usage-heading, .usage-row, .usage-bulk { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.usage-heading { margin-bottom: 8px; }
+.usage-heading > strong { margin-right: auto; }
+.usage-row { padding-block: var(--settings-row-padding, 10px); }
+.usage-row-copy { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.usage-row-copy > span, .usage-note { color: var(--fg-secondary); font-size: var(--font-ui); line-height: 1.6; }
+.usage-toggle { display: flex; align-items: center; gap: 6px; }
+.usage-note { margin-block: 8px; }
+.usage-resources { max-height: 420px; overflow-y: auto; overscroll-behavior: contain; }
+.is-compact .usage-resources { max-height: none; }
+.usage-bulk { padding-block: 8px; }
+.capability-usage label.usage-selection input[type='checkbox'] { appearance: auto; width: 16px; height: 16px; border-radius: 0; box-shadow: none; background: transparent; accent-color: var(--fg-primary); }
+.capability-usage label.usage-selection input[type='checkbox']::before,
+.capability-usage label.usage-selection input[type='checkbox']::after { display: none; }

@@ -1,0 +1,483 @@
+/* browser.css — 域：内置浏览器（侧栏第三内容页）。规范见 /design.md。修改请守住 token。 */
+
+/* 共享按钮/输入原子已收归 styles/base.css（design.md §9 单一来源） */
+
+.ui-session-page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--surface-canvas);
+  color: var(--canvas-fg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ui-session-page > [data-ui-path] { flex-shrink: 0; min-width: 0; }
+
+.browser-page {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 2px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 与 .git-panel-header / .files-panel-toolbar 同构：定高 36px，切面板顶栏不跳高 */
+.browser-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.browser-nav-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* 地址栏 + Agent 操作胶囊：胶囊绝对定位在输入框右端内（不占布局，Agent 连续操作时地址栏
+   宽度不抖），仅操作中出现；位于页头，不与原生网页视图重叠 */
+.browser-addr-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 60px;
+  display: flex;
+  align-items: center;
+}
+
+.browser-addr.has-agent {
+  padding-right: min(46%, 240px);
+}
+
+.browser-agent-chip {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  max-width: min(45%, 236px);
+  height: 18px;
+  margin-top: -9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--status-info-bg);
+  color: var(--status-info-fg);
+  font-size: var(--font-caption);
+  pointer-events: auto;
+}
+
+.browser-agent-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--status-info-fg);
+}
+
+.browser-agent-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.browser-addr {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1;
+  width: 100%;
+  min-width: 60px;
+  height: 24px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  transition: border-color var(--dur-micro) var(--ease-hover);
+}
+
+.browser-addr:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.browser-addr:disabled {
+  opacity: 1; color: var(--fg-disabled);
+}
+
+.browser-main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.browser-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 网页内容区：webview 栈（每标签一个 <webview>，仅样式切换保活）+ 露条手势层。
+ * webview 化（2026-10-08）：guest 参与 renderer 合成栈——随 DOM/transform 移动、
+ * 浮层直接覆盖、祖先 overflow:hidden + border-radius 正常裁切方角（spike 验证） */
+.browser-host {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  margin: 1px 4px 10px 11px;
+  border-radius: var(--radius-card);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+  overflow: hidden;
+  background: var(--surface-input);
+}
+
+/* 前台标签直接铺满宿主，用户输入由原生 webview 接收。后台页仍有非零布局，
+ * 由组件停放样式隔离命中与键盘，不通过移除 DOM / display:none 重建 guest。 */
+.browser-webview {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.browser-webview.is-background {
+  pointer-events: none;
+}
+
+/* 显式合成裁切覆盖原生 guest；单独给 webview 设置 border-radius 不足以裁切。 */
+.right-workspace .browser-host {
+  clip-path: inset(0 round 0 0 max(0px, calc(var(--radius-page) - 2px)) max(0px, calc(var(--radius-page) - 2px)));
+}
+
+/* 露条手势层：可见但不聚焦时截获指针（move=驻留切屏、down=点击切页、wheel=转发
+ * CDP 滚动网页）；激活态由内联 style 关闭命中，指针/键盘原生进 guest。
+ * 透明即可命中（合成器命中测试按元素而非像素透明度） */
+.browser-gesture-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background: transparent;
+}
+
+.browser-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.browser-empty-text {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+}
+
+/* 垂直标签栏（右侧，与 Files/Git 侧栏同位的标签管理）；宽度行内控制（拖把手），收起时不渲染 */
+.browser-tabbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid transparent;
+}
+
+/* 左缘拖宽把手（悬停高亮，与左栏把手同语义） */
+.browser-tabbar-resizer {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.browser-tabbar-resizer:hover {
+  background: var(--interaction-hover);
+}
+
+.browser-tabbar-list {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.browser-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  height: 28px;
+  border-radius: var(--radius-small);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.browser-tab-item:hover {
+  background: var(--interaction-hover);
+}
+
+.browser-tab-item.is-multiselected {
+  background: var(--interaction-pressed);
+  box-shadow: inset 0 0 0 1px var(--border-control);
+}
+
+.browser-tab-item.is-active {
+  background: var(--interaction-hover);
+  font-weight: 500;
+}
+
+.browser-tab-favicon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.browser-tab-favicon-fallback {
+  display: inline-block;
+  text-align: center;
+  line-height: 14px;
+  color: var(--fg-secondary);
+  font-size: 10px;
+}
+
+.browser-tab-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui);
+  color: var(--fg-primary);
+}
+
+.browser-tab-title.is-loading {
+  color: var(--fg-secondary);
+}
+
+.browser-tab-close {
+  visibility: hidden;
+  flex-shrink: 0;
+}
+
+.browser-tab-item:hover .browser-tab-close,
+.browser-tab-item.is-active .browser-tab-close {
+  visibility: visible;
+}
+
+.browser-tabbar-new {
+  flex-shrink: 0;
+  margin: 4px;
+  height: 28px;
+}
+
+/* ── 元素备注（拾取元素写批注，发给 Agent） ── */
+
+/* 备注卡遮罩 + 居中卡（卡片复用文件批注 msg-note-bubble 家族；打开期间网页视图让位） */
+.browser-note-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+}
+
+.browser-note-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: min(420px, calc(100vw - 16px));
+}
+
+.browser-note-card-hint {
+  font-size: var(--font-micro);
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* 元素截图：胶囊顶部的紧凑预览条（高度压住，保住批注胶囊比例） */
+.browser-note-shot {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  max-width: 100%;
+  height: 48px;
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-input);
+}
+
+
+/* 崩溃错误态（达上限停止自动恢复）：错误卡直接覆盖活网页区（webview 化后
+   DOM 天然可覆盖，无截图让位）；进出场 usePresence + mp-pop */
+.browser-crash-overlay {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-input);
+}
+
+.browser-crash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 22px;
+  border-radius: var(--radius-card);
+  box-shadow: 0 0 0 1px var(--border-subtle);
+  background: var(--surface-canvas, var(--surface-input));
+}
+
+.browser-crash-title {
+  font-weight: 500;
+}
+
+.browser-crash-text {
+  font-size: 12px;
+
+  color: var(--fg-secondary);
+}

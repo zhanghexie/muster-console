@@ -1,0 +1,321 @@
+<style>
+#mw-simplify .mw-stage { padding: 28px 16px; min-height: 484px; }
+#mw-simplify [hidden] { display: none !important; }
+#mw-simplify .mw-product {
+  --mw-surface: light-dark(#ffffff, #262629);
+  --mw-input: light-dark(#fafafa, #1c1c1f);
+  --mw-soft: light-dark(#f4f4f5, #303033);
+  --mw-text: light-dark(#27272a, #ededee);
+  --mw-secondary: light-dark(#63636b, #b0b0b6);
+  --mw-line: light-dark(#e4e4e7, #414145);
+  --mw-danger: light-dark(#ae3434, #ff9999);
+  color: var(--mw-text); background: var(--mw-surface);
+  font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+  width: 100%; max-width: 516px; margin: 0 auto; box-sizing: border-box;
+  padding: 24px; border: 1px solid var(--mw-line); border-radius: 16px;
+  box-shadow: 0 12px 40px light-dark(#0000000c, #00000026);
+}
+#mw-simplify .mw-product * { box-sizing: border-box; }
+#mw-simplify .mw-product [hidden] { display: none !important; }
+#mw-simplify .mw-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 24px; }
+#mw-simplify .mw-product h3 { color: var(--mw-text); font-size: 18px; font-weight: 500; line-height: 1.4; margin: 0; }
+#mw-simplify .mw-product button, #mw-simplify .mw-product input, #mw-simplify .mw-product select, #mw-simplify .mw-product textarea { font: inherit; }
+#mw-simplify .mw-product button { color: var(--mw-text); background: var(--mw-soft); border: 1px solid transparent; border-radius: 7px; padding: 6px 12px; min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+#mw-simplify .mw-product button:hover:not(:disabled) { background: color-mix(in srgb, var(--mw-text) 9%, var(--mw-surface)); }
+#mw-simplify .mw-product button:disabled { opacity: .45; cursor: default; }
+#mw-simplify .mw-product .mw-quiet { background: transparent; color: var(--mw-secondary); }
+#mw-simplify .mw-product .mw-icon { padding: 6px; width: 32px; min-height: 32px; flex-shrink: 0; }
+#mw-simplify .mw-product .mw-main { background: var(--mw-text); color: var(--mw-surface); padding-inline: 20px; }
+#mw-simplify .mw-product .mw-main:hover:not(:disabled) { background: color-mix(in srgb, var(--mw-text) 86%, var(--mw-surface)); }
+#mw-simplify .mw-product .mw-danger { color: var(--mw-danger); }
+#mw-simplify .mw-product input[type=text], #mw-simplify .mw-product textarea, #mw-simplify .mw-product select { color: var(--mw-text); background: var(--mw-input); border: 1px solid var(--mw-line); border-radius: 7px; padding: 8px 10px; width: 100%; min-width: 0; }
+#mw-simplify .mw-product textarea { resize: vertical; min-height: 116px; }
+#mw-simplify .mw-product input::placeholder, #mw-simplify .mw-product textarea::placeholder { color: var(--mw-secondary); }
+#mw-simplify .mw-product input[type=checkbox], #mw-simplify .mw-product input[type=radio] { accent-color: var(--mw-text); width: 14px; height: 14px; margin: 0; flex-shrink: 0; }
+#mw-simplify .mw-product label { margin: 0; }
+#mw-simplify .mw-field { display: grid; gap: 7px; min-width: 0; }
+#mw-simplify .mw-label { font-size: 13px; font-weight: 500; }
+#mw-simplify .mw-section { margin-top: 24px; }
+#mw-simplify .mw-section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+#mw-simplify .mw-identity { display: flex; align-items: center; gap: 12px; }
+#mw-simplify .mw-product .mw-avatar { width: 42px; height: 42px; padding: 0; font-size: 22px; border: 1px solid var(--mw-line); border-radius: 12px; flex-shrink: 0; }
+#mw-simplify .mw-identity .mw-field { flex: 1; }
+#mw-simplify .mw-sub { color: var(--mw-secondary); font-size: 12px; overflow-wrap: anywhere; }
+#mw-simplify .mw-product ul { list-style: none; padding: 0; margin: 0; }
+#mw-simplify .mw-product .mw-folder-row { width: 100%; padding: 10px 0; background: transparent; text-align: left; justify-content: flex-start; gap: 12px; }
+#mw-simplify .mw-folder-row > i, #mw-simplify .mw-folder-row > svg { color: var(--mw-secondary); flex-shrink: 0; }
+#mw-simplify .mw-folder-copy { flex: 1; min-width: 0; display: grid; gap: 2px; }
+#mw-simplify .mw-folder-copy > span:first-child { overflow-wrap: anywhere; }
+#mw-simplify .mw-default { font-size: 12px; color: var(--mw-secondary); flex-shrink: 0; }
+#mw-simplify .mw-folder-details { margin: 4px 0 14px 28px; display: grid; gap: 12px; }
+#mw-simplify .mw-folder-details .mw-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+#mw-simplify .mw-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#mw-simplify .mw-check { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; }
+#mw-simplify .mw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+#mw-simplify .mw-source-runtime { display: grid; gap: 16px; }
+#mw-simplify .mw-product .mw-disclosure { width: 100%; background: transparent; padding: 7px 0; justify-content: space-between; color: var(--mw-secondary); text-align: left; }
+#mw-simplify .mw-disclosure-copy { display: flex; align-items: center; gap: 8px; min-width: 0; }
+#mw-simplify .mw-disclosure-copy > span { overflow-wrap: anywhere; }
+#mw-simplify .mw-advanced { display: grid; gap: 16px; margin-top: 14px; }
+#mw-simplify .mw-setting { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+#mw-simplify .mw-setting-controls { display: flex; align-items: center; gap: 8px; }
+#mw-simplify .mw-projects { display: grid; gap: 10px; }
+#mw-simplify .mw-project-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+#mw-simplify .mw-project-row > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#mw-simplify .mw-project-row small { color: var(--mw-secondary); font-size: 12px; }
+#mw-simplify .mw-footer { margin-top: 28px; display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; }
+#mw-simplify .mw-task-actions { display: flex; align-items: center; gap: 8px; }
+#mw-simplify .mw-footnote { margin-right: auto; font-size: 12px; color: var(--mw-secondary); }
+#mw-simplify .mw-feedback { margin-top: 14px; font-size: 13px; color: var(--mw-secondary); overflow-wrap: anywhere; }
+#mw-simplify .mw-feedback:empty { display: none; }
+#mw-simplify .mw-feedback[data-error=true] { color: var(--mw-danger); }
+#mw-simplify .mw-avatar-choices { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 6px; }
+#mw-simplify .mw-avatar-choices button { font-size: 20px; width: 36px; padding: 4px; }
+#mw-simplify .mw-picker { display: grid; gap: 10px; margin-top: 12px; }
+#mw-simplify .mw-file-input { max-width: 100%; font-size: 12px; }
+#mw-simplify .mw-product .mw-scope-link { max-width: 62%; font-size: 12px; }
+#mw-simplify .mw-scope-link span { overflow-wrap: anywhere; }
+#mw-simplify .mw-reopen { display: flex; justify-content: center; padding: 40px 0; }
+@media(max-width: 480px) {
+  #mw-simplify .mw-stage { padding: 20px 0; }
+  #mw-simplify .mw-product { padding: 20px; }
+  #mw-simplify .mw-grid { grid-template-columns: 1fr; gap: 14px; }
+  #mw-simplify .mw-folder-details { margin-left: 0; }
+  #mw-simplify .mw-footnote { width: 100%; }
+}
+@media(pointer: coarse) {
+  #mw-simplify .mw-product button { min-height: 44px; }
+  #mw-simplify .mw-product input[type=text], #mw-simplify .mw-product textarea, #mw-simplify .mw-product select { font-size: 16px; }
+}
+</style>
+<div id="mw-simplify">
+  <div class="nav nav-pills" role="tablist" aria-label="原型界面">
+    <button class="nav-link" id="mw-ws-tab" role="tab" type="button" aria-controls="mw-ws-panel" aria-selected="false">编辑工作区</button>
+    <button class="nav-link active" id="mw-task-tab" role="tab" type="button" aria-controls="mw-task-panel" aria-selected="true">新建任务</button>
+  </div>
+  <section id="mw-ws-panel" role="tabpanel" aria-labelledby="mw-ws-tab" hidden>
+    <div class="mw-stage viz-dotted-background">
+      <div class="mw-product" id="mw-workspace" role="dialog" aria-labelledby="mw-ws-title">
+        <div class="mw-head"><h3 id="mw-ws-title">编辑工作区</h3><button class="mw-icon mw-quiet cursor-interaction" type="button" data-close="workspace" aria-label="关闭编辑工作区"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <div class="mw-identity">
+          <button type="button" class="mw-avatar cursor-interaction" id="mw-avatar" aria-label="更换工作区头像" aria-expanded="false" aria-controls="mw-avatar-picker">🐱</button>
+          <label class="mw-field"><span class="mw-label">工作区名称</span><input type="text" id="mw-name" value="metaagent" autocomplete="off"></label>
+        </div>
+        <div class="mw-avatar-choices" id="mw-avatar-picker" hidden>
+          <button type="button" data-emoji="🐱" aria-label="猫" class="cursor-interaction">🐱</button><button type="button" data-emoji="🤖" aria-label="机器人" class="cursor-interaction">🤖</button><button type="button" data-emoji="🦊" aria-label="狐狸" class="cursor-interaction">🦊</button><button type="button" data-emoji="🐸" aria-label="青蛙" class="cursor-interaction">🐸</button><button type="button" data-emoji="🚀" aria-label="火箭" class="cursor-interaction">🚀</button>
+          <label class="mw-field"><span class="mw-sub">自定义 emoji</span><input id="mw-custom-emoji" type="text" placeholder="例如 🐼"></label>
+          <label class="mw-field"><span class="mw-sub">上传图片</span><input class="mw-file-input" id="mw-avatar-file" type="file" accept="image/*"></label>
+        </div>
+        <div class="mw-section">
+          <div class="mw-section-head"><span class="mw-label">源文件夹</span><button type="button" class="mw-quiet cursor-interaction" id="mw-add-folder" aria-expanded="false" aria-controls="mw-folder-picker"><i data-lucide="plus" aria-hidden="true"></i>添加</button></div>
+          <ul id="mw-folders" aria-label="源文件夹列表"></ul>
+          <div class="mw-picker" id="mw-folder-picker" hidden>
+            <label class="mw-field"><span class="mw-label">文件夹路径</span><input id="mw-new-path" type="text" value="E:\Projects\demo" autocomplete="off"></label>
+            <div class="mw-inline"><button type="button" class="cursor-interaction" id="mw-confirm-add">添加文件夹</button><button type="button" class="mw-quiet cursor-interaction" id="mw-cancel-add">取消</button></div>
+          </div>
+        </div>
+        <div class="mw-section">
+          <button type="button" class="mw-disclosure cursor-interaction" data-toggle="mw-ws-more" aria-expanded="false" aria-controls="mw-ws-more"><span class="mw-disclosure-copy"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><span>更多设置</span></span><i data-lucide="chevron-down" aria-hidden="true"></i></button>
+          <div id="mw-ws-more" class="mw-advanced" hidden>
+            <div class="mw-setting"><label class="mw-check"><input type="checkbox" id="mw-index" checked>代码索引</label><div class="mw-setting-controls"><span class="mw-sub" id="mw-index-summary">1 个仓库</span><button type="button" class="mw-quiet cursor-interaction" data-toggle="mw-index-projects" aria-expanded="false" aria-controls="mw-index-projects">选择范围</button></div></div>
+            <div class="mw-projects" id="mw-index-projects" hidden><label class="mw-project-row"><input type="checkbox" data-index-project checked><span>metaagent-workbench</span><small>2461 文件</small></label><label class="mw-project-row"><input type="checkbox" data-index-project><span>sites / metaagent-official</span><small>122 文件</small></label><label class="mw-project-row"><input type="checkbox" data-index-project><span>宣传宠物</span><small>0 文件</small></label></div>
+            <button type="button" class="mw-disclosure cursor-interaction" data-toggle="mw-preparation" aria-expanded="false" aria-controls="mw-preparation"><span>隔离准备命令</span><i data-lucide="chevron-down" aria-hidden="true"></i></button>
+            <div id="mw-preparation" class="mw-field" hidden><label class="mw-field"><span class="mw-sub">隔离目录建立后执行</span><textarea id="mw-preparation-text" rows="3" placeholder="例如 npm ci"></textarea></label><div class="mw-inline"><button type="button" class="cursor-interaction" id="mw-save-preparation">保存命令</button><span class="mw-sub">单独保存</span></div></div>
+            <div><button type="button" class="mw-quiet mw-danger cursor-interaction" data-toggle="mw-close-confirm" aria-expanded="false" aria-controls="mw-close-confirm">关闭工作区…</button></div>
+            <div id="mw-close-confirm" class="mw-field" hidden><span class="mw-sub">从工作区列表移除，磁盘文件会保留。</span><div class="mw-inline"><button type="button" class="mw-danger cursor-interaction" id="mw-confirm-close">确认关闭</button><button type="button" class="mw-quiet cursor-interaction" data-toggle="mw-close-confirm">取消</button></div></div>
+          </div>
+        </div>
+        <div class="mw-footer"><button type="button" class="mw-quiet cursor-interaction" id="mw-cancel-workspace">取消</button><button type="button" class="mw-main cursor-interaction" id="mw-save-workspace">保存</button></div>
+        <div id="mw-ws-feedback" class="mw-feedback" role="status" aria-live="polite"></div>
+      </div>
+      <div class="mw-reopen" id="mw-workspace-reopen" hidden><button type="button" class="btn" data-reopen="workspace">重新打开工作区编辑</button></div>
+    </div>
+  </section>
+  <section id="mw-task-panel" role="tabpanel" aria-labelledby="mw-task-tab">
+    <div class="mw-stage viz-dotted-background">
+      <div class="mw-product" id="mw-task-dialog" role="dialog" aria-labelledby="mw-task-title">
+        <div class="mw-head"><h3 id="mw-task-title">新建任务</h3><button class="mw-icon mw-quiet cursor-interaction" type="button" data-close="task" aria-label="关闭新建任务"><i data-lucide="x" aria-hidden="true"></i></button></div>
+        <label class="mw-field"><span class="mw-label">会话名称 <span class="mw-sub">可选</span></span><input type="text" id="mw-session-name" placeholder="自动命名"></label>
+        <label class="mw-field mw-section"><span class="mw-label">任务</span><textarea id="mw-task" rows="4" placeholder="想让 Agent 做什么？"></textarea></label>
+        <div class="mw-source-runtime mw-section">
+          <label class="mw-field"><span class="mw-label">运行位置</span><select id="mw-source" aria-label="运行位置"></select></label>
+          <div class="mw-grid">
+            <label class="mw-field"><span class="mw-label">运行方式</span><select id="mw-runtime"><option value="codex-gui">Codex（GUI）</option><option value="claude-cli">Claude Code（终端）</option><option value="codex-cli">Codex（终端）</option></select></label>
+            <label class="mw-field" id="mw-mode-field"><span class="mw-label">会话模式</span><select id="mw-mode"><option value="">跟随默认</option><option value="auto">自动</option><option value="default">标准</option><option value="ask">只读问答</option><option value="plan">计划</option></select></label>
+          </div>
+          <div class="mw-grid" id="mw-chat-options">
+            <label class="mw-field"><span class="mw-label">会话模型</span><select id="mw-model"><option value="">跟随 Codex 配置</option><option value="example-model">示例模型</option></select></label>
+            <label class="mw-field"><span class="mw-label">思考强度</span><select id="mw-reasoning"><option value="">跟随默认</option><option value="low">低</option><option value="medium">中</option><option value="high">高</option></select></label>
+          </div>
+        </div>
+        <div class="mw-setting mw-section"><label class="mw-check"><input type="checkbox" id="mw-isolate" checked>隔离运行</label><button type="button" class="mw-quiet mw-scope-link cursor-interaction" data-toggle="mw-scope" id="mw-scope-button" aria-expanded="false" aria-controls="mw-scope"><span id="mw-scope-summary">全部仓库</span><i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+        <div id="mw-no-git" class="mw-sub" hidden>此文件夹没有可隔离的 Git 仓库。</div>
+        <div id="mw-scope" class="mw-advanced" hidden>
+          <div class="mw-section-head"><span class="mw-label">隔离范围</span><button type="button" class="mw-quiet cursor-interaction" id="mw-refresh-repos">刷新</button></div>
+          <div class="mw-projects"><label class="mw-project-row"><input type="checkbox" id="mw-repo-main" checked><span>metaagent-workbench</span></label><label class="mw-project-row"><input type="checkbox" id="mw-repo-site" checked><span>sites / metaagent-official</span><small id="mw-repo-inherited" hidden>随主仓库隔离</small></label></div>
+          <label class="mw-field"><span class="mw-label">运行仓库</span><select id="mw-working-repo"><option value="main">metaagent-workbench</option><option value="site">sites / metaagent-official</option></select></label>
+          <span class="mw-sub">未选中的仓库仅作为共享参考。</span>
+        </div>
+        <div class="mw-footer"><span class="mw-footnote">Ctrl + Enter 开始</span><button type="button" class="mw-quiet cursor-interaction" data-close="task">取消</button><div class="mw-task-actions"><button type="button" class="cursor-interaction" id="mw-empty-session">新建空白</button><button type="button" class="mw-main cursor-interaction" id="mw-start-task" disabled>开始任务</button></div></div>
+        <div id="mw-task-feedback" class="mw-feedback" role="status" aria-live="polite"></div>
+      </div>
+      <div class="mw-reopen" id="mw-task-reopen" hidden><button type="button" class="btn" data-reopen="task">重新打开新建任务</button></div>
+    </div>
+  </section>
+</div>
+<script>
+(() => {
+  const root = document.getElementById('mw-simplify');
+  const $ = id => root.querySelector('#' + id);
+  const initialFolders = [
+    { id: 'main', path: 'E:\\Projects\\metaagent-workbench', management: true },
+    { id: 'pet', path: 'C:\\Users\\admin\\Desktop\\宣传宠物', management: false }
+  ];
+  let folders = initialFolders.map(item => ({ ...item }));
+  let defaultId = 'main';
+  let openFolder = '';
+  let saved = { folders: folders.map(item => ({ ...item })), defaultId, name: 'metaagent', avatar: '🐱' };
+  let serial = 0;
+  let preferredIsolation = true;
+  let siteExplicit = true;
+  const escape = value => String(value).replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
+  const icons = () => { if (globalThis.lucide) globalThis.lucide.createIcons({ attrs: { width: 16, height: 16 } }); };
+  const feedback = (id, text, error = false) => { const el = $(id); el.textContent = text; el.dataset.error = String(error); el.setAttribute('role', error ? 'alert' : 'status'); };
+  const toggle = (id, force) => {
+    const panel = $(id);
+    panel.hidden = force === undefined ? !panel.hidden : !force;
+    root.querySelectorAll('[aria-controls="' + id + '"]').forEach(button => button.setAttribute('aria-expanded', String(!panel.hidden)));
+  };
+  function renderFolders() {
+    $('mw-folders').innerHTML = folders.map(folder => {
+      const selected = folder.id === defaultId;
+      const open = folder.id === openFolder;
+      return `<li data-folder-id="${escape(folder.id)}">
+        <button type="button" class="mw-folder-row cursor-interaction" data-folder="${escape(folder.id)}" aria-expanded="${open}" aria-controls="mw-folder-${escape(folder.id)}"><i data-lucide="folder" aria-hidden="true"></i><span class="mw-folder-copy"><span>${escape(folder.path)}</span></span>${selected ? '<span class="mw-default">默认</span>' : ''}<i data-lucide="${open ? 'chevron-down' : 'chevron-right'}" aria-hidden="true"></i></button>
+        <div class="mw-folder-details" id="mw-folder-${escape(folder.id)}" ${open ? '' : 'hidden'}>
+          <label class="mw-check"><input type="radio" name="mw-default-folder" data-default="${escape(folder.id)}" ${selected ? 'checked' : ''}>用作新任务的默认目录</label>
+          <div class="mw-detail-actions"><button type="button" class="mw-quiet mw-danger cursor-interaction" data-remove="${escape(folder.id)}" ${folder.management || folders.length === 1 ? 'disabled' : ''}>移除</button></div>
+          ${folder.management ? '<span class="mw-sub">此目录保存工作区数据，暂不可移除。</span>' : '<span class="mw-sub">移除只解除关联，磁盘文件会保留。</span>'}
+        </div></li>`;
+    }).join('');
+    const current = $('mw-source').value || defaultId;
+    $('mw-source').innerHTML = folders.map(folder => `<option value="${escape(folder.id)}">${escape(folder.path)}</option>`).join('');
+    $('mw-source').value = folders.some(folder => folder.id === current) ? current : defaultId;
+    updateSource();
+    icons();
+  }
+  function updateScope() {
+    const main = $('mw-repo-main').checked;
+    const site = $('mw-repo-site');
+    site.checked = main || siteExplicit;
+    site.disabled = main && !siteExplicit;
+    $('mw-repo-inherited').hidden = !site.disabled;
+    $('mw-scope-summary').textContent = main ? '全部仓库' : site.checked ? '仅网站仓库' : '选择仓库';
+    const select = $('mw-working-repo');
+    const old = select.value;
+    select.innerHTML = (main ? '<option value="main">metaagent-workbench</option>' : '') + (site.checked ? '<option value="site">sites / metaagent-official</option>' : '');
+    if ([...select.options].some(option => option.value === old)) select.value = old;
+    updateTaskButton();
+  }
+  function updateSource() {
+    const folder = folders.find(item => item.id === $('mw-source').value);
+    const hasGit = folder?.id === 'main';
+    $('mw-source').setAttribute('data-tooltip', folder?.path || '');
+    $('mw-isolate').disabled = !hasGit;
+    $('mw-isolate').checked = hasGit && preferredIsolation;
+    $('mw-scope-button').hidden = !hasGit || !$('mw-isolate').checked;
+    $('mw-no-git').hidden = hasGit;
+    if (!hasGit || !$('mw-isolate').checked) toggle('mw-scope', false);
+    updateTaskButton();
+  }
+  function updateTaskButton() {
+    const hasTask = Boolean($('mw-task').value.trim());
+    const isolationNeedsChoice = !$('mw-isolate').disabled && $('mw-isolate').checked && !$('mw-repo-main').checked && !$('mw-repo-site').checked;
+    $('mw-start-task').disabled = !hasTask || isolationNeedsChoice;
+  }
+  function previewTask(empty = false) {
+    if (!empty && !$('mw-task').value.trim()) { feedback('mw-task-feedback', '请先描述任务。', true); return; }
+    if (!$('mw-isolate').disabled && $('mw-isolate').checked && !$('mw-repo-main').checked && !$('mw-repo-site').checked) { feedback('mw-task-feedback', '请选择至少一个隔离仓库。', true); toggle('mw-scope', true); return; }
+    const folder = folders.find(item => item.id === $('mw-source').value);
+    const isolated = !$('mw-isolate').disabled && $('mw-isolate').checked;
+    const name = $('mw-session-name').value.trim() || '自动命名';
+    const parameters = $('mw-chat-options').hidden ? '' : ' · ' + $('mw-model').selectedOptions[0].textContent + ' · 思考：' + $('mw-reasoning').selectedOptions[0].textContent;
+    feedback('mw-task-feedback', '原型预览：' + (empty ? '空会话' : '任务') + '已准备 · ' + name + ' · ' + folder.path + ' · ' + (isolated ? '隔离运行' : '共享目录') + parameters + '。');
+  }
+  root.addEventListener('click', event => {
+    const button = event.target.closest('button');
+    if (!button || button.disabled) return;
+    if (button.dataset.toggle) toggle(button.dataset.toggle);
+    if (button.dataset.folder) { openFolder = openFolder === button.dataset.folder ? '' : button.dataset.folder; renderFolders(); }
+    if (button.dataset.remove) {
+      const folder = folders.find(item => item.id === button.dataset.remove);
+      if (!folder || folder.management || folders.length < 2) return;
+      folders = folders.filter(item => item.id !== folder.id);
+      if (defaultId === folder.id) defaultId = folders[0].id;
+      openFolder = ''; renderFolders();
+      feedback('mw-ws-feedback', '已从草稿移除「' + folder.path + '」，磁盘文件会保留。');
+    }
+    if (button.dataset.emoji) { $('mw-avatar').textContent = button.dataset.emoji; toggle('mw-avatar-picker', false); }
+    if (button.dataset.close || button.dataset.reopen) {
+      const kind = button.dataset.close || button.dataset.reopen;
+      const closed = Boolean(button.dataset.close);
+      $(kind === 'workspace' ? 'mw-workspace' : 'mw-task-dialog').hidden = closed;
+      $(kind === 'workspace' ? 'mw-workspace-reopen' : 'mw-task-reopen').hidden = !closed;
+    }
+  });
+  root.addEventListener('change', event => {
+    const target = event.target;
+    if (target.dataset.default) { defaultId = target.dataset.default; renderFolders(); }
+    if (target.matches('[data-index-project]')) $('mw-index-summary').textContent = root.querySelectorAll('[data-index-project]:checked').length + ' 个仓库';
+  });
+  $('mw-avatar').addEventListener('click', () => toggle('mw-avatar-picker'));
+  $('mw-custom-emoji').addEventListener('change', event => { if (event.target.value.trim()) { $('mw-avatar').textContent = event.target.value.trim(); toggle('mw-avatar-picker', false); } });
+  $('mw-avatar-file').addEventListener('change', event => { if (event.target.files?.length) feedback('mw-ws-feedback', '原型已选图片：' + event.target.files[0].name + '。'); });
+  $('mw-add-folder').addEventListener('click', () => toggle('mw-folder-picker'));
+  $('mw-cancel-add').addEventListener('click', () => toggle('mw-folder-picker', false));
+  $('mw-confirm-add').addEventListener('click', () => {
+    const path = $('mw-new-path').value.trim().replace(/[\\/]+$/, '');
+    if (!path || !/^(?:[A-Za-z]:[\\/]|\\\\[^\\]+\\[^\\]+)/.test(path)) { feedback('mw-ws-feedback', '请输入完整文件夹路径。', true); return; }
+    const key = value => value.replace(/\//g, '\\').toLowerCase();
+    if (folders.some(item => key(item.path) === key(path))) { feedback('mw-ws-feedback', '此文件夹已经在列表中。', true); return; }
+    folders.push({ id: 'added' + (++serial), path, management: false });
+    renderFolders(); toggle('mw-folder-picker', false); feedback('mw-ws-feedback', '已添加到原型草稿。');
+  });
+  $('mw-save-workspace').addEventListener('click', () => {
+    if (!$('mw-name').value.trim()) { feedback('mw-ws-feedback', '请填写工作区名称。', true); return; }
+    saved = { folders: folders.map(item => ({ ...item })), defaultId, name: $('mw-name').value.trim(), avatar: $('mw-avatar').textContent };
+    feedback('mw-ws-feedback', '原型预览：已保存。');
+  });
+  $('mw-cancel-workspace').addEventListener('click', () => {
+    folders = saved.folders.map(item => ({ ...item })); defaultId = saved.defaultId;
+    $('mw-name').value = saved.name; $('mw-avatar').textContent = saved.avatar;
+    openFolder = ''; renderFolders(); feedback('mw-ws-feedback', '已撤销未保存的修改。');
+  });
+  $('mw-save-preparation').addEventListener('click', () => feedback('mw-ws-feedback', '原型预览：准备命令已单独保存。'));
+  $('mw-confirm-close').addEventListener('click', () => { $('mw-workspace').hidden = true; $('mw-workspace-reopen').hidden = false; });
+  $('mw-index').addEventListener('change', event => {
+    $('mw-index-summary').hidden = !event.target.checked;
+    root.querySelector('[aria-controls="mw-index-projects"]').disabled = !event.target.checked;
+    if (!event.target.checked) toggle('mw-index-projects', false);
+  });
+  $('mw-source').addEventListener('change', updateSource);
+  $('mw-isolate').addEventListener('change', () => {
+    preferredIsolation = $('mw-isolate').checked;
+    if (preferredIsolation) { $('mw-repo-main').checked = true; siteExplicit = true; updateScope(); }
+    updateSource();
+  });
+  $('mw-repo-main').addEventListener('change', updateScope);
+  $('mw-repo-site').addEventListener('change', () => { siteExplicit = $('mw-repo-site').checked; updateScope(); });
+  $('mw-refresh-repos').addEventListener('click', () => feedback('mw-task-feedback', '原型预览：仓库列表已刷新。'));
+  $('mw-runtime').addEventListener('change', () => {
+    const isChat = $('mw-runtime').value === 'codex-gui';
+    $('mw-chat-options').hidden = !isChat;
+    $('mw-mode-field').hidden = !isChat;
+  });
+  $('mw-task').addEventListener('input', () => { feedback('mw-task-feedback', ''); updateTaskButton(); });
+  $('mw-task').addEventListener('keydown', event => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); previewTask(); } });
+  $('mw-start-task').addEventListener('click', () => previewTask());
+  $('mw-empty-session').addEventListener('click', () => previewTask(true));
+  renderFolders(); updateScope();
+})();
+</script>

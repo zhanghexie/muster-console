@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 驳回去向交代（条目9）对照</title>
+<!-- 记忆面板改造计划 · 条目 9 原型：已裁决区段透明化——驳回卡可展开看候选原文+去向说明。token 抄自 base.css。 -->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-raised: #252526; --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e;
+    --hairline: #2c2c2c; --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff;
+    --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); --dur-panel: 280ms;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.65; padding: 26px 0 80px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  .seg-title { font-size: var(--font-control); font-weight: 500; color: var(--text-2); margin: 24px 0 10px; }
+  .card { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 13px 16px; margin-bottom: 10px; }
+  .card.is-clickable { cursor: pointer; }
+  .card.is-clickable:hover { background: color-mix(in srgb, rgba(250,250,250,0.05) 60%, var(--bg-raised)); }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; }
+  .memory-tag.is-warn { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-other { background: var(--bg-inset); color: var(--text-2); }
+  .memory-tag.is-dim { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .diff { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-small); background: var(--bg-canvas); font-size: 12.5px; color: var(--text-2); white-space: pre-wrap; }
+  .chev { margin-left: auto; color: var(--text-3); font-size: 11px; transition: transform var(--dur-panel) var(--ease-standard); }
+  .card.is-open .chev { transform: rotate(180deg); }
+  .fate { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-panel) var(--ease-standard); }
+  .card.is-open .fate { grid-template-rows: 1fr; }
+  .fate > div { overflow: hidden; min-height: 0; }
+  .fate-inner { margin-top: 10px; border-top: 1px solid var(--hairline); padding-top: 10px; font-size: var(--font-caption); color: var(--text-2); display: flex; flex-direction: column; gap: 8px; }
+  .fate-inner b { color: var(--ink); font-weight: 500; }
+  .fate-actions { display: flex; gap: 8px; margin-top: 2px; }
+  .ui-btn { padding: 3px 12px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn:hover { background: rgba(250,250,250,0.05); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 9 · 驳回去向交代）。现状：驳回后卡片移进「已裁决」，一行"候选项退场"——<b>退到哪去了、原文是什么、还能不能救</b>都没交代。改后：已驳回卡<b>可点开</b>——候选原文 + 三句去向交代 + 「后悔了怎么办」。</div>
+
+  <div class="seg-title">已裁决（现状只读一行 vs 改后可展开）</div>
+
+  <div class="card is-clickable is-open" id="c1">
+    <div class="row">
+      <span class="memory-tag is-warn">已驳回</span>
+      <span class="memory-tag is-other">取代旧条目</span>
+      <span class="memory-meta-dim">置信 0.62</span>
+      <span class="memory-meta-dim">昨天 14:20 你裁决</span>
+      <span class="chev">▼</span>
+    </div>
+    <div class="diff">- 取代（旧片段退役）：派活默认 DeepSeek。
++ 新增：派活默认 GLM-5.3-Flash。</div>
+    <div class="fate"><div><div class="fate-inner">
+      <span><b>这条候选的下场：</b>已废弃，不会写入任何记忆文件；旧条目「派活默认 DeepSeek」继续生效，一切没变。</span>
+      <span><b>原文还在吗：</b>在——完整保存在这条审批的记录里（上方 diff 即原文），但不再参与任何召回与巩固。</span>
+      <span><b>后悔了怎么办：</b>驳回不是拉黑。如果改主意了，直接对 Agent 说「记住：派活默认 GLM-5.3-Flash」，它会经直写门重新入库（你说的话永远可以入库）。</span>
+      <div class="fate-actions"><button class="ui-btn">查看当时的候选详情</button><button class="ui-btn">对 Agent 说「记住这条」</button></div>
+    </div></div></div>
+  </div>
+
+  <div class="card is-clickable" id="c2">
+    <div class="row">
+      <span class="memory-tag is-warn">已驳回</span>
+      <span class="memory-tag is-other">新增晋升</span>
+      <span class="memory-meta-dim">置信 0.55</span>
+      <span class="memory-meta-dim">3 天前你裁决</span>
+      <span class="chev">▼</span>
+    </div>
+    <div class="fate"><div><div class="fate-inner">
+      <span><b>这条候选的下场：</b>已废弃，不写入任何记忆文件。</span>
+      <span><b>后悔了怎么办：</b>对 Agent 说「记住…」可随时重新入库；同类记忆若再次产生且置信更高，也会重新来这等你裁决。</span>
+    </div></div></div>
+  </div>
+
+  <div class="memory-meta-dim" style="margin-top:14px">批准的卡片行为不变（已有完整回执）；本条目只升级「已驳回」的交代层。驳回历史默认折叠在「已裁决」区段，可按 已批准/已驳回 筛选。</div>
+</div>
+<script>
+  document.querySelectorAll('.card.is-clickable').forEach(function (c) {
+    c.addEventListener('click', function () { c.classList.toggle('is-open'); });
+  });
+</script>
+</body>
+</html>

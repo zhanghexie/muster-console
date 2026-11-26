@@ -1,0 +1,185 @@
+{
+  "source": "approved-a-24.png",
+  "sourceSize": [
+    1434,
+    1097
+  ],
+  "outputSize": [
+    256,
+    256
+  ],
+  "outputFormat": "webp",
+  "quality": 90,
+  "fit": "contain",
+  "background": "#e9e4df",
+  "crops": [
+    {
+      "id": "pixel",
+      "left": 17,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "rivet",
+      "left": 252,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "quantum",
+      "left": 487,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "welder",
+      "left": 723,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "scout",
+      "left": 958,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "sentinel",
+      "left": 1194,
+      "top": 90,
+      "width": 225,
+      "height": 215
+    },
+    {
+      "id": "compass",
+      "left": 17,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "joinery",
+      "left": 252,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "atlas",
+      "left": 487,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "pi",
+      "left": 723,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "bubble",
+      "left": 958,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "wrench",
+      "left": 1194,
+      "top": 341,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "bookmark",
+      "left": 17,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "ink",
+      "left": 252,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "bridge",
+      "left": 487,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "bean",
+      "left": 723,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "healer",
+      "left": 958,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "sprout",
+      "left": 1194,
+      "top": 591,
+      "width": 225,
+      "height": 211
+    },
+    {
+      "id": "stew",
+      "left": 17,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "note",
+      "left": 252,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "palette",
+      "left": 487,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "shutter",
+      "left": 723,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "scales",
+      "left": 958,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    },
+    {
+      "id": "courier",
+      "left": 1194,
+      "top": 838,
+      "width": 225,
+      "height": 213
+    }
+  ]
+}

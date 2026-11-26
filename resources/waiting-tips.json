@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "tips": [
+    { "zh-CN": "右键点击自己的消息，可以浏览会话历史并跳转。", "en": "Right-click your message to browse and navigate conversation history." },
+    { "zh-CN": "可以在会话中查找消息内容。", "en": "You can search for text in a conversation." },
+    { "zh-CN": "在消息操作栏可以从历史消息分叉新会话。", "en": "Use the message actions to fork a new conversation from history." }
+  ]
+}

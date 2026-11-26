@@ -1,0 +1,90 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'event-auth-'));
+let log;
+try {
+  const compile = createSharedCompiler(process.cwd(), path.join(tmp, 'compiled'));
+  const load = p => import(pathToFileURL(compile(p)).href);
+  const { EventLog } = await load('main/awareness/eventLog.ts');
+  const { EventRouter } = await load('main/awareness/eventRouter.ts');
+  const { RuntimeAwarenessStore } = await load('main/awareness/store.ts');
+  const { awarenessHost } = await load('main/capabilities/hosts/awareness.ts');
+  const { getEventRegistry } = await load('main/awareness/eventRegistry.ts');
+  const { runAsSchedulerTool, runAsAgentWorkspace } = await load('main/agent/agentScope.ts');
+  log = new EventLog(path.join(tmp, 'db'));
+  const router = new EventRouter(log, async () => {});
+  const sessions = [{ id: 'a', workspaceId: 'w' }, { id: 'b', workspaceId: 'other' }];
+  const rootW = path.join(tmp, 'w'), rootOther = path.join(tmp, 'other');
+  fs.mkdirSync(rootW); fs.mkdirSync(rootOther);
+  const ctx = { eventRouter: router, awareness: new RuntimeAwarenessStore(tmp), sessions: { get: id => sessions.find(s => s.id === id) },
+    workspaces: { list: () => [{ id: 'w', path: rootW }, { id: 'other', path: rootOther }] }, resolveBubbleWorkspaceId: () => 'w' };
+  const call = (name, args) => awarenessHost[name](ctx, { __actorSessionId: 'a', ...args });
+  assert.throws(() => call('events.subscribe', { source: 'unapproved' }), /not registered/);
+  assert.throws(() => call('events.subscribe', { source: 'file', subject: 'b' }), /human review/);
+  ctx.ui = { confirm: async () => ({ confirmed: false }) };
+  await assert.rejects(() => call('events.subscribe', { source: 'file', subject: 'b' }), /not approved/);
+  assert.equal(log.subscriptions('b').length, 0);
+  ctx.ui = { confirm: async () => ({ confirmed: true }) };
+  const reviewed = await call('events.subscribe', { source: 'file', subject: 'b' });
+  assert.equal(reviewed.subscription.subject, 'b');
+  assert.equal(reviewed.subscription.workspaceId, 'other');
+  log.unsubscribe(reviewed.subscription.id, 'b');
+  let approve;
+  ctx.ui = { confirm: () => new Promise(resolve => { approve = resolve; }) };
+  const awaitingReview = call('events.subscribe', { source: 'file', subject: 'b' });
+  sessions[1].workspaceId = 'w'; approve({ confirmed: true });
+  await assert.rejects(() => awaitingReview, /workspace changed/);
+  sessions[1].workspaceId = 'other';
+  assert.equal(log.subscriptions('b').length, 0);
+  await assert.rejects(() => call('events.resolveLaunch', { subscriptionId: 'x', sequence: 1, action: 'complete' }), /Only the scheduler/);
+  const sub = call('events.subscribe', { source: 'file' }).subscription;
+  const old = log.append({ source: 'file', type: 'changed', scope: 'root', workspaceId: 'other', receivedAt: Date.now(), summary: 'other', payload: 'secret' }).event;
+  const mine = log.append({ source: 'file', type: 'changed', scope: 'root', workspaceId: 'w', receivedAt: Date.now(), summary: 'mine', payload: 'hello世界' }).event;
+  assert.throws(() => call('events.read', { id: old.id }), /not authorized/);
+  assert.equal(call('events.read', { id: mine.id, offset: 5, length: 2 }).text, '世界');
+  const controls = log.append({ source: 'file', type: 'changed', scope: 'root', workspaceId: 'w', receivedAt: Date.now(), summary: 'controls', payload: '\u0001'.repeat(5000) }).event;
+  const bounded = call('events.read', { id: controls.id, length: 5000 });
+  assert.ok(JSON.stringify(bounded).length <= 8500, 'escaped payload stays within the tool response budget');
+  assert.equal(bounded.nextOffset, bounded.text.length);
+  assert.deepEqual(call('events.list', { subscriptionId: sub.id }).events.map(e => e.id), [mine.id, controls.id]);
+  const many = Array.from({ length: 12 }, (_, i) => log.append({ source: 'file', type: 'changed', scope: 'root', workspaceId: 'w',
+    receivedAt: Date.now(), summary: '"'.repeat(1000), payload: String(i) }).event.id);
+  const seen = []; let next = sub.startCursor;
+  do {
+    const page = call('events.list', { subscriptionId: sub.id, after: next });
+    assert.ok(JSON.stringify(page).length < 8500, 'event metadata page is bounded');
+    seen.push(...page.events.map(e => e.id)); next = page.nextCursor;
+  } while (next !== null);
+  assert.deepEqual(seen, [mine.id, controls.id, ...many], 'continuation does not skip an event at the budget boundary');
+  const timeSub = call('events.subscribe', { source: 'time' }).subscription;
+  const now = Date.now();
+  log.append({ source: 'time', type: 'fired', scope: 'task', workspaceId: 'w', receivedAt: now - 5000, summary: 'old', payload: '{}' });
+  const timeEvent = log.append({ source: 'time', type: 'fired', scope: 'task', workspaceId: 'w', receivedAt: now, summary: 'now', payload: '{}' }).event;
+  assert.deepEqual(call('events.list', { subscriptionId: timeSub.id, since: now - 1000, until: now + 1000 }).events.map(e => e.id), [timeEvent.id]);
+  assert.throws(() => call('events.list', { subscriptionId: timeSub.id, since: now, until: now - 1 }), /Invalid event page/);
+  assert.throws(() => awarenessHost['events.read'](ctx, { __actorSessionId: 'b', id: mine.id, subject: 'a' }), /another session/);
+  getEventRegistry().register(rootW, { id: 'ready', description: 'ready', why: 'test', status: 'approved', proposerSessionId: 'a', emitters: ['a'], createdAt: Date.now() });
+  assert.ok(call('events.subscribe', { source: 'fact', types: ['event.ready'] }).subscription);
+  await runAsAgentWorkspace('w', () => runAsSchedulerTool(async () => {
+    assert.throws(() => awarenessHost['events.subscribe'](ctx, { source: 'fact', types: ['event.ready'], subject: 'b' }), /未批准/, 'approval is checked in the subscriber workspace');
+    const delegated = awarenessHost['events.subscribe'](ctx, { source: 'gitlab', subject: 'b' });
+    assert.equal(delegated.subscription.subject, 'b');
+    awarenessHost['events.unsubscribe'](ctx, { id: delegated.subscription.id });
+    const eventSubscription = awarenessHost['events.subscribe'](ctx, { source: 'gitlab', subject: 'b', projectId: 6528 });
+    assert.equal(eventSubscription.subscription.scope, '6528');
+    awarenessHost['events.unsubscribe'](ctx, { id: eventSubscription.subscription.id });
+    const { FACTS_SHARE_EVENTS_TOOL_DEFS } = await load('main/capabilities/catalog/factsShareEvents.ts');
+    const { assertToolArguments } = await load('main/capabilities/schemaValidation.ts');
+    const schema = FACTS_SHARE_EVENTS_TOOL_DEFS.find(def => def.name === 'events.subscribe').parameters;
+    assertToolArguments(schema, { source: 'gitlab', projectId: 6528 }, 'events.subscribe');
+    assert.throws(() => assertToolArguments(schema, { source: 'gitlab', launch: 'worker', automationId: 'task1' }, 'events.subscribe'), /Invalid parameters/);
+
+  }));
+  router.stop(); log.close(); log = undefined;
+} finally { log?.close(); fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); }
+console.log('event-subscription-permissions: ok');

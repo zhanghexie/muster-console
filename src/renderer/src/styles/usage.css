@@ -1,0 +1,915 @@
+/* usage.css — 实用功能「使用统计」面板。规范见 /design.md。修改请守住 token。
+ * 海拔：面板底 L1（.prompt-task-panel）；统计卡/列表容器 = L2 卡片；
+ * 数据条只用中性叠白/文字灰（状态色仅用于成功/失败胶囊，复用 tasks.css 的 .task-run-status）。 */
+
+.usage-body {
+  width: min(1180px, 100%);
+  box-sizing: border-box;
+  margin-inline: auto;
+  padding: 4px 24px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+@container prompt-tasks (max-width: 420px) {
+  .usage-body { padding-inline: 16px; }
+}
+
+/* ---------- 统计卡 ---------- */
+.usage-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1280px) {
+  .usage-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.usage-card {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--fg-primary);
+  font: inherit;
+  text-align: left;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.usage-card:hover {
+  border-color: var(--border-control);
+}
+
+.usage-card.is-selected {
+  background: var(--raised-interaction-selected);
+  color: var(--raised-fg-selected-primary);
+  --fg-primary: var(--raised-fg-selected-primary);
+  --fg-secondary: var(--raised-fg-selected-secondary);
+  --fg-muted: var(--raised-fg-selected-muted);
+  border-color: var(--border-control);
+}
+
+.usage-card:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+.usage-card-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 超长范围（366 天≈53 段）时趋势条允许被裁剪，不许撑破卡片 */
+.usage-card-top .usage-spark {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.usage-card-meta {
+  min-width: 0;
+}
+
+.usage-card-label {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.usage-card-value {
+  margin-top: 4px;
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.usage-card-sub {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-card-sub.is-error {
+  color: var(--status-danger-fg);
+}
+
+.usage-card-delta {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 加载骨架（首帧 summary 未到，不渲染 0） */
+.usage-skel {
+  pointer-events: none;
+  gap: 10px;
+}
+
+.usage-skel-line {
+  height: 10px;
+  border-radius: var(--radius-small);
+  background: var(--interaction-hover);
+}
+
+.usage-skel-line.is-w40 {
+  width: 40%;
+}
+
+.usage-skel-line.is-w80 {
+  width: 80%;
+}
+
+.usage-skel-num {
+  height: 28px;
+  border-radius: var(--radius-small);
+  background: var(--interaction-hover);
+}
+
+/* 迷你趋势条：中性叠白条，今天亮一档；条数随范围自适应（按日≤14，更长按周） */
+.usage-spark {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 34px;
+}
+
+.usage-spark-bar {
+  flex: 1 1 0;
+  min-width: 2px;
+  max-width: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg-secondary) 38%, transparent);
+}
+
+.usage-spark-bar.is-zero {
+  background: var(--interaction-hover);
+}
+
+.usage-spark-bar.is-today {
+  background: color-mix(in srgb, var(--fg-primary) 75%, transparent);
+}
+
+/* ---------- 分区 ---------- */
+.usage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usage-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.usage-section-head .prompt-task-section-caption {
+  margin: 0;
+}
+
+.usage-section-note {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+/* 空态不画框（design.md §9） */
+.usage-empty {
+  padding: 28px 20px;
+  gap: 6px;
+}
+
+/* ---------- 能力调用排行 ---------- */
+.usage-tool-list {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.usage-tool-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 48px 72px;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  padding: 2px 6px;
+  border-radius: var(--radius-small);
+}
+
+.usage-tool-row:hover {
+  background: var(--interaction-hover);
+}
+
+.usage-tool-name {
+  overflow: hidden;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-tool-bar-track {
+  height: 8px;
+  border-radius: 2px;
+  background: var(--interaction-hover);
+  overflow: hidden;
+}
+
+.usage-tool-bar {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--fg-secondary) 45%, transparent);
+}
+
+.usage-tool-count {
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.usage-tool-errors {
+  color: var(--status-danger-fg);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  text-align: right;
+}
+
+/* ---------- 无头 Agent 运行列表 ---------- */
+.usage-run-list {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.usage-run-item {
+  border-radius: var(--radius-control);
+}
+
+.usage-run-item.is-expanded {
+  background: var(--interaction-hover);
+}
+
+.usage-run-row {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 200px) minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+}
+
+.usage-run-row:hover {
+  background: var(--interaction-hover);
+}
+
+.usage-run-name {
+  overflow: hidden;
+  color: var(--fg-primary);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-run-preview {
+  overflow: hidden;
+  color: var(--fg-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-run-detail {
+  padding: 6px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.usage-run-detail-output {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.usage-run-meta {
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+}
+
+.usage-llm-msg {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+}
+
+.usage-llm-role {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.usage-llm-content {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.usage-more {
+  align-self: flex-start;
+}
+
+/* ---------- 全局日期范围栏 ---------- */
+.usage-range {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.usage-rangewrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.usage-range-note {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 日历弹层（mp-pop 只管进出场 transform/opacity，容器样式在此） */
+.usage-cal {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-pop);
+}
+
+.usage-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.usage-cal-title {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-cal-nav {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.usage-cal-nav:hover:not(:disabled) {
+  background: var(--interaction-hover);
+}
+
+.usage-cal-nav:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+.usage-cal-months {
+  display: flex;
+  gap: 16px;
+}
+
+.usage-cal-month {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.usage-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 30px);
+  gap: 2px;
+}
+
+.usage-cal-dow span {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  text-align: center;
+}
+
+.usage-cal-day {
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.usage-cal-day:hover:not(:disabled):not(.is-blank) {
+  background: var(--interaction-hover);
+}
+
+.usage-cal-day.is-blank {
+  visibility: hidden;
+  cursor: default;
+}
+
+.usage-cal-day.is-disabled {
+  color: var(--fg-disabled);
+  opacity: 1;
+  cursor: default;
+}
+
+.usage-cal-day.is-in {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+}
+
+.usage-cal-day.is-edge,
+.usage-cal-day.is-pending {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.usage-cal-day.is-today {
+  color: var(--status-success-fg);
+  font-weight: 500;
+}
+
+.usage-cal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.usage-cal-sel {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.usage-cal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- 细节区（默认轮播，点击固定） ---------- */
+.usage-detail-section {
+  gap: 10px;
+}
+
+.usage-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.usage-detail-note {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.usage-detail-body {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.usage-agg-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usage-agg-caption {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.usage-agg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.usage-agg-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 220px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  padding: 2px 6px;
+  border-radius: var(--radius-small);
+}
+
+.usage-agg-row:hover {
+  background: var(--interaction-hover);
+}
+
+.usage-agg-name {
+  overflow: hidden;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.usage-agg-count {
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.usage-agg-note {
+  margin: 2px 0 0;
+}
+
+/* 双序列堆叠趋势（上=工作面板 / 下=终端，今天亮绿） */
+.usage-stack-wrap {
+  padding: 4px 2px 0;
+}
+
+.usage-stack {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 44px;
+}
+
+.usage-stack-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  flex: 1 1 0;
+  min-width: 2px;
+  max-width: 10px;
+  height: 100%;
+}
+
+.usage-stack-a {
+  display: block;
+  border-radius: 2px 2px 0 0;
+  background: color-mix(in srgb, var(--fg-primary) 62%, transparent);
+}
+
+.usage-stack-b {
+  display: block;
+  border-radius: 0 0 2px 2px;
+  background: color-mix(in srgb, var(--fg-secondary) 34%, transparent);
+}
+
+.usage-stack-col.is-today .usage-stack-a {
+  background: var(--status-success-fg);
+}
+
+.usage-stack-col.is-today .usage-stack-b {
+  background: var(--status-success-bg);
+}
+
+/* 能力趋势行：名称 + 单工具折线 + 合计 */
+.usage-trend-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 140px 48px;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 2px 6px;
+  border-radius: var(--radius-small);
+}
+
+.usage-trend-row:hover {
+  background: var(--interaction-hover);
+}
+
+.usage-trend-row.is-others .usage-tool-name {
+  color: var(--fg-muted);
+}
+
+.usage-tool-spark {
+  display: block;
+  color: var(--fg-secondary);
+}
+
+@media (max-width: 900px) {
+  .usage-run-preview {
+    display: none;
+  }
+
+  .usage-tool-row {
+    grid-template-columns: minmax(100px, 160px) minmax(0, 1fr) 44px 64px;
+  }
+
+  .usage-trend-row {
+    grid-template-columns: minmax(100px, 160px) minmax(0, 1fr) 44px;
+  }
+
+  .usage-cal-months {
+    flex-direction: column;
+  }
+}
+
+.usage-active-list, .usage-failure-list { display: grid; gap: 10px; }
+.usage-active-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.usage-active-name { flex: 1 1 180px; overflow-wrap: anywhere; }
+.usage-active-row > span:not(:first-child), .usage-active-row time { color: var(--fg-muted); font-size: var(--font-caption); overflow-wrap: anywhere; }
+.usage-failure-item { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius-control); min-width: 0; }
+.usage-failure-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; }
+.usage-failure-head strong { font-weight: 500; flex: 1 1 180px; overflow-wrap: anywhere; }
+.usage-failure-head time { color: var(--fg-muted); font-size: var(--font-caption); }
+.usage-failure-error { margin: 8px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }

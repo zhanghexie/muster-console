@@ -1,0 +1,33 @@
+export default async function ({ page, capture, assert }) {
+  const name = page.getByText('当前会话乙', { exact: true });
+  await name.waitFor();
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(300);
+  const row = name.locator('xpath=ancestor::*[contains(@class,"session-item")][1]');
+  await row.hover();
+  const archive = row.locator('.session-archive-btn');
+  await archive.hover();
+  await page.waitForTimeout(500);
+  assert.equal(await archive.getAttribute('aria-label'), '归档');
+  assert.equal(await archive.locator('svg').count(), 1);
+  assert.equal(await archive.evaluate(el => getComputedStyle(el).visibility), 'visible');
+  assert.equal(await page.locator('.session-more-btn, .ctx-menu').count(), 0);
+  await capture('archive-hover');
+  await archive.click();
+  assert.deepEqual(await page.evaluate(() => window.__sidebarArchiveCalls), [['b', true]]);
+  await name.waitFor({ state: 'detached' });
+  const otherRow = page.getByText('会话甲', { exact: true }).locator('xpath=ancestor::*[contains(@class,"session-item")][1]');
+  await otherRow.click({ button: 'right' });
+  await page.locator('.ctx-menu').waitFor();
+  for (const id of ['rename', 'pin', 'archive']) assert.equal(await page.locator(`#ctx-item-${id}`).count(), 1);
+  await capture('right-click-menu');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  await page.locator('.panel-header.sub').filter({ hasText: '工作会话' }).hover();
+  await page.getByRole('button', { name: /显示已归档的工作会话/ }).click();
+  await name.waitFor();
+  await row.hover();
+  assert.equal(await archive.getAttribute('aria-label'), '取消归档');
+  await archive.click();
+  assert.deepEqual(await page.evaluate(() => window.__sidebarArchiveCalls), [['b', true], ['b', false]]);
+}

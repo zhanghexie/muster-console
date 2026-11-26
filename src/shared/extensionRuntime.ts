@@ -1,0 +1,1 @@
+export interface ExtensionTaskState { id: string; command: string; requestId: string; status: 'running' | 'completed' | 'cancelled' | 'failed' | 'interrupted'; progress?: unknown; result?: unknown; error?: string; checkpoint?: unknown; createdAt?: number; updatedAt?: number }

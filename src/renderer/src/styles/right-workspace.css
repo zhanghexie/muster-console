@@ -1,0 +1,198 @@
+/* Unified content strip and independent resource tree. ResolvedAppearance owns every surface and state pair. */
+/* Fill document fullscreen in place: editors, iframe and webview parents never move. */
+.app-shell:has(.is-tab-fullscreen) > :not(.main-view),
+.main-view:has(.is-tab-fullscreen) > :not(.ws-stage),
+.h-strip:has(.is-tab-fullscreen) > :not(.git-page, [data-h-strip-overlay]),
+.ws-rail:has(.is-tab-fullscreen) > :not(.ws-pane-live) { display: none; }
+:is(.main-view, .ws-stage, .ws-rail, .ws-pane-live, .work-area, .h-strip, .git-page):has(.is-tab-fullscreen) {
+  width: 100% !important; height: 100% !important; min-width: 0 !important;
+  margin: 0 !important; padding: 0 !important; inset: 0 !important;
+  transform: none !important; transition: none !important; border-radius: 0 !important;
+}
+.git-page > .side-tools-panel.is-tab-fullscreen { border-radius: 0; box-shadow: none; }
+.right-workspace.is-tab-fullscreen .right-current-row,
+.right-workspace.is-tab-fullscreen .right-resource-controls,
+.right-workspace.is-tab-fullscreen .right-workspace-split > .split-pane-primary,
+.right-workspace.is-tab-fullscreen .right-workspace-split > .split-pane-handle { display: none; }
+.right-workspace.is-tab-fullscreen .right-workspace-split > .split-pane-secondary { flex: 1 1 100% !important; min-width: 0 !important; }
+.right-toolbar-host { display: contents; }
+.right-toolbar-host.is-fullscreen { display: block; position: absolute; inset: 0 0 auto; height: 36px; z-index: 25; pointer-events: none; }
+.right-toolbar-host.is-fullscreen > .right-workspace-toolbar { pointer-events: auto; }
+.right-toolbar-host.is-fullscreen > .right-workspace-toolbar[data-mp-stage='out'],
+.right-toolbar-host.is-fullscreen > .right-workspace-toolbar[data-mp-stage='out'] * { pointer-events: none; }
+.right-fullscreen-hotzone { position: absolute; inset: 0 0 auto; height: 10px; pointer-events: auto; }
+/* Only descendants own scroll positions. Hidden overflow lets Chromium scroll
+ * this whole shell to reveal a focused control, clipping the native webview. */
+.right-workspace { --right-content-toolbar-height: 40px; min-width: 0; container-type: inline-size; }
+.right-workspace, .git-page > .side-tools-panel.right-workspace { overflow: clip; }
+.right-workspace-toolbar { display: flex; flex-direction: column; flex: 0 0 auto; min-width: 0; background: var(--surface-chrome); }
+.right-tabs-row { --fg-primary: var(--chrome-fg-primary); --border-focus: var(--chrome-border-focus); --fg-secondary: var(--chrome-fg-secondary); --fg-muted: var(--chrome-fg-muted); --fg-selected-primary: var(--chrome-fg-selected-primary); --fg-selected-secondary: var(--chrome-fg-selected-secondary); --fg-selected-muted: var(--chrome-fg-selected-muted); --interaction-hover: var(--chrome-interaction-hover); --interaction-selected: var(--chrome-interaction-selected); --interaction-selected-hover: var(--chrome-interaction-selected-hover); --interaction-pressed: var(--chrome-interaction-pressed); --status-neutral-fg: var(--chrome-status-neutral-fg); --status-neutral-bg: var(--chrome-status-neutral-bg); --status-neutral-border: var(--chrome-status-neutral-border); --status-success-fg: var(--chrome-status-success-fg); --status-success-bg: var(--chrome-status-success-bg); --status-success-border: var(--chrome-status-success-border); --status-warning-fg: var(--chrome-status-warning-fg); --status-warning-bg: var(--chrome-status-warning-bg); --status-warning-border: var(--chrome-status-warning-border); --status-danger-fg: var(--chrome-status-danger-fg); --status-danger-bg: var(--chrome-status-danger-bg); --status-danger-border: var(--chrome-status-danger-border); --status-info-fg: var(--chrome-status-info-fg); --status-info-bg: var(--chrome-status-info-bg); --status-info-border: var(--chrome-status-info-border);   display: flex; align-items: center; gap: 4px; height: 36px; padding: 0 7px; min-width: 0; background: var(--surface-chrome); }
+.right-current-row { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  display: flex; align-items: center; gap: 8px; height: var(--right-content-toolbar-height); flex: 0 0 var(--right-content-toolbar-height); padding: 0 9px; min-width: 0; background: var(--surface-canvas); border-bottom: 1px solid var(--border-subtle); }
+.right-history, .right-tab-actions, .right-content-tools, .right-resource-controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.right-history { gap: 1px; margin-right: 4px; }
+.right-location-host { flex: 1; min-width: 96px; }
+.right-file-location, .right-git-location { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--fg-secondary); font-size: var(--font-caption); }
+.right-file-location > svg, .right-git-location > svg { flex-shrink: 0; color: var(--fg-muted); }
+.right-full-path { display: block; flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; font-family: var(--font-mono); }
+.right-full-path::-webkit-scrollbar { display: none; }
+.right-content-tools { gap: 7px; min-width: 0; flex-shrink: 1; overflow-x: auto; scrollbar-width: none; }
+.right-content-tools::-webkit-scrollbar { display: none; }
+.right-tool-group { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.right-mode-tools { --fg-primary: var(--raised-fg-primary); --border-focus: var(--raised-border-focus); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted); --fg-selected-primary: var(--raised-fg-selected-primary); --fg-selected-secondary: var(--raised-fg-selected-secondary); --fg-selected-muted: var(--raised-fg-selected-muted); --interaction-hover: var(--raised-interaction-hover); --interaction-selected: var(--raised-interaction-selected); --interaction-selected-hover: var(--raised-interaction-selected-hover); --interaction-pressed: var(--raised-interaction-pressed); --status-neutral-fg: var(--raised-status-neutral-fg); --status-neutral-bg: var(--raised-status-neutral-bg); --status-neutral-border: var(--raised-status-neutral-border); --status-success-fg: var(--raised-status-success-fg); --status-success-bg: var(--raised-status-success-bg); --status-success-border: var(--raised-status-success-border); --status-warning-fg: var(--raised-status-warning-fg); --status-warning-bg: var(--raised-status-warning-bg); --status-warning-border: var(--raised-status-warning-border); --status-danger-fg: var(--raised-status-danger-fg); --status-danger-bg: var(--raised-status-danger-bg); --status-danger-border: var(--raised-status-danger-border); --status-info-fg: var(--raised-status-info-fg); --status-info-bg: var(--raised-status-info-bg); --status-info-border: var(--raised-status-info-border);   padding: 2px; border-radius: var(--radius-small); background: var(--surface-raised); }
+.right-resource-controls { margin-left: 8px; gap: 5px; }
+.right-icon { width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--fg-secondary); cursor: pointer; flex-shrink: 0; }
+.right-icon:hover:not(:disabled), .right-icon.is-on:not(:disabled) { color: var(--fg-primary); background: var(--interaction-hover); }
+.right-tabs-row .right-icon:hover:not(:disabled), .right-tabs-row .right-icon.is-on:not(:disabled) { color: var(--chrome-fg-primary); background: var(--chrome-interaction-hover); }
+.right-mode-tools .right-icon:hover:not(:disabled) { color: var(--raised-fg-primary); background: var(--raised-interaction-hover); }
+.right-mode-tools .right-icon.is-on:not(:disabled) { color: var(--raised-fg-selected-primary); background: var(--raised-interaction-selected); }
+.right-icon:disabled { opacity: 1; color: var(--fg-disabled); cursor: default; }
+.right-forward { transform: rotate(180deg); }
+.right-tab-strip { display: flex; align-self: stretch; align-items: end; gap: 3px; flex: 1; min-width: 60px; overflow-x: auto; scrollbar-width: none; }
+.right-tab-strip::-webkit-scrollbar { display: none; }
+.right-tab { display: flex; align-items: center; gap: 6px; height: 31px; min-width: 76px; max-width: 180px; flex: 0 0 auto; padding: 0 8px; color: var(--chrome-fg-secondary); cursor: pointer; font-size: var(--font-caption); border-radius: var(--radius-small) var(--radius-small) 0 0; outline-offset: -2px; }
+.right-tab:hover { background: var(--chrome-interaction-hover); }
+.right-tab.is-multiselected { background: var(--chrome-interaction-pressed); box-shadow: inset 0 0 0 1px var(--border-control); }
+.right-tab.is-multiselected .right-tab-close { opacity: 1; }
+.right-tab.is-selected { --fg-primary: var(--fg-selected-tab-primary); --fg-secondary: var(--fg-selected-tab-secondary); --fg-muted: var(--fg-selected-tab-muted);  background: var(--selected-tab); color: var(--fg-selected-tab-primary); box-shadow: inset 0 1px 0 var(--border-control); }
+.right-tab.is-preview .right-tab-title { font-style: italic; }
+.right-tab-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 128px; }
+.right-tab-session { display: inline-flex; flex: 0 0 auto; color: var(--fg-secondary); }
+.right-tab-close { width: 18px; height: 18px; padding: 0; border: 0; background: transparent; color: var(--fg-secondary); display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-small); opacity: 0; cursor: pointer; }
+.right-tab:hover .right-tab-close, .right-tab:focus-within .right-tab-close, .right-tab.is-selected .right-tab-close { opacity: 1; }
+.right-tab-close:hover { color: var(--chrome-fg-primary); background: var(--chrome-interaction-hover); }
+.right-tab.is-selected .right-tab-close { color: var(--fg-selected-tab-secondary); }
+.right-tab.is-selected .right-tab-close:hover { color: var(--chrome-fg-primary); background: var(--chrome-interaction-hover); }
+/* Opacity keeps the close slot allocated; press only transforms its glyph. */
+.right-tab-close { transition: opacity var(--dur-micro) var(--ease-hover); }
+.right-tab-close > svg,
+.right-icon > svg { transition: transform var(--dur-micro) var(--ease-hover); }
+.right-tab-close:active:not(:disabled) > svg,
+.right-icon:active:not(:disabled) > svg { transform: scale(0.9); }
+.right-icon:active:not(:disabled) > .right-forward { transform: rotate(180deg) scale(0.9); }
+.right-resource-capsule { --fg-primary: var(--raised-fg-primary); --border-focus: var(--raised-border-focus); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted); --fg-selected-primary: var(--raised-fg-selected-primary); --fg-selected-secondary: var(--raised-fg-selected-secondary); --fg-selected-muted: var(--raised-fg-selected-muted); --interaction-hover: var(--raised-interaction-hover); --interaction-selected: var(--raised-interaction-selected); --interaction-selected-hover: var(--raised-interaction-selected-hover); --interaction-pressed: var(--raised-interaction-pressed); --status-neutral-fg: var(--raised-status-neutral-fg); --status-neutral-bg: var(--raised-status-neutral-bg); --status-neutral-border: var(--raised-status-neutral-border); --status-success-fg: var(--raised-status-success-fg); --status-success-bg: var(--raised-status-success-bg); --status-success-border: var(--raised-status-success-border); --status-warning-fg: var(--raised-status-warning-fg); --status-warning-bg: var(--raised-status-warning-bg); --status-warning-border: var(--raised-status-warning-border); --status-danger-fg: var(--raised-status-danger-fg); --status-danger-bg: var(--raised-status-danger-bg); --status-danger-border: var(--raised-status-danger-border); --status-info-fg: var(--raised-status-info-fg); --status-info-bg: var(--raised-status-info-bg); --status-info-border: var(--raised-status-info-border);   display: flex; align-items: center; padding: 2px; gap: 2px; border: 1px solid var(--border-subtle); border-radius: var(--radius-pill); background: var(--surface-raised); }
+.right-resource-capsule button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 20px; border: 0; padding: 0; border-radius: var(--radius-pill); color: var(--raised-fg-muted); background: transparent; cursor: pointer; }
+.right-resource-capsule button:hover { color: var(--raised-fg-primary); background: var(--raised-interaction-hover); }
+.right-resource-capsule button.is-selected { color: var(--raised-fg-selected-primary); background: var(--raised-interaction-selected); }
+.right-resource-capsule button.is-selected:hover { background: var(--raised-interaction-selected-hover); }
+.right-workspace-split { --right-resource-divider-width: 4px; flex: 1; min-height: 0; }
+.right-workspace-split > .split-pane-primary { position: relative; border-left: 1px solid var(--border-subtle); }
+.right-workspace-split > .split-pane-handle { width: var(--right-resource-divider-width); flex-basis: var(--right-resource-divider-width); }
+.right-workspace-split.is-web > .split-pane-handle { margin-right: calc(-1 * var(--right-resource-divider-width)); }
+.right-workspace-split:not(.resources-collapsed) .right-content-page.files-panel { height: auto; bottom: var(--right-resource-divider-width); }
+.right-workspace-split > .split-pane-handle .split-pane-handle-line { background: transparent; }
+.right-workspace-split > .split-pane-handle:hover .split-pane-handle-line { background: var(--divider-active); }
+.right-workspace-split > .split-pane-handle:focus-visible .split-pane-handle-line { background: var(--divider-focus); }
+.right-workspace-split.resources-collapsed > .split-pane-primary { flex: 0 0 0 !important; min-width: 0 !important; border: 0; overflow: hidden; pointer-events: none; }
+.right-workspace-split.resources-collapsed > .split-pane-handle { display: none; }
+.right-workspace-split.resources-collapsed > .split-pane-secondary { flex: 1 1 100% !important; min-width: 0 !important; }
+.right-workspace-content, .right-resources { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
+.right-workspace-main { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; container-type: inline-size; background: var(--surface-canvas); }
+.right-workspace-main > .right-workspace-content { flex: 1; height: auto; }
+.right-content-page, .right-resource-page { position: absolute; inset: 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.right-content-page > .git-panel, .right-content-page > .browser-page { flex: 1; }
+.right-content-page { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  background: var(--surface-canvas); }
+.right-resources { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  background: var(--surface-canvas); }
+.right-content-location { display: flex; align-items: center; gap: 8px; padding: 0 12px; min-height: 32px; flex: 0 0 32px; color: var(--fg-secondary); font-size: var(--font-caption); min-width: 0; }
+.right-content-location > span:first-of-type { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.right-file-status { white-space: nowrap; font-size: var(--font-caption); color: var(--fg-muted); flex-shrink: 0; }
+.right-files-resources, .right-bookmarks { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+/* 固定到右侧的会话 / 工具宿主：终端与 GUI 视图绝对定位填满，工具面板作为 flex 子项撑满 */
+.right-dock-host { position: relative; flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.right-files-resources > .workspace-file-tree-single, .right-files-resources > .workspace-file-trees { flex: 1; height: auto; }
+.right-resource-heading { display: flex; align-items: center; justify-content: space-between; gap: 4px; height: 32px; flex: 0 0 32px; padding: 0 8px; color: var(--fg-secondary); font-size: var(--font-caption); }
+.right-resource-heading > div { display: flex; }
+.right-bookmark-tree { flex: 1; overflow: auto; min-height: 0; padding: 5px 4px; }
+.right-bookmark-row { display: flex; align-items: center; gap: 7px; width: 100%; height: 28px; min-width: 0; padding-right: 8px; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--fg-primary); text-align: left; font: inherit; font-size: var(--font-caption); cursor: pointer; }
+.right-bookmark-row svg { flex-shrink: 0; color: var(--fg-secondary); }
+a.right-bookmark-row { text-decoration: none; }
+.right-bookmark-favicon { width: 14px; height: 14px; flex: none; object-fit: contain; }
+.right-bookmark-row span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.right-bookmark-row:hover { background: var(--interaction-hover); }
+.right-empty { display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; width: 100%; height: 100%; color: var(--fg-secondary); font-size: var(--font-ui); }
+.right-empty-hint { padding: 8px; color: var(--fg-muted); font-size: var(--font-caption); line-height: 1.6; }
+/* The editor is the page: remove the inset rounded card in both edit and preview. */
+.files-panel .file-editor-main { margin: 0; border-radius: 0; box-shadow: none; border: 0; }
+.right-workspace .file-editor { flex: 1; min-height: 0; }
+.right-workspace .file-editor-main, .right-workspace .file-editor-cm, .right-workspace .file-editor-cm .cm-editor { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  background: var(--surface-canvas); border: 0; border-radius: 0; box-shadow: none; }
+.right-workspace .git-branch-bar { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  min-height: 32px; height: 32px; padding: 0 12px; border: 0; background: var(--surface-canvas); }
+.right-workspace .git-panel-main, .right-workspace .git-detail, .right-independent-diff { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.right-workspace .git-diff-pane, .right-workspace .git-diff { border: 0; border-radius: 0; box-shadow: none; }
+.right-workspace .git-col-title-row { padding: 4px 10px; background: transparent; }
+.right-workspace .git-repo-list { border: 0; }
+.right-workspace .browser-host { --fg-primary: var(--canvas-fg-primary); --border-focus: var(--canvas-border-focus); --fg-secondary: var(--canvas-fg-secondary); --fg-muted: var(--canvas-fg-muted); --fg-selected-primary: var(--canvas-fg-selected-primary); --fg-selected-secondary: var(--canvas-fg-selected-secondary); --fg-selected-muted: var(--canvas-fg-selected-muted); --interaction-hover: var(--canvas-interaction-hover); --interaction-selected: var(--canvas-interaction-selected); --interaction-selected-hover: var(--canvas-interaction-selected-hover); --interaction-pressed: var(--canvas-interaction-pressed); --status-neutral-fg: var(--canvas-status-neutral-fg); --status-neutral-bg: var(--canvas-status-neutral-bg); --status-neutral-border: var(--canvas-status-neutral-border); --status-success-fg: var(--canvas-status-success-fg); --status-success-bg: var(--canvas-status-success-bg); --status-success-border: var(--canvas-status-success-border); --status-warning-fg: var(--canvas-status-warning-fg); --status-warning-bg: var(--canvas-status-warning-bg); --status-warning-border: var(--canvas-status-warning-border); --status-danger-fg: var(--canvas-status-danger-fg); --status-danger-bg: var(--canvas-status-danger-bg); --status-danger-border: var(--canvas-status-danger-border); --status-info-fg: var(--canvas-status-info-fg); --status-info-bg: var(--canvas-status-info-bg); --status-info-border: var(--canvas-status-info-border);  margin: 0; border-radius: 0 0 max(0px, calc(var(--radius-page) - 2px)) max(0px, calc(var(--radius-page) - 2px)); corner-shape: var(--corner-shape-page); box-shadow: none; background: var(--surface-canvas); }
+.right-browser-location { --fg-primary: var(--input-fg-primary); --border-focus: var(--input-border-focus); --fg-secondary: var(--input-fg-secondary); --fg-muted: var(--input-fg-muted); --fg-selected-primary: var(--input-fg-selected-primary); --fg-selected-secondary: var(--input-fg-selected-secondary); --fg-selected-muted: var(--input-fg-selected-muted); --interaction-hover: var(--input-interaction-hover); --interaction-selected: var(--input-interaction-selected); --interaction-selected-hover: var(--input-interaction-selected-hover); --interaction-pressed: var(--input-interaction-pressed); --status-neutral-fg: var(--input-status-neutral-fg); --status-neutral-bg: var(--input-status-neutral-bg); --status-neutral-border: var(--input-status-neutral-border); --status-success-fg: var(--input-status-success-fg); --status-success-bg: var(--input-status-success-bg); --status-success-border: var(--input-status-success-border); --status-warning-fg: var(--input-status-warning-fg); --status-warning-bg: var(--input-status-warning-bg); --status-warning-border: var(--input-status-warning-border); --status-danger-fg: var(--input-status-danger-fg); --status-danger-bg: var(--input-status-danger-bg); --status-danger-border: var(--input-status-danger-border); --status-info-fg: var(--input-status-info-fg); --status-info-bg: var(--input-status-info-bg); --status-info-border: var(--input-status-info-border);   display: flex; align-items: center; gap: 8px; height: 28px; min-width: 0; padding: 0 9px; border: 1px solid var(--border-control); border-radius: var(--radius-small); background: var(--surface-input); }
+.right-browser-location:focus-within { border-color: var(--border-focus); }
+.right-browser-location > svg { flex-shrink: 0; color: var(--fg-muted); }
+.right-browser-location .browser-addr { width: 100%; height: 26px; min-width: 0; flex: 1; border: 0; border-radius: 0; background: transparent; padding: 0; box-shadow: none; font-size: var(--font-caption); }
+.right-browser-location .browser-agent-chip { position: static; margin: 0; max-width: 160px; flex-shrink: 0; }
+.right-current-row > .right-location-host:has(> .right-git-location > .git-branch-info) { min-width: min(150px, 100%); container: git-location / inline-size; }
+.right-git-location .git-branch-info { gap: 6px; }
+.right-git-location .git-branch-name-btn { max-inline-size: clamp(60px, calc(100cqi - 92px), 160px); }
+.right-git-location .git-branch-name-btn { --fg-primary: var(--raised-fg-primary); --border-focus: var(--raised-border-focus); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted); --fg-selected-primary: var(--raised-fg-selected-primary); --fg-selected-secondary: var(--raised-fg-selected-secondary); --fg-selected-muted: var(--raised-fg-selected-muted); --interaction-hover: var(--raised-interaction-hover); --interaction-selected: var(--raised-interaction-selected); --interaction-selected-hover: var(--raised-interaction-selected-hover); --interaction-pressed: var(--raised-interaction-pressed); --status-neutral-fg: var(--raised-status-neutral-fg); --status-neutral-bg: var(--raised-status-neutral-bg); --status-neutral-border: var(--raised-status-neutral-border); --status-success-fg: var(--raised-status-success-fg); --status-success-bg: var(--raised-status-success-bg); --status-success-border: var(--raised-status-success-border); --status-warning-fg: var(--raised-status-warning-fg); --status-warning-bg: var(--raised-status-warning-bg); --status-warning-border: var(--raised-status-warning-border); --status-danger-fg: var(--raised-status-danger-fg); --status-danger-bg: var(--raised-status-danger-bg); --status-danger-border: var(--raised-status-danger-border); --status-info-fg: var(--raised-status-info-fg); --status-info-bg: var(--raised-status-info-bg); --status-info-border: var(--raised-status-info-border);   height: 25px; padding: 0 7px; border-radius: var(--radius-small); background: var(--surface-raised); }
+.right-git-location .git-tracking { min-width: 0; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+@container git-location (max-width: 235px) {
+  .right-git-location > svg, .right-git-location .right-full-path, .right-git-location .git-tracking, .right-git-location .git-ab { display: none; }
+}
+.right-diff-stage { --fg-primary: var(--raised-fg-primary); --border-focus: var(--raised-border-focus); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted);  flex-shrink: 0; padding: 2px 7px; border-radius: var(--radius-small); background: var(--surface-raised); color: var(--fg-secondary); font-size: var(--font-caption); }
+.right-independent-diff > .git-diff-view { flex: 1; min-height: 0; }
+@container (max-width: 580px) {
+  .right-current-row { gap: 5px; padding: 0 6px; }
+  .right-content-tools { gap: 3px; }
+  .right-tool-group { gap: 0; }
+  .right-file-status:not(.is-error) { display: none; }
+  .right-resource-controls { margin-left: 3px; gap: 2px; }
+  .right-tab { max-width: 130px; min-width: 64px; padding: 0 6px; }
+  .right-history { margin-right: 1px; }
+  .right-icon { width: 23px; }
+}
+
+
+.right-workspace .git-diff-scroll, .right-workspace .git-diff-skel { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+.right-browser-address-field { flex: 1; position: relative; min-width: 0; display: flex; align-items: center; }
+.right-browser-location.has-address-display .browser-addr { color: transparent; }
+.browser-address-display { position: absolute; inset: 0; display: block; align-content: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; pointer-events: none; font-size: var(--font-caption); font-weight: 400; }
+.browser-address-scheme, .browser-address-path { color: var(--fg-secondary); }
+.browser-address-host { color: var(--fg-primary); }
+
+/* A removed pane has already lost its slot geometry. Hide it before it can
+ * fade across the toolbars and content of the panes taking that space. */
+.right-workspace-content.is-split .right-content-page.xfade:not(.is-shown) {
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+}
+/* Cover native guests while the separator owns the pointer. */
+.right-workspace-content[data-snap-resizing]::after { content: ''; position: absolute; inset: 0; z-index: 7; cursor: col-resize; }
+.right-workspace-content[data-snap-resizing='col']::after { cursor: row-resize; }
+.right-workspace-content[data-snap-resizing] :is(webview, iframe) { pointer-events: none; }
+.right-workspace-content.is-split > .center-split-divider { z-index: 8; }
+.right-workspace-content.is-split .right-content-page.files-panel { width: auto; height: auto; }
+.right-workspace-content.is-split > .right-content-page:not(.right-browser-stack),
+.right-workspace-content.is-split .right-content-page.files-panel { overflow: clip; }
+/* BrowserPage owns all guests in one full-size stack. Only the individual
+ * browser panes may paint or intercept input over the other panes. */
+.right-workspace-content.is-split .right-browser-stack,
+.right-workspace-content.is-split .right-browser-stack .browser-host { background: transparent; pointer-events: none; }
+.right-workspace-content.is-split .browser-page { padding: 0; }
+.right-workspace-content.is-split .right-browser-stack .browser-host { clip-path: none; border-radius: 0; }
+.right-workspace-content.is-split .right-browser-tab[aria-hidden='false'],
+.right-workspace-content.is-split .browser-crash-overlay,
+.right-workspace-content.is-split .browser-empty { pointer-events: auto; }
+.right-browser-tab { position: absolute; inset: 0; overflow: clip; }
+
+.right-pane-controls { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; pointer-events: none; }
+.right-pane-header { flex: none; min-width: 0; pointer-events: auto; container-type: inline-size; }
+.right-pane-header .right-current-row { box-sizing: border-box; }
+.right-pane-controls[data-selected='true'] .right-current-row { box-shadow: inset 0 -1px var(--border-focus); }
+.right-pane-header .right-location-host { flex-basis: min(96px, 30%); min-width: 0; }
+.right-pane-close { flex: none; }
+.right-pane-title { display: flex; align-items: center; gap: 6px; font-size: var(--font-caption); color: var(--fg-secondary); }
+.right-pane-title > svg, .right-pane-picker svg { flex: none; }
+.right-pane-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.right-pane-picker { padding: 8px; margin: 0; pointer-events: auto; }
+.right-snap-overlay { position: absolute; inset: 0; z-index: calc(var(--z-sticky) + 4); pointer-events: none; container: right-snap / inline-size; }
+.right-snap-preview { position: absolute; z-index: 5; pointer-events: none; border-radius: var(--radius-card); }
+.right-snap-position { position: absolute; top: 38px; left: 50%; width: min(560px, calc(100% - 20px)); transform: translateX(-50%); }
+@container right-snap (width < 520px) {
+  .right-snap-position .center-snap-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 12px; }
+}

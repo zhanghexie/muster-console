@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- MetaAgent 工作台 图标提案 B：一源三流（调度中枢 → 并行 agent 流） -->
+  <!-- 底板：与提案 A 同族的 L0 临床黑 + 发丝线描边 -->
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="#1A1A1A"/>
+  <rect x="33" y="33" width="958" height="958" rx="215" fill="none" stroke="#FFFFFF" stroke-opacity="0.07" stroke-width="2"/>
+  <!-- 三条并行流 = 同时干活的 agent；从调度点下方立刻斜向张开，保证小尺寸下三股分明 -->
+  <path d="M 512 337 C 462 380, 302 400, 302 500 L 302 751" fill="none" stroke="#E4E4E4" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 512 337 C 562 380, 722 400, 722 500 L 722 751" fill="none" stroke="#E4E4E4" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 512 337 L 512 751" fill="none" stroke="#E4E4E4" stroke-width="64" stroke-linecap="round"/>
+  <!-- 顶部绿色节点 = 调度中枢（工作台），应用主题色 green #3fb950，像一枚「运行中」状态灯 -->
+  <circle cx="512" cy="301" r="60" fill="#3FB950"/>
+</svg>

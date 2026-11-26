@@ -1,0 +1,1339 @@
+/* tasks.css — 由 styles.css 拆分（域：tasks）。规范见 /design.md。修改请守住 token。 */
+.worktree-selection { min-width: 0; margin: 0; padding: 0; border: 0; }
+.worktree-selection legend { font-size: var(--font-ui); font-weight: 500; }
+.worktree-selection-heading { display: flex; justify-content: flex-end; }
+.worktree-selection-list { display: grid; gap: 8px; max-height: 200px; overflow-y: auto; padding: 8px 0; }
+.worktree-selection-row { display: flex; align-items: flex-start; gap: 8px; min-width: 0; cursor: pointer; }
+.worktree-selection-row > span { display: grid; min-width: 0; gap: 4px; }
+.worktree-selection-row strong { font-size: var(--font-ui); font-weight: 500; overflow-wrap: anywhere; }
+.worktree-selection-row small { font-size: var(--font-caption); color: var(--fg-secondary); overflow-wrap: anywhere; }
+/* 海拔：任务面板底 L1；任务行/详情卡 = L2 卡片行（用户验收：透明行与背景融为一体）。
+ * 注意：.prompt-task-panel / .prompt-task-list / .prompt-task-row 同时被扩展管理面板
+ * （ext.css，div 行 + 内层 button）复用——共享基底只放「卡片皮肤」，
+ * 栅格布局挂在 button.prompt-task-row 上，避免波及扩展管理行。 */
+
+
+@media (max-width: 900px) {
+  button.prompt-task-row {
+    grid-template-columns: minmax(120px, 1fr) auto minmax(72px, auto) 16px;
+  }
+
+  .prompt-task-row-schedule,
+  .prompt-task-row-next {
+    display: none;
+  }
+
+  .prompt-task-detail-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* ---------- Prompt task IDE editor（中栏 ServiceView 基底，勿加面板作用域） ---------- */
+.task-editor {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  padding: 0;
+  background: var(--surface-canvas); /* L0 贴地内容面 */
+  color: var(--fg-primary);
+  container: task-editor / inline-size;
+}
+
+.task-editor-header {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 30px 20px;
+  background: var(--surface-canvas);
+}
+
+.task-eyebrow {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.task-editor-header h2 {
+  margin: 4px 0;
+  color: var(--fg-primary);
+  font-size: var(--font-title);
+  font-weight: 500;
+}
+
+.task-subtitle {
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+}
+
+/* 状态胶囊：pill + soft 底 + 同色圆点；中性态用灰（design.md §9） */
+.task-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--status-neutral-bg);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.task-status-pill span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.task-status-pill.is-enabled {
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+}
+
+.task-status-pill.is-enabled span {
+  background: currentColor;
+  box-shadow: none;
+}
+
+.task-prompt-field {
+  margin-top: 2px;
+}
+
+/* 操作条：裸排（L2 容器或裸排，design.md §9），不画线 */
+.task-actions {
+  padding: 12px 30px;
+  margin: 0;
+  background: transparent;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.task-run-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 12px 30px 20px;
+}
+
+@container task-editor (max-width: 600px) {
+  .task-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.task-run-summary code {
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+}
+
+/* ---------- 任务面板：L1 结构面板（design.md §10 任务面板/占位面板） ---------- */
+.prompt-task-panel {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* 工具条：分区靠间距与字阶，不画线 */
+.prompt-task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 24px 12px;
+  background: transparent;
+}
+
+.prompt-task-toolbar > div:first-child {
+  flex: 1 1 220px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.prompt-task-toolbar h1 {
+  margin: 0 0 4px;
+  color: var(--fg-primary);
+  font-size: var(--font-title);
+  font-weight: 500;
+}
+
+.prompt-task-toolbar > div:first-child > span {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.prompt-task-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  gap: 8px;
+}
+
+.prompt-task-toolbar-actions > .ui-btn {
+  flex: 0 0 auto;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prompt-task-list {
+  width: min(1180px, 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 12px 24px 30px;
+}
+
+/* 分区 caption：11/500/--text-3 + 间距（design.md §3/§5） */
+.prompt-task-section-caption {
+  margin: 0 0 8px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+/* 列表区 caption：与 .prompt-task-list 同沟槽对齐 */
+.prompt-task-list-caption {
+  width: min(1180px, 100%);
+  box-sizing: border-box;
+  margin: 0 auto 8px;
+  padding: 0 24px;
+}
+
+.prompt-task-list-caption + .prompt-task-list {
+  padding-top: 0;
+}
+
+/* ---------- 任务行 = L2 卡片行（用户验收：透明行与背景融为一体，看不出是一项）
+ * --bg-raised + hairline + radius-card，行间 8px（design.md §9 卡片） ---------- */
+.prompt-task-row {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.prompt-task-row + .prompt-task-row {
+  margin-top: 8px;
+}
+
+/* hover 叠白：同色 linear-gradient 平铺＝纯叠层（不抬层不换色相，design.md §8） */
+.prompt-task-row:hover {
+  background-image: linear-gradient(var(--interaction-hover), var(--interaction-hover));
+}
+
+/* 选中：叠白 + hairline 描边转亮（不抬层不换色相）；置于 :hover 之后保持优先 */
+.prompt-task-row.is-selected {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  border-color: var(--border-control);
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+/* 本面板任务行本体（button）＝卡片行栅格；扩展管理行是 div>button 结构，不命中。
+ * 注意不要在此重声明 border/background——卡片皮肤由上面的 .prompt-task-row 基底提供。 */
+button.prompt-task-row {
+  display: grid;
+  /* 名称 | 状态胶囊 | 时间策略 | 执行模式(无头/runtime 二选一) | 下次执行 | ⌄ */
+  grid-template-columns:
+    minmax(0, 1.6fr) auto minmax(96px, 1fr) minmax(72px, auto) minmax(104px, 1fr) 16px;
+  gap: 10px;
+  /* 基线对齐：时间列文字与名称/胶囊文字底部严格平齐（用户验收口径） */
+  align-items: baseline;
+  width: 100%;
+  min-height: 32px;
+  padding: 12px; /* 卡片内边距 12 */
+  color: var(--fg-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.prompt-task-row-name {
+  overflow: hidden;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 时间/cron：mono + --text-2（design.md §5 数字与状态码用 mono） */
+.prompt-task-row-schedule,
+.prompt-task-row-next {
+  overflow: hidden;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 行内所有格子统一行高并弹性垂直居中（用户验收：时间列与整行底对齐） */
+button.prompt-task-row > * {
+  line-height: 1.2;
+}
+
+.prompt-task-row-schedule,
+.prompt-task-row-next,
+.prompt-task-row-mode,
+.task-status-pill {
+  display: inline-flex;
+  align-items: center;
+}
+
+.prompt-task-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center; /* baseline 布局下图标钮回垂直居中 */
+  color: var(--fg-muted);
+}
+
+.prompt-task-chevron svg {
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+
+.prompt-task-chevron svg.is-open {
+  transform: rotate(180deg);
+}
+
+/* 行内模式 chip：中性灰，无信号色（design.md §1.3 状态色不做装饰） */
+.prompt-task-row-mode {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  background: var(--interaction-hover);
+}
+
+/* ---------- 详情区：列表下方，[详情 | 运行历史] 双页签互斥 ---------- */
+.prompt-task-detail-section {
+  width: min(1180px, 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 0 24px 36px;
+}
+
+/* 详情卡：L2 + hairline + radius-card + 内边距 12（design.md §9 卡片） */
+.prompt-task-detail {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.prompt-task-detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 2px 14px;
+}
+
+.prompt-task-detail-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.prompt-task-detail-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.prompt-task-detail-name {
+  overflow: hidden;
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-task-detail-sub {
+  overflow: hidden;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 页签 = control 圆角 chip，选中叠白，无指示条（design.md §10 右侧面板页签口径） */
+.prompt-task-tabs {
+  display: inline-flex;
+  gap: 4px;
+  flex: none;
+}
+
+.prompt-task-tab {
+  padding: 4px 14px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-ui);
+  font-weight: 500;
+  min-height: 26px;
+  cursor: pointer;
+}
+
+.prompt-task-tab:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.prompt-task-tab.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.prompt-task-detail-body {
+  min-width: 0;
+}
+
+/* 视图互斥：同一 ServiceView 实例按页签显隐区段（切页签不重挂载，保留编辑草稿） */
+.prompt-task-detail .service-view {
+  padding: 0;
+  overflow: visible;
+  background: transparent; /* 海拔由详情卡 L2 承载 */
+}
+
+.prompt-task-detail .service-view:not(.task-editor) {
+  padding: 4px 2px 12px;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+
+/* 名称/状态胶囊由详情头承载，隐藏 ServiceView 自带头（中栏用法不受影响） */
+.prompt-task-detail .task-editor-header {
+  display: none;
+}
+
+.prompt-task-detail[data-view='detail'] .task-run-history {
+  display: none;
+}
+
+.prompt-task-detail[data-view='history'] .task-settings-grid,
+.prompt-task-detail[data-view='history'] .task-actions,
+.prompt-task-detail[data-view='history'] .task-run-summary {
+  display: none;
+}
+
+/* 详情卡内的内边距收敛（外层卡片已给 12px） */
+.prompt-task-detail .task-settings-grid {
+  padding: 0;
+}
+
+.prompt-task-detail .task-settings-grid textarea {
+  min-height: 140px;
+}
+
+.prompt-task-detail .task-actions {
+  padding: 16px 0 0;
+}
+
+.prompt-task-detail .task-run-summary {
+  padding: 16px 0 0;
+}
+
+.prompt-task-detail[data-view='history'] .task-run-history {
+  margin-top: 0;
+}
+
+/* 历史页签放开 260px 上限，交给面板滚动 */
+.prompt-task-detail[data-view='history'] .task-run-list {
+  max-height: none;
+}
+
+/* 卡内错误条：与上下区段拉开间距 */
+
+/* 删除门：卡内底部；红描边次按钮样式走 base.css 的 .ui-btn.danger */
+.prompt-task-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.prompt-task-delete {
+  margin: 14px 0 0;
+  align-self: flex-start;
+}
+
+/* 未选中任务的空态：--text-3 一句话 + mono 装饰符（design.md §9 空态，不画框） */
+.prompt-task-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 44px 20px;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+  text-align: center;
+}
+
+.prompt-task-detail-empty > span {
+  font-family: var(--font-mono);
+  font-size: var(--font-body);
+  color: var(--fg-muted);
+}
+
+.prompt-task-detail-empty p {
+  margin: 0;
+}
+
+/* 空态：不画框（design.md §9 空态） */
+.prompt-task-empty {
+  padding: 46px 20px;
+  border: none;
+  border-radius: 0;
+}
+
+/* ---------- 定时任务：运行历史 ---------- */
+/* 分区：caption + 16px 区距（design.md §3/§5） */
+.task-run-history {
+  margin-top: 16px;
+  border-top: none;
+  padding-top: 0;
+}
+
+.task-run-history-header {
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+  margin-bottom: 8px;
+}
+
+.task-run-empty {
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+  padding: 8px 0;
+}
+
+.task-run-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* 运行历史行 = 列表行规范 */
+.task-run-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  text-align: left;
+  cursor: default;
+}
+
+.task-run-row.is-jumpable {
+  cursor: pointer;
+}
+
+.task-run-row.is-jumpable:hover {
+  background: var(--interaction-hover);
+}
+
+/* 运行状态胶囊：pill + soft 底 + 同色圆点（design.md §9）
+ * ok=green / running=blue / error=red / missed=yellow（错过＝需要注意档） */
+.task-run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+}
+
+.task-run-status::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.task-run-status.is-ok {
+  color: var(--status-success-fg);
+  background: var(--status-success-bg);
+}
+
+.task-run-status.is-error {
+  color: var(--status-danger-fg);
+  background: var(--status-danger-bg);
+}
+
+.task-run-status.is-running {
+  color: var(--status-info-fg);
+  background: var(--status-info-bg);
+}
+
+.task-run-status.is-missed {
+  color: var(--status-warning-fg);
+  background: var(--status-warning-bg);
+}
+
+/* 时间/时长：mono + --text-2（design.md §5） */
+.task-run-time,
+.task-run-duration {
+  flex: none;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+}
+
+.task-run-mode {
+  flex: none;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.task-run-jump {
+  flex: none;
+  color: var(--fg-secondary);
+}
+
+
+/* ---------- 新建任务对话框（P4 task-first）---------- */
+/* 弹窗规范：L3 + radius-modal + scrim（design.md §7） */
+.new-task-overlay {
+  position: fixed;
+  inset: 0;
+  /* 看板浮层是 --z-menu(200)；从看板打开时必须压在其上，与 AppConfirmDialog 同档 */
+  z-index: var(--z-confirm);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 16px;
+  align-items: center;
+  background: var(--scrim);
+}
+
+.new-task-dialog {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  width: min(800px, calc(100vw - 32px));
+  height: auto;
+  min-height: min(540px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  flex: none;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-modal);
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.new-task-head { display: flex; flex: none; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.new-task-dialog.is-cli, .new-task-dialog.is-handover { height: auto; max-height: calc(100dvh - 32px); }
+.new-task-optional { color: var(--fg-muted); }
+.new-task-dialog .new-task-field { min-width: 0; color: var(--fg-secondary); }
+.new-task-dialog .new-task-row,
+.new-task-dialog .native-config-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.new-task-dialog .native-config-fields > .agent-mode-chip { justify-self: start; align-self: end; }
+.new-task-dialog .c-select-trigger { padding-inline: 12px; }
+.new-task-content { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; min-width: 0; gap: 14px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: auto; }
+.new-task-content > * { flex-shrink: 0; }
+.new-task-dialog .new-task-environment { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+.new-task-composer { min-width: 0; container: task-composer / inline-size; }
+.new-task-composer .composer-editable { min-height: 5lh; }
+.new-task-composer .chat-input-row { padding: 0; }
+.new-task-dialog .new-task-environment > * {
+  display: grid;
+  grid-template-rows: auto 28px;
+  gap: 4px;
+  align-content: start;
+}
+.new-task-environment > * > span:first-child {
+  font-size: var(--font-caption);
+  line-height: 18px;
+  color: var(--fg-secondary);
+}
+.new-task-environment :is(.c-select-trigger, input) {
+  align-self: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+}
+.new-task-composer .agent-mode-chip .agent-mode-chip-label { display: inline; }
+.new-task-composer .task-composer-mode { width: auto; max-width: 14ch; min-width: 0; }
+.task-composer-flyout {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  z-index: calc(var(--z-confirm) + 1);
+}
+@supports (position-area: block-start span-inline-end) and (width: anchor-size(width)) {
+  .task-composer-flyout {
+    position-area: block-start span-inline-end;
+    position-try-fallbacks: flip-inline;
+    align-self: end;
+    width: min(480px, anchor-size(width), calc(100vw - 16px));
+    max-height: min(260px, calc(100% - 8px));
+    margin-block: 4px;
+    justify-self: start;
+  }
+  .task-composer-flyout[data-flyout='actions'] { width: min(260px, calc(100vw - 16px)); }
+  .task-composer-flyout:is([data-flyout='harness'], [data-flyout='permissions']) {
+    position-area: block-start span-all;
+    position-try-fallbacks: none;
+    width: var(--popup-width);
+    left: clamp(8px, var(--aligned-left), calc(100vw - var(--popup-width) - 8px));
+  }
+  .task-composer-flyout[data-flyout='permissions'] {
+    --popup-width: min(240px, calc(100vw - 16px));
+    --aligned-left: anchor(left);
+    max-height: min(420px, calc(100% - 12px));
+  }
+  .task-composer-flyout[data-flyout='harness'] {
+    --popup-width: min(520px, calc(100vw - 16px));
+    --aligned-left: calc(anchor(right) - var(--popup-width));
+    max-height: min(440px, calc(100% - 12px));
+  }
+}
+.task-composer-flyout > :is(.agent-composer-menu, .agent-composer-qip, .composer-plus-menu, .agent-mode-menu) {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  /* The parent resolves the available space above the editor. Shrink the scroll
+     container itself without re-resolving its parent's percentage max-height. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.task-permission-fields { display: grid; gap: 8px; padding: 4px; }
+.task-permission-fields .new-task-field { display: grid; gap: 4px; min-width: 0; }
+.task-permission-fields .native-config-fields { display: grid; align-items: start; }
+.task-composer-mode-menu:not(.c-select-native) { width: max-content; max-width: min(320px, calc(100vw - 16px)); }
+.task-composer-flyout .agent-composer-qip-title { margin-inline-end: auto; }
+.new-task-composer .task-composer-submit { flex: none; white-space: nowrap; }
+.new-task-composer .new-task-harness-trigger { width: auto; min-width: 0; max-width: min(38cqi, 280px); }
+.new-task-composer .agent-composer-tb-right { min-width: 0; }
+@container task-composer (max-width: 440px) {
+  .new-task-composer .agent-composer-toolbar { flex-wrap: wrap; }
+  .new-task-composer .agent-composer-tb-right { flex: 1 1 100%; }
+  .new-task-composer .new-task-harness-trigger { flex: 1; max-width: none; }
+}
+.new-task-feedback:empty { display: none; }
+.launch-picker-panel { min-width: 0; min-height: 0; overflow: auto; }
+.new-task-dialog .new-task-field-name input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 28px; padding: 4px 12px; font-size: var(--font-control); }
+.new-task-dialog .new-task-field-name input:focus { outline: none; border-color: var(--border-focus); }
+.new-task-feedback { display: flex; flex: 0 0 48px; flex-direction: column; gap: 4px; box-sizing: border-box; min-height: 0; overflow-y: auto; overflow-wrap: anywhere; padding: 6px 4px; scrollbar-gutter: stable; }
+.new-task-feedback:focus-visible { outline: 1px solid var(--border-focus); outline-offset: -1px; }
+.new-task-isolation-menu { box-sizing: border-box; padding: 8px; }
+.new-task-isolation-options { display: flex; flex-direction: column; gap: 2px; }
+.new-task-isolation-option { width: 100%; min-height: 32px; padding: 6px 9px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--fg-secondary); font: inherit; text-align: left; cursor: pointer; }
+.new-task-isolation-option-description { display: block; margin-top: 3px; color: var(--fg-muted); font-size: var(--font-caption); line-height: 1.4; }
+.new-task-isolation-option:hover { background: var(--interaction-hover); color: var(--fg-primary); }
+.new-task-isolation-option.is-selected { background: var(--interaction-selected); color: var(--fg-selected-primary); }
+.new-task-isolation-option:focus-visible { outline: 1px solid var(--border-focus); outline-offset: -1px; }
+.new-task-isolation-repositories { padding: 12px 4px 4px; }
+.new-task-primary-actions { display: flex; gap: 8px; margin-left: auto; }
+.new-task-shortcut { color: var(--fg-secondary); font-size: var(--font-caption); }
+.task-path-select .c-select-value { white-space: normal; overflow-wrap: anywhere; }
+.new-task-dialog .task-path-select .c-select-value { white-space: nowrap; overflow-wrap: normal; }
+.worktree-selection-path { overflow-wrap: anywhere; font-size: var(--font-control); color: var(--fg-primary); }
+.task-options-menu:not(.c-select-native) { max-width: calc(100vw - 32px); width: var(--select-trigger-width); }
+.task-options-menu .c-select-item { white-space: normal; overflow-wrap: anywhere; }
+.task-permission-menu:not(.c-select-native) { width: min(360px, calc(100vw - 16px)); box-sizing: border-box; }
+.task-permission-menu .c-select-item { gap: 8px; align-items: flex-start; white-space: normal; }
+.task-permission-menu.c-select-compact-details:not(.c-select-native) { width: min(260px, calc(100vw - 16px)); }
+.task-permission-menu.c-select-compact-details .c-select-item { align-items: center; }
+.task-permission-menu.c-select-compact-details .c-select-option-icon { padding-top: 0; }
+.c-select-option-info { display: inline-flex; color: var(--fg-muted); cursor: help; }
+.c-select-detail-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+.task-permission-menu .c-select-option-detail { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.task-permission-menu .c-select-option-description { color: var(--fg-muted); font-size: var(--font-caption); line-height: 1.4; overflow-wrap: anywhere; }
+.task-permission-menu .c-select-item.is-selected .c-select-option-description { color: var(--fg-selected-secondary); }
+.task-permission-menu .c-select-item.is-disabled { color: var(--fg-muted); cursor: not-allowed; }
+.task-permission-menu .c-select-item.is-disabled .c-select-option-description { color: var(--fg-muted); }
+.task-permission-menu .c-select-option-icon { padding-top: 2px; }
+.task-permission-menu .c-select-option-check { flex: none; }
+.new-task-dialog .c-select-option-icon, .task-permission-menu .c-select-option-icon { display: inline-flex; flex: none; align-items: center; justify-content: center; }
+.new-task-dialog .c-select-trigger > .c-select-option-icon { margin-right: 8px; }
+.new-task-surfaces { display: flex; flex: none; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); }
+.new-task-surfaces button { border: 0; border-bottom: 2px solid transparent; padding: 8px 14px; background: transparent; color: var(--fg-secondary); font: inherit; cursor: pointer; }
+.new-task-surfaces button[aria-selected='true'] { color: var(--fg-primary); border-bottom-color: var(--border-focus); }
+.new-task-surfaces button:disabled { cursor: default; color: var(--fg-disabled); }
+.new-task-harness-trigger { gap: 8px; width: 100%; }
+.task-composer-flyout > .agent-composer-model-menu.model-picker-popup {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.task-composer-flyout .new-task-surfaces { margin: 0; padding-inline: 6px; }
+.task-composer-flyout .launch-picker-panel { display: flex; flex-direction: column; }
+@media (max-width: 480px) {
+  .new-task-dialog { padding: 16px; }
+  .new-task-dialog .new-task-row,
+  .new-task-dialog .native-config-fields { grid-template-columns: minmax(0, 1fr); }
+  .new-task-shortcut { display: none; }
+}
+
+.new-task-title {
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.new-task-hint {
+  margin: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  line-height: 1.5;
+}
+
+.new-task-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.new-task-field {
+  flex: 1;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.new-task-field select,
+.new-task-field input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  padding: 5px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+}
+
+/* 布局分区：第一行 Runtime + 会话名（名字吃更多宽度），仓库隔离独占一行——
+   隔离是带后果的策略选项，且中英文标注都长，挤在第三列必然溢出/截断 */
+.new-task-field-name {
+  flex: 2;
+}
+
+.new-task-field-isolation {
+  flex: 1 1 100%;
+}
+
+/* 仓库隔离布尔勾选：打开对话框时按「同仓库是否有活跃 worker」自动预勾（预勾才标「推荐隔离/推荐不隔离」，
+   弱色同行缀在主标签后，独占一行宽度充裕） */
+.new-task-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px; /* 与上方文本输入框视觉对齐 */
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  white-space: nowrap; /* 单行紧凑，完整解释走 title 悬停 */
+  cursor: pointer;
+}
+
+.new-task-check-note {
+  color: var(--fg-muted);
+}
+
+.new-task-check input[type='checkbox'] {
+  width: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  accent-color: var(--fg-primary);
+  flex: none;
+}
+
+/* 会话态字段（GUI chat runtime：模式/preset/模型/思考档）平铺在第二行（用户定稿：不折叠），
+   复用 .new-task-row/.new-task-field；锁定与预检标注共用下方两个类 */
+.new-task-lock {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+/* 创建状态与提示 */
+.new-task-note {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  line-height: 1.4;
+  white-space: normal;
+}
+
+.new-task-actions {
+  display: flex;
+  flex: 0 0 38px;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.new-task-actions .git-btn { flex: none; white-space: nowrap; }
+
+.task-source-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.task-source-path {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+}
+
+.task-source-menu:not(.c-select-native) {
+  width: var(--select-trigger-width);
+  max-width: calc(100vw - 32px);
+  max-height: min(260px, calc(100dvh - var(--select-top) - 8px));
+}
+
+.task-source-menu .c-select-item {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px), (max-height: 720px) {
+  .new-task-overlay { padding-top: 16px; padding-bottom: 16px; }
+  .new-task-check { flex-wrap: wrap; white-space: normal; }
+}
+
+.new-task-actions-spacer {
+  flex: 1;
+}
+
+/* ---------- 占位面板空态（design.md §9 空态：居中 --text-3 + mono 装饰符）---------- */
+.utility-placeholder-empty {
+  gap: 8px;
+}
+
+.utility-placeholder-empty::before {
+  content: '[ · ]';
+  font-family: var(--font-mono);
+  font-size: var(--font-body);
+  color: var(--fg-muted);
+}
+
+.utility-placeholder-empty .ui-empty-title {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.utility-placeholder-empty .ui-empty-desc {
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+.task-definition-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.task-definition-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 实用功能表头靠左；定时任务的列表与详情沿同一内容轴。 */
+.prompt-task-panel {
+  container: prompt-tasks / inline-size;
+}
+
+.prompt-task-panel .prompt-task-list-caption,
+.prompt-task-panel .prompt-task-list,
+.prompt-task-panel .prompt-task-detail-section {
+  width: min(960px, 100%);
+  box-sizing: border-box;
+  margin-inline: 0;
+}
+
+.prompt-task-panel .prompt-task-toolbar {
+  width: 100%;
+  box-sizing: border-box;
+  padding-block: 24px;
+}
+
+.prompt-task-panel .prompt-task-list {
+  padding-bottom: 32px;
+}
+
+.prompt-task-panel button.prompt-task-row {
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 16px;
+}
+
+.prompt-task-panel .prompt-task-detail {
+  padding: 24px;
+}
+
+.prompt-task-panel .prompt-task-detail-head {
+  flex-direction: row;
+  align-items: center;
+  padding: 0 0 24px;
+}
+
+.prompt-task-panel .task-settings-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 16px;
+}
+
+.prompt-task-panel .task-settings-grid > div:not(.full) {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+
+.prompt-task-panel .task-settings-grid label {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  letter-spacing: normal;
+}
+
+.prompt-task-panel .task-settings-grid input,
+.prompt-task-panel .task-settings-grid .c-select-trigger {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+}
+
+.prompt-task-panel .task-definition-summary {
+  min-height: 36px;
+  padding-bottom: 4px;
+}
+
+.prompt-task-panel .task-definition-name {
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.task-time-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-secondary);
+}
+
+.prompt-task-panel .task-actions {
+  padding-top: 24px;
+  gap: 8px;
+}
+
+.prompt-task-panel .task-run-summary {
+  padding-top: 24px;
+  gap: 16px;
+}
+
+.prompt-task-panel .task-run-summary label {
+  margin-bottom: 8px;
+}
+
+.prompt-task-panel .prompt-task-delete {
+  margin-top: 24px;
+}
+
+@container prompt-tasks (max-width: 720px) {
+  .prompt-task-panel button.prompt-task-row {
+    grid-template-columns: minmax(0, 1fr) auto 16px;
+  }
+
+  .prompt-task-panel .prompt-task-row-mode,
+  .prompt-task-panel .prompt-task-row-next {
+    display: none;
+  }
+
+  .prompt-task-panel .prompt-task-row-schedule {
+    display: inline-flex;
+    grid-column: 1 / 2;
+  }
+
+  .prompt-task-panel .prompt-task-chevron {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .prompt-task-panel .task-settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container prompt-tasks (max-width: 420px) {
+  .prompt-task-panel .prompt-task-toolbar,
+  .prompt-task-panel .prompt-task-list-caption,
+  .prompt-task-panel .prompt-task-list,
+  .prompt-task-panel .prompt-task-detail-section {
+    padding-inline: 16px;
+  }
+
+  .prompt-task-panel .prompt-task-detail {
+    padding: 16px;
+  }
+
+  .prompt-task-panel .task-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container extension-manager (max-width: 420px) {
+  .ext-manager-panel .prompt-task-toolbar {
+    padding-inline: 16px;
+  }
+}
+
+/* Keep unsupported pseudo-selectors out of fallback selector lists: older
+   engines discard the whole list if even one selector is unknown. */
+@supports (appearance: base-select) {
+  .c-select-native.task-composer-mode-menu::picker(select) {
+    width: max-content;
+    min-width: min(152px, calc(100vw - 16px));
+    max-width: min(320px, calc(100vw - 16px));
+  }
+  .c-select-native:is(.task-options-menu, .task-source-menu)::picker(select) {
+    width: anchor-size(width);
+    max-width: calc(100vw - 32px);
+    max-height: min(260px, calc(100dvh - 16px));
+  }
+  .c-select-native.task-permission-menu::picker(select) {
+    width: min(360px, calc(100vw - 16px));
+    box-sizing: border-box;
+  }
+  .c-select-native.task-permission-menu.c-select-compact-details::picker(select) {
+    width: min(260px, calc(100vw - 16px));
+  }
+}

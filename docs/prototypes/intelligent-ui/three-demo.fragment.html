@@ -1,0 +1,56 @@
+<ma-stack>
+  <ma-text>拖动旋转视角；点选画面后可用滚轮缩放。</ma-text>
+  <div id="three-view" tabindex="0" data-ma-wheel="local" aria-label="可拖动的三维场景"
+    style="width:100%;height:240px;overflow:hidden;border-radius:var(--radius-control)"></div>
+  <ma-text id="three-status" role="status">正在初始化三维场景…</ma-text>
+</ma-stack>
+<script>
+(async function () {
+  await maUi.whenReady();
+  var view = document.getElementById('three-view');
+  var status = document.getElementById('three-status');
+  try {
+    var THREE = maUi.three;
+    var scene = new THREE.Scene();
+    var camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    camera.position.set(3, 2, 4);
+    var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.domElement.style.display = 'block';
+    renderer.domElement.setAttribute('aria-label', '绿色立方体');
+    view.appendChild(renderer.domElement);
+    var geometry = new THREE.BoxGeometry(1.4, 1.4, 1.4);
+    var material = new THREE.MeshStandardMaterial({ color: getComputedStyle(view).getPropertyValue('--green').trim() || 'seagreen', roughness: 0.45 });
+    var cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
+    scene.add(new THREE.HemisphereLight('white', 'slategray', 2));
+    var light = new THREE.DirectionalLight('white', 3);
+    light.position.set(3, 4, 5); scene.add(light);
+    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enableZoom = false;
+    view.addEventListener('focusin', function () { controls.enableZoom = true; });
+    view.addEventListener('focusout', function () { controls.enableZoom = false; });
+    view.addEventListener('pointerdown', function () { view.focus({ preventScroll: true }); });
+    var observer = new ResizeObserver(function () {
+      var width = view.clientWidth, height = view.clientHeight;
+      if (!width || !height) return;
+      camera.aspect = width / height; camera.updateProjectionMatrix();
+      renderer.setSize(width, height, false);
+    });
+    observer.observe(view);
+    renderer.setAnimationLoop(function () {
+      if (document.hidden) return;
+      controls.update(); renderer.render(scene, camera);
+    });
+    window.addEventListener('pagehide', function () {
+      renderer.setAnimationLoop(null); observer.disconnect(); controls.dispose();
+      geometry.dispose(); material.dispose(); renderer.dispose();
+    }, { once: true });
+    status.textContent = 'Three.js ' + THREE.REVISION + ' · 离线运行';
+  } catch (error) {
+    status.textContent = '三维场景不可用：' + error.message;
+    maUi.fail(error);
+  }
+})();
+</script>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>思考文字 · 向左扫出演示</title>
+<style>
+:root { color-scheme: dark; --bg: #111217; --surface: #1d1e23; --panel: #131417; --border: #35363d; --text: #ededf0; --muted: #a5a6ae; --accent: #aaa0ff; --ease-standard: cubic-bezier(.16,1,.3,1); --dur-micro: 120ms; --dur-exit: 200ms; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+main { max-width: 1450px; margin: auto; padding: 64px 28px 48px; }
+.kicker { color: var(--accent); font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+h1 { font-size: clamp(25px, 3vw, 34px); margin: 10px 0 8px; letter-spacing: -.025em; }
+.intro { color: var(--muted); margin: 0; max-width: 650px; }
+.toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin: 30px 0 22px; }
+button, select { font: inherit; color:var(--text); background:#25262d; border:1px solid #45464e; border-radius:8px; min-height:36px; padding: 0 13px; cursor:pointer; }
+button:hover, select:hover { background:#30313a; } button:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+button.primary { background:#eceaf8; color:#20202a; border-color:#eceaf8; font-weight:600; } button.primary:hover { background:#fff; }
+.toolbar label { display:flex; align-items:center; gap:8px; color:var(--muted); margin-left:auto; }
+.grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.example { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.head { padding:17px 20px; display:flex; align-items:center; justify-content:space-between; gap:12px; border-bottom:1px solid var(--border); }
+.head strong { font-size:15px; } .tag { font-size:12px; color:var(--muted); } .proposed .tag { color:var(--accent); }
+.scene { background:var(--panel); min-height:210px; padding:29px 22px; }
+.question { color:#dadade; background:#28292f; border-radius:14px; padding:9px 13px; width:fit-content; max-width:90%; margin-left:auto; font-size:13px; }
+.thinking { display:flex; align-items:center; gap:9px; height:24px; min-width:0; margin-top:35px; color:#b8b8bf; font-size:14px; }
+.icon { flex:none; width:18px; height:18px; color:#92949c; } .icon path { stroke:currentColor; stroke-width:1.2; fill:none; stroke-linejoin:round; }
+.viewport { flex:1; min-width:0; height:24px; overflow:hidden; position:relative; line-height:24px; }
+.line { position:absolute; left:0; top:0; white-space:pre; width:max-content; max-width:none; will-change:transform,opacity; }
+.line.up { transform:translateY(-100%); opacity:0; transition:transform var(--dur-micro) var(--ease-standard),opacity var(--dur-micro) var(--ease-standard); }
+.line.left { transform:translateX(-100%); opacity:0; transition:transform var(--dur-micro) var(--ease-standard),opacity var(--dur-micro) var(--ease-standard); }
+.line.soft { transform:translateX(-24px); opacity:0; transition:transform var(--dur-exit) var(--ease-standard),opacity var(--dur-exit) var(--ease-standard); }
+.caption { padding:14px 20px 16px; color:var(--muted); font-size:12px; }
+.note { color:var(--muted); font-size:12px; margin-top:22px; }
+@media(max-width:900px) { main{padding:32px 16px} .grid{grid-template-columns:1fr} .toolbar label{margin-left:0} .scene{min-height:165px;padding:22px 18px} .thinking{margin-top:25px} }
+@media(prefers-reduced-motion:reduce) { .line.up,.line.left,.line.soft{transition:none} }
+</style>
+</head>
+<body><main>
+<div class="kicker">交互原型 · THINKING</div><h1>思考文字，换一种离开方式</h1>
+<p class="intro">同一段思考同时播放。文字填满一行后，对比向上、完整左扫和短距离左移淡出。</p>
+<div class="toolbar"><button class="primary" id="replay">从头播放</button><button id="pause">暂停</button><label>播放速度 <select id="speed"><option value="85">舒缓</option><option value="45" selected>正常</option><option value="22">较快</option></select></label></div>
+<div class="grid">
+<section class="example"><div class="head"><strong>当前效果</strong><span class="tag">换行向上</span></div><div class="scene"><div class="question">请先检查这个问题的原因</div><div class="thinking"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 1.5c.4 3.5 1.7 4.8 5.1 5.3C8.7 7.3 7.4 8.7 7 12.2c-.4-3.5-1.8-4.9-5.2-5.4C5.2 6.3 6.6 5 7 1.5ZM15 9c.2 2 1 2.8 3 3.1-2 .3-2.8 1-3 3.1-.3-2.1-1-2.8-3-3.1 2-.3 2.7-1.1 3-3.1Z"/></svg><div class="viewport" id="up" aria-label="当前思考文字"></div></div></div><div class="caption">文字自然填满后，上一行向上移出。</div></section>
+<section class="example proposed"><div class="head"><strong>向左扫出</strong><span class="tag">拟议效果</span></div><div class="scene"><div class="question">请先检查这个问题的原因</div><div class="thinking"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 1.5c.4 3.5 1.7 4.8 5.1 5.3C8.7 7.3 7.4 8.7 7 12.2c-.4-3.5-1.8-4.9-5.2-5.4C5.2 6.3 6.6 5 7 1.5ZM15 9c.2 2 1 2.8 3 3.1-2 .3-2.8 1-3 3.1-.3-2.1-1-2.8-3-3.1 2-.3 2.7-1.1 3-3.1Z"/></svg><div class="viewport" id="left" aria-label="向左扫出的思考文字"></div></div></div><div class="caption">文字自然填满后，上一行立即向左扫出，继续显示下一行。</div></section>
+<section class="example proposed"><div class="head"><strong>左移淡出</strong><span class="tag">新方案</span></div><div class="scene"><div class="question">请先检查这个问题的原因</div><div class="thinking"><svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 1.5c.4 3.5 1.7 4.8 5.1 5.3C8.7 7.3 7.4 8.7 7 12.2c-.4-3.5-1.8-4.9-5.2-5.4C5.2 6.3 6.6 5 7 1.5ZM15 9c.2 2 1 2.8 3 3.1-2 .3-2.8 1-3 3.1-.3-2.1-1-2.8-3-3.1 2-.3 2.7-1.1 3-3.1Z"/></svg><div class="viewport" id="soft" aria-label="左移淡出的思考文字"></div></div></div><div class="caption">一行写满后向左轻移并淡出，下一行从原位接续。</div></section>
+</div><p class="note">这是独立演示，使用示例文字；可以暂停、重播和切换速度。正式功能尚未修改。</p>
+</main><script>
+(() => {
+  const text = '我先梳理当前会话中的状态和上下文，确认最近一次操作的触发条件。接下来检查消息的实际顺序，看看是否有异步更新影响了画面。然后对照相关实现和已有测试，找到能够稳定复现的路径。最后验证修改后的结果，确保新行为符合预期，同时保留原有的交互体验。';
+  const chars = typeof Intl.Segmenter === 'function' ? [...new Intl.Segmenter('zh', {granularity:'grapheme'}).segment(text)].map(x => x.segment) : Array.from(text);
+  const boxes = [document.getElementById('up'),document.getElementById('left'),document.getElementById('soft')];
+  const speed = document.getElementById('speed'), pause = document.getElementById('pause');
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+  let index = 0, current = '', timer = 0, paused = false, sweeping = false, epoch = 0, lines = [];
+  function createLines() { lines = boxes.map(box => { const el=document.createElement('span'); el.className='line'; el.textContent=current; box.replaceChildren(el); return el; }); }
+  function schedule(delay) { clearTimeout(timer); if (!paused) timer=setTimeout(tick,delay); }
+  function tick() {
+    if (index >= chars.length) { timer=setTimeout(() => { if (!paused) replay(); },1200); return; }
+    const next = chars[index], style=getComputedStyle(lines[0]); ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const fits = boxes.every(box => ctx.measureText(current + next).width <= box.clientWidth - 2);
+    if (!fits && current) {
+      const old=lines, version=epoch; old[0].classList.add('up'); old[1].classList.add('left'); old[2].classList.add('soft'); current='';
+      sweeping=true;
+      timer=setTimeout(() => { if(version!==epoch)return; sweeping=false; old.forEach(node=>node.remove()); createLines(); schedule(0); }, 200);
+      return;
+    }
+    current += next; index++; lines.forEach(line => {line.textContent=current;}); schedule(Number(speed.value));
+  }
+  function replay() { epoch++; clearTimeout(timer); index=0; current=''; paused=false; sweeping=false; pause.textContent='暂停'; createLines(); schedule(80); }
+  document.getElementById('replay').addEventListener('click',replay);
+  pause.addEventListener('click',()=>{
+    paused=!paused; pause.textContent=paused?'继续':'暂停';
+    if (paused) {
+      clearTimeout(timer);
+      if (sweeping) { sweeping=false; current=lines[0].textContent; lines.forEach(line=>line.classList.remove('up','left','soft')); }
+    } else schedule(0);
+  });
+  speed.addEventListener('change',()=>{ if (!sweeping) schedule(Number(speed.value)); });
+  new ResizeObserver(()=>{ if (lines.length && current) { current=''; createLines(); } }).observe(boxes[0]);
+  replay();
+})();
+</script></body></html>

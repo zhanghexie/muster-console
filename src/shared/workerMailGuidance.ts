@@ -1,0 +1,2 @@
+/** Shared Worker guidance; mail kind is an instruction to the model, not a transport gate. */
+export const WORKER_MAIL_GUIDANCE = 'For a multi-milestone task, continue working until all work is complete or a blocker requires user decision. Send interim progress as kind=notice and continue without waiting for a reply or ending the turn. Use kind=ask when a reply is needed. Use kind=handoff only for final delivery after the entire task is complete, then wait for acceptance. 等待回信/事件：用 host.waitFor 武装等待并写好续接说明，继续干手头的活；回合边界自动送达（preempt 立即抢占）；不要反复轮询收件箱。';

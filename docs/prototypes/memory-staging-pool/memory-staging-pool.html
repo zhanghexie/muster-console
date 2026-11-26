@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 暂存池可视化（条目6）现状 vs 改后</title>
+<!--
+  记忆面板改造计划 · 条目 6 交互原型：情景暂存池（staging）可见化。
+  改后：晋升审阅页顶部新增「暂存池」区块（巩固的输入端），行=候选原文+来源+年龄+信号，可丢弃；
+  总览脑图「情景暂存池」节点挂积压徽标。token 抄自 base.css / memory.css。数据虚构。
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-panel: #1e1e1e; --bg-raised: #252526; --bg-overlay: #2a2a2a; --bg-input: #232323;
+    --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e; --hairline: #2c2c2c;
+    --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(250,250,250,0.05); --selected-fill: rgba(250,250,250,0.08); --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', 'Courier New', monospace;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-panel: 280ms; --dur-micro: 120ms;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 26px 0 80px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  h2 { font-size: var(--font-control); font-weight: 500; color: var(--text-2); margin: 24px 0 10px; }
+  .view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .view-toggle button { padding: 5px 16px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .view-toggle button.is-active { background: var(--selected-fill); color: var(--ink); }
+  .pane { display: none; } .pane.is-show { display: block; }
+
+  .index-card, .memory-row { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px 16px; }
+  .review-card-head { display: flex; align-items: center; gap: 8px; }
+  .review-card-head h3 { margin: 0; font-size: var(--font-ui); font-weight: 500; }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-tag.is-warn { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-dim { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-tag.is-other { background: var(--bg-inset); color: var(--text-2); }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .memory-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: var(--font-caption); color: var(--text-3); }
+  .ui-btn { padding: 4px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn:hover { background: var(--hover-fill); }
+
+  /* —— 改后：暂存池区块 —— */
+  .staging-head-note { margin: 2px 0 12px; }
+  .stage-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--radius-small); background: var(--bg-canvas); margin-top: 8px; }
+  .stage-row .body { flex: 1; min-width: 0; }
+  .stage-text { font-size: var(--font-ui); }
+  .stage-text .tagword { color: var(--green); font-family: var(--font-mono); font-size: 12px; }
+  .stage-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; }
+  .stage-actions { flex: none; display: flex; gap: 6px; }
+  .stage-expired .stage-text { color: var(--text-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--red) 40%, transparent); }
+  .toast { position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(8px); opacity: 0; background: var(--bg-overlay); color: var(--ink); font-size: var(--font-caption); padding: 8px 16px; border-radius: var(--radius-pill); box-shadow: 0 8px 24px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.08); pointer-events: none; transition: opacity var(--dur-micro) ease-out, transform var(--dur-micro) ease-out; }
+  .toast.is-show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 总览节点示意（before/after 各一块） */
+  .node-mock { display: inline-flex; flex-direction: column; gap: 2px; padding: 10px 16px; border-radius: var(--radius-control); background: var(--bg-raised); box-shadow: var(--shadow-card); position: relative; }
+  .node-mock .t { font-size: var(--font-ui); }
+  .node-mock .s { font-size: var(--font-caption); color: var(--text-3); }
+  .node-mock .badge { position: absolute; top: -8px; right: -10px; background: color-mix(in srgb, var(--yellow) 20%, var(--bg-raised)); color: var(--yellow); border-radius: var(--radius-pill); font-size: 11px; padding: 1px 8px; border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 6 · 情景暂存池可视化）。改后：晋升审阅页顶部出现「暂存池」——记忆的<b>筛选入场口</b>：候选原文/来源/年龄/信号一目了然，过期待审的可以手动丢弃；总览脑图「情景暂存池」节点挂积压数。数据虚构。</div>
+
+  <div class="view-toggle">
+    <button id="btnBefore" class="is-active">现状</button>
+    <button id="btnAfter">改后</button>
+  </div>
+
+  <!-- 现状 -->
+  <div class="pane is-show" id="paneBefore">
+    <h2>总览脑图 · 情景暂存池节点</h2>
+    <div class="node-mock"><span class="t">情景暂存池</span><span class="s">SQLite · 永不自动注入</span></div>
+    <div class="memory-meta-dim" style="margin-top:10px">↑ 无徽标：池子里积压多少候选、等谁处理，完全不可见。</div>
+    <h2>晋升审阅页</h2>
+    <div class="memory-row">
+      <div class="review-card-head"><h3>今日巩固</h3><span class="memory-tag is-dim">统计与时间线</span></div>
+      <div class="memory-meta-dim" style="margin-top:8px">↑ 只有巩固的「输出」（晋升/审批记录），巩固的「输入」（池里还压着什么）没有入口。</div>
+    </div>
+  </div>
+
+  <!-- 改后 -->
+  <div class="pane" id="paneAfter">
+    <h2>总览脑图 · 节点挂积压徽标</h2>
+    <div class="node-mock"><span class="badge">积压 7</span><span class="t">情景暂存池</span><span class="s">SQLite · 永不自动注入</span></div>
+
+    <h2>晋升审阅页 · 顶部「暂存池」区块</h2>
+    <div class="staging-head-note memory-meta-dim">记忆先进这里排队，巩固引擎按召回信号决定去留；<b style="color:var(--text-2)">过期自动出池</b>（缺省 14 天）。</div>
+
+    <div class="memory-row">
+      <div class="review-card-head">
+        <h3>暂存池</h3>
+        <span class="memory-tag is-warn">7 条待处理</span>
+        <span style="margin-left:auto" class="memory-meta-dim">最早入池 2 天前</span>
+      </div>
+
+      <div class="stage-row">
+        <div class="body">
+          <div class="stage-text"><span class="tagword">#decision</span> 构建产物目录统一加进 .gitignore，防止误提交。</div>
+          <div class="stage-meta">
+            <span class="memory-tag is-dim">来自 会话 8f7e6d5 · 昨天</span>
+            <span class="memory-tag is-other">信号：bootstrap 注入 2 次</span>
+            <span class="memory-tag is-other">12 天后过期</span>
+          </div>
+        </div>
+        <div class="stage-actions"><button class="ui-btn" data-act="丢弃">丢弃</button></div>
+      </div>
+
+      <div class="stage-row">
+        <div class="body">
+          <div class="stage-text"><span class="tagword">#lesson</span> <span style="color:var(--blue)">[[打包]]</span> electron-builder 卡 unpacking 时手动解压 zip 传 --config.electronDist。</div>
+          <div class="stage-meta">
+            <span class="memory-tag is-dim">来自 会话 3c2b1a0 · 昨天</span>
+            <span class="memory-tag is-other">信号：暂无召回</span>
+            <span class="memory-tag is-other">13 天后过期</span>
+          </div>
+        </div>
+        <div class="stage-actions"><button class="ui-btn" data-act="丢弃">丢弃</button></div>
+      </div>
+
+      <div class="stage-row stage-expired">
+        <div class="body">
+          <div class="stage-text"><span class="tagword">#preference</span> 日报要同步到飞书表格。</div>
+          <div class="stage-meta">
+            <span class="memory-tag is-dim">来自 会话 9988776 · 15 天前</span>
+            <span class="memory-tag is-warn">已过期 · 将被清扫</span>
+          </div>
+        </div>
+        <div class="stage-actions"></div>
+      </div>
+
+      <div class="memory-card-foot"><span>显示 3 / 7 条 · 高置信候选将由巩固引擎自动晋升或转入审批</span><button class="ui-btn">展开全部</button></div>
+    </div>
+    <div class="memory-meta-dim" style="margin-top:12px">丢弃：原型里点「丢弃」有 toast 示意；真机上丢弃=标记淘汰（可撤销，随下次清扫出池）。</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<script>
+  var btnB = document.getElementById('btnBefore'), btnA = document.getElementById('btnAfter');
+  var paneB = document.getElementById('paneBefore'), paneA = document.getElementById('paneAfter');
+  function show(w) {
+    btnB.classList.toggle('is-active', w === 'b'); btnA.classList.toggle('is-active', w === 'a');
+    paneB.classList.toggle('is-show', w === 'b'); paneA.classList.toggle('is-show', w === 'a');
+  }
+  btnB.onclick = function(){ show('b'); }; btnA.onclick = function(){ show('a'); };
+  var t = document.getElementById('toast'), tt = null;
+  document.querySelectorAll('[data-act]').forEach(function (b) {
+    b.onclick = function () {
+      var row = b.closest('.stage-row');
+      row.style.opacity = '0.35'; b.disabled = true; b.textContent = '已丢弃';
+      t.textContent = '已标记丢弃（可撤销，随下次清扫出池）'; t.classList.add('is-show');
+      clearTimeout(tt); tt = setTimeout(function(){ t.classList.remove('is-show'); }, 1800);
+    };
+  });
+</script>
+</body>
+</html>

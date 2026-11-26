@@ -1,0 +1,112 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
+import { buildSync } from 'esbuild';
+
+const root = path.resolve(import.meta.dirname, '..');
+const tempRoot = fs.realpathSync(os.tmpdir());
+const folder = fs.mkdtempSync(path.join(tempRoot, 'agent-app-sqlite-state-'));
+if (path.dirname(fs.realpathSync(folder)) !== tempRoot) throw new Error('Unexpected test directory');
+let store;
+try {
+  const bundle = path.join(folder, 'state.cjs');
+  buildSync({ stdin: { contents: "export { AgentAppsSqliteStateStore } from './src/main/agentApps/sqliteStateStore'; export { builtInAgentApps } from './src/shared/agentAppsBuiltins';", resolveDir: root, sourcefile: 'state-test.ts' }, outfile: bundle, bundle: true, platform: 'node', format: 'cjs', logLevel: 'silent' });
+  const { AgentAppsSqliteStateStore, builtInAgentApps } = createRequire(import.meta.url)(bundle);
+  const data = path.join(folder, 'data');
+  const seed = () => builtInAgentApps().map(definition => ({ definition, enabled: true, installedAt: 1 }));
+  store = new AgentAppsSqliteStateStore(data, seed);
+  const initial = store.read('one');
+  assert.deepEqual(initial.installations.map(item => item.definition.id), seed().map(item => item.definition.id));
+  const created = store.transact('one', state => {
+    state.records.tasks = [{ id: 'a', collection: 'items', revision: 1, createdAt: 1, updatedAt: 1, values: { title: 'Task' } }];
+    state.records.rss = [{ id: 'b', collection: 'articles', revision: 1, createdAt: 1, updatedAt: 1, values: { title: 'Article' } }];
+    state.records.empty = [];
+    state.receipts.push({ key: 'mail:attempt', fingerprint: 'x', state: 'running', external: true, submitted: true, at: 1 });
+    state.operations.push({ operationId: 'ongoing', phase: 'running' });
+    return { record: state.records.tasks[0] };
+  });
+  assert.equal(created.record.id, 'a');
+  const before = store.read('one');
+  const unrelated = before.records.rss;
+  store.transact('one', state => { state.records.tasks[0].values.title = 'Updated'; });
+  assert.equal(store.read('one').records.rss, unrelated, 'a small write does not clone unrelated collections');
+  assert.throws(() => store.transact('one', state => { state.records.tasks[0].values.title = 'failed'; throw new Error('abort'); }), /abort/);
+  assert.equal(store.read('one').records.tasks.find(item => item.id === 'a').values.title, 'Updated');
+  const beforeFastUpdate = store.read('one');
+  const previousTasks = beforeFastUpdate.records.tasks;
+  const previousRss = beforeFastUpdate.records.rss;
+  store.updateRecord('one', 'tasks', 'a', record => { record.values.title = 'Fast update'; });
+  const afterFastUpdate = store.read('one');
+  assert.equal(afterFastUpdate.revision, beforeFastUpdate.revision + 1);
+  assert.equal(afterFastUpdate.records.tasks.find(item => item.id === 'a').values.title, 'Fast update');
+  assert.equal(previousTasks.find(item => item.id === 'a').values.title, 'Updated', 'existing snapshots are not mutated');
+  assert.equal(afterFastUpdate.records.rss, previousRss, 'record updates retain unrelated cached collections');
+  store.updateRecord('one', 'tasks', 'a', record => { record.values.title = 'Updated'; });
+  assert.equal(store.read('one').receipts[0].state, 'running');
+  assert.throws(() => store.changeImageAsset('one', { type: 'deleteImageAsset', appId: 'tasks', id: 'missing' }), /not marked/i);
+  assert.equal(store.read('one').receipts[0].state, 'running', 'a same-process cache reload is not a restart recovery');
+  assert.equal(store.read('one').operations[0].phase, 'running');
+  store.close(); store = undefined;
+  store = new AgentAppsSqliteStateStore(data, seed);
+  assert.deepEqual(store.read('one').records.empty, [], 'an explicitly empty app record group survives restart');
+  assert.deepEqual(store.read('one').installations.map(item => item.definition.id), seed().map(item => item.definition.id), 'app installation order survives restart');
+  store.transact('one', state => {
+    state.installations = [state.installations.at(-1), ...state.installations.slice(0, -1)];
+    state.records.tasks.push({ id: 'c', collection: 'items', revision: 1, createdAt: 2, updatedAt: 2, values: { title: 'C' } }, { id: 'd', collection: 'items', revision: 1, createdAt: 3, updatedAt: 3, values: { title: 'D' } });
+    state.records.tasks = [state.records.tasks[2], state.records.tasks[0], state.records.tasks[1]];
+  });
+  const expectedApps = store.read('one').installations.map(item => item.definition.id);
+  const expectedRecords = store.read('one').records.tasks.map(item => item.id);
+  store.close(); store = new AgentAppsSqliteStateStore(data, seed);
+  assert.deepEqual(store.read('one').installations.map(item => item.definition.id), expectedApps, 'explicit reorder survives restart');
+  assert.deepEqual(store.read('one').records.tasks.map(item => item.id), expectedRecords, 'record order survives replacement and insertion');
+  assert.equal(store.read('one').records.tasks.find(item => item.id === 'a').values.title, 'Updated');
+  assert.equal(store.read('one').receipts[0].state, 'uncertain', 'running external operations recover as uncertain');
+  assert.equal(store.read('one').operations[0].phase, 'failed', 'a new store still recovers interrupted operations');
+  const competing = new AgentAppsSqliteStateStore(data, seed);
+  try {
+    competing.read('one');
+    store.transact('one', state => { state.records.tasks[0].values.title = 'Writer A'; });
+    assert.throws(() => competing.transact('one', state => { state.records.tasks[0].values.title = 'Writer B'; }), /revision/i);
+    assert.equal(competing.read('one').records.tasks[0].values.title, 'Writer A', 'a rejected stale writer reloads the committed state');
+  } finally { competing.close(); }
+  assert.ok(fs.readdirSync(data).some(name => name.endsWith('.sqlite')));
+  assert.ok(!fs.readdirSync(data).some(name => name.endsWith('.json')), 'the new store does not read or create legacy JSON');
+  assert.equal(store.read('two').records.tasks, undefined, 'workspaces remain separate');
+  const beforeImage = store.read('two');
+  const asset = { id: '00000000-0000-4000-8000-000000000001', appId: 'tasks', mime: 'image/png', bytes: 1,
+    width: 1, height: 1, sha256: 'a'.repeat(64), thumbnailSha256: 'b'.repeat(64), createdAt: 1 };
+  store.changeImageAsset('two', { type: 'putImageAsset', value: asset });
+  const afterImage = store.read('two');
+  assert.equal(afterImage.revision, beforeImage.revision + 1);
+  assert.equal(afterImage.installations, beforeImage.installations, 'image-only writes retain the cached workspace state');
+  assert.equal(afterImage.records, beforeImage.records, 'image-only writes retain lazy record groups');
+  assert.deepEqual(store.imageAsset('two', 'tasks', asset.id), asset);
+  store.transact('two', state => { state.records.tasks = []; });
+  assert.equal(store.read('two').revision, afterImage.revision + 1, 'subsequent state writes use the updated revision');
+  store.changeImageAsset('two', { type: 'markImageDeleting', appId: 'tasks', id: asset.id });
+  assert.equal(store.imageAsset('two', 'tasks', asset.id).deleting, true);
+  store.changeImageAsset('two', { type: 'deleteImageAsset', appId: 'tasks', id: asset.id });
+  assert.equal(store.imageAsset('two', 'tasks', asset.id), undefined);
+  store.transact('lazy', state => {
+    state.records.tasks = [{ id: 'task', collection: 'items', revision: 1, createdAt: 1, updatedAt: 1, values: { title: 'keep' } }];
+    state.records.rss = [{ id: 'article', collection: 'articles', revision: 1, createdAt: 1, updatedAt: 1, values: { title: 'unrelated' } }];
+  });
+  store.close();
+  const lazyDb = new DatabaseSync(path.join(data, `${createHash('sha256').update('lazy').digest('hex')}.sqlite`));
+  lazyDb.prepare('UPDATE records SET value=? WHERE app_id=?').run('invalid-json', 'rss');
+  lazyDb.close();
+  store = new AgentAppsSqliteStateStore(data, seed);
+  assert.doesNotThrow(() => store.read('lazy'), 'workspace startup does not deserialize every app’s records');
+  assert.doesNotThrow(() => store.transact('lazy', state => { state.records.tasks[0].values.title = 'changed'; }), 'a write only loads the touched app');
+  assert.equal(store.read('lazy').records.tasks[0].values.title, 'changed');
+  assert.throws(() => store.read('lazy').records.rss, /JSON|Unexpected token/i, 'an invalid record remains an explicit error when that app is accessed');
+  console.log('agent app SQLite state: copy-on-write, restart, recovery and isolation passed');
+} finally {
+  store?.close();
+  fs.rmSync(folder, { recursive: true, force: true });
+}

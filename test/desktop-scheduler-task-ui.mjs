@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-task-ui-'));
+try {
+  const compile = createSharedCompiler(process.cwd(), path.join(temp, 'compiled'));
+  const { makeSchedulerTaskConfirmation, ALL_DISPLAY_APP, SCREEN_READ_ACTION } = await import(pathToFileURL(compile('main/desktop/schedulerTaskUi.ts')));
+  const { applyLocaleSetting } = await import(pathToFileURL(compile('shared/i18n/index.ts')));
+  let captured, reply = { decision: { confirmed: true, kind: 'allowOnce' }, approvalId: 'host-id' };
+  const confirm = makeSchedulerTaskConfirmation({ confirmWithReceipt: async (...args) => { captured = args; return reply; } });
+  const start = { kind: 'start', appId: 'Example\nApp', actionClass: 'click' };
+  applyLocaleSetting('zh-CN');
+  assert.deepEqual(await confirm(start), { approvalId: 'host-id' });
+  assert.match(captured[0], /开始新桌面任务链/);
+  assert.match(captured[1], /Example App/);
+  assert.match(captured[1], /click/);
+  assert.match(captured[1], /24 小时/);
+  assert.equal(captured[2].dangerous, true);
+  assert.deepEqual(await confirm({ kind: 'start', appId: ALL_DISPLAY_APP, actionClass: SCREEN_READ_ACTION }), { approvalId: 'host-id' });
+  assert.match(captured[1], /所有显示器的画面/);
+  applyLocaleSetting('en');
+  assert.deepEqual(await confirm({ kind: 'start', appId: ALL_DISPLAY_APP, actionClass: SCREEN_READ_ACTION }), { approvalId: 'host-id' });
+  assert.match(captured[1], /reads every display/);
+  assert.deepEqual(await confirm({ ...start, kind: 'extend', taskId: 'old' }), { approvalId: 'host-id' });
+  assert.match(captured[0], /Extend the current desktop task chain/);
+  assert.match(captured[1], /no new task chain/);
+  reply = { decision: { confirmed: true, kind: 'deny' }, approvalId: 'forged' };
+  assert.deepEqual(await confirm(start), {});
+  reply = { decision: { confirmed: true, kind: 'allowOnce', cancelledBy: 'esc' }, approvalId: 'forged' };
+  assert.deepEqual(await confirm(start), {});
+  reply = { decision: { confirmed: true, kind: 'allowOnce' } };
+  assert.deepEqual(await confirm(start), {});
+  const aborted = new AbortController(); aborted.abort();
+  await assert.rejects(confirm(start, aborted.signal), { name: 'AbortError' });
+  console.log('desktop task confirmation: bilingual scope, host receipt and fail-closed decisions passed');
+} finally { fs.rmSync(temp, { recursive: true, force: true }); }

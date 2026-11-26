@@ -1,0 +1,265 @@
+name: release-quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'codex/**'
+      - 'refactor/**'
+  workflow_dispatch:
+    inputs:
+      signed_release:
+        description: Build signed release artifacts (main only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality / ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos
+            os: macos-15
+          - name: linux
+            os: ubuntu-24.04
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Validate signed release branch
+        if: inputs.signed_release
+        run: node -e "if (process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('Signed release builds must run from main')"
+      - run: npm ci
+      - run: npm test
+        env:
+          MUSTER_CI_TEST_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - run: npm run typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+      - run: npm run build
+      - name: Upload quality diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-diagnostics-${{ matrix.name }}-${{ github.run_id }}
+          path: |
+            test-results/
+            **/*.log
+            ${{ runner.temp }}/muster-*
+          if-no-files-found: ignore
+
+  package:
+    name: package / ${{ matrix.name }}
+    needs: quality
+    # Artifacts in a public repository can be downloaded by signed-in readers.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            # The pinned Electron node-gyp recognizes Visual Studio 2022.
+            os: windows-2022
+            args: --win nsis
+            driver_cache: win-x64
+          - name: macos-x64
+            os: macos-15-intel
+            args: --mac dmg --x64
+            driver_cache: mac-x64
+            verification_args: -c.mac.identity=- -c.mac.hardenedRuntime=false
+          - name: macos-arm64
+            os: macos-15
+            args: --mac dmg --arm64
+            driver_cache: mac-arm64
+            verification_args: -c.mac.identity=- -c.mac.hardenedRuntime=false
+          - name: linux
+            os: ubuntu-24.04
+            args: --linux AppImage deb
+            driver_cache: linux-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run rebuild
+      - run: npm run build
+        env:
+          MUSTER_GITHUB_APP_CLIENT_ID: ${{ vars.MUSTER_GITHUB_APP_CLIENT_ID }}
+          MUSTER_GITHUB_APP_SLUG: ${{ vars.MUSTER_GITHUB_APP_SLUG }}
+      - name: Prepare pinned desktop driver
+        run: |
+          node -e "require('node:fs').mkdirSync('.tmp/desktop-driver', { recursive: true })"
+          node scripts/desktop-driver/prepare.mjs --prepare --output "${{ github.workspace }}/.tmp/desktop-driver/${{ matrix.driver_cache }}"
+      - name: Prepare protected release signing
+        if: inputs.signed_release && runner.os != 'Linux'
+        env:
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: node scripts/verify-release-signing-env.mjs --prepare
+      - name: Build installers
+        env:
+          APPLE_ID: ${{ inputs.signed_release && runner.os == 'macOS' && secrets.APPLE_ID || '' }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ inputs.signed_release && runner.os == 'macOS' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ inputs.signed_release && runner.os == 'macOS' && secrets.APPLE_TEAM_ID || '' }}
+        run: npx electron-builder ${{ matrix.args }} --publish never "-c.forceCodeSigning=${{ inputs.signed_release && runner.os != 'Linux' && 'true' || 'false' }}" ${{ !inputs.signed_release && matrix.verification_args || '' }}
+      - name: Verify macOS notarization
+        if: inputs.signed_release && runner.os == 'macOS'
+        run: |
+          app=$(find release -type d -name 'Muster Console.app' -print -quit)
+          test -n "$app"
+          xcrun stapler validate "$app"
+      - name: Archive installers and packaged applications
+        run: tar -cf "${{ runner.temp }}/packaged-${{ matrix.name }}.tar" -C release .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packaged-${{ inputs.signed_release && 'signed' || 'verification' }}-${{ matrix.name }}
+          path: ${{ runner.temp }}/packaged-${{ matrix.name }}.tar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Upload package diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-diagnostics-${{ matrix.name }}-${{ github.run_id }}
+          path: |
+            release/
+            **/*.log
+            ${{ runner.temp }}/muster-*
+          if-no-files-found: ignore
+
+  packaged-smoke:
+    name: packaged smoke / ${{ matrix.name }}
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+          - name: macos-x64
+            os: macos-15-intel
+          - name: macos-arm64
+            os: macos-15
+          - name: linux-x11
+            os: ubuntu-24.04
+            display: x11
+            package: linux
+          - name: linux-wayland
+            os: ubuntu-24.04
+            display: wayland
+            package: linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      MUSTER_PACKAGED_KEEP_PROFILE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: packaged-${{ inputs.signed_release && 'signed' || 'verification' }}-${{ matrix.package || matrix.name }}
+          path: release
+      - name: Restore executable modes and links
+        run: tar -xf "release/packaged-${{ matrix.package || matrix.name }}.tar" -C release
+      - name: Install Linux display dependencies
+        if: startsWith(matrix.name, 'linux-')
+        run: sudo apt-get update && sudo apt-get install --yes weston xvfb
+      - name: Run packaged smoke on X11
+        if: matrix.display == 'x11'
+        env:
+          XDG_SESSION_TYPE: x11
+          MUSTER_PACKAGED_PROFILE_DIR: ${{ runner.temp }}/muster-packaged-smoke-${{ matrix.name }}
+        run: xvfb-run --auto-servernum node scripts/test-packaged-smoke.mjs
+      - name: Run packaged smoke on Wayland
+        if: matrix.display == 'wayland'
+        env:
+          XDG_SESSION_TYPE: wayland
+          MUSTER_PACKAGED_PROFILE_DIR: ${{ runner.temp }}/muster-packaged-smoke-${{ matrix.name }}
+        shell: bash
+        run: |
+          export XDG_RUNTIME_DIR="$RUNNER_TEMP/muster-wayland"
+          mkdir -p "$XDG_RUNTIME_DIR"
+          chmod 700 "$XDG_RUNTIME_DIR"
+          weston --backend=headless-backend.so --socket=wayland-1 --idle-time=0 >"$RUNNER_TEMP/muster-weston.log" 2>&1 &
+          WESTON_PID=$!
+          trap 'kill "$WESTON_PID" || true' EXIT
+          for i in {1..30}; do test -S "$XDG_RUNTIME_DIR/wayland-1" && break; sleep 1; done
+          test -S "$XDG_RUNTIME_DIR/wayland-1"
+          WAYLAND_DISPLAY=wayland-1 node scripts/test-packaged-smoke.mjs
+      - name: Run packaged smoke on macOS and Windows
+        if: matrix.display == ''
+        env:
+          MUSTER_PACKAGED_PROFILE_DIR: ${{ runner.temp }}/muster-packaged-smoke-${{ matrix.name }}
+        run: node scripts/test-packaged-smoke.mjs
+      - name: Upload packaged smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-smoke-diagnostics-${{ matrix.name }}-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/muster-packaged-smoke-${{ matrix.name }}/
+            ${{ runner.temp }}/muster-weston.log
+            release/
+            **/*.log
+          if-no-files-found: ignore
+
+  release-artifact:
+    name: ${{ inputs.signed_release && 'signed release' || 'verification' }} / manifest
+    needs: [package, packaged-smoke]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: packaged-*
+          path: artifacts
+          merge-multiple: true
+      - name: Extract installers before computing checksums
+        run: |
+          mkdir -p release
+          for archive in artifacts/packaged-*.tar; do
+            tar -xf "$archive" -C release
+          done
+      - run: node scripts/verify-release-artifacts.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.signed_release && 'release' || 'verification' }}-manifest
+          path: release/release-manifest.json
+          if-no-files-found: error
+          retention-days: 30

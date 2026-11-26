@@ -1,0 +1,90 @@
+.setup-resume {
+  display: grid;
+  gap: 4px;
+  min-inline-size: 0;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-chrome);
+  color: var(--chrome-fg-secondary);
+  text-align: start;
+  font-size: var(--font-ui);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.setup-step > .setup-resume { margin-block-end: 16px; }
+.setup-resume p { margin: 0; font-weight: 500; }
+.setup-resume ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.setup-resume li > span { color: var(--chrome-fg-primary); }
+.setup-resume .btn.ghost {
+  --fg-primary: var(--chrome-fg-primary);
+  --interaction-hover: var(--chrome-interaction-hover);
+  --interaction-pressed: var(--chrome-interaction-pressed);
+  justify-content: space-between;
+  inline-size: 100%;
+  padding: 4px 8px;
+  text-align: start;
+  font-size: var(--font-ui);
+}
+
+.workbench-setup-guide {
+  display: grid;
+  gap: 16px;
+  inline-size: min(100%, 464px);
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--raised-fg-primary);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.workbench-setup-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.workbench-setup-title h2 {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+}
+
+.workbench-setup-close {
+  margin-inline-start: auto;
+  align-self: start;
+}
+
+.workbench-setup-progress {
+  margin-block-end: 4px;
+  color: var(--raised-fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.workbench-setup-guide > p {
+  margin: 0;
+  color: var(--raised-fg-secondary);
+  font-size: var(--font-body);
+  line-height: 1.55;
+}
+
+.workbench-setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.session-header-actions:has([data-setup-target='session']),
+.agent-ws-stack-header .agent-ws-add-btn[data-setup-target='workspace'] {
+  opacity: 1;
+  visibility: visible;
+  transition: none;
+}
+
+.left-panel .session-header-actions [data-setup-target='session'],
+.agent-ws-stack-header .agent-ws-add-btn[data-setup-target='workspace'] {
+  box-shadow: inset 0 0 0 1px var(--fg-primary);
+}

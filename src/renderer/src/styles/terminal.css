@@ -1,0 +1,401 @@
+/* terminal.css — 由 styles.css 拆分（域：terminal）。规范见 /design.md。修改请守住 token。 */
+
+
+/* 页宿主：本身透明落在框上，内边距留出页缝；页的圆角/阴影/绘制隔离挂在 .center-panel（base.css 页节） */
+.terminal-page {
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  contain: layout;
+}
+
+/* 内边距把字符网格从页的圆角（--radius-card 12px）里收进来，否则首行首列被圆角切掉；
+ * 边距区涂 --terminal-bg（TerminalView 跟底部 TUI 取色写入），看起来是终端自身的留白。
+ * 右缘余量垫条按 wrap 右缘量宽（syncPadSideStrip），连同右内边距一起跟右缘 TUI 色 */
+.terminal-wrap {
+  position: absolute;
+  inset: 0;
+  padding: 6px 4px 4px 8px;
+  overflow: hidden;
+  background: var(--terminal-bg, var(--surface-canvas));
+}
+
+/* CLI 胶囊与输入区均为悬浮层；展开、收起和拖动不改变 xterm 的布局尺寸。 */
+.cli-session-view {
+  --cli-composer-capsule-opacity: 84%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-canvas);
+}
+.cli-terminal-surface { position: absolute; inset: 0; }
+.cli-composer-capsule {
+  position: absolute; z-index: var(--z-dropdown); left: 0; top: 0;
+  max-width: calc(100% - 16px); pointer-events: none;
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+.cli-composer-capsule.is-dragging { transition: none; }
+/* 蓄力层与 mp-panel/mp-pop 分离，松手或提交时从当前缩放值可打断地回弹。 */
+.cli-composer-charge-surface { transform: none; transform-origin: center;
+  transition: transform var(--dur-micro) var(--ease-standard); }
+.cli-composer-capsule-charge { display: inline-flex; max-width: 100%; }
+.cli-session-view[data-hold-phase='charging'] .cli-composer-charge-surface {
+  transition-duration: calc(var(--dur-breath) / 24); transition-timing-function: var(--ease-loop);
+}
+/* 小胶囊需要更大的缩放差才能看清蓄力，回弹逐轮增强但不改变蓄力时长。 */
+.cli-session-view[data-hold-step='0'] { --cli-charge-panel-scale: 0.986; --cli-charge-capsule-scale: 0.940; }
+.cli-session-view[data-hold-step='1'] { --cli-charge-panel-scale: 0.993; --cli-charge-capsule-scale: 0.990; }
+.cli-session-view[data-hold-step='2'] { --cli-charge-panel-scale: 0.981; --cli-charge-capsule-scale: 0.925; }
+.cli-session-view[data-hold-step='3'] { --cli-charge-panel-scale: 0.992; --cli-charge-capsule-scale: 0.985; }
+.cli-session-view[data-hold-step='4'] { --cli-charge-panel-scale: 0.977; --cli-charge-capsule-scale: 0.910; }
+.cli-session-view[data-hold-step='5'] { --cli-charge-panel-scale: 0.991; --cli-charge-capsule-scale: 0.980; }
+.cli-session-view[data-hold-step='6'] { --cli-charge-panel-scale: 0.973; --cli-charge-capsule-scale: 0.895; }
+.cli-session-view[data-hold-step='7'] { --cli-charge-panel-scale: 0.987; --cli-charge-capsule-scale: 0.975; }
+.cli-session-view[data-hold-phase='charging'] .cli-composer-panel-charge { transform: scale(var(--cli-charge-panel-scale, 1)); }
+.cli-session-view[data-hold-phase='charging'] .cli-composer-capsule-charge { transform: scale(var(--cli-charge-capsule-scale, 1)); }
+.cli-composer-capsule-shell {
+  position: relative; display: inline-flex; align-items: stretch; max-width: 100%;
+  border: 1px solid var(--border-control); border-radius: var(--radius-control);
+  background: var(--surface-input); box-shadow: var(--shadow-page); color: var(--fg-secondary);
+  pointer-events: auto;
+}
+/* CLI 输入胶囊略透出终端，普通终端的识屏入口维持原有样式。 */
+.cli-session-view > .cli-composer-capsule .cli-composer-capsule-shell {
+  background: color-mix(in srgb, var(--surface-input) var(--cli-composer-capsule-opacity), transparent);
+}
+/* 过渡期间由面板外壳承担底色和描边，避免两个独立轮廓；胶囊按钮仅淡化交接。 */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-ui-motion='subtle']):not([data-ui-motion='reduced'])
+    .cli-session-view .cli-composer-capsule-shell[data-morph-active='true'] {
+    background: transparent; border-color: transparent; box-shadow: none;
+  }
+}
+.cli-session-view .cli-composer-capsule-shell.mp-pop[data-mp-stage='enter'],
+.cli-session-view .cli-composer-capsule-shell.mp-pop[data-mp-stage='out'] { transform: none; }
+.cli-session-view .cli-composer-capsule-shell.mp-pop[data-mp-stage='in'] { transition-delay: var(--dur-micro), 0s; }
+.cli-session-view .cli-composer-capsule-shell.mp-pop[data-mp-stage='out'] { transition-delay: 0s, 0s; }
+.cli-composer-toggle, .cli-composer-scan, .cli-composer-drag {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-width: 0; padding: 4px 8px;
+  border: 0; border-radius: var(--radius-control); background: transparent; color: inherit;
+  font: inherit; font-size: var(--font-caption); white-space: nowrap;
+  cursor: pointer; pointer-events: auto; user-select: none;
+}
+.cli-composer-toggle, .cli-composer-scan { flex: none; }
+.cli-composer-scan { border-left: 1px solid var(--border-control); border-radius: 0; }
+.terminal-scan-button { border-left: 0; border-radius: var(--radius-control); }
+.cli-composer-drag { flex: none; width: 22px; padding: 4px; border-left: 1px solid var(--border-control);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0; cursor: grab; touch-action: none; }
+.cli-composer-drag:active { cursor: grabbing; }
+.cli-composer-state-icon { display: inline-flex; flex: none; width: 13px; height: 13px;
+  transform: scale(1); transform-origin: center; transition: transform var(--dur-micro) var(--ease-standard); }
+/* 只放大收起态，留出更好点击的区域；窄面板允许按钮按剩余宽度收缩。 */
+.cli-session-view > .cli-composer-capsule :is(.cli-composer-toggle, .cli-composer-scan) {
+  flex: 0 1 34px; width: 34px; min-height: 30px; padding: 6px 0;
+}
+.cli-session-view > .cli-composer-capsule .cli-composer-drag {
+  flex: 0 1 26px; width: 26px; min-width: 0; min-height: 30px; padding: 6px 0;
+}
+.cli-session-view > .cli-composer-capsule :is(.cli-composer-state-icon, .cli-composer-toggle svg, .cli-composer-scan svg, .cli-composer-drag svg) {
+  flex: none; width: 15px; height: 15px;
+}
+.cli-composer-state-icon.is-charging { transform: scale(1.4); transition-duration: calc(var(--dur-breath) / 3); transition-timing-function: var(--ease-loop); }
+.cli-composer-toggle:hover, .cli-composer-scan:hover, .cli-composer-drag:hover { background: var(--interaction-hover); color: var(--fg-primary); }
+.cli-composer-toggle:focus-visible, .cli-composer-scan:focus-visible, .cli-composer-close:focus-visible, .cli-composer-drag:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.cli-composer-toggle.has-suggestions .cli-composer-expand-icon {
+  color: var(--primary-bg); transform-box: fill-box; transform-origin: center;
+  animation: cli-composer-breathe var(--dur-breath) var(--ease-loop) infinite;
+}
+@keyframes cli-composer-breathe {
+  0%, 100% { opacity: 0.6; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+.cli-session-view:not(.is-shown) .cli-composer-toggle.has-suggestions .cli-composer-expand-icon { animation-play-state: paused; }
+.cli-composer-dialog {
+  position: absolute; z-index: var(--z-dropdown); right: 8px; width: calc(100% - 16px);
+  max-width: calc(100% - 16px); max-height: calc(100% - 16px); overflow-y: auto; border-radius: var(--radius-composer);
+}
+.cli-composer-dialog[data-morph-active='false'] { visibility: hidden; }
+.cli-composer-dialog.mp-panel[data-mp-stage='in'] { opacity: 1; }
+.cli-composer-dialog.mp-panel[data-mp-stage='enter'],
+.cli-composer-dialog.mp-panel[data-mp-stage='out'] {
+  opacity: 1;
+  transform: scale(var(--cli-expand-scale-x, 0.2), var(--cli-expand-scale-y, 0.2));
+}
+/* 缩放外壳的透明度随开合过渡，与胶囊底色在交接时一致。 */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-ui-motion='subtle']):not([data-ui-motion='reduced'])
+    .cli-session-view .cli-composer-dialog.mp-panel:is([data-mp-stage='enter'], [data-mp-stage='out']) {
+    opacity: var(--cli-composer-capsule-opacity);
+  }
+}
+/* 外壳持续可见，内容稍后交接，避免缩小时文字压成一团或面板像是凭空淡入。 */
+.cli-composer-dialog :is(.cli-composer-resize, .composer-actions-header, .agent-composer-images, .composer-ta-wrap, .agent-composer-toolbar) {
+  opacity: 1; transition: opacity var(--dur-menu) var(--ease-standard) calc(var(--dur-micro) / 2);
+}
+.cli-composer-dialog[data-mp-stage='enter'] :is(.cli-composer-resize, .composer-actions-header, .agent-composer-images, .composer-ta-wrap, .agent-composer-toolbar) {
+  opacity: 0; transition: none;
+}
+.cli-composer-dialog[data-mp-stage='out'] :is(.cli-composer-resize, .composer-actions-header, .agent-composer-images, .composer-ta-wrap, .agent-composer-toolbar) {
+  opacity: 0; transition-duration: var(--dur-micro); transition-timing-function: var(--ease-exit); transition-delay: 0s;
+}
+.cli-composer-actions { display: inline-flex; flex: none; align-items: center; gap: 2px; color: var(--fg-secondary); }
+/* 侧边只改变光标，命中区不占用输入框内容。 */
+.cli-composer-resize {
+  position: absolute; z-index: 2; top: 6px; bottom: 6px;
+  width: 8px; padding: 0; border: 0;
+  background: transparent; cursor: col-resize; touch-action: none;
+}
+.cli-composer-resize.is-left { left: 0; }
+.cli-composer-resize.is-right { right: 0; }
+.cli-composer-resize:focus-visible { outline: none; }
+.cli-composer-dialog:has(.cli-composer-resize:focus-visible) { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+/* 两行的实际行高，加上输入核上下各自的内边距；不改变 GUI 共用的增高上限。 */
+.cli-composer .composer-editable { min-height: 64px; min-height: calc(2lh + 12px); }
+.cli-composer-popover { position: absolute; left: 8px; right: 8px; height: 0; z-index: var(--z-popover); pointer-events: none; }
+.cli-composer-popover > :is(.agent-composer-menu, .agent-composer-qip, .composer-plus-menu) {
+  max-height: var(--cli-popup-max-height, 200px); pointer-events: auto;
+}
+.cli-composer-popover.is-below > :is(.agent-composer-menu, .agent-composer-qip, .composer-plus-menu) { top: 0; bottom: auto; }
+.cli-composer-popover > .composer-plus-menu { left: 8px; min-width: min(220px, calc(100% - 16px)); max-width: calc(100% - 16px); }
+.cli-composer-actions .cli-composer-drag { width: 24px; height: 24px; border-left: 0; border-radius: var(--radius-control); }
+.cli-composer-actions .send-btn-icon { margin-left: 4px; }
+.cli-composer-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--fg-secondary); cursor: pointer;
+}
+.cli-composer-close:hover { background: var(--interaction-hover); color: var(--fg-primary); }
+.cli-composer .chat-input-row { padding: 0; }
+.cli-composer .chat-input-shell { box-shadow: var(--shadow-page); }
+.cli-composer-attachment-hint { min-width: 0; color: var(--fg-muted); font-size: var(--font-caption); }
+.cli-terminal-note { z-index: var(--z-popover); left: 12px; top: 12px; max-height: min(60%, 420px); overflow-y: auto; }
+.cli-terminal-note .msg-note-bubble-loc { max-height: 100px; overflow: auto; white-space: pre-wrap; }
+/* 轻微动态档缩小了面板位移，保留淡化以免完整尺寸的面板突然出现。 */
+:root[data-ui-motion='subtle'] .cli-composer-dialog.mp-panel[data-mp-stage='enter'],
+:root[data-ui-motion='subtle'] .cli-composer-dialog.mp-panel[data-mp-stage='out'] { opacity: 0; }
+:root[data-ui-motion='reduced'] .cli-composer-toggle.has-suggestions .cli-composer-expand-icon { animation: none; }
+:root[data-ui-motion='reduced'] .cli-composer-dialog.mp-panel[data-mp-stage='enter'] { transform: none; }
+:root[data-ui-motion='reduced'] .cli-composer-dialog.mp-panel[data-mp-stage='out'] { opacity: 0; transform: none; }
+:root[data-ui-motion='reduced'] .cli-composer-dialog :is(.cli-composer-resize, .composer-actions-header, .agent-composer-images, .composer-ta-wrap, .agent-composer-toolbar) { transition: none; }
+:root[data-ui-motion='reduced'] .cli-composer-state-icon { transition: none; }
+:root[data-ui-motion='reduced'] .cli-composer-state-icon.is-charging { transform: none; }
+:root[data-ui-motion='reduced'] .cli-composer-charge-surface { transform: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .cli-composer-toggle.has-suggestions .cli-composer-expand-icon { animation: none; }
+  .cli-composer-dialog.mp-panel[data-mp-stage='enter'] { transform: none; }
+  .cli-composer-dialog.mp-panel[data-mp-stage='out'] { opacity: 0; transform: none; }
+  .cli-composer-dialog :is(.cli-composer-resize, .composer-actions-header, .agent-composer-images, .composer-ta-wrap, .agent-composer-toolbar) { transition: none; }
+  .cli-composer-state-icon { transition: none; }
+  .cli-composer-state-icon.is-charging { transform: none; }
+  .cli-composer-charge-surface { transform: none !important; transition: none !important; }
+}
+/* 预览及已提交但尚未松手的阶段不截获本次终端鼠标操作。 */
+.cli-session-view.is-holding-terminal :is(.cli-composer-dialog, .cli-composer-capsule-shell, .cli-terminal-note),
+.cli-session-view.is-holding-terminal :is(.cli-composer-dialog, .cli-composer-capsule-shell, .cli-terminal-note) * {
+  pointer-events: none !important;
+}
+/* capturePage 截终端时临时隐藏悬浮入口/输入框，避免截图烘焙出重影。 */
+.cli-session-view.is-scan-capturing .cli-composer-capsule,
+.cli-session-view.is-scan-capturing .cli-composer-dialog,
+.cli-session-view.is-scan-capturing .cli-composer-popover,
+.cli-session-view.is-scan-capturing .cli-terminal-note,
+.terminal-wrap.is-scan-capturing .terminal-scan-capsule { opacity: 0 !important; transition: none !important; }
+
+.term-scan-mask {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-overlay);
+  cursor: default;
+  --scan-ox: 50%;
+  --scan-oy: 50%;
+  --scan-r: 0px;
+  background: transparent;
+  pointer-events: none;
+  /* 圆形展开：mask 在本层，不拍扁子层 */
+  -webkit-mask-image: radial-gradient(
+    circle at var(--scan-ox) var(--scan-oy),
+    #000 0,
+    #000 var(--scan-r),
+    transparent calc(var(--scan-r) + 1px)
+  );
+  mask-image: radial-gradient(
+    circle at var(--scan-ox) var(--scan-oy),
+    #000 0,
+    #000 var(--scan-r),
+    transparent calc(var(--scan-r) + 1px)
+  );
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: term-scan-reveal-r var(--dur-move) var(--ease-standard) forwards;
+}
+
+@keyframes term-scan-reveal-r {
+  from {
+    --scan-r: 0px;
+  }
+  to {
+    --scan-r: 160vmax;
+  }
+}
+
+/* 截图合成：模糊底 + 清晰洞（真实高斯模糊） */
+.term-scan-composite {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  pointer-events: auto;
+  cursor: default;
+}
+
+.term-scan-composite.is-on {
+  display: block;
+}
+
+/* 截图未就绪时：仅压暗挖洞，保证字可见 */
+.term-scan-frost-fallback {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  pointer-events: auto;
+  cursor: default;
+}
+
+.term-scan-hit {
+  position: absolute;
+  box-sizing: border-box;
+  border-bottom: none;
+  pointer-events: auto;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 4px;
+  z-index: 1;
+}
+
+/* 命中高亮走状态色 soft 底（design.md §1.3）：候选 hover = yellow，当前 active = blue */
+.term-scan-hit:hover {
+  background: var(--scan-hover-bg);
+}
+
+.term-scan-hit.is-active {
+  background: var(--scan-selected-bg);
+}
+
+.term-scan-hit::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  /* 略落在单元格底边之下，避免压住字形 */
+  bottom: -2px;
+  height: 2px;
+  background: var(--fg-secondary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: term-scan-underline var(--dur-panel) var(--ease-hover) forwards;
+  animation-delay: calc(var(--dur-micro) + var(--scan-i, 0) * var(--dur-stagger));
+}
+
+/* 命中类型下划线 = 状态色细线：url=blue（信息），path/loc=green（文件存在） */
+.term-scan-hit.is-url::after {
+  background: var(--status-info-fg);
+}
+
+.term-scan-hit.is-path::after,
+.term-scan-hit.is-loc::after {
+  background: var(--status-success-fg);
+}
+
+@keyframes term-scan-underline {
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.term-scan-menu {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+
+  position: absolute;
+  z-index: calc(var(--z-overlay) + 1);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+  transform-origin: top left;
+  animation: term-scan-menu-in var(--dur-exit) var(--ease-hover);
+}
+
+@keyframes term-scan-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.terminal-container {
+  width: 100%;
+  height: 100%;
+  /* 实际色由 TerminalView 写入 --terminal-bg = term.theme.background */
+  background: var(--terminal-bg, var(--surface-canvas));
+}
+
+/* viewport 拉满；screen 保持整行高度 */
+.terminal-container .xterm,
+.terminal-container .xterm-viewport,
+.terminal-container .xterm-scrollable-element {
+  height: 100%;
+}
+
+/* 覆盖 xterm 默认 #000，与终端实际底色保持一致 */
+.terminal-container .xterm,
+.terminal-container .xterm .xterm-viewport,
+.terminal-container .xterm-scrollable-element,
+.terminal-container .xterm-screen {
+  background-color: var(--terminal-bg, var(--surface-canvas)) !important;
+}
+
+/* 右侧 Fit 余量垫条：跟右缘 TUI 底色（与底部余量同机制、独立取色）。
+   z=2 压过底层背景、低于划词条(20)；宽与色由 TerminalView 按 fit 写入 */
+.terminal-pad-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* 中文预编辑串：默认几乎看不见，强制高对比（亮底 var(--text) + 近黑字反转块）；left/top 由 xterm CompositionHelper 负责 */
+.terminal-container .composition-view {
+  color: var(--primary-fg) !important;
+  background: var(--primary-bg) !important;
+  text-decoration: underline;
+  padding: 0 2px;
+  z-index: 20;
+}
+
+/* 勿强改 width/height：CompositionHelper 会按预编辑串调整，供系统 IME 锚定 */
+.terminal-container .xterm-helper-textarea {
+  z-index: 20;
+}

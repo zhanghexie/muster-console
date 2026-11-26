@@ -1,0 +1,42 @@
+.feedback-entry { position: relative; }
+.feedback-badge { position: absolute; right: -3px; top: -3px; min-width: 14px; padding: 1px 3px; border-radius: var(--radius-control); background: var(--status-danger-bg); color: var(--status-danger-fg); font-size: var(--font-micro); line-height: 1.2; }
+.feedback-overlay { --feedback-overlay-gap: 72px; align-items: flex-start; padding: var(--feedback-overlay-gap) 16px 16px; overflow: hidden; background: transparent; }
+.feedback-modal { --mp-fly-gap: var(--feedback-overlay-gap); width: min(940px, calc(100vw - 32px)); height: min(800px, calc(100vh - var(--feedback-overlay-gap) - 16px)); max-width: none; min-width: 0; max-height: calc(100vh - var(--feedback-overlay-gap) - 16px); display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+.feedback-source { margin: 0 0 8px; color: var(--fg-secondary); font-size: var(--font-caption); overflow-wrap: anywhere; }
+.feedback-layout { min-height: 0; display: grid; grid-template-columns: minmax(170px, 220px) minmax(0, 1fr); gap: 16px; flex: 1; }
+.feedback-sidebar { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.feedback-list { flex: 1; overflow: auto; min-width: 0; min-height: 0; }
+.feedback-row { width: 100%; height: 62px; flex: none; display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; padding: 10px; color: var(--fg-primary); background: transparent; border: 0; border-radius: var(--radius-control); cursor: pointer; }
+.feedback-row:hover { background: var(--interaction-hover); }
+.feedback-row.is-selected { background: var(--interaction-selected); }
+.feedback-row strong, .feedback-row span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feedback-row span { color: var(--fg-secondary); font-size: var(--font-caption); }
+.feedback-add { flex: none; width: 100%; margin-top: 8px; }
+.feedback-settings-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.feedback-detail { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.feedback-detail-heading { display: flex; align-items: baseline; gap: 8px; margin: 0 0 14px; min-width: 0; }
+.feedback-detail-heading strong { min-width: 0; overflow-wrap: anywhere; font-size: var(--font-control); font-weight: 500; }
+.feedback-status { flex: none; color: var(--fg-secondary); background: var(--interaction-hover); border-radius: var(--radius-pill); padding: 2px 7px; font-size: var(--font-caption); }
+.feedback-editor { flex: 1; min-width: 0; min-height: 0; display: grid; align-content: start; gap: 14px; overflow-y: auto; padding: 4px; scroll-padding: 4px; }
+.feedback-editor > label { display: flex; flex-direction: column; gap: 5px; color: var(--fg-secondary); font-size: var(--font-caption); }
+.feedback-field-caption { display: flex; align-items: baseline; gap: 6px; }
+.feedback-field-requirement { color: var(--fg-muted); font-size: var(--font-caption); }
+.feedback-editor textarea { width: 100%; min-width: 0; box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-input); color: var(--fg-primary); font: inherit; font-size: var(--font-control); line-height: 1.5; }
+.feedback-editor textarea { min-height: 36px; overflow-y: hidden; resize: none; }
+@supports (field-sizing: content) {
+  .feedback-editor textarea { field-sizing: content; height: auto; }
+}
+.feedback-editor .feedback-type-select { min-height: 36px; padding: 8px 10px; }
+.feedback-editor :is(input, textarea):read-only { cursor: text; }
+.feedback-actions { flex: none; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; padding-top: 12px; }
+.feedback-delete-confirm .confirm-modal { width: min(420px, calc(100vw - 32px)); min-width: 0; }
+@media (max-width: 650px) {
+  .feedback-overlay { --feedback-overlay-gap: 48px; padding-inline: 8px; }
+  .feedback-modal { width: calc(100vw - 16px); height: calc(100vh - var(--feedback-overlay-gap) - 16px); max-height: calc(100vh - var(--feedback-overlay-gap) - 16px); padding: 12px; }
+  .feedback-layout { display: flex; flex-direction: column; gap: 12px; }
+  .feedback-sidebar { flex: none; }
+  .feedback-list { display: flex; flex: none; max-height: 72px; overflow-x: auto; }
+  .feedback-row { width: 150px; min-width: 150px; }
+  .feedback-add { align-self: flex-start; width: auto; white-space: nowrap; }
+  .feedback-detail { flex: 1; }
+}

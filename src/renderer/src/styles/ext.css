@@ -1,0 +1,1165 @@
+/* ext.css — 由 styles.css 拆分（域：ext）。规范见 /design.md。修改请守住 token。 */
+/* 海拔：扩展面板外壳 L1；管理/审查/导入弹窗 L3 + radius-modal（design.md §7/§10）。 */
+
+
+.modal.ext-ui-dialog {
+  min-width: 0;
+  width: min(420px, calc(100vw - 32px));
+}
+
+.ext-ui-dialog-msg {
+  margin: 0 0 12px;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+  line-height: 1.45;
+}
+
+/* 输入：凹槽底 + hairline 边（design.md §9） */
+.ext-ui-dialog-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-control);
+  resize: vertical;
+}
+
+.ext-ui-dialog-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.ext-ui-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 16px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+/* 菜单项/选项行：列表行规范（radius-control，design.md §9） */
+.ext-ui-dialog-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ext-ui-dialog-row:hover {
+  background: var(--interaction-hover);
+}
+
+.ext-ui-dialog-row.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.ext-ui-dialog-row-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ext-ui-dialog-item-label {
+  font-size: var(--font-control);
+  line-height: 1.35;
+}
+
+.ext-ui-dialog-item-detail {
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  line-height: 1.35;
+}
+
+/* 菜单分隔：白名单外不画线，用间距分组（design.md §3） */
+.ext-ui-dialog-sep {
+  height: 8px;
+  margin: 0;
+  background: none;
+}
+
+/* 自定义选中标记：单选/多选同一外观，避免原生 checkbox */
+.ext-ui-dialog-mark {
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--fg-muted);
+  border-radius: 4px; /* 嵌套递减（design.md §2） */
+  color: var(--action-fg);
+  background: transparent;
+  opacity: 0.9;
+  transition:
+    background var(--dur-micro) var(--ease-hover),
+    border-color var(--dur-micro) var(--ease-hover),
+    opacity var(--dur-micro) var(--ease-hover);
+}
+
+.ext-ui-dialog-mark.is-on {
+  border-color: var(--action-bg);
+  background: var(--action-bg);
+  opacity: 1;
+}
+
+.ext-ui-dialog-row:hover .ext-ui-dialog-mark:not(.is-on) {
+  border-color: var(--fg-secondary);
+  opacity: 1;
+}
+
+/* 扩展面板（HTML 宿主）：外壳 L1、内边距 12（design.md §10 扩展面板宿主） */
+.ext-panel {
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 底部状态条（元信息+操作）：紧凑单行，替代原顶部标题栏——
+ * 扩展自己会渲染标题，宿主不再重复；关闭=返回终端的唯一入口 */
+.ext-panel-statusbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  min-height: 26px;
+  border-top: 1px solid var(--border-subtle);
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+
+.ext-panel-meta {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ext-panel-meta-name {
+  color: var(--fg-secondary);
+}
+
+.ext-panel-meta-id {
+  font-family: var(--font-mono);
+  font-size: var(--font-micro);
+
+  color: var(--fg-muted);
+}
+
+.ext-panel-meta-outdated {
+  color: var(--status-warning-fg);
+}
+
+.ext-panel-meta-spacer {
+  flex: 1;
+}
+
+.ext-panel-statusbar .ui-btn.tiny {
+  min-height: 20px;
+  padding: 0 6px;
+  border: none;
+}
+
+.ext-panel-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  padding: 12px;
+}
+
+.ext-agent-layout {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.ext-agent-layout.has-agent {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 34%);
+}
+
+.ext-agent-main,
+.ext-agent-sidebar {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ext-agent-sidebar {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+}
+
+/* 停靠的两个区域共用内侧边线。拖拽热区跨在这条线上，不占 grid 列宽。 */
+.ext-agent-layout.docked {
+  column-gap: 0;
+}
+
+/* 拖动时指针可越过 iframe 的独立浏览上下文，再在其中松手。 */
+.ext-agent-layout.resizing .ext-panel-frame {
+  pointer-events: none;
+}
+
+.ext-agent-layout.docked:not(.dock-left) .ext-panel-frame,
+.ext-agent-layout.docked.dock-left .ext-agent-sidebar {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right-width: 0;
+}
+
+.ext-agent-layout.docked:not(.dock-left) .ext-agent-sidebar,
+.ext-agent-layout.docked.dock-left .ext-panel-frame {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.ext-agent-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  z-index: 4;
+  cursor: col-resize;
+  touch-action: none;
+  transform: translateX(50%);
+}
+
+.ext-agent-layout.dock-left .ext-agent-resizer {
+  transform: translateX(-50%);
+}
+
+.ext-agent-resizer::before {
+  content: '';
+  position: absolute;
+  left: 3.5px;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.ext-agent-resizer:hover::before,
+.ext-agent-resizer.active::before {
+  background: var(--divider-focus);
+}
+
+/* AI 悬浮模式（底栏四态选择：悬浮在左/右）：侧栏改浮层压在扩展上，扩展占满整行。
+   绝对定位只设 top 时高度会坍成 auto，而 AgentChatView 是 100% 高度链——必须显式给高度。 */
+.ext-agent-layout.float-left,
+.ext-agent-layout.float-right {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ext-agent-layout.float-left .ext-agent-sidebar,
+.ext-agent-layout.float-right .ext-agent-sidebar {
+  position: absolute;
+  bottom: 8px;
+  max-width: calc(100% - 16px);
+  z-index: 6;
+  height: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  box-shadow: var(--shadow-card);
+}
+
+.ext-agent-layout.float-left .ext-agent-sidebar {
+  left: 8px;
+}
+
+.ext-agent-layout.float-right .ext-agent-sidebar {
+  right: 8px;
+}
+
+/* 悬浮卡片角部调节把手：与调度 Agent 面板同款斜纹角标（横向拖改宽、纵向拖改高）。
+   悬浮左=右上角（nesw）、悬浮右=左上角（镜像 45° 纹路 + nwse）。 */
+.ext-agent-resizer-corner {
+  position: absolute;
+  top: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nesw-resize;
+  z-index: 7;
+  touch-action: none;
+}
+
+.ext-agent-layout.float-left .ext-agent-resizer-corner {
+  right: 0;
+}
+
+.ext-agent-layout.float-right .ext-agent-resizer-corner {
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.ext-agent-resizer-corner::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: repeating-linear-gradient(135deg, var(--divider-rest) 0 1px, transparent 1.5px 5px);
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  opacity: 0.45;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.ext-agent-layout.float-right .ext-agent-resizer-corner::before {
+  background: repeating-linear-gradient(45deg, var(--divider-rest) 0 1px, transparent 1.5px 5px);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.ext-agent-resizer-corner:hover::before {
+  opacity: 1;
+  background: repeating-linear-gradient(135deg, var(--divider-active) 0 1px, transparent 1px 5px);
+}
+
+.ext-agent-layout.float-right .ext-agent-resizer-corner:hover::before {
+  background: repeating-linear-gradient(45deg, var(--divider-active) 0 1px, transparent 1px 5px);
+}
+
+/* 嵌入左侧：grid 列宽模板不变，order 换序把侧栏放到 iframe 左边 */
+.ext-agent-layout.dock-left .ext-agent-main {
+  order: 1;
+}
+
+.ext-agent-layout.dock-left .ext-agent-sidebar {
+  order: 0;
+}
+
+/* 底栏状态胶囊（AI 侧栏隐藏时）：实时状态点 + 状态词 + 未读回复摘要，点击重开侧栏 */
+.ext-agent-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 46%;
+  height: 20px;
+  padding: 0 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-canvas);
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.ext-agent-pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--status-success-fg);
+}
+
+.ext-agent-pill-dot.is-error {
+  background: var(--status-danger-fg);
+}
+
+.ext-agent-pill-status {
+  color: var(--fg-secondary);
+  white-space: nowrap;
+}
+
+.ext-agent-pill-reply {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+
+@media (max-width: 760px) {
+  .ext-agent-layout.has-agent:not(.float-left):not(.float-right) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(260px, 1fr) minmax(280px, 42%);
+  }
+
+  .ext-agent-resizer {
+    display: none;
+  }
+}
+
+/* 底栏图标按钮：AI 开/关、重载、关闭（可访问名走 aria-label） */
+.ext-statusbar-icon {
+  color: var(--fg-muted);
+}
+
+.ext-statusbar-icon.on {
+  color: var(--fg-primary);
+}
+
+/* iframe：L0 贴地内容面 + radius-card 圆角（design.md §10） */
+.ext-panel-frame {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+}
+
+/* 空态：居中 --text-3 + mono 装饰符（design.md §9） */
+.ext-panel-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.ext-panel-empty::before {
+  content: '[ · ]';
+  font-family: var(--font-mono);
+  font-size: var(--font-body);
+  color: var(--fg-muted);
+}
+
+.ext-panel-empty .ui-empty-title {
+  font-size: var(--font-body);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.ext-panel-empty .ui-empty-desc {
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+
+.ext-panel-error {
+  font-family: var(--font-mono);
+  color: var(--status-danger-fg);
+  white-space: pre-wrap;
+  max-width: 640px;
+}
+
+/* 扩展管理面板：按自身内容宽度堆叠，不依赖整个窗口的宽度。 */
+.ext-manager-panel {
+  container: extension-manager / inline-size;
+  min-width: 0;
+}
+
+/* 管理行 = L2 卡片行（用户验收口径：透明行与背景融为一体，看不出是一项）：
+ * --bg-raised + hairline + radius-card + 内边距 12，行间 8px。
+ * 与 .prompt-task-row 组合出现（ExtensionsManagerPanel），组合选择器压过
+ * 后加载的 tasks.css 透明行基底（styles.css 导入序 ext → tasks）。 */
+.prompt-task-row.ext-manager-row {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.prompt-task-row.ext-manager-row + .prompt-task-row.ext-manager-row {
+  margin-top: 8px; /* 行间 8px（覆盖列表行基底 6px） */
+}
+
+/* hover 只叠白，不抬层不换色（design.md §8） */
+.prompt-task-row.ext-manager-row:hover {
+  background-image: linear-gradient(var(--interaction-hover), var(--interaction-hover));
+}
+
+.ext-manager-row-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+}
+
+.ext-manager-row-main > .ext-manager-info {
+  flex: 1 1 220px;
+}
+
+/* 扩展图标槽：32px，内置资源与旧文本图标都保持同一命中区。 */
+.ext-manager-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  color: var(--fg-secondary);
+  font-size: var(--font-title);
+  object-fit: contain;
+}
+
+/* 面板底栏的扩展图标经 mask 渲染（span 自带 inline 尺寸与基线对齐，无需 img 规则） */
+
+.ext-manager-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ext-manager-name-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ext-manager-name {
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ext-manager-ver {
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+/* 状态胶囊：pill + soft 底（状态色 10–14% mix，design.md §1.3/§9） */
+.ext-status {
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
+  line-height: 1.5;
+}
+
+.ext-status.on {
+  background: var(--status-success-bg);
+  color: var(--status-success-fg);
+}
+
+.ext-status.off {
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+}
+
+.ext-status.error {
+  background: var(--status-danger-bg);
+  color: var(--status-danger-fg);
+}
+
+.ext-manager-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ext-manager-meta code {
+  padding: 1px 6px;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.ext-badge {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.ext-manager-desc {
+  overflow-wrap: anywhere;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+}
+
+.ext-manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ext-manager-actions > .ui-btn {
+  flex: 0 0 auto;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container extension-manager (max-width: 640px) {
+  .ext-manager-row-main > .ext-manager-info {
+    flex-basis: 0;
+  }
+
+  .ext-manager-actions {
+    flex-basis: 100%;
+    padding-left: 44px;
+  }
+}
+
+/* 危险操作：红描边次按钮（design.md §10） */
+.ext-manager-actions .ui-btn.danger {
+  background: transparent;
+  border: 1px solid var(--status-danger-border);
+  color: var(--status-danger-fg);
+}
+
+.ext-manager-actions .ui-btn.danger:hover:not(:disabled) {
+  background: var(--status-danger-bg);
+}
+
+.ext-badge-warn {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+}
+
+/* 扩展结构化审查视图（TOFU 确认门 / 管理详情共用） */
+/* 弹窗规范：L3 底 + radius-modal（design.md §7；.modal 基类为 L2，此处按规范上调） */
+.ext-confirm-modal,
+.ext-review-modal,
+.ext-import-modal,
+.ext-ui-dialog {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  background: var(--surface-overlay);
+  border-radius: var(--radius-modal);
+}
+
+.ext-confirm-modal,
+.ext-review-modal {
+  width: min(720px, calc(100vw - 48px));
+  max-width: 720px;
+  /* 弹窗定高不滚动；内容区内部滚，操作按钮钉底 */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ext-confirm-modal > h3,
+.ext-review-modal > h3 {
+  flex-shrink: 0;
+}
+
+.ext-confirm-modal > .ext-review,
+.ext-review-modal > .ext-review {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 6px;
+  margin-right: -6px;
+}
+
+/* 弹窗头尾靠内边距与字阶，不画线（design.md §3） */
+.ext-confirm-modal > .modal-actions,
+.ext-review-modal > .modal-actions {
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.ext-review {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ext-review-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ext-review-head-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+  font-size: var(--font-title);
+}
+
+.ext-review-head-main {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ext-review-name-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ext-review-name {
+  color: var(--fg-primary);
+  font-size: var(--font-body);
+  font-weight: 500;
+}
+
+.ext-review-head-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ext-review-head-meta code {
+  padding: 1px 6px;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.ext-review-desc {
+  margin: 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1.5;
+}
+
+/* 分区：caption 标题 + 16px 区距（design.md §3/§5），不靠 accent 条/线 */
+.ext-review-sec {
+  margin-top: 0;
+}
+
+.ext-review-sec h4 {
+  margin: 0 0 8px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+/* 键值事实行：容器只做纵向堆叠，网格设在每一行上（60px 列挤行 bug 的修正）；
+ * 行间不画线，靠行距分组（design.md §3） */
+.ext-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ext-fact {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  column-gap: 12px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.ext-fact-k {
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.ext-fact-v {
+  font-size: var(--font-ui);
+  line-height: 1.55;
+  color: var(--fg-primary);
+  min-width: 0;
+}
+
+.ext-fact-v code {
+  padding: 1px 5px;
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  font-size: var(--font-caption);
+  word-break: break-all;
+}
+
+/* 文件链接（应用内文件区预览 / 资源管理器） */
+.ext-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  padding: 0 7px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: none;
+  cursor: pointer;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  line-height: 1.6;
+  vertical-align: baseline;
+}
+
+.ext-file-link:hover {
+  color: var(--fg-secondary);
+  border-color: var(--fg-muted);
+  background: var(--interaction-hover);
+}
+
+.ext-file-link.bare {
+  border: none;
+  padding: 0;
+  margin-left: 0;
+  background: none;
+}
+
+.ext-file-link-text {
+  font-family: var(--font-mono);
+  font-size: var(--font-caption);
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ext-review-companions {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+/* 运行时通道列表 */
+.ext-review-channels {
+  margin: 0;
+  padding-left: 15px;
+  font-size: var(--font-ui);
+  line-height: 1.7;
+  color: var(--fg-secondary);
+}
+
+/* 面板能力：chip 放键列 */
+.ext-review-perms .ext-badge {
+  display: inline-block;
+  min-width: 46px;
+  text-align: center;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--interaction-hover);
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+
+/* 扩展导入弹窗 */
+.ext-import-modal {
+  width: min(560px, calc(100vw - 64px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ext-import-modal h3 {
+  font-size: var(--font-title);
+  font-weight: 500; /* 弹窗标题（design.md §5） */
+}
+
+.ext-import-note {
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1.6;
+}
+
+.ext-import-done {
+  color: var(--status-success-fg);
+  font-size: var(--font-ui);
+}
+
+.ext-import-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 导入行：L3 弹窗内的 L2 行（相邻层嵌套，design.md §1.1） */
+.ext-import-row {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+
+/* Location controls size to their label; the extension name gets remaining room. */
+.ext-panel-statusbar .ext-placement-select { width: auto; min-width: 0; max-width: 132px; flex: 0 0 auto; font-size: var(--font-caption); min-height: 24px; }
+.ext-panel-statusbar .ext-panel-meta { min-width: 0; }
+.ext-panel-statusbar { flex-wrap: wrap; }
+.extension-surface-home, .extension-surface, .extension-tab-host { position: absolute; inset: 0; min-width: 0; min-height: 0; }
+.extension-tab-host, .extension-surface-home { isolation: isolate; }
+.extension-tab-peek, .extension-home-peek { position: absolute; inset: 0; z-index: 1; }
+.ext-panel-away { background: var(--surface-canvas); }
+.ext-panel-away-content { height: 100%; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; text-align: center; color: var(--fg-secondary); }
+.ext-panel-away-content strong { font-size: var(--font-title); font-weight: 500; }
+.ext-panel-away-content p { margin: 0; }
+
+.ext-placement-error { position: absolute; z-index: 1; inset: 12px 12px auto; padding: 12px; background: var(--surface-raised); color: var(--status-danger-fg); }
+
+.ext-extension-manager { overflow: hidden; }
+.extension-chrome-ext-actions .chrome-ext-menu { left: auto; right: 0; min-width: min(200px, calc(100vw - 16px)); }
+.extension-chrome-ext-actions .chrome-ext-submenu { min-width: min(180px, calc(100vw - 16px)); }
+.extension-chrome-ext-actions .chrome-ext-submenu.is-right-aligned, .extension-chrome-ext-actions .chrome-ext-submenu.is-flyout { left: auto; right: 0; }
+.extension-chrome-ext-actions .chrome-ext-submenu.is-flyout { top: 100%; }
+.ext-extension-project { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.ext-extension-project .c-select-trigger { max-width: 280px; }
+.ext-extension-manager .ext-status.warning { background: var(--status-warning-bg); color: var(--status-warning-fg); }
+.ext-extension-tabs { display: flex; flex: none; gap: 4px; overflow-x: auto; padding: 0 24px; border-bottom: 1px solid var(--border-subtle); }
+.ext-extension-tabs button { flex: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; background: transparent; color: var(--fg-secondary); font: inherit; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.ext-extension-tabs button[aria-selected='true'] { color: var(--fg-primary); border-bottom-color: var(--fg-primary); }
+.ext-extension-tabs button span { margin-left: 5px; color: var(--fg-muted); font-size: var(--font-caption); }
+.ext-extension-tabs button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -3px; }
+.ext-extension-summary:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.ext-extension-views { background: var(--surface-canvas); }
+.ext-extension-list { box-sizing: border-box; overflow: auto; padding: 16px 24px 30px; }
+.ext-extension-center { box-sizing: border-box; display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; overflow: hidden; padding: 16px 24px 30px; }
+.ext-extension-installed-toolbar, .ext-extension-center-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; inline-size: 100%; max-inline-size: 1132px; margin: 0 auto 16px; color: var(--fg-secondary); font-size: var(--font-ui); }
+.ext-extension-global-toolbar { justify-content: flex-end; }
+.ext-extension-center-list, .ext-extension-global-groups { display: flex; flex-direction: column; gap: 24px; }
+.ext-extension-global-groups { max-inline-size: 1132px; margin-inline: auto; }
+.ext-extension-group { display: flex; flex-direction: column; align-items: stretch; min-inline-size: 0; }
+.ext-extension-group h2 { margin: 0 0 8px; color: var(--fg-secondary); font-size: var(--font-ui); font-weight: 650; }
+.ext-extension-group .ext-extension-row { margin-inline: 0; min-inline-size: 0; }
+.ext-extension-center-views { width: 100%; max-width: 1132px; min-height: 0; margin: 0 auto; flex: 1 1 auto; box-sizing: border-box; }
+.ext-extension-center-list-view, .ext-extension-center-detail-view { min-height: 0; overflow: auto; }
+.ext-extension-row { max-width: 1132px; margin-left: auto; margin-right: auto; }
+.ext-extension-summary { display: flex; flex: 1 1 120px; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ext-extension-toggle { flex: 0 0 auto; }
+.ext-extension-detail { margin: 0 12px 12px 56px; color: var(--fg-secondary); font-size: var(--font-ui); overflow-wrap: anywhere; }
+.ext-extension-detail > div + div { margin-top: 6px; }
+.ext-extension-detail code { color: var(--fg-primary); overflow-wrap: anywhere; }
+.ext-extension-center-detail { box-sizing: border-box; min-height: 420px; padding: 20px 24px 28px; background: var(--surface-raised); color: var(--fg-primary); }
+.ext-extension-center-detail-toolbar { display: flex; justify-content: flex-start; margin-bottom: 20px; }
+.ext-extension-center-detail-header { display: flex; align-items: center; gap: 14px; }
+.ext-extension-center-detail-title { min-width: 0; flex: 1; }
+.ext-extension-center-detail-title h2 { margin: 0; font-size: var(--font-title); font-weight: 650; }
+.ext-extension-center-detail-title p { margin: 5px 0 0; color: var(--fg-secondary); font-size: var(--font-caption); }
+.ext-extension-center-detail-header .ext-status { flex: none; }
+.ext-extension-center-detail-description { max-width: 760px; margin: 18px 0; color: var(--fg-secondary); font-size: var(--font-ui); line-height: 1.6; }
+.ext-extension-center-detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; max-width: 760px; margin: 0; }
+.ext-extension-center-detail-meta > div { min-width: 0; }
+.ext-extension-center-detail-meta dt { color: var(--fg-muted); font-size: var(--font-caption); }
+.ext-extension-center-detail-meta dd { margin: 3px 0 0; color: var(--fg-primary); overflow-wrap: anywhere; }
+.ext-extension-center-detail-meta code { font-size: var(--font-caption); }
+.ext-extension-center-detail-section { max-width: 760px; margin-top: 22px; }
+.ext-extension-center-detail-section h3 { margin: 0 0 8px; font-size: var(--font-ui); font-weight: 650; }
+.ext-extension-center-detail-section p { margin: 0; color: var(--fg-secondary); white-space: pre-wrap; line-height: 1.6; }
+.ext-extension-center-detail-readme { padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-canvas); color: var(--fg-secondary); white-space: pre-wrap; line-height: 1.6; }
+.ext-extension-center-detail-link { margin: 14px 0 0; }
+.ext-extension-center-detail-link a { color: var(--fg-link); }
+.ext-extension-center-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.ext-extension-issue { margin: 8px 24px; overflow-wrap: anywhere; }
+.ext-extension-problems { flex: 0 1 auto; min-height: 0; max-height: 48%; overflow: auto; }
+.ext-extension-transaction { padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-raised); color: var(--fg-primary); font-size: var(--font-ui); }
+.ext-extension-transaction p { margin: 0 0 8px; }
+.ext-extension-transaction-paths { margin: 0 0 10px; color: var(--fg-secondary); font-size: var(--font-caption); }
+.ext-extension-transaction-paths code { overflow-wrap: anywhere; }
+.ext-extension-transaction-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@container extension-manager (max-width: 480px) {
+  .ext-extension-tabs { padding: 0 12px; }
+  .ext-extension-list { padding: 12px; }
+  .ext-extension-center { padding: 12px; }
+  .ext-extension-center-detail { padding: 16px 14px 22px; }
+  .ext-extension-center-detail-meta { grid-template-columns: minmax(0, 1fr); }
+  .ext-extension-detail { margin-left: 12px; }
+}
+
+/* 扩展独立窗口（#extension-window?...）：整个 v4 面板（iframe + AI 侧栏）一体承载 */
+.detached-extension-window { position: relative; height: 100vh; height: 100dvh; }
+.ext-publishing-dialog.modal {
+  color: var(--fg-primary);
+  inline-size: min(520px, calc(100% - 32px));
+  min-width: 0;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.ext-publishing-dialog::backdrop { background: var(--scrim); overflow: hidden; overscroll-behavior: contain; }
+.ext-publishing-dialog .modal-actions { flex-wrap: wrap; }
+.ext-publishing-form { display: grid; gap: 8px; }
+.ext-publishing-form .ui-input { box-sizing: border-box; inline-size: 100%; }
+.ext-publishing-form p { margin: 0; }
+.ext-publishing-dialog [role='status']:empty { margin: 0; }
+.ext-review-queue { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ext-review-queue > li > button { inline-size: 100%; text-align: start; }

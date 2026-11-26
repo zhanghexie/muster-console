@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' http://localhost:5188 muster-root:; style-src 'self' 'unsafe-inline' https://cdn-font.hyperos.mi.com https://cdn.jsdelivr.net muster-root:; img-src 'self' data: blob: http: https: muster-ws: muster-root: muster-ext:; font-src 'self' data: https://www.oppo.com https://cdn-font.hyperos.mi.com https://cdn.jsdelivr.net muster-root:; connect-src 'self' http://localhost:5188 ws://localhost:5188 muster-ws: muster-root: muster-ext:; frame-src 'self' muster-app: muster-root: muster-ws: muster-ext:; media-src 'self' blob: muster-ws: muster-root: muster-ext:; object-src 'none'; base-uri 'self' muster-root:" />
+    <title>集序</title>
+    <!-- 可选界面字体（设置-外观切换）：OPPO Sans 是默认字体，@font-face 常驻 styles/base.css 顶部
+         （OPPO 无 CSS API 只能手挂）；MiSans / HarmonyOS Sans 的 CSS link 由 renderer/uiFont.ts
+         在选中该字体时才动态注入——启动零外部字体请求，不阻塞渲染；
+         离线/加载失败时静默回退系统字体栈。此处不得静态外链字体 CSS（守卫 test/ui-font.mjs）。 -->
+    <style>
+/* resolved-appearance:start */
+:root {
+  --surface-frame: #202023;
+  --surface-raised: #232326;
+  --status-danger-bg: #2f1e22;
+  --status-danger-fg: #f3687b;
+  --status-danger-border: #4a282e;
+}
+/* resolved-appearance:end */
+      :root { --dur-breath: 1800ms; --ease-loop: cubic-bezier(0.37, 0, 0.63, 1); }
+      html, body { margin: 0; height: 100%; }
+      /* 启动遮罩在 root 外持续播放；主界面就绪后一次性移除，不重复淡入加载标记。 */
+      .app-root-fade-in { height: 100%; }
+
+      /* 启动自报错浮层：入口脚本没执行（内核过旧/解析失败）或启动抛错时，
+         在骨架屏上直接显示原因——手机上没开发者工具也能定位「卡在加载界面」 */
+      .boot-diag {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        z-index: 2147483646;
+        box-sizing: border-box;
+        max-height: 45%;
+        overflow: auto;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: var(--status-danger-bg);
+        color: var(--status-danger-fg);
+        border: 1px solid var(--status-danger-border);
+        font: 12px/1.6 system-ui, sans-serif;
+        word-break: break-all;
+        white-space: pre-wrap;
+      }
+    </style>
+    <link rel="stylesheet" href="./src/styles/brand-loading.css" />
+    <script>
+      // Final roles from the last saved appearance; preview drafts never enter this cache.
+      try {
+        var bootAppearance = JSON.parse(localStorage.getItem('muster.appearance.boot.v1') || '{}');
+        ['--fg-primary','--surface-frame','--surface-raised','--status-danger-bg','--status-danger-fg','--status-danger-border'].forEach(function (key) {
+          if (typeof bootAppearance[key] === 'string') document.documentElement.style.setProperty(key, bootAppearance[key]);
+        });
+      } catch (_) { /* Generated default palette is available before the entry module. */ }
+      try {
+        if (JSON.parse(localStorage.getItem('muster.interaction.v1') || '{}').motion === 'reduced') document.documentElement.dataset.uiMotion = 'reduced';
+      } catch (_) {}
+      // 必须在入口 module 之前注册：module 解析/执行失败也走 window error。
+      // 本陷阱只对启动期负责：React 挂载成功即整体退役（看门狗摘除监听），
+      // 挂载后的错误归 main.tsx 的 reportRendererError / ErrorBoundary 管——
+      // 否则运行期任何 error（含 ResizeObserver 自限提示这类良性事件）都会被
+      // 误标成「启动失败」且永无机制收走（回归见 test/e2e/boot-diag.spec.ts）。
+      (function () {
+        var reported = false;
+        function booted() {
+          return !document.getElementById('boot-overlay') && !!document.querySelector('.app-root-fade-in, .ma-root, .app-shell');
+        }
+        function show(text) {
+          // 挂载守卫：已挂载说明启动成功，此后任何错误都不属于「启动失败」
+          if (reported || booted()) return;
+          reported = true;
+          var el = document.createElement('div');
+          el.className = 'boot-diag';
+          el.textContent = text;
+          document.body.appendChild(el);
+        }
+        function onError(e) {
+          var t = e.target && e.target.tagName === 'SCRIPT' && e.target.src
+            ? '脚本加载失败: ' + e.target.src
+            : (e.message || 'unknown error') + (e.filename ? '\n  at ' + e.filename + ':' + e.lineno : '');
+          show('启动失败 / Boot error:\n' + t);
+        }
+        function onRejection(e) {
+          var r = e.reason;
+          show('启动失败 / Boot error (promise):\n' + ((r && (r.stack || r.message)) || String(r)));
+        }
+        window.addEventListener('error', onError);
+        window.addEventListener('unhandledrejection', onRejection);
+        // 看门狗：25s（> bootWait 15s 兜底 + 挂载余量）仍未挂载 React（骨架屏还在）
+        // ≈ 入口脚本没跑或卡死。常见于旧内核（需 Chrome 89+ / 较新 WebView；微信等
+        // 内置浏览器可能不满足）；慢网络下也可能是资源未拉完，措辞两者都提。
+        // React 挂载后自动撤下提示（慢启动场景不残留误报），并让整个陷阱退役。
+        var waited = 0;
+        var timer = setInterval(function () {
+          waited += 3;
+          if (booted()) {
+            clearInterval(timer);
+            window.removeEventListener('error', onError);
+            window.removeEventListener('unhandledrejection', onRejection);
+            var box = document.querySelector('.boot-diag');
+            if (box) box.remove();
+            return;
+          }
+          if (waited >= 25 && !reported && document.querySelector('.boot-skel')) {
+            show(
+              '页面长时间未完成启动 / Page failed to start.\n' +
+                '可能原因：当前浏览器内核过旧（需 Chrome 89+ 或较新 WebView，微信等内置浏览器可能不满足），' +
+                '或网络过慢资源未拉完。请改用最新版 Chrome 重试。\nUA: ' +
+                navigator.userAgent
+            );
+          }
+        }, 3000);
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+      <!-- 静态启动标记双语（F-01 brand-loading）：无 React i18n，沿用本文件看门狗文案的
+           「中文 / English」既有范式；React 侧 BrandBootLoader 已走 t() 按语言切换。 -->
+      <div id="boot-overlay" class="boot-skel" role="status" aria-label="集序 正在启动 / Starting">
+        <svg class="brand-loader" width="88" height="88" viewBox="0 0 1024 1024" aria-hidden="true" focusable="false">
+          <circle cx="512" cy="512" r="296" fill="none" stroke="currentColor" stroke-opacity=".28" stroke-width="46" />
+          <circle class="brand-loader-core" cx="512" cy="512" r="120" fill="currentColor" />
+          <g class="brand-loader-orbit" fill="currentColor">
+            <circle cx="682" cy="270" r="80" /><circle cx="221" cy="563" r="80" /><circle cx="584" cy="799" r="80" />
+          </g>
+        </svg>
+        <div class="brand-boot-name">集序</div>
+      </div>
+    <script type="module" src="./src/main.tsx"></script>
+  </body>
+</html>

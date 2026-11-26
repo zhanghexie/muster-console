@@ -1,0 +1,54 @@
+.desktop-indicator-page,
+.desktop-indicator-page body,
+.desktop-indicator-page #root { margin: 0; width: 100%; height: 100%; overflow: hidden; }
+
+.desktop-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 12px;
+  color: var(--fg-primary);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  font: inherit;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
+.desktop-indicator__status { font-weight: 500; white-space: nowrap; }
+.desktop-indicator__target { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.desktop-indicator__hint { color: var(--fg-secondary); white-space: nowrap; }
+.desktop-indicator button {
+  flex: none;
+  padding: 5px 10px;
+  color: var(--fg-primary);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  font: inherit;
+  cursor: pointer;
+}
+.desktop-indicator button:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.desktop-indicator button:disabled { cursor: default; }
+
+@media (max-width: 400px) {
+  .desktop-indicator {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto;
+    grid-template-rows: 1fr 1fr;
+    gap: 0 8px;
+  }
+  .desktop-indicator__status {
+    grid-column: 1 / 3;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .desktop-indicator__target { grid-column: 1; grid-row: 2; }
+  .desktop-indicator__hint { grid-column: 2; grid-row: 2; }
+  .desktop-indicator button { grid-column: 3; grid-row: 1 / 3; }
+}

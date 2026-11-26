@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>子代理通用化原型 · 左栏树 + 下钻面板</title>
+<style>
+  :root {
+    --frame-bg: #16171a;
+    --frame-fg-primary: #e8e8ea;
+    --frame-fg-muted: #9a9aa2;
+    --frame-fg-faint: #6a6a72;
+    --surface: #1c1d21;
+    --surface-2: #232429;
+    --border-subtle: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.16);
+    --interaction-hover: rgba(255,255,255,0.06);
+    --interaction-selected: rgba(255,255,255,0.10);
+    --interaction-selected-hover: rgba(255,255,255,0.14);
+    --accent: #7f9cf5;
+    --accent-dim: rgba(127,156,245,0.16);
+    --ok: #62c093;
+    --warn: #e0a458;
+    --run: #7f9cf5;
+    --radius-control: 7px;
+    --radius-modal: 10px;
+    --left-pad-x: 12px;
+    --row-h: 34px;
+    --font-ui: 13px;
+    --font-caption: 11px;
+    --dur-micro: 120ms;
+    --ease-hover: cubic-bezier(0.2, 0, 0, 1);
+    --ease-standard: cubic-bezier(0.2, 0, 0.2, 1);
+  }
+  html[data-theme="light"] {
+    --frame-bg: #f4f4f6;
+    --frame-fg-primary: #1a1a1c;
+    --frame-fg-muted: #62626a;
+    --frame-fg-faint: #8e8e96;
+    --surface: #ffffff;
+    --surface-2: #f7f7f9;
+    --border-subtle: rgba(0,0,0,0.10);
+    --border-strong: rgba(0,0,0,0.20);
+    --interaction-hover: rgba(0,0,0,0.05);
+    --interaction-selected: rgba(0,0,0,0.09);
+    --interaction-selected-hover: rgba(0,0,0,0.13);
+    --accent: #3a5fc0;
+    --accent-dim: rgba(58,95,192,0.12);
+    --ok: #2f8f63;
+    --warn: #a9722a;
+    --run: #3a5fc0;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--frame-bg);
+    color: var(--frame-fg-primary);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: var(--font-ui);
+    overflow: hidden;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* ---------- 应用外壳 ---------- */
+  .app { display: flex; flex-direction: column; height: 100vh; }
+
+  .chrome {
+    height: 36px; flex-shrink: 0; display: flex; align-items: center;
+    padding: 0 12px 0 var(--left-pad-x); border-bottom: 1px solid var(--border-subtle);
+    background: transparent; gap: 8px;
+  }
+  .logo { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--frame-fg-muted); position: relative; flex-shrink: 0; }
+  .logo::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--accent); }
+  .chrome-title { font-size: var(--font-caption); color: var(--frame-fg-muted); }
+  .chrome-spacer { flex: 1; }
+  .chrome-btn {
+    height: 24px; padding: 0 9px; border-radius: var(--radius-control);
+    color: var(--frame-fg-muted); font-size: 12px;
+    transition: background-color var(--dur-micro) var(--ease-hover);
+  }
+  .chrome-btn:hover { background: var(--interaction-hover); color: var(--frame-fg-primary); }
+
+  .body { flex: 1; display: flex; min-height: 0; }
+
+  /* ---------- 左栏 ---------- */
+  .left {
+    width: 252px; flex-shrink: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border-subtle); min-height: 0;
+  }
+  .left-scroll { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+
+  .section-head {
+    display: flex; align-items: center; height: 30px; padding: 0 var(--left-pad-x);
+    font-size: var(--font-caption); color: var(--frame-fg-muted); letter-spacing: 0.02em;
+  }
+  .section-head .grow { flex: 1; }
+  .collapse-btn {
+    width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-control); color: var(--frame-fg-muted);
+  }
+  .collapse-btn:hover { background: var(--interaction-hover); }
+  .collapse-btn svg { transition: transform var(--dur-micro) var(--ease-standard); }
+  .section.is-collapsed .collapse-btn svg { transform: rotate(-90deg); }
+
+  /* 会话树 */
+  .tree { padding: 0 6px; }
+  .node-row {
+    display: flex; align-items: center; gap: 6px; height: var(--row-h);
+    padding: 0 8px 0 0; border-radius: var(--radius-control); cursor: pointer;
+    position: relative;
+    transition: background-color var(--dur-micro) var(--ease-hover);
+  }
+  .node-row:hover { background: var(--interaction-hover); }
+  .node-row.active { background: var(--interaction-selected); }
+  .node-row.active:hover { background: var(--interaction-selected-hover); }
+
+  /* 缩进：父 0 / 子 16 / 孙 32 */
+  .indent { flex-shrink: 0; }
+  .twisty {
+    width: 16px; height: 16px; flex-shrink: 0; display: inline-flex;
+    align-items: center; justify-content: center; color: var(--frame-fg-faint);
+  }
+  .twisty svg { transition: transform var(--dur-micro) var(--ease-standard); }
+  .twisty.open svg { transform: rotate(90deg); }
+  .twisty.leaf { visibility: hidden; }
+
+  .node-icon { width: 16px; height: 16px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .node-icon.parent { color: var(--frame-fg-muted); }
+  .node-icon.child { color: var(--accent); }
+
+  .node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node-row.active .node-name { font-weight: 500; }
+
+  /* 状态胶囊 */
+  .pill {
+    flex-shrink: 0; max-width: 92px; height: 20px; padding: 0 7px; border-radius: 10px;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: var(--font-caption); background: var(--surface-2); color: var(--frame-fg-muted);
+    overflow: hidden;
+  }
+  .pill .txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pill.run { background: var(--accent-dim); color: var(--accent); }
+  .pill.ok { color: var(--ok); }
+  .pill.warn { color: var(--warn); }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .pill.run .dot { animation: breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .kids { overflow: hidden; }
+  .kids.collapsed { display: none; }
+
+  /* ---------- 中栏 ---------- */
+  .center { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+
+  /* 层级路径面包屑（下钻式的核心） */
+  .crumbs {
+    height: 40px; flex-shrink: 0; display: flex; align-items: center; gap: 2px;
+    padding: 0 14px; border-bottom: 1px solid var(--border-subtle);
+  }
+  .crumb {
+    display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 7px;
+    border-radius: var(--radius-control); color: var(--frame-fg-muted); font-size: 12px;
+    max-width: 200px; transition: background-color var(--dur-micro) var(--ease-hover);
+  }
+  .crumb:hover { background: var(--interaction-hover); color: var(--frame-fg-primary); }
+  .crumb.current { color: var(--frame-fg-primary); font-weight: 500; }
+  .crumb.current:hover { background: none; }
+  .crumb-sep { color: var(--frame-fg-faint); flex-shrink: 0; display: inline-flex; }
+  .crumb-kind {
+    font-size: 10px; padding: 0 4px; height: 15px; line-height: 15px; border-radius: 3px;
+    background: var(--surface-2); color: var(--frame-fg-faint); flex-shrink: 0;
+  }
+  .crumb.current .crumb-kind { background: var(--accent-dim); color: var(--accent); }
+
+  .transcript { flex: 1; overflow-y: auto; padding: 18px 20px 8px; min-height: 0; }
+  .msg { margin-bottom: 16px; max-width: 760px; }
+  .msg-head { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .msg-who { font-size: var(--font-caption); color: var(--frame-fg-muted); }
+  .msg-badge {
+    font-size: 10px; padding: 0 5px; height: 16px; line-height: 16px; border-radius: 3px;
+    background: var(--accent-dim); color: var(--accent);
+  }
+  .msg-badge.sub { background: var(--surface-2); color: var(--frame-fg-muted); }
+  .msg-body { line-height: 1.65; color: var(--frame-fg-primary); }
+  .msg-body .muted { color: var(--frame-fg-muted); }
+
+  .tool-call {
+    margin: 8px 0; border-left: 2px solid var(--border-strong); padding: 6px 0 6px 11px;
+    font-family: ui-monospace, Consolas, monospace; font-size: 12px; color: var(--frame-fg-muted);
+    line-height: 1.6;
+  }
+  .tool-call .k { color: var(--accent); }
+
+  /* 注入的唤醒卡（子→父 / 父→子） */
+  .inject-card {
+    margin: 10px 0; padding: 9px 12px; border-radius: var(--radius-control);
+    background: var(--surface-2); border: 1px solid var(--border-subtle);
+    display: flex; align-items: center; gap: 9px; max-width: 760px;
+  }
+  .inject-card .txt { flex: 1; min-width: 0; font-size: 12px; color: var(--frame-fg-muted); line-height: 1.5; }
+  .inject-card .go { color: var(--accent); font-size: 12px; flex-shrink: 0; }
+  .inject-card .go:hover { text-decoration: underline; }
+
+  /* 子代理卡片（面板内） */
+  .subcard {
+    margin: 10px 0; max-width: 760px; padding: 12px 14px; border-radius: var(--radius-modal);
+    background: var(--surface-2); border: 1px solid var(--border-subtle);
+  }
+  .subcard-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .subcard-top .nm { flex: 1; min-width: 0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .subcard-meta { font-size: var(--font-caption); color: var(--frame-fg-muted); margin-bottom: 8px; }
+  .subcard-acts { display: flex; gap: 8px; }
+  .subcard-acts button {
+    font-size: 12px; color: var(--accent); padding: 3px 8px; border-radius: var(--radius-control);
+  }
+  .subcard-acts button:hover { background: var(--accent-dim); }
+
+  .composer {
+    flex-shrink: 0; margin: 0 20px 18px; padding: 11px 13px; min-height: 62px;
+    border: 1px solid var(--border-subtle); border-radius: var(--radius-modal);
+    background: var(--surface); color: var(--frame-fg-faint); font-size: 12px;
+    display: flex; align-items: flex-start;
+  }
+  .composer.child { border-left: 2px solid var(--accent); }
+  .composer-hint { font-size: 11px; color: var(--frame-fg-faint); margin: 0 20px 8px; }
+
+  /* 说明面板 */
+  .notes {
+    flex-shrink: 0; border-top: 1px solid var(--border-subtle); padding: 10px 20px 12px;
+    font-size: 12px; color: var(--frame-fg-muted); line-height: 1.7; background: var(--surface-2);
+  }
+  .notes b { color: var(--frame-fg-primary); font-weight: 500; }
+  .notes .k { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="chrome">
+    <div class="logo"></div>
+    <span class="chrome-title">MetaAgent 工作台</span>
+    <div class="chrome-spacer"></div>
+    <button class="chrome-btn" id="themeBtn">切换浅色</button>
+    <button class="chrome-btn">设置</button>
+  </div>
+
+  <div class="body">
+    <div class="left">
+      <div class="left-scroll">
+        <div class="section" id="secSessions">
+          <div class="section-head">
+            <span class="grow">工作会话</span>
+            <button class="collapse-btn" data-sec="secSessions" title="折叠/展开">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+          <div class="tree" id="tree"></div>
+        </div>
+
+        <div class="section is-collapsed" id="secTerm">
+          <div class="section-head">
+            <span class="grow">终端</span>
+            <button class="collapse-btn" data-sec="secTerm" title="折叠/展开">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="center">
+      <div class="crumbs" id="crumbs"></div>
+      <div class="transcript" id="transcript"></div>
+      <div class="composer-hint" id="composerHint"></div>
+      <div class="composer" id="composer">给这个会话发消息…</div>
+      <div class="notes" id="notes"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const S = {
+  active: 'root-a',
+  collapsed: new Set(),
+  theme: 'dark'
+};
+
+// 会话树：root → children → grandchildren（两层上限，孙层演示被拒）
+const TREE = [
+  {
+    id: 'root-a', name: '重构认证模块', kind: 'root', status: 'run', statusText: '进行中',
+    agent: 'Pi',
+    msgs: [
+      { who: '你', text: '把登录那块重构一下，顺便补测试。' },
+      { who: 'Pi', text: '我先摸清现状。认证相关的文件有 6 个，测试覆盖只到 happy path。' },
+      { tool: 'read', arg: 'src/auth/session.ts' },
+      { tool: 'read', arg: 'src/auth/login.ts' },
+      {
+        text: '这活能并行。我拆两个子代理：一个只读探索把边界情况列清楚，一个去写测试。',
+        after: true
+      }
+    ],
+    children: [
+      {
+        id: 'kid-a1', name: '探索认证边界', kind: 'child', status: 'done', statusText: '已完成',
+        agent: 'Pi', inherited: '继承 Pi · 同一模型 · 同一目录',
+        msgs: [
+          { who: '你', text: '只读探索：把 session.ts 的边界情况和已知坑列清楚，不要改任何文件。', badge: '子代理' },
+          { tool: 'read', arg: 'src/auth/session.ts' },
+          { tool: 'grep', arg: 'expire|renew|refresh' },
+          { text: '结论：token 续期逻辑分散在 3 处，其中 session.ts:88 的 renew 没处理并发刷新，会丢更新。另外 refresh token 存 localStorage，XSS 下可直接被取。' },
+          { inject: '子代理「探索认证边界」已完成 · 结论已汇总', target: 'root-a' }
+        ],
+        children: []
+      },
+      {
+        id: 'kid-a2', name: '补认证测试', kind: 'child', status: 'run', statusText: '运行中',
+        agent: 'Pi', inherited: '继承 Pi · 同一模型 · 同一目录',
+        msgs: [
+          { who: '你', text: '给 session.ts 补测试，重点覆盖 token 续期和并发刷新。', badge: '子代理' },
+          { tool: 'read', arg: 'src/auth/session.test.ts' },
+          { tool: 'edit', arg: 'src/auth/session.test.ts (+42)' },
+          { text: '并发刷新那条我卡住了——现在两个测试共用一个 mock timer，跑起来互相干扰。要我把 timer 也 mock 掉吗？', then: { injectTo: 'root-a', text: '子代理「补认证测试」提问：要 mock 掉共享 timer 吗？' } },
+          { text: '行，你顺便再拉一个子代理，专门只读核对现有测试里的并发用例——我这边同时改实现。', sub: true }
+        ],
+        children: [
+          {
+            id: 'grand-a1', name: '核对并发用例', kind: 'child', status: 'run', statusText: '运行中',
+            agent: 'Pi', inherited: '继承 Pi · 同一模型 · 同一目录',
+            msgs: [
+              { who: '你', text: '只读：把现有测试里跟并发相关的用例列出来，别改任何文件。', badge: '孙代理' },
+              { tool: 'grep', arg: 'concurren|race' },
+              { text: '目前只有 1 条弱并发用例（顺序 await 两次），没有真正并发的。建议补 Promise.all 覆盖。' },
+              { inject: '孙代理「核对并发用例」已完成 · 结论已汇总', target: 'kid-a2' }
+            ],
+            children: []
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'root-b', name: '评估向量库选型', kind: 'root', status: 'ok', statusText: '待你验收',
+    agent: 'Claude',
+    msgs: [
+      { who: '你', text: '评估一下要不要引入向量库。' },
+      { who: 'Claude', text: '先看现有检索方案再给结论。' },
+      { text: '子代理「查现有检索实现」已完成 · 结论已汇总', asInject: true, goTo: 'kid-b1' }
+    ],
+    children: [
+      {
+        id: 'kid-b1', name: '查现有检索实现', kind: 'child', status: 'done', statusText: '已完成',
+        agent: 'Claude', inherited: '继承 Claude · 同一模型 · 同一目录',
+        msgs: [
+          { who: '你', text: '只读：现在全文检索怎么实现的？', badge: '子代理' },
+          { text: 'PG 全文检索 + trigram 索引，无向量层。数据量约 40 万文档，p95 查询 180ms。加向量库前建议先把 trigram 调优一轮。' }
+        ],
+        children: []
+      }
+    ]
+  },
+  {
+    id: 'root-c', name: '排查构建失败', kind: 'root', status: 'idle', statusText: '',
+    agent: 'Codex',
+    msgs: [
+      { who: '你', text: 'CI 挂了，看看什么问题。' },
+      { who: 'Codex', text: '看了日志，是 lockfile 和 package.json 不同步。我改一下。' }
+    ],
+    children: []
+  }
+];
+
+const byId = {};
+(function index(list, parent) {
+  for (const n of list) { n.parentId = parent ? parent.id : null; byId[n.id] = n; index(n.children, n); }
+})(TREE, null);
+
+const CARET = '<svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const PARENT_ICON = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="2.5" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M5 6h6M5 8.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+const CHILD_ICON = '<svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M4.5 2v3.2c0 .5.4.9.9.9H12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-dasharray="2 1.6"/><rect x="10.4" y="8.4" width="3.6" height="4.6" rx="1.2" stroke="currentColor" stroke-width="1.3"/></svg>';
+const CHEV = '<svg width="9" height="9" viewBox="0 0 10 10" fill="none"><path d="M3.5 2L6.5 5L3.5 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+function ancestors(id) {
+  const out = [];
+  let n = byId[id];
+  while (n) { out.unshift(n); n = n.parentId ? byId[n.parentId] : null; }
+  return out;
+}
+
+/** 层级标签：顶层会话 / 子代理 / 孙代理 */
+function kindLabel(n) {
+  if (n.kind === 'root') return '会话';
+  return ancestors(n.id).length >= 3 ? '孙代理' : '子代理';
+}
+
+function setActive(id) {
+  S.active = id;
+  renderTree();
+  renderCrumbs();
+  renderCenter();
+  renderNotes();
+}
+
+function renderTree() {
+  const host = document.getElementById('tree');
+  host.innerHTML = '';
+  for (const root of TREE) host.appendChild(row(root, 0));
+  // 演示：第 4 层被硬上限拒绝（父子链总深度上限 3）
+  const demo = document.createElement('div');
+  demo.className = 'node-row';
+  demo.style.opacity = '0.42';
+  demo.style.cursor = 'not-allowed';
+  demo.innerHTML = `
+    <span class="indent" style="width:48px"></span>
+    <span class="twisty leaf"></span>
+    <span class="node-icon child">${CHILD_ICON}</span>
+    <span class="node-name" style="color:var(--frame-fg-faint)">曾代理（已被深度上限拒绝）</span>`;
+  demo.title = '父子链总深度上限 3 层：顶层 → 子 → 孙；孙再拉活即拒';
+  host.appendChild(demo);
+}
+
+function row(n, depth) {
+  const wrap = document.createDocumentFragment();
+  const hasKids = n.children.length > 0;
+  const open = !S.collapsed.has(n.id);
+
+  const el = document.createElement('div');
+  el.className = 'node-row' + (S.active === n.id ? ' active' : '');
+  const cls = n.status === 'run' ? 'run' : n.status === 'ok' ? 'ok' : n.status === 'warn' ? 'warn' : '';
+  el.innerHTML = `
+    <span class="indent" style="width:${depth * 16}px"></span>
+    <span class="twisty ${hasKids ? (open ? 'open' : '') : 'leaf'}" data-tw="${n.id}">${CARET}</span>
+    <span class="node-icon ${n.kind}">${n.kind === 'child' ? CHILD_ICON : PARENT_ICON}</span>
+    <span class="node-name">${n.name}</span>
+    ${n.statusText ? `<span class="pill ${cls}"><span class="dot"></span><span class="txt">${n.statusText}</span></span>` : ''}
+  `;
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-tw]')) {
+      S.collapsed.has(n.id) ? S.collapsed.delete(n.id) : S.collapsed.add(n.id);
+      renderTree(); return;
+    }
+    setActive(n.id);
+  });
+  wrap.appendChild(el);
+
+  if (hasKids) {
+    const kids = document.createElement('div');
+    kids.className = 'kids' + (open ? '' : ' collapsed');
+    for (const c of n.children) kids.appendChild(row(c, depth + 1));
+    wrap.appendChild(kids);
+  }
+  return wrap;
+}
+
+function renderCrumbs() {
+  const chain = ancestors(S.active);
+  const host = document.getElementById('crumbs');
+  host.innerHTML = '';
+  chain.forEach((n, i) => {
+    const last = i === chain.length - 1;
+    const c = document.createElement('button');
+    c.className = 'crumb' + (last ? ' current' : '');
+    c.innerHTML = `<span class="crumb-kind">${kindLabel(n)}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${n.name}</span>`;
+    if (!last) c.addEventListener('click', () => setActive(n.id));
+    host.appendChild(c);
+    if (!last) {
+      const s = document.createElement('span');
+      s.className = 'crumb-sep';
+      s.innerHTML = CHEV;
+      host.appendChild(s);
+    }
+  });
+}
+
+function renderCenter() {
+  const n = byId[S.active];
+  const chain = ancestors(S.active);
+  const t = document.getElementById('transcript');
+
+  t.innerHTML = n.msgs.map(m => {
+    if (m.tool) {
+      const [name, ...rest] = m.arg.split(' ');
+      return `<div class="tool-call"><span class="k">${m.tool}</span>(${rest.join(' ')})</div>`;
+    }
+    if (m.inject) {
+      return `<div class="inject-card">
+        <span class="pill run"><span class="dot"></span><span class="txt">已回报父会话</span></span>
+        <span class="txt">${m.inject}</span>
+        <span class="go" data-go="${n.parentId}">回到父会话 ›</span>
+      </div>`;
+    }
+    if (m.asInject) {
+      return `<div class="inject-card">
+        <span class="pill"><span class="txt">来自子代理</span></span>
+        <span class="txt">${m.text}</span>
+        <span class="go" data-go="${m.goTo}">查看 ›</span>
+      </div>`;
+    }
+    let html = `<div class="msg">
+      <div class="msg-head">
+        <span class="msg-who">${m.who}</span>
+        ${m.badge ? `<span class="msg-badge sub">${m.badge}</span>` : ''}
+        ${m.sub ? `<span class="msg-badge">派生了下一层</span>` : ''}
+      </div>
+      <div class="msg-body">${m.text}</div>`;
+
+    // 子代理卡片：派出了下一层子会话时挂在消息下方
+    if (m.after && n.children.length) {
+      html += n.children.map(c => `
+        <div class="subcard">
+          <div class="subcard-top">
+            <span class="node-icon child">${CHILD_ICON}</span>
+            <span class="nm">${c.name}</span>
+            <span class="pill ${c.status === 'run' ? 'run' : 'ok'}"><span class="dot"></span><span class="txt">${c.statusText}</span></span>
+          </div>
+          <div class="subcard-meta">${c.agent} · ${c.inherited}</div>
+          <div class="subcard-acts">
+            <button data-go="${c.id}">查看进展 ›</button>
+          </div>
+        </div>`).join('');
+    }
+    html += '</div>';
+
+    if (m.then && m.then.injectTo) {
+      html += `<div class="inject-card">
+        <span class="pill warn"><span class="txt">已向父提问</span></span>
+        <span class="txt">${m.then.text}</span>
+        <span class="go" data-go="${n.parentId}">回到父会话 ›</span>
+      </div>`;
+    }
+    return html;
+  }).join('');
+
+  // 事件委托：卡片/注入卡跳转
+  t.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => setActive(b.dataset.go)));
+
+  document.getElementById('composer').className = 'composer' + (n.kind === 'child' ? ' child' : '');
+  document.getElementById('composer').textContent =
+    n.kind === 'child' ? `给${kindLabel(n)}「${n.name}」发消息…` : '给这个会话发消息…';
+  document.getElementById('composerHint').textContent =
+    n.kind === 'child'
+      ? `${n.agent} · ${n.inherited} · 目录继承自${chain.length >= 3 ? '父' : '顶层会话'}${chain.length >= 3 ? '会话' : ''}${chain.length >= 3 ? `「${chain[chain.length - 2].name}」` : ''}`
+      : (chain.length > 1 ? `这是${kindLabel(n)}会话，顶栏可点回 ${chain[chain.length - 2].name}` : '');
+
+  t.scrollTop = t.scrollHeight;
+}
+
+function renderNotes() {
+  const n = byId[S.active];
+  const chain = ancestors(S.active);
+  const label = kindLabel(n);
+  document.getElementById('notes').innerHTML = n.kind === 'child'
+    ? `<b>当前在${label}视图。</b> 顶栏显示完整层级路径，点任一级可回跳——这是「公用一个会话面板」的落地形态：<span class="k">整页切换</span>，不合并转写流。${label}是左栏里的普通会话，可发消息、可被注入、可被搜索。`
+    : chain.length === 1
+      ? `<b>当前在顶层会话。</b> 派出的子代理挂在左栏本行下方（缩进一级），子代理还能再拉一层孙代理。父子链<b>总深度上限 3 层</b>——孙代理再拉活会被拒。`
+      : '';
+}
+
+document.querySelectorAll('.collapse-btn').forEach(b => b.addEventListener('click', () => {
+  const sec = document.getElementById(b.dataset.sec);
+  sec.classList.toggle('is-collapsed');
+}));
+document.getElementById('themeBtn').addEventListener('click', () => {
+  S.theme = S.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = S.theme;
+  document.getElementById('themeBtn').textContent = S.theme === 'dark' ? '切换浅色' : '切换深色';
+});
+
+renderTree(); renderCrumbs(); renderCenter(); renderNotes();
+</script>
+</body>
+</html>

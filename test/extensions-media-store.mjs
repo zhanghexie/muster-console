@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+
+const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'extension-media-store-'));
+try {
+  const compile = createSharedCompiler(repo, path.join(repo, '.tmp', 'extension-media-store-compile'));
+  const { ExtensionMediaStore } = await import(pathToFileURL(compile('main/extensions/extensionMediaStore.ts')).href);
+  const source = path.join(temp, 'clip.webm');
+  await fs.writeFile(source, Buffer.from('0123456789ABCDEFGHIJ'));
+  const store = new ExtensionMediaStore(temp);
+  const asset = await store.importFile('workspace:desk', source);
+  assert.equal(asset.mime, 'video/webm');
+  const ranged = await fetch(asset.url, { headers: { Range: 'bytes=4-8' } });
+  assert.equal(ranged.status, 206);
+  assert.equal(await ranged.text(), '45678');
+  await assert.rejects(() => store.url('workspace:other', asset.assetId), /不属于当前扩展实例/);
+  await store.release('workspace:desk', asset.assetId);
+  assert.equal((await fetch(asset.url)).status, 404);
+  const retained = await store.importFile('workspace:desk', source);
+  await store.retain('workspace:desk', retained.assetId);
+  await store.release('workspace:desk');
+  assert.equal((await fetch(retained.url)).status, 404, 'closing revokes the previous URL');
+  store.stop();
+  const restarted = new ExtensionMediaStore(temp);
+  const restored = await restarted.url('workspace:desk', retained.assetId);
+  assert.equal(await (await fetch(restored.url)).text(), '0123456789ABCDEFGHIJ', 'saved media survives app restart');
+  await assert.rejects(() => restarted.url('workspace:other', retained.assetId), /不属于当前扩展实例/);
+  await restarted.release('workspace:desk');
+  await restarted.url('workspace:desk', retained.assetId);
+  const removing = restarted.release('workspace:desk', retained.assetId);
+  await assert.rejects(() => restarted.url('workspace:desk', retained.assetId), /不属于当前扩展实例/, 'released retained assets must not rehydrate during deletion');
+  await removing;
+  const afterRemoval = new ExtensionMediaStore(temp);
+  await assert.rejects(() => afterRemoval.url('workspace:desk', retained.assetId), /不属于当前扩展实例/, 'explicit removal persists across restarts');
+  afterRemoval.stop();
+  const cold = await restarted.importFile('workspace:desk', source);
+  await restarted.retain('workspace:desk', cold.assetId);
+  await restarted.release('workspace:desk');
+  await restarted.release('workspace:desk', cold.assetId);
+  await assert.rejects(() => restarted.url('workspace:desk', cold.assetId), /不属于当前扩展实例/, 'release also deletes saved assets that have not been loaded since reopening');
+  restarted.stop();
+  console.log('extensions-media-store: ok');
+} finally { await fs.rm(temp, { recursive: true, force: true }); }

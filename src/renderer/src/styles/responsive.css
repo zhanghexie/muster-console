@@ -1,0 +1,189 @@
+/* responsive.css — 窄屏适配（域：responsive）。规范见 /design.md，动画只用 motion token。
+ *
+ * 手机/窄分屏（≤820px）：左侧会话栏与右侧文件/Git 区从并排布局改为悬浮抽屉——
+ * 常驻挂载 + transform 滑入滑出（与 .h-strip 平移同范式，天然可打断），默认收起，
+ * 顶栏按钮唤出，scrim 点击关闭。零卸载，不涉 presence。
+ */
+
+/* 抽屉是 fixed 视口定位：必须去掉祖先链上的 transform/will-change（劫持 fixed
+ * 包含块）并禁掉横向虚拟屏平移；其余 clip/overflow 祖先不裁视口 fixed，不用管 */
+html.is-narrow .h-strip {
+  transform: none !important;
+  will-change: auto;
+  /* A transition would temporarily retain the old transform despite !important,
+   * capturing fixed drawers below the viewport scrim while the window narrows. */
+  transition: none;
+  width: auto !important;
+}
+
+html.is-narrow .ws-rail {
+  will-change: auto;
+}
+
+/* Fixed drawers must share the scrim's stacking context, not sit inside z-index:1. */
+html.is-narrow .ws-stage,
+html.is-narrow .work-area {
+  z-index: auto;
+}
+
+/* 中栏（终端/聊天）占满；左栏宽度手柄无意义，隐藏 */
+html.is-narrow .workspace-page,
+html.is-narrow .terminal-page {
+  width: 100% !important;
+}
+
+html.is-narrow .left-col-resizer {
+  display: none !important;
+}
+
+/* 窄屏中栏页贴满四周（抽屉浮在其上）；右抽屉内工具页去页皮肤 */
+html.is-narrow .terminal-page {
+  padding: 0 8px 8px !important;
+}
+
+html.is-narrow .git-page > .side-tools-panel {
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
+}
+
+html.is-narrow .git-page > .side-tools-panel::after {
+  content: none;
+}
+
+/* 左侧会话栏 → 左缘抽屉 */
+html.is-narrow .sessions-column {
+  position: fixed;
+  top: 36px; /* chrome-bar 高（chrome.css 同值） */
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-modal);
+  width: min(84vw, var(--sessions-col-w, 300px)) !important;
+  min-width: 0 !important;
+  padding: 0 8px 8px;
+  /* 底与投影由内部毛玻璃卡片画（left.css .left-panel 悬浮态） */
+  transform: translateX(-105%);
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+
+html.is-narrow .sessions-column .left-panel {
+  border-radius: var(--radius-card);
+}
+
+html.is-narrow .sessions-column.is-drawer-open {
+  transform: translateX(0);
+}
+
+/* 右侧文件/Git 区 → 右缘抽屉（固定较窄宽度，列表先落地） */
+html.is-narrow .git-page {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: fixed;
+  top: 36px;
+  bottom: 0;
+  right: 0;
+  height: auto;
+  z-index: var(--z-modal);
+  width: min(92vw, 480px) !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  /* 抽屉盖在终端上：实底由抽屉本身画，内部页不再叠一层 */
+  background: var(--surface-overlay);
+  box-shadow: var(--shadow-pop);
+  transform: translateX(105%);
+  /* 覆盖 .git-page 既有的 opacity 过渡，合并声明 */
+  transition:
+    transform var(--dur-panel) var(--ease-standard),
+    opacity var(--dur-micro) var(--ease-hover);
+}
+
+html.is-narrow .git-page.is-drawer-open {
+  transform: translateX(0);
+}
+
+/* Keep worktree navigation and actions on readable rows inside the 480px drawer. */
+html.is-narrow .git-panel-header {
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 36px;
+  padding: 4px 10px;
+}
+
+html.is-narrow .git-panel-header-left {
+  flex-basis: 100%;
+}
+
+html.is-narrow .git-panel-header .git-btn {
+  white-space: nowrap;
+}
+
+html.is-narrow .git-session-worktree-btn {
+  min-width: 0;
+  flex: 1;
+}
+
+html.is-narrow .git-col-title-row {
+  flex-wrap: wrap;
+}
+
+html.is-narrow .git-diff-toggle {
+  white-space: nowrap;
+}
+
+/* 退场更快更促（--ease-exit），入场/退场均可打断续走 */
+html.is-narrow .sessions-column:not(.is-drawer-open),
+html.is-narrow .git-page:not(.is-drawer-open) {
+  transition-duration: var(--dur-exit);
+  transition-timing-function: var(--ease-exit);
+}
+
+/* 抽屉遮罩：常挂，is-shown 切 opacity（零卸载） */
+.drawer-scrim {
+  position: fixed;
+  inset: 36px 0 0 0;
+  z-index: calc(var(--z-modal) - 1);
+  background: var(--scrim);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.drawer-scrim.is-shown {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* 顶栏唤出按钮：仅窄屏显示（ChromeBar 内） */
+.chrome-drawer-btn {
+  display: none;
+}
+
+html.is-narrow .chrome-drawer-btn {
+  display: inline-flex;
+}

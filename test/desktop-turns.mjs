@@ -1,0 +1,93 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+import { removeWorkspaceFixture } from './helpers/workspace-fixture.mjs';
+
+fs.mkdirSync('.tmp', { recursive: true });
+const temp = fs.mkdtempSync(path.resolve('.tmp', 'desktop-turns-'));
+try {
+  const compile = createSharedCompiler(process.cwd(), path.join(temp, 'compiled'));
+  const { DesktopActivity } = await import(pathToFileURL(compile('main/desktop/desktopActivity.ts')));
+  const { DesktopTurns } = await import(pathToFileURL(compile('main/desktop/desktopTurns.ts')));
+  const { bindDesktopActorToRun } = await import(pathToFileURL(compile('main/desktop/desktopActorRun.ts')));
+  const labels = { active: 'Using', stopping: 'Stopping', unknown: 'Unknown', escape: 'Esc', stop: 'Stop', escapeUnavailable: 'Use button' };
+  let closeCount = 0;
+  const activity = new DesktopActivity({ show: async () => {}, close: () => { closeCount++; } }, async () => {}, labels);
+  const turns = new DesktopTurns(activity);
+  turns.begin('worker', 'one', () => true);
+  assert.equal(await turns.use('worker', 'one', 'target', async () => 4), 4);
+  assert.equal(await turns.use('worker', 'one', 'target', async () => 5), 5);
+  turns.end('worker', 'old-turn');
+  assert.equal(await turns.use('worker', 'one', 'target', async () => 6), 6, 'stale completion must not end the live turn');
+  turns.end('worker', 'one');
+  await assert.rejects(turns.use('worker', 'one', 'target', async () => 7), /unavailable/);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(closeCount, 1);
+
+  let show, entered;
+  const showing = new Promise(resolve => { entered = resolve; });
+  const gate = new Promise(resolve => { show = resolve; });
+  const pending = new DesktopTurns(new DesktopActivity({ show: async () => { entered(); await gate; }, close: () => {} }, async () => {}, labels));
+  pending.begin('worker', 'two', () => true);
+  let dispatched = false;
+  const call = pending.use('worker', 'two', 'target', async () => { dispatched = true; }).catch(error => error);
+  await showing;
+  pending.end('worker', 'two');
+  show();
+  assert.ok(await call);
+  assert.equal(dispatched, false, 'a turn ending while its indicator loads must not dispatch');
+  const nextActivity = new DesktopActivity({ show: async () => {}, close: () => {} }, async () => {}, labels);
+  const nextTurns = new DesktopTurns(nextActivity);
+  nextTurns.begin('old', 'old-turn', () => true);
+  await nextTurns.stop();
+  nextTurns.begin('auto', 'automatic-turn', () => true);
+  await assert.rejects(nextTurns.use('auto', 'automatic-turn', 'target', async () => 1), /new user instruction/);
+  nextTurns.noteUserInstruction('human', 'new-message');
+  nextTurns.begin('human', 'new-turn', () => true, true, 'new-message');
+  assert.equal(await nextTurns.use('human', 'new-turn', 'target', async () => 2), 2);
+  await assert.rejects(nextTurns.use('old', 'old-turn', 'target', async () => 3), /was stopped/);
+  await nextTurns.stop();
+  nextTurns.noteUserInstruction('human', 'steering-message');
+  nextTurns.begin('human', 'new-turn', () => true, true, 'steering-message');
+  assert.equal(await nextTurns.use('human', 'new-turn', 'target', async () => 4), 4,
+    'a confirmed user steering instruction may open a fresh desktop turn within the same engine turn');
+  const queuedActivity = new DesktopActivity({ show: async () => {}, close: () => {} }, async () => {}, labels);
+  const queuedTurns = new DesktopTurns(queuedActivity);
+  queuedTurns.noteUserInstruction('worker', 'queued-before-stop');
+  await queuedTurns.stop();
+  queuedTurns.begin('worker', 'later-turn', () => true, true, 'queued-before-stop');
+  await assert.rejects(queuedTurns.use('worker', 'later-turn', 'target', async () => 1), /predates the latest stop/);
+  let inputStarted, finishInput;
+  const enteredInput = new Promise(resolve => { inputStarted = resolve; });
+  const blockedInput = new Promise(resolve => { finishInput = resolve; });
+  const cancelling = new DesktopTurns(new DesktopActivity({ show: async () => {}, close: () => {} }, async () => {}, labels));
+  cancelling.begin('worker', 'steered-old', () => true);
+  const oldInput = cancelling.use('worker', 'steered-old', 'target', async signal => {
+    inputStarted(signal);
+    await blockedInput;
+    return 'late';
+  }).catch(error => error);
+  const inputSignal = await enteredInput;
+  cancelling.end('worker', 'steered-old');
+  assert.equal(inputSignal.aborted, true, 'ending the trusted turn must interrupt in-flight work immediately');
+  finishInput();
+  assert.ok(await oldInput, 'the old turn must never report the late result as success');
+
+  const captures = new DesktopTurns(new DesktopActivity({ show: async () => {}, close: () => {} }, async () => {}, labels));
+  captures.begin('worker', 'capture-turn', () => true);
+  let capture, seatSignal;
+  await captures.use('worker', 'capture-turn', 'display', async (signal, lease) => {
+    seatSignal = signal;
+    assert.throws(() => bindDesktopActorToRun({ sessionId: 'other', taskId: 'task', isCurrent: () => true }, lease), /unavailable/);
+    capture = bindDesktopActorToRun({ sessionId: 'worker', taskId: 'task', isCurrent: () => true }, lease);
+    assert.equal(capture.isCurrent(), true);
+  }, false);
+  assert.equal(capture.isCurrent(), true, 'a completed capture remains usable while its run is active');
+  const stopped = captures.stop();
+  assert.equal(seatSignal.aborted, false, 'the finished seat call is no longer subscribed to the run');
+  assert.equal(capture.isCurrent(), false, 'stop must invalidate a completed capture synchronously');
+  await stopped;
+  console.log('desktop turns: shared per-turn activity and stale completion passed');
+} finally { removeWorkspaceFixture(temp, 'desktop-turns-'); }

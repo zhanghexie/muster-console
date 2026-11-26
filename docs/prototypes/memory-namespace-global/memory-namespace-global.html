@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 双库差异与全局资产标注（条目10）对照</title>
+<!-- 记忆面板改造计划 · 条目 10 原型：①条目总览 worker/scheduler 双库语义 ②USER.md 全局资产标注。token 抄自 base.css。 -->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-raised: #252526; --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e;
+    --hairline: #2c2c2c; --green: #45d0a0; --yellow: #dcc765; --blue: #6cc2ff; --purple: #a88fff;
+    --bg-inset: rgba(127,127,127,0.08); --selected-fill: rgba(250,250,250,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.65; padding: 26px 0 80px; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  h2 { font-size: var(--font-control); font-weight: 500; color: var(--text-2); margin: 26px 0 10px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .col { border-radius: var(--radius-card); padding: 14px 16px; }
+  .before { background: color-mix(in srgb, var(--bg-raised) 55%, transparent); border: 1px dashed var(--hairline); }
+  .after { background: var(--bg-raised); box-shadow: var(--shadow-card); }
+  .col-label { font-size: 10.5px; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .before .col-label { color: var(--text-3); } .after .col-label { color: var(--green); }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; display: inline-block; }
+  .memory-tag.is-sched { background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+  .memory-tag.is-other { background: var(--bg-inset); color: var(--text-2); }
+  .memory-tag.is-dim { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .chiprow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { padding: 2px 12px; border-radius: var(--radius-pill); font-size: var(--font-caption); color: var(--text-2); background: var(--bg-inset); cursor: pointer; }
+  .chip.is-active { background: var(--selected-fill); color: var(--ink); }
+  .rowcard { padding: 10px 12px; border-radius: var(--radius-small); background: var(--bg-canvas); margin-bottom: 8px; }
+  .rowcard .t { margin-bottom: 4px; }
+  .rowcard .t .tagword { color: var(--green); font-family: 'Cascadia Mono', Consolas, monospace; font-size: 12px; }
+  .ns-note { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-small); background: color-mix(in srgb, var(--purple) 7%, transparent); font-size: var(--font-caption); color: var(--text-2); }
+  .ns-note b { color: var(--purple); font-weight: 500; }
+  .profile-card { padding: 14px 16px; }
+  .profile-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .profile-head h3 { margin: 0; font-size: var(--font-ui); font-weight: 500; }
+  .globe { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-size: var(--font-caption); color: var(--blue); border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent); border-radius: var(--radius-pill); padding: 2px 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 10）。两组对照：①条目总览的 Worker 共享 / 调度专用双库——现状只有一枚色点，用户不知道两者本质差别；②用户画像页——USER.md 是<b>跨工作区的全局资产</b>，现状没有任何强调。</div>
+
+  <h2>① 条目总览：双库语义</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="rowcard">
+        <div class="t"><span class="tagword">#decision</span> 数据库统一 PostgreSQL，弃 MySQL。 <span class="memory-tag is-dim" style="float:right">调度策展</span></div>
+        <div class="memory-meta-dim">← 色点/胶囊区分，但「调度策展」意味着什么（正文锁定、谁在维护、和 Worker 共享什么关系）完全没交代</div>
+      </div>
+      <div class="rowcard"><div class="t"><span class="tagword">#lesson</span> Windows 反斜杠转义陷阱。</div></div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="chiprow">
+        <span class="chip is-active">全部</span>
+        <span class="chip">Worker 共享</span>
+        <span class="chip">调度专用</span>
+      </div>
+      <div class="rowcard">
+        <div class="t"><span class="memory-tag is-sched">调度专用</span> <span class="tagword">#decision</span> 数据库统一 PostgreSQL，弃 MySQL。</div>
+        <div class="ns-note"><b>调度专用</b>：只有调度 Agent 往这里写（它自己的工作笔记），正文在会话里维护——这里只能改标签/触发词等注解。</div>
+      </div>
+      <div class="rowcard">
+        <div class="t"><span class="memory-tag is-lesson">Worker 共享</span> <span class="tagword">#lesson</span> Windows 反斜杠转义陷阱。</div>
+        <div class="memory-meta-dim" style="margin-top:4px">Worker 共享 = 所有干活的 Agent 都能读到、都能往里写（默认无标注即此类，不重复挂标签）</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>② 用户画像页：全局资产标注</h2>
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状</div>
+      <div class="rowcard profile-card">
+        <div class="profile-head"><h3>用户画像（USER.md）</h3><span class="memory-tag is-dim">120 / 4000 字符</span></div>
+        <div class="memory-meta-dim" style="margin-top:6px">你在面板的修改即时生效（终审免审）——但没说它跟谁走、作用范围多大</div>
+      </div>
+    </div>
+    <div class="col after">
+      <div class="col-label">改后</div>
+      <div class="rowcard profile-card">
+        <div class="profile-head">
+          <h3>用户画像</h3>
+          <span class="globe">◍ 全局资产 · 跟着你走</span>
+          <span class="memory-tag is-dim">120 / 4000 字符</span>
+        </div>
+        <div class="memory-meta-dim" style="margin-top:6px">这里写的偏好（「Always 用简体中文回复」）对所有工作区的所有 Agent 生效——换项目、换工作区都带着；修改即时生效，你是最终把关人。</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

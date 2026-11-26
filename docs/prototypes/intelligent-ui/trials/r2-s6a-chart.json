@@ -1,0 +1,1 @@
+{"scene":"S6 P95 前后对比（双序列）","render":{"mode":"inline","title":"缓存重构前后核心接口 P95 耗时对比（ms）","preset":"chart","data":{"type":"bar","labels":["订单 /order/query","搜索 /search","信息流 /feed/list","评论 /comment/list","用户资料 /user/profile"],"series":[{"name":"重构前","values":[892,545,420,264,168]},{"name":"重构后","values":[318,512,186,142,152]}]}}}

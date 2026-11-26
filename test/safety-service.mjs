@@ -1,0 +1,67 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { createHash } from 'node:crypto';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),'safety-service-'));
+const compile=createSharedCompiler(process.cwd(),path.join(directory,'compiled'));
+const {createSafetyService}=await import(pathToFileURL(compile('main/safety/service.ts')));
+const {captureSafetyContext}=await import(pathToFileURL(compile('main/safety/bindings.ts')));
+const op=(extra={})=>({workspaceId:'w',source:'catalog',action:'apps.install',args:{name:'fixture'},...extra});
+const services=[];
+const create=options=>{const service=createSafetyService({userDataPath:directory,...options});services.push(service);return service;};
+const receipt=(r,verdict='allow',reason='bound decision')=>({requestId:r.requestId,fingerprint:r.fingerprint,generation:r.generation,verdict,reason});
+const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+try{
+ let active=0,maximum=0;const seen=[];
+ const service=create({reviewer:async r=>{active++;maximum=Math.max(maximum,active);seen.push(r);await tick();active--;return receipt(r);}});
+ const request=op();const [a,b]=await Promise.all([service.authorize(request),service.authorize(request)]);assert.equal(a.requestId,b.requestId);assert.equal(a.allowed,true);assert.equal(seen.length,1);
+ await Promise.all([service.authorize(op()),service.authorize(op()),service.send('w','What rules are active?')]);assert.equal(maximum,1,'chat and approvals share a workspace queue');
+ assert.ok(seen.at(-1).history.length>0);assert.equal(service.snapshot('w').messages.some(m=>m.role==='user'),true);
+ for(const action of ['terminal.execute','messages.send','mail.send','records.remove'])assert.equal((await service.authorize(op({action}))).allowed,true);
+ const before=seen.length;await service.authorize(op({action:'bash',permissionClass:'shell',dangerous:true,args:{command:'rm -rf fixture'}}));assert.equal(seen.length,before,'shell never goes to approval model');
+ let acceptClarification, approvals=0; const clarify=create({humanConfirm:async()=>new Promise(resolve=>{acceptClarification=resolve;}),reviewer:async r=>{if(r.action==='__user_chat__')return receipt(r,'concern','Thanks');approvals++;return receipt(r,'concern','Which app account should be used?');}});
+ const pending=clarify.authorize(op({workspaceId:'clarify'}));while(clarify.snapshot('clarify').records[0].status!=='needs_confirmation')await tick();
+ while(!acceptClarification)await tick();const clarification=await clarify.send('clarify','Use the local test account',clarify.snapshot('clarify').records[0].requestId);assert.equal(clarification.records[0].status,'needs_confirmation');assert.match(clarification.messages.at(-1).text,/弹窗/);acceptClarification(true);assert.equal((await pending).allowed,true);assert.equal(approvals,1,'human approval is final without model re-review');
+ let ruleObserved=false;const rules=create({reviewer:async r=>{if(r.action==='__user_chat__'){r.updateRule({text:'Allow fixture app installs',actions:['apps.install'],enabled:true});return receipt(r,'concern','Rule enabled for fixture app installs');}ruleObserved=r.rules.length===1;assert.equal(r.updateRule,undefined);return receipt(r);}});
+ await rules.send('rules','Allow fixture app installs');assert.equal(rules.snapshot('rules').ruleRevision,1);await rules.authorize(op({workspaceId:'rules'}));assert.equal(ruleObserved,true);
+ const saved=rules.snapshot('rules');const rule=saved.rules[0];rules.setRuleEnabled('rules',rule.id,false,saved.ruleRevision);assert.throws(()=>rules.setRuleEnabled('rules',rule.id,true,saved.ruleRevision),/版本/);
+ rules.clearConversation('rules');assert.equal(rules.snapshot('rules').messages.length,0);assert.equal(rules.snapshot('rules').rules.length,1);
+ const restart=create({reviewer:async()=>{throw new Error('reading must not start model');}});assert.equal(restart.snapshot('rules').rules[0].enabled,false);assert.equal(restart.snapshot('other').rules.length,0);
+ let release;const versioned=create({reviewer:r=>new Promise(resolve=>{release=()=>resolve(receipt(r));})});const inFlight=versioned.authorize(op({workspaceId:'rules'}));while(!release)await tick();versioned.setRuleEnabled('rules',rule.id,true,versioned.snapshot('rules').ruleRevision);release();assert.equal((await inFlight).allowed,false,'rule revocation or mutation invalidates a pending verdict');
+ for(const kind of ['fingerprint','stop','clear','cancel','trusted']){let unblock,valid=true;const controller=new AbortController();const s=create({captureTrustedState:()=>()=>valid,reviewer:r=>new Promise(resolve=>{unblock=()=>resolve(receipt(r));})});const mutable=op({workspaceId:kind,signal:controller.signal});const task=s.authorize(mutable);while(!unblock)await tick();if(kind==='fingerprint')mutable.args.name='changed';if(kind==='stop')s.stop(kind);if(kind==='clear')s.clearConversation(kind);if(kind==='cancel')controller.abort();if(kind==='trusted')valid=false;unblock();assert.equal((await task).allowed,false,kind);}
+ for(const kind of ['deny','wrong','failure','timeout']){const s=create({timeoutMs:5,reviewer:async r=>{if(kind==='timeout')return new Promise(()=>{});if(kind==='failure')throw new Error('fixture failure');return {...receipt(r,kind==='deny'?'deny':'allow'),fingerprint:kind==='wrong'?'wrong':r.fingerprint};}});let humans=0;const d=await s.authorize(op({workspaceId:kind,humanConfirm:async()=>{humans++;return false;}}));assert.equal(d.allowed,false,kind);assert.equal(humans,1,'unsupported verdicts and failures must use explicit human fallback');}
+ let late;const staleChat=create({reviewer:r=>new Promise(resolve=>{late={r,resolve};})});
+ const abandoned=staleChat.send('late','Allow fixture app installs');while(!late)await tick();staleChat.stop('late');await assert.rejects(abandoned,/停止|失效/);
+ assert.throws(()=>late.r.updateRule({text:'must never save',actions:['apps.install'],enabled:true}),/失效/);late.resolve(receipt(late.r,'concern','LATE'));assert.equal(staleChat.snapshot('late').rules.length,0);assert.equal(staleChat.snapshot('late').messages.some(m=>m.text==='LATE'),false);
+ let boundCalls=0;const confirmations=[];const bound=create({humanConfirm:async()=>new Promise(resolve=>confirmations.push(resolve)),reviewer:async r=>{if(r.action==='__user_chat__')return receipt(r,'concern','chat');boundCalls++;return receipt(r,'concern','Need this request approved');}});
+ const first=bound.authorize(op({workspaceId:'bound'})),second=bound.authorize(op({workspaceId:'bound'}));while(bound.snapshot('bound').records.filter(r=>r.status==='needs_confirmation').length!==2)await tick();
+ await bound.send('bound','yes');await tick();assert.equal(boundCalls,2,'ordinary yes does not resume either approval');
+ await assert.rejects(()=>bound.send('other-workspace','yes',bound.snapshot('bound').records[0].requestId),/不属于/);
+ await bound.send('bound','yes',bound.snapshot('bound').records[0].requestId);assert.equal(boundCalls,2,'request-bound chat never re-runs review');while(confirmations.length<2)await tick();confirmations[0](true);assert.equal((await first).allowed,true);assert.equal(bound.snapshot('bound').records[1].status,'needs_confirmation');bound.stop('bound');assert.equal((await second).allowed,false);
+ const rollback=create({reviewer:async r=>{r.updateRule({text:'Rollback fixture',actions:['apps.install'],enabled:true});return receipt(r,'concern','saved');}});
+ await rollback.send('rollback','Create rollback fixture rule');const baseline=rollback.snapshot('rollback');const writer=fs.writeFileSync;
+ try{fs.writeFileSync=()=>{throw new Error('fixture persistence failure');};assert.throws(()=>rollback.setRuleEnabled('rollback',baseline.rules[0].id,false,baseline.ruleRevision),/persistence/);}
+ finally{fs.writeFileSync=writer;}
+ assert.deepEqual(rollback.snapshot('rollback').rules,baseline.rules,'failed rule persistence rolls back in-memory rule');assert.equal(rollback.snapshot('rollback').ruleRevision,baseline.ruleRevision);
+ let mutationAttempt;const chatRollback=create({reviewer:async r=>{mutationAttempt=r;fs.writeFileSync=()=>{throw new Error('fixture chat write failure');};r.updateRule({text:'Uncommitted fixture',actions:['apps.install'],enabled:true});return receipt(r,'concern','unreachable');}});
+ try{await assert.rejects(()=>chatRollback.send('chat-rollback','Create uncommitted rule'),/write|审计/);}finally{fs.writeFileSync=writer;}
+ assert.equal(chatRollback.snapshot('chat-rollback').rules.length,0);assert.equal(chatRollback.snapshot('chat-rollback').ruleRevision,0);
+ const oldWarn=console.warn;let notificationFailures=0;
+ const notifyFailure=create({onChanged:()=>{throw new Error('fixture notification failure');},reviewer:async r=>{if(r.action==='__user_chat__')r.updateRule({text:'Committed notification rule',actions:['apps.install'],enabled:true});return receipt(r,'allow','committed');}});
+ try{console.warn=()=>{notificationFailures++;};await notifyFailure.send('notify-failure','Create notification rule');const saved=notifyFailure.snapshot('notify-failure');assert.equal(saved.ruleRevision,1);assert.equal(saved.rules.length,1);notifyFailure.setRuleEnabled('notify-failure',saved.rules[0].id,false,1);assert.equal(notifyFailure.snapshot('notify-failure').ruleRevision,2);assert.equal((await notifyFailure.authorize(op({workspaceId:'notify-failure'}))).allowed,true);}
+ finally{console.warn=oldWarn;}
+ assert.ok(notificationFailures>0,'notification failure is reported separately');
+ const notificationRestart=create({reviewer:async r=>receipt(r)});assert.equal(notificationRestart.snapshot('notify-failure').ruleRevision,2);assert.equal(notificationRestart.snapshot('notify-failure').rules[0].enabled,false,'notification errors never roll committed rules back only in memory');
+ const summaryWorkspace='rolling-summary';const summaryFile=path.join(directory,'safety',createHash('sha256').update(summaryWorkspace).digest('hex').slice(0,24),'conversation.json');fs.mkdirSync(path.dirname(summaryFile),{recursive:true});
+ fs.writeFileSync(summaryFile,JSON.stringify({records:[],rules:[],ruleRevision:0,generation:1,summary:'OLD_SUMMARY_'.repeat(1100),messages:Array.from({length:160},(_,i)=>({id:`summary-${i}`,role:'user',text:i===0?'LATEST_SUMMARY_PROVENANCE_MARKER':`history-${i}`,createdAt:i}))}));
+ const rolling=create({reviewer:async r=>receipt(r,'concern','summary reply')});await rolling.send(summaryWorkspace,'Rotate history');const summaryData=JSON.parse(fs.readFileSync(summaryFile,'utf8'));assert.ok(summaryData.summary.length<=12000);assert.ok(summaryData.summary.includes('LATEST_SUMMARY_PROVENANCE_MARKER'),'a full summary retains newly summarized history');assert.ok(summaryData.summary.includes('summary-0;chat;user'),'rolling summary retains message provenance');
+ let restoredHistory;const summaryRestart=create({reviewer:async r=>{restoredHistory=r.history;return receipt(r,'concern','restored');}});await summaryRestart.send(summaryWorkspace,'Continue after restart');assert.ok(restoredHistory[0].text.includes('LATEST_SUMMARY_PROVENANCE_MARKER'),'restart restores the latest summarized history');
+ const original=fs.writeFileSync;const disk=create({reviewer:async r=>{fs.writeFileSync=()=>{throw new Error('disk failed');};return receipt(r);}});try{assert.equal((await disk.authorize(op({workspaceId:'disk'}))).allowed,false);}finally{fs.writeFileSync=original;}
+ const streamSnapshots=[];const streamed=create({onChanged:s=>streamSnapshots.push(s),reviewer:async r=>{r.onEvent({type:'model-start'});r.onEvent({type:'text-delta',text:'先看证据'});r.onEvent({type:'tool-start',id:'tool-1',name:'safety_evidence',input:{action:'diff'}});r.onEvent({type:'tool-result',id:'tool-1',output:'证据结果',isError:false});r.onEvent({type:'text-delta',text:'，再给结论'});return receipt(r,'concern','先看证据，再给结论');}});await streamed.send('stream','检查这次审批');await new Promise(resolve=>setTimeout(resolve,70));const streamedMessage=streamed.snapshot('stream').messages.find(m=>m.role==='assistant');assert.ok(streamedMessage?.parts?.some(p=>p.kind==='tool'&&p.tool.name==='safety_evidence'&&p.tool.status==='ok'),'tool events remain visible in the streamed transcript');assert.match(streamedMessage?.text??'',/先看证据/);assert.ok(streamSnapshots.some(s=>s.messages.some(m=>m.parts?.some(p=>p.kind==='tool'))),'streaming snapshots are published before the final reply');
+ const secret='SHORT-SMTP-SECRET';let evidence;const privacy=create({reviewer:async r=>{evidence=r;return receipt(r,'deny',secret);}});await privacy.authorize(op({workspaceId:'privacy',args:{smtpPassword:secret},summary:secret}));assert.equal(JSON.stringify(evidence).includes(secret),false);assert.equal(JSON.stringify(privacy.snapshot('privacy')).includes(secret),false);
+ const config={workspaces:[{id:'w',path:'/root'}],llm:{activeProviderId:'p',activeModelId:'m',providers:[{id:'p',apiKey:'fixture'}]}};const host={config:{get:()=>config},sessions:{peek:()=>undefined},orchestrator:null};const current=captureSafetyContext(host,op());assert.equal(current(),true);config.workspaces[0].path='/changed';assert.equal(current(),false);
+ console.log('persistent safety service regressions passed');
+}finally{for(const s of services){try{s.dispose();}catch{}}fs.rmSync(directory,{recursive:true,force:true});}

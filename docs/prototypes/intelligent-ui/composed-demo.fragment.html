@@ -1,0 +1,47 @@
+<ma-stack>
+  <ma-row><ma-badge tone="info">发布方案</ma-badge><ma-text>筛选方案、比较投入，再选一项继续讨论。</ma-text></ma-row>
+  <ma-grid columns="2">
+    <ma-card label="筛选与参数">
+      <ma-stack>
+        <ma-select name="status" label="状态" value="all"><option value="all">全部</option><option value="可用">可用</option><option value="待评估">待评估</option></ma-select>
+        <ma-input name="query" label="搜索方案" placeholder="输入名称或备注"></ma-input>
+        <ma-input name="budget" label="预算（万元）" type="number" min="1" max="200" value="80"></ma-input>
+        <ma-slider name="confidence" label="信心（%）" min="0" max="100" value="70"></ma-slider>
+        <ma-checkbox name="showNotes" label="显示补充说明" private checked></ma-checkbox>
+      </ma-stack>
+    </ma-card>
+    <ma-card label="各方案预计投入">
+      <ma-chart id="cost-chart" source="plans" label="方案投入" label-key="name" value-key="cost" unit="万元" filter="status" filter-key="status"></ma-chart>
+      <ma-text>图表和列表使用同一筛选条件。悬停查看完整数值。</ma-text>
+    </ma-card>
+  </ma-grid>
+  <script type="application/json" id="plans">{"columns":[{"key":"name","label":"方案"},{"key":"cost","label":"投入/万元","num":true},{"key":"status","label":"状态"},{"key":"note","label":"说明"}],"rows":[{"id":"a","name":"方案 A","cost":62,"status":"可用","note":"先覆盖主要流程"},{"id":"b","name":"方案 B","cost":92,"status":"待评估","note":"较多外部依赖"},{"id":"c","name":"方案 C","cost":76,"status":"可用","note":"分两阶段交付"},{"id":"d","name":"方案 D","cost":118,"status":"待评估","note":"同时调整全部模块"},{"id":"e","name":"方案 E","cost":54,"status":"可用","note":"集中改善高频路径"},{"id":"f","name":"方案 F","cost":85,"status":"待评估","note":"需追加容量验证"},{"id":"g","name":"方案 G","cost":70,"status":"可用","note":"先改善默认体验"},{"id":"h","name":"方案 H","cost":105,"status":"待评估","note":"需要更多迁移工作"}]}</script>
+  <ma-table id="plans-table" source="plans" label="发布方案列表" filter="status" filter-key="status" search="query" selection="selected" row-key="id">
+    <template data-actions><ma-button action="copy" text="{row.name}：{row.cost} 万元，{row.note}" label="复制"></ma-button></template>
+  </ma-table>
+  <div data-ma-visible="selected">
+    <ma-card label="已选方案">
+      <ma-row><ma-text bind="selected.name"></ma-text><ma-badge bind="selected.status" tone="success"></ma-badge><ma-text bind="selected.note"></ma-text></ma-row>
+      <ma-row>
+        <ma-button label="加入输入框" prompt="请分析 {selected.name}，预计投入 {selected.cost} 万元，我的预算是 {budget} 万元。"></ma-button>
+        <ma-button label="继续提问" prompt="请分析 {selected.name} 的分阶段实施风险，预算 {budget} 万元。" mode="send" confirm-title="继续讨论已选方案"></ma-button>
+        <ma-button label="查看参考" action="openUrl" url="https://example.com/plan"></ma-button>
+      </ma-row>
+    </ma-card>
+  </div>
+  <div data-ma-visible="showNotes">
+    <ma-tabs name="notes-view" label="补充信息">
+      <section label="阅读说明">
+        <ma-stack>
+          <p>先选定目标和预算，再比较方案。费用只是一个维度，也要看交付范围、迁移成本与外部依赖。</p>
+          <p>列表支持排序、筛选和选择。表格的操作与详情中的继续提问使用同一份选择，切回会话后仍可接着操作。</p>
+          <p>长内容默认直接铺在会话中。鼠标落在表格、图表或数字输入框上，普通滚轮仍然滚动会话，避免嵌套滚动影响阅读。</p>
+          <p>需要减少占用时使用上方“收起”。收起与展开不会重建内容，参数、选择与排序会保留。</p>
+          <p>窄布局会把并列分组改为单列。图表按实际宽度重新计算刻度和标签，表格需要时可横向查看。</p>
+          <p>筛选与参数等公开选择可用于下一轮讨论；页签、排序和私人显示偏好仅用于恢复界面。</p>
+        </ma-stack>
+      </section>
+      <section label="操作约定"><ma-details name="notes-extra" label="展开更多说明"><ma-text>按钮点击后会显示操作结果。继续提问会先确认；加入输入框会保留原有草稿。</ma-text></ma-details></section>
+    </ma-tabs>
+  </div>
+</ma-stack>

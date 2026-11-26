@@ -1,0 +1,25 @@
+/** 工作区扫盘时跳过的目录名（文件树 / @ 引用 / rg 排除共用） */
+export const SKIP_DIR_NAMES = new Set([
+  '.git',
+  '.worktrees',
+  '.tmp',
+  'node_modules',
+  'out',
+  'dist',
+  'build',
+  '.next',
+  '.turbo',
+  '.cache',
+  'coverage',
+  '__pycache__',
+  '.venv',
+  'venv',
+  'Intermediate',
+  'Binaries',
+  'DerivedDataCache',
+  'Saved',
+  '.vs',
+  'obj',
+  'Debug',
+  'Release'
+]);

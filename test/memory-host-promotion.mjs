@@ -1,0 +1,55 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createSharedCompiler} from './helpers/shared-compile.mjs';
+
+const scratch=path.resolve('.tmp');fs.mkdirSync(scratch,{recursive:true});
+const temp=fs.mkdtempSync(path.join(scratch,'memory-host-promotion-'));
+const compile=createSharedCompiler(process.cwd(),path.join(temp,'compiled'));
+const load=file=>import(pathToFileURL(compile(file)));
+const stub=(file,source)=>fs.writeFileSync(compile(file),source);
+let svc;
+try {
+  compile('main/memory/knowledgeIpc.ts');
+  stub('main/ipc/handle.ts','export function handle(name,fn){globalThis.memoryPromotionHandlers.set(name,fn)}');
+  stub('main/ipc/helpers.ts','export function resolveWorkspaceControlRoot(ctx,id){const ws=ctx.config.get().workspaces.find(w=>w.id===id);if(!ws)throw Error("unknown workspace");return ws.path}');
+  stub('main/turnChanges/runtime.ts','export function turnChanges(){throw Error("unused")}');
+  stub('main/memory/curatorBindings.ts','export function memoryCurator(){throw Error("unused")}');
+  stub('main/memory/knowledgeHistory.ts','export function knowledgeHistorySources(){} export function readKnowledgeHistory(){}');
+  stub('main/memory/knowledgeActivity.ts','export function knowledgeActivity(){return []}');
+  stub('main/git/identity.ts','export async function readGitIdentity(root){return {root,branch:"main"}}');
+  const {MemoryService}=await load('main/memory/service.ts');
+  const {setMemoryService}=await load('main/memory/serviceRef.ts');
+  const {setUserProfileFilePath}=await load('main/memory/userProfile.ts');
+  const {setMemoryEnvironmentProvider}=await load('main/memory/environment.ts');
+  const {registerKnowledgeIpc}=await load('main/memory/knowledgeIpc.ts');
+  const a=path.join(temp,'workspace-a'),b=path.join(temp,'workspace-b'),profile=path.join(temp,'profile');
+  for(const dir of [a,b,profile])fs.mkdirSync(dir);
+  setUserProfileFilePath(profile);setMemoryEnvironmentProvider(()=>({appVersion:'2.0'}));svc=new MemoryService();setMemoryService(svc);
+  globalThis.memoryPromotionHandlers=new Map();
+  const ctx={config:{get:()=>({workspaces:[{id:'a',path:a},{id:'b',path:b}]})}};
+  registerKnowledgeIpc(ctx);
+  const source=svc.knowledge(a,'worker');
+  const draft={kind:'reusable_lesson',summary:'通用订阅需要及时清理',problem:'重复安装会泄漏',action:'释放订阅',rationale:'隔离测试确认',applicability:['事件订阅'],exceptions:[],expectedFutureUse:'避免泄漏',repoKey:a,branch:'private',searchKeys:['private-secret-keyword'],environment:[{key:'appVersion',value:'1.0'}]};
+  const original=source.submit(draft,{namespace:'worker',origin:'user',explicit:true,evidence:[{id:'private-evidence',source:'tool',eventTime:1,verification:'unverified',excerpt:'secret project path'}]}).record;
+  const promote=globalThis.memoryPromotionHandlers.get('knowledge:promoteHost');
+  assert.throws(()=>promote(null,'a',{id:original.id,revision:2,draft:{...draft,repoKey:undefined,branch:undefined}}),/版本已变化/);
+  assert.throws(()=>promote(null,'a',{id:original.id,revision:1,draft}),/移除仓库和分支/);
+  const copy=promote(null,'a',{id:original.id,revision:1,draft:{...draft,summary:'通用订阅及时清理',repoKey:undefined,branch:undefined}});
+  assert.equal(copy.namespace,'host');assert.equal(copy.userManaged,true);assert.deepEqual(copy.searchKeys,[]);
+  assert.equal(copy.environmentCheck.state,'stale','the immediate action receipt must preserve the stale warning');
+  assert.equal(copy.repoKey,undefined);assert.equal(copy.branch,undefined);
+  assert.doesNotMatch(JSON.stringify(copy),/private-secret-keyword|private-evidence|secret project path/,'unreviewed source metadata never crosses workspaces');
+  assert.equal(svc.knowledge(a,'host'),svc.knowledge(b,'host'),'the same userData host store is visible in both workspaces');
+  assert.equal((await svc.queryKnowledge(b,{namespace:'host',query:'通用订阅'}))[0].record.id,copy.id);
+  assert.equal((await svc.queryKnowledge(b,{namespace:'worker',query:'通用订阅'})).length,0,'workspace-local memory remains isolated');
+  const host=svc.knowledge(b,'host');assert.ok(host.curatorReferences('订阅',{namespace:'host'}).records.some(item=>item.id===copy.id));
+  host.deleteKnowledge(copy.id,copy.revision);
+  assert.ok(host.deletedKnowledge({namespace:'host'}).some(item=>item.id===copy.id),'global deletion remains visible for curator comparison');
+  assert.equal(host.submit({kind:'reusable_lesson',summary:'字段不完整',applicability:[]},{namespace:'host',origin:'user',explicit:true,evidence:[{id:'e',source:'user',eventTime:1,verification:'user_confirmed'}]}).disposition,'rejected','an ineligible global lesson cannot turn into a global task fact');
+  console.log('memory-host-promotion: explicit reviewed copy, data minimization, workspace isolation and global deletion passed');
+} finally {
+  svc?.closeAll();delete globalThis.memoryPromotionHandlers;
+  assert.equal(path.dirname(path.resolve(temp)),scratch);fs.rmSync(temp,{recursive:true,force:true});
+}

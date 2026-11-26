@@ -1,0 +1,1 @@
+{"scene":"S1 回归汇总","render":{"mode":"inline","title":"回归测试：6 个文件全部通过","preset":"stats","data":{"metrics":[{"label":"测试文件","value":6,"unit":"个"},{"label":"用例总数","value":47,"unit":"条"},{"label":"失败 / 跳过","value":0,"unit":"条"},{"label":"总耗时","value":58.3,"unit":"s","trend":"较上次 -6.2s","trendDir":"down"}]}}}

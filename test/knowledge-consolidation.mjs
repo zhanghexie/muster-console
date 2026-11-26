@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+import {createSharedCompiler} from './helpers/shared-compile.mjs';
+fs.mkdirSync('.tmp',{recursive:true});const temp=fs.mkdtempSync(path.resolve('.tmp/knowledge-consolidation-'));
+const compile=createSharedCompiler(process.cwd(),path.join(temp,'compiled'));
+const {KnowledgeStore}=await import(pathToFileURL(compile('main/memory/knowledgeStore.ts')));
+const {consolidateKnowledge}=await import(pathToFileURL(compile('main/memory/knowledgeConsolidation.ts')));
+const store=new KnowledgeStore(path.join(temp,'assets'));
+const lesson={kind:'reusable_lesson',summary:'提交审批时校验版本',problem:'审批覆盖新内容',action:'提交审批时校验文件哈希',rationale:'并发测试通过',applicability:['延迟审批'],exceptions:['不是生成时检查一次'],expectedFutureUse:'避免覆盖'};
+const ctx=(id,sessionId)=>({namespace:'worker',origin:'worker',evidence:[{id,source:'test',sessionId,eventTime:1,verification:'test'}]});
+try{
+ let calls=0;const empty=async()=>{calls++;return '{"records":[]}';};
+ await consolidateKnowledge(store,empty);assert.equal(calls,0,'empty means no model calls');
+ const a=store.submit(lesson,ctx('a','one')).record;
+ store.submit({...lesson,summary:'提交审批时校验版本与候选',action:'提交审批时校验文件哈希与候选状态'},ctx('b','one'));
+ await consolidateKnowledge(store,empty);assert.equal(calls,0,'same session paraphrases do not become independent evidence');
+ const b=store.submit({...lesson,summary:'提交审批时校验版本与状态',action:'提交审批时校验文件哈希与状态'},ctx('c','two')).record;
+ const derived={...lesson,summary:'延迟提交采用双重校验',action:'在提交事务中同时校验文件哈希与候选状态'};
+ const now=Date.now();
+ const before=store.list().records.length;
+ assert.throws(()=>store.submit(derived,{...ctx('stale','three'),derivedFrom:[{id:a.id,revision:a.revision+1},{id:b.id,revision:b.revision}]}),/来源已变化/);
+ assert.equal(store.list().records.length,before,'failed source validation leaves no orphan candidate');
+ const result=await consolidateKnowledge(store,async input=>{calls++;const group=JSON.parse(input.user).records;return JSON.stringify({records:[{draft:derived,sourceIds:group.slice(0,2).map(r=>r.id)}]});},now);
+ assert.equal(result.proposed,1);assert.equal(calls,1);
+ const record=store.list().records.find(r=>r.summary===derived.summary);
+ assert.equal(record.status,'pending');assert.equal(record.relations.length,2);assert.ok(record.relations.every(r=>r.inferred&&r.kind==='derived_from'));
+ await consolidateKnowledge(store,empty,now+1000);assert.equal(calls,1,'hourly budget');
+ await consolidateKnowledge(store,empty,now+3600001);assert.equal(calls,1,'unchanged evidence is terminal');
+ assert.equal(store.search({query:'延迟提交'}).length,0,'derived pending never auto applies');
+ console.log('knowledge-consolidation: independent provenance, zero work, rate budget and pending relations passed');
+}finally{store.close();fs.rmSync(temp,{recursive:true,force:true});}

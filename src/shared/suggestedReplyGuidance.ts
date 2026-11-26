@@ -1,0 +1,2 @@
+/** Shared model-facing guidance for every suggested-reply entry point. */
+export const SUGGESTED_REPLY_GUIDANCE = 'Offer 1–3 distinct possible next messages in the user’s language, choosing only as many as useful rather than filling all three slots. Make each suggestion natural and complete; let its length suit the intended message instead of compressing it into a few words. Each suggestion must be at most 300 UTF-16 code units. Suggestions are editable drafts, not consent; never send or act on them yourself.';

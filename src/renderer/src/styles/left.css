@@ -1,0 +1,1344 @@
+/* left.css — 由 styles.css 拆分（域：left）。规范见 /design.md。修改请守住 token。 */
+
+:root {
+  --sidebar-row-height: 38px;
+  --sidebar-row-spacing: 2px;
+  --sidebar-row-inline-padding: 10px;
+  --sidebar-row-icon-slot: 16px;
+  --sidebar-row-content-gap: 8px;
+}
+
+.sessions-column {
+  flex: 0 0 auto;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  /* 侧边留白由列表统一提供，外层不再叠一份左侧框边。左右内缩统一走 :root 的
+   * --left-pad-x（底部框距两倍，顶栏左缘同值对齐）。 */
+  padding: 0;
+  background: transparent;
+}
+
+/* ---------- 工作区栈槽位（左栏底部，AgentFloat 经 portal 挂胶囊栈进来） ----------
+   栈随侧边栏同生共死：显隐天然一致、速览悬停胶囊=悬停面板本体（收回计时无需豁免、
+   不再需要底部留白与 z 抬升补丁）。sticky 钉底 + margin-top:auto：内容不足时贴底、
+   列表溢出滚动时不随内容滚走；:empty（窄屏抽屉等未挂栈场景）零高度不占位。
+   速览中对话面板仍需压过已划开的工作面，z 抬升保留 */
+.main-view.sessions-peek .agent-float {
+  z-index: calc(var(--z-modal) + 10);
+}
+
+/* 在滚动区 .left-panel-scroll 之外，恒贴左栏底部；不压列表、不垫底色。
+   宽度与父栏解耦：浮层公式宽 / 长名胶囊的 min-content 不得把 LeftPanel 撑宽，
+   否则会话列表右侧会多出一条空白（展开工作区栈时偶现）。只含 inline-size，
+   不改 overflow-y，避免 overflow-x≠visible 把 block 轴算成 auto 裁掉折叠露边。 */
+.left-ws-slot {
+  flex-shrink: 0;
+  /* 恒贴左栏底部：分组列表高度按内容自适应后，空隙留在列表与栈之间 */
+  margin-top: auto;
+  /* 胶囊栈上移 1px，与会话卡底边作视觉对齐，只调整垂直位置。 */
+  margin-bottom: 1px;
+  min-width: 0;
+  max-width: 100%;
+  contain: inline-size;
+}
+
+/* 调度面板的磨砂层覆盖整张工作面，但底部工作区列表必须保持可见、可切换。 */
+.main-view:has(.agent-float-panel) .left-panel {
+  z-index: auto;
+}
+
+.main-view:has(.agent-float-panel) .left-ws-slot {
+  position: relative;
+  z-index: calc(var(--z-popover) + 1);
+}
+
+/* 工作区与上方会话列表用留白区分。 */
+.left-ws-slot:not(:empty) {
+  /* 底边已由工作面外层留出 --frame-gap，这里不再叠加。 */
+  padding: 10px var(--left-pad-x) 0;
+}
+
+/* 折叠⇄展开动画窗口内裁剪溢出：手风琴先缩、深层行的 transform 逐层延迟追赶，
+   未起飞的行会被拖到卡片底缘以下。槽位 padding box 与卡片内缘齐平，裁剪线就是卡片边界，视觉零损失；
+   常挂会硬切最后一行的投影，故只随栈的 is-stack-animating 挂在动画窗口内 */
+.left-ws-slot:has(.agent-ws-stack.is-stack-animating) {
+  overflow: clip;
+}
+
+/* 栈在槽位内占满栏宽（气泡宽度改随容器，不再按浮层几何变量截算） */
+.left-ws-slot .agent-ws-stack {
+  --ws-row-h: var(--sidebar-row-height);
+  --ws-gap: var(--sidebar-row-spacing);
+  --ws-peek-depth: 1;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  align-items: stretch;
+  transform: translateY(0);
+  transition: transform var(--dur-panel) var(--ease-standard);
+}
+
+.left-ws-slot .agent-ws-stack:has(.agent-ws-stack-rest-body > .agent-ws-stack-row:nth-child(2)) {
+  --ws-peek-depth: 2;
+}
+
+.left-ws-slot .agent-ws-stack:has(.agent-ws-stack-rest-body > .agent-ws-stack-row:nth-child(3)) {
+  --ws-peek-depth: 3;
+}
+
+/* 折叠后排向下露出的部分也计入外缘：按 float.css 的 peek/step/scale 几何上移整栈。
+   只动 transform；展开恢复，不额外叠加底 padding。最多三层与 WS_STACK_PEEK_LAYERS 同步。 */
+.left-ws-slot .agent-ws-stack.is-collapsed:has(.agent-ws-stack-rest-body > .agent-ws-stack-row) {
+  transform: translateY(calc(-1 * (var(--ws-peek) + (var(--ws-peek-depth) - 1) * var(--ws-step) - var(--ws-row-h) * var(--ws-peek-depth) * 0.07)));
+}
+
+.left-ws-slot .agent-ws-stack-row,
+.left-ws-slot .agent-ws-stack-rest,
+.left-ws-slot .agent-ws-stack-rest-body {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.left-ws-slot .agent-ws-stack-item {
+  --ws-avatar: 0px;
+  --ws-gap: 0px;
+  /* 切断浮层 --sessions-col-w 公式：槽位内跟栏宽，禁止把父栏撑出 extra 空白。 */
+  --ws-bubble: 100%;
+  --ws-bubble-docked: auto;
+  /* 头像始终在整颗胶囊内；对话态右收 56px，窄栏至少保留 144px 内容宽度。 */
+  --ws-dock-shift: clamp(0px, calc(100% - 144px), 56px);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.left-ws-slot .agent-ws-stack-main {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* 框色实底兜住折叠重叠，表层与实用功能共用普通/悬停/选中叠层。 */
+.left-ws-slot .agent-notify-bubble {
+  --ws-current-marker-color: var(--fg-selected-secondary);
+  gap: var(--sidebar-row-content-gap);
+  padding-inline: calc(var(--sidebar-row-inline-padding) - 1px);
+  background: var(--surface-frame);
+  border-color: transparent;
+  box-shadow: none;
+  isolation: isolate;
+}
+
+.left-ws-slot .agent-notify-bubble::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  corner-shape: inherit;
+  pointer-events: none;
+  background: var(--interaction-hover);
+  transition: background-color var(--dur-micro) var(--ease-hover);
+}
+
+.left-ws-slot .agent-notify-bubble:hover {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+  border-color: transparent;
+}
+
+.left-ws-slot .agent-notify-bubble:hover::before {
+  background: var(--interaction-selected-hover);
+}
+
+.left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+  border-color: transparent;
+}
+
+.left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble::before {
+  background: var(--interaction-selected);
+}
+
+.left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble:hover::before {
+  background: var(--interaction-selected-hover);
+}
+
+.left-ws-slot .agent-ws-stack-item.is-chatting .agent-notify-bubble {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.left-ws-slot .agent-ws-stack-item.is-chatting .agent-notify-bubble::before {
+  box-shadow: inset 0 0 0 1px var(--input-focus-border);
+}
+
+.left-ws-slot .agent-ws-stack-item .agent-float-avatar {
+  --ws-avatar: 24px;
+  /* 图标与会话槽位居中对齐，按钮命中区向两侧各扩出 4px。 */
+  margin-inline: calc((var(--sidebar-row-icon-slot) - var(--ws-avatar)) / 2);
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--font-control);
+}
+
+.left-ws-slot .agent-float-avatar:hover:not(:disabled) {
+  background: var(--interaction-hover);
+}
+
+.left-ws-slot .agent-float-avatar .agent-avatar-img {
+  width: 14px;
+  height: 14px;
+}
+
+.left-ws-slot .agent-ws-stack-item.is-active .agent-float-avatar {
+  border-color: transparent;
+}
+
+.left-ws-slot .agent-ws-stack-item .agent-notify-body {
+  padding: 0;
+}
+
+.left-ws-slot .agent-notify-text,
+.left-ws-slot .agent-notify-bubble.is-waiting .agent-notify-text {
+  color: var(--fg-secondary);
+}
+
+.left-ws-slot .agent-ws-stack-item.is-chatting .agent-float-avatar {
+  transform: none;
+}
+
+.left-ws-slot .agent-ws-stack-header {
+  /* 槽位已提供横向留白，标题不能重复内缩。 */
+  padding: 0 0 4px;
+  gap: 4px;
+}
+
+.left-panel .session-header-actions .git-btn,
+.left-ws-slot .agent-ws-add-btn,
+.left-ws-slot .agent-ws-collapse-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--fg-muted);
+}
+
+.left-panel .session-header-actions .git-btn:hover:not(:disabled),
+.left-ws-slot .agent-ws-add-btn:hover:not(:disabled),
+.left-ws-slot .agent-ws-collapse-btn:hover:not(:disabled) {
+  background: var(--interaction-hover);
+  border-color: transparent;
+  color: var(--fg-primary);
+}
+
+.left-ws-slot .agent-notify-chat {
+  box-shadow: none;
+  height: 22px;
+  margin: 0;
+  padding: 0 9px;
+  font-size: var(--font-caption);
+}
+
+.left-ws-slot .agent-ws-stack-item.is-chatting .agent-notify-chat {
+  color: var(--fg-secondary);
+  box-shadow: none;
+}
+
+/* 恢复 float.css 已有的 dock 收缩：margin-left 让位，flex 跟缩，右缘固定。
+   不用浮层公式宽 --ws-bubble-docked，避免撑宽手风琴内的其他行。 */
+.left-ws-slot .agent-ws-stack-item.is-chatting .agent-ws-stack-main {
+  width: auto;
+}
+
+/* 纯文字列表显隐（无图标、无选中底） */
+.side-list-toggle {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  padding: 2px 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1.3;
+}
+
+.side-list-toggle:hover:not(:disabled) {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.side-list-toggle:disabled {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: not-allowed;
+}
+
+/* 列表开关统一为面板折叠图标（2026-10-07 报单④，IconPanelToggle：顶部列表条形态，
+ * 与顶栏右侧栏开合钮同源；取代 10-06 的裸 chevron）。图标两形态直切，无旋转过渡。 */
+.side-list-toggle.is-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 20px;
+  padding: 0;
+}
+
+.side-list-toggle.is-icon:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 1px;
+}
+
+/* ---------- Unified controls ---------- */
+
+.icon-btn,
+.ctrl-close,
+.session-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-size: var(--font-body);
+  line-height: 1;
+  font-family: inherit;
+}
+
+.icon-btn:hover,
+.ctrl-close:hover,
+.session-close:hover {
+  /* design.md §8：hover 只叠白 + 图标提亮（§6），不变描边色 */
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.session-close,
+.session-action {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  border-color: transparent;
+  transition: opacity var(--dur-micro) var(--ease-hover), visibility 0s linear var(--dur-micro);
+}
+
+/* 与 Git 仓库树行（file-tree-row / git-pin 20px）同密排 */
+.session-close,
+.session-action {
+  width: 20px;
+  height: 20px;
+  font-size: var(--font-ui);
+}
+
+.session-item:hover .session-close,
+.session-item:hover .session-action,
+.board-card:hover .session-action,
+.session-item:focus-within .session-close,
+.session-item:focus-within .session-action,
+.board-card:focus-within .session-action {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+.session-close:hover {
+  color: var(--status-danger-fg);
+  border-color: var(--status-danger-border);
+}
+
+/* Button / Input 规则集中在文件顶部 UI atoms；此处仅左栏与会话 */
+
+/* ---------- 左栏 ---------- */
+
+/* 导航、列表和空态属于操作界面；搜索与内联重命名仍可选择文字。 */
+.utility-navigation,
+.left-panel-scroll {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.utility-navigation :is(input, textarea, [contenteditable='true']),
+.left-panel-scroll :is(input, textarea, [contenteditable='true']) {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* 宽屏左栏是框的一部分；窄屏抽屉仍使用浮层材质。 */
+.left-panel {
+  --interaction-hover: var(--frame-interaction-hover);
+  --interaction-selected: var(--frame-interaction-selected);
+  --interaction-selected-hover: var(--frame-interaction-selected-hover);
+  --interaction-pressed: var(--frame-interaction-pressed);
+  --fg-primary: var(--frame-fg-primary);
+  --border-focus: var(--frame-border-focus);
+  --fg-secondary: var(--frame-fg-secondary);
+  --fg-muted: var(--frame-fg-muted);
+  --fg-selected-primary: var(--frame-fg-selected-primary);
+  --fg-selected-secondary: var(--frame-fg-selected-secondary);
+  --fg-selected-muted: var(--frame-fg-selected-muted);
+  --status-neutral-bg: var(--frame-status-neutral-bg);
+  --status-neutral-fg: var(--frame-status-neutral-fg);
+  --status-neutral-border: var(--frame-status-neutral-border);
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.left-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: transparent;
+  pointer-events: none;
+}
+
+html.is-narrow .sessions-column .left-panel {
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  box-shadow: var(--shadow-pop);
+  --rail-surface: var(--glass-float);
+}
+
+html.is-narrow .sessions-column .left-panel::before {
+  background: var(--glass-float);
+}
+
+/* 列表区：卡片内独立滚动；底缘 12px 渐隐，列表溢出时滚到工作区栈上方不出硬切。
+   不用 scrollbar-gutter:stable（会在右侧永久预留滚动槽导致会话行
+   左右边距不对称）；经典滚动条平台（本机 Win 实测）溢出时滚动槽同样占 10px 布局位，
+   故进一步 scrollbar-width:none：该栏滚动条本就透明、悬停才显形，去掉后
+   滚轮/键盘/触摸滚动不变，会话行与左栏其它元素（工作区栈、磁贴）左右严格对齐。
+   守卫：test/left-panel-list-margin.mjs */
+
+/* 实用工具固定在滚动区上方，不随工作会话/终端滚动（2026-10-10 用户定稿）。
+   导航树过长时自身滚动，不挤压下方列表 */
+.utility-navigation {
+  padding-bottom: 8px;
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+/* 标题文字与独立折叠按钮并排，文字不参与折叠操作。 */
+.left-panel .utility-navigation-title {
+  width: 100%;
+  padding: 10px var(--left-pad-x) 6px;
+}
+
+.panel-header-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.panel-header-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-align: left;
+  opacity: 0;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+.panel-header-chevron {
+  /* 背景留在按钮上，只有内部箭头参与旋转。 */
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+/* 与其他标题行按钮一致：悬浮/键盘聚焦标题行时才显形 */
+.panel-header.sub:hover .panel-header-toggle,
+.panel-header.sub:focus-within .panel-header-toggle,
+.utility-navigation-title:hover .panel-header-toggle,
+.utility-navigation-title:focus-within .panel-header-toggle { opacity: 1; }
+.panel-header-toggle:hover,
+.panel-header-toggle:focus-visible {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+.panel-header-toggle[aria-expanded='false'] .panel-header-chevron { transform: rotate(-90deg); }
+
+/* 分组按内容高度排列，由外层统一滚动，不压缩各组或保留终端位置。 */
+.left-section-scroll {
+  flex: none;
+  min-width: 0;
+}
+
+.left-panel .left-section-scroll + .panel-header.sub {
+  margin-top: 12px;
+}
+
+/* 折叠轨道保留实用工具的首行，或将会话与终端的当前项移到顶部。 */
+.rail-stack.acc {
+  position: relative;
+  min-width: 0;
+  grid-template-rows: var(--rail-folded);
+  opacity: 1;
+}
+.rail-stack.acc.is-open { grid-template-rows: var(--rail-full); }
+.rail-stack > .acc-body { position: relative; z-index: 1; }
+.rail-stack-first-row > .acc-body { overflow: clip; }
+.rail-stack-layout { position: relative; }
+.rail-stack-item {
+  position: relative;
+  min-width: 0;
+  transform-origin: top center;
+  transition: transform var(--dur-panel) var(--ease-standard), opacity var(--dur-panel) var(--ease-standard);
+}
+.rail-stack-item.is-preview { z-index: 1; }
+.rail-stack.is-collapsed .rail-stack-item {
+  opacity: 0;
+  pointer-events: none;
+  transition-duration: var(--dur-exit), var(--dur-exit);
+  transition-timing-function: var(--ease-exit), var(--ease-exit);
+}
+.rail-stack.is-collapsed .rail-stack-item.is-preview {
+  opacity: 1;
+  pointer-events: auto;
+}
+.rail-stack.is-collapsed:not(.rail-stack-first-row) .rail-stack-item {
+  transform: translate(var(--rail-shift-x), var(--rail-shift-y)) scale(0.96);
+}
+.rail-stack.is-collapsed:not(.rail-stack-first-row) .rail-stack-item.is-preview {
+  transform: translate(var(--rail-shift-x), var(--rail-shift-y));
+}
+.rail-stack::before,
+.rail-stack::after {
+  content: '';
+  position: absolute;
+  left: var(--rail-preview-x);
+  top: var(--rail-preview-y);
+  width: var(--rail-preview-w);
+  height: var(--rail-preview-h);
+  border-radius: var(--radius-control);
+  background: var(--interaction-hover);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0) scale(0.96);
+  transition: transform var(--dur-panel) var(--ease-standard), opacity var(--dur-panel) var(--ease-standard);
+}
+.rail-stack.is-collapsed.has-rest::before { opacity: 0.6; transform: translateY(4px) scale(0.96); }
+.rail-stack.is-collapsed.has-rest::after { opacity: 0.3; transform: translateY(8px) scale(0.92); }
+
+.left-panel-scroll {
+  box-sizing: border-box;
+  padding-block: 8px;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-radius: 0;
+}
+
+/* 分组标题走 caption 规范（design.md §5）：11px / 500 / --text-3 / 0.02em */
+.left-panel .panel-header {
+  padding: 10px var(--left-pad-x) 6px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-muted);
+  letter-spacing: 0.02em;
+}
+
+/* 分组之间保留紧凑间距。 */
+.left-panel .panel-header.sub {
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 6px;
+  /* 标题与列表一起滚动，自身不参与高度压缩。 */
+  flex-shrink: 0;
+}
+
+/* 标题行右侧图标按钮组：悬浮该行或菜单展开时才出现（与 git 仓库行内按钮一致） */
+.session-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-micro) var(--ease-hover), visibility var(--dur-micro) var(--ease-hover);
+}
+
+/* 普通列表的按钮组在悬停、菜单展开或聚焦时出现。归档视图保留可见的返回入口。 */
+.panel-header.sub:hover .session-header-actions,
+.session-header-actions.is-archive-view,
+.panel-header.sub:has(.runtime-menu-wrap.is-open) .session-header-actions,
+.panel-header.sub:has(.session-header-actions :focus-visible) .session-header-actions {
+  opacity: 1;
+  visibility: visible;
+}
+
+.session-header-search {
+  width: 100%;
+}
+
+.session-empty {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 38px;
+  margin-bottom: 2px;
+  padding: 7px 10px;
+  border-radius: var(--radius-control);
+  background: transparent;
+  border: 1px dashed var(--border-subtle);
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+
+.runtime-menu-wrap {
+  position: relative;
+}
+
+.runtime-menu-wrap.is-open .runtime-menu {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.runtime-menu-inner {
+  /* design.md §1.1/§7：菜单浮层必为 L3 + shadow-pop + radius-card */
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  padding: 4px;
+}
+
+.runtime-menu-item {
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.session-item.is-archived {
+  opacity: 0.62;
+}
+
+.session-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.session-action:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.session-action svg {
+  display: block;
+}
+
+/* Only the glyph presses in; the row's action slot and pointer target stay fixed. */
+.session-action > svg,
+.session-close > svg,
+.session-header-actions .git-btn > svg {
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+.session-action:active:not(:disabled) > svg,
+.session-close:active:not(:disabled) > svg,
+.session-header-actions .git-btn:active:not(:disabled) > svg { transform: scale(0.9); }
+
+.session-state.is-exited {
+  opacity: 0.45;
+}
+
+/* StatusBadge owns the shared neutral skin; status derivation remains with each caller. */
+.session-capsule {
+  flex-shrink: 0;
+  max-width: 88px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-fg);
+  font-size: var(--font-caption);
+  font-weight: 500;
+  height: 22px;
+  line-height: 22px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.session-capsule-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-capsule.dim {
+  opacity: 1;
+}
+
+.status-badge[data-status-attention='true']::before {
+  content: '';
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--status-warning-fg);
+}
+
+.session-list {
+  /* 与面板头、实用功能磁贴和工作区栈共用同一侧边留白（底部框距两倍）。 */
+  padding: 0 var(--left-pad-x);
+}
+
+/* 会话树（子代理通用化）：子会话缩进挂在父下方，twisty 折叠整枝子树。
+   缩进只由层级决定（12px/层），不因 twisty 常驻而多占位——箭头叠在状态图标位上。 */
+.session-tree-indent {
+  flex: none;
+  /* 宽度按层级由组件内联 style 给出（attr() 在 width 里不生效） */
+  align-self: stretch;
+  /* 层级引导线：让缩进读作父子关系而非单纯左移 */
+  border-left: 1px solid var(--border-subtle);
+  /* 引导线与上一级缩进贴合；行首无额外留白。
+     负右边距吃掉 flex gap 的大部分，使每级实际位移 ≈ 14px（与文件树同档，
+     不像原先 20px 那样把子代理推得太远） */
+  margin-left: 0;
+  margin-right: -6px;
+}
+
+/* 状态图标位：状态点与展开箭头叠在同一格，箭头 hover 才显现（平时透明不可见） */
+.session-state-slot {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--sidebar-row-icon-slot);
+  height: var(--sidebar-row-icon-slot);
+}
+
+/* 展开箭头：简单单向箭头，无边框无底色，覆盖在状态点之上 */
+.session-tree-twisty {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg-muted);
+  opacity: 0;
+  pointer-events: none;
+  /* 只转 transform（合成器友好），不用 width/height 过渡 */
+  transition: transform var(--dur-micro) var(--ease-standard), opacity var(--dur-micro) var(--ease-standard);
+}
+
+/* 有 Harness 的行先显示品牌；指向槽位时再显示子树箭头。
+   无 Harness 的旧行保持原有整行悬浮显示箭头的行为。 */
+.session-item[data-has-children]:not(:has(.session-harness-icon)):hover .session-tree-twisty,
+.session-item[data-has-children] .session-state-slot:hover .session-tree-twisty {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.session-item[data-has-children]:hover .session-state-slot .session-state {
+  opacity: 0;
+}
+
+/* 展开箭头复用工作会话分组折叠的 IconChevronDown（14px）。
+   IconChevronDown 基础态朝下 = 展开态；收起时转 -90° 成朝右——
+   与 .panel-header-chevron（aria-expanded=false → rotate(-90deg)）同一套折叠语义。 */
+.session-tree-twisty { transform: rotate(-90deg); }
+.session-tree-twisty.is-open { transform: rotate(0deg); }
+
+.session-tree-twisty:hover { color: var(--fg-primary); }
+
+/* 键盘导航落到 twisty 上时不显示焦点环：它是行内装饰，焦点语义在整行 */
+.session-tree-twisty:focus-visible { outline: none; }
+
+/* 会话行略高于普通列表行，方便在密集侧栏扫读。 */
+.session-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sidebar-row-content-gap);
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 7px var(--sidebar-row-inline-padding);
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  margin: 0 0 var(--sidebar-row-spacing);
+  font-size: var(--font-ui);
+  transition: background-color var(--dur-micro) var(--ease-hover);
+}
+
+.session-item:hover:not([aria-disabled='true']) {
+  background: var(--interaction-hover);
+}
+
+/* 会话与实用功能共用哑光选中叠层；不加左缘指示条或浮起阴影。 */
+.session-item.active,
+.utility-feature-item.active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+  background: var(--interaction-selected);
+  box-shadow: none;
+  color: var(--fg-selected-primary);
+}
+
+.session-item.active:hover,
+.utility-feature-item.active:hover {
+  background: var(--interaction-selected-hover);
+}
+
+.session-row-content { display: flex; align-items: center; gap: var(--sidebar-row-content-gap); flex: 1; min-width: 0; }
+
+/* 单行会话：名称与自适应胶囊共用一条阅读轨道。 */
+.session-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.session-item[data-session-row] { height: var(--sidebar-row-height); }
+.session-item[data-session-row],
+.left-section-scroll > .rail-stack::before,
+.left-section-scroll > .rail-stack::after {
+  border-radius: var(--radius-page);
+  corner-shape: var(--corner-shape-page);
+}
+.session-rail-content { height: 22px; }
+.session-rail-name { flex: 1; min-width: 0; height: 22px; line-height: 22px; }
+.session-rail-name > .session-name { width: 100%; height: 22px; }
+.session-rail-name > .session-rename-input { width: 100%; height: 22px; box-sizing: border-box; }
+.session-rail-status {
+  flex: 0 1 auto; min-width: 0; max-width: 50%; height: 22px;
+  background: var(--status-neutral-bg); color: var(--status-neutral-fg);
+}
+.session-rail-status-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.session-rail-status.dim { opacity: 1; color: var(--status-neutral-fg); }
+
+/* 整行会话详情，portal 避免被列表与速览的裁切层截断。 */
+.session-details-card {
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  position: fixed; z-index: var(--z-tooltip); width: 344px;
+  max-width: calc(100vw - 16px); max-height: calc(100vh - 16px);
+  box-sizing: border-box; padding: 16px; overflow: auto; pointer-events: auto;
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-modal);
+  background: var(--surface-overlay); color: var(--overlay-fg-primary); box-shadow: var(--shadow-pop);
+  font-size: var(--font-ui); line-height: 1.6;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.session-details-header { display: flex; align-items: center; gap: 8px; }
+.session-details-header strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-control); font-weight: 500; }
+.session-details-time { flex: none; color: var(--overlay-fg-muted); font-size: var(--font-caption); }
+.session-details-state { display: flex; flex: none; align-items: center; gap: 6px; color: var(--overlay-fg-secondary); }
+.session-details-tag { margin-left: auto; font-size: var(--font-caption); color: var(--overlay-fg-muted); }
+.session-details-summary { margin-top: 12px; padding: 10px 12px; border-radius: var(--radius-pill); background: var(--overlay-interaction-hover); overflow-wrap: anywhere; }
+.session-details-summary p { margin: 4px 0 0; color: var(--overlay-fg-secondary); display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; white-space: pre-wrap; }
+.session-details-fields { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 16px; row-gap: 6px; margin: 14px 0 0; }
+.session-details-fields dt { color: var(--overlay-fg-muted); }
+.session-details-fields dd { margin: 0; color: var(--overlay-fg-secondary); overflow-wrap: anywhere; }
+.session-details-runtime { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.session-details-ids { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-subtle); color: var(--overlay-fg-muted); font-size: var(--font-caption); }
+.session-details-ids code { font-family: var(--font-mono); font-size: inherit; overflow-wrap: anywhere; }
+.session-details-id-value { display: flex; align-items: flex-start; gap: 6px; min-width: 0; }
+.session-details-id-value code { flex: 1; min-width: 0; }
+.session-details-copy { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--overlay-fg-muted); cursor: pointer; }
+.session-details-copy:hover { background: var(--overlay-interaction-hover); color: var(--overlay-fg-primary); }
+.session-details-copy:focus-visible { outline: 2px solid var(--overlay-border-focus); outline-offset: 1px; }
+.session-details-copy-result { margin-top: 6px; color: var(--overlay-fg-secondary); font-size: var(--font-caption); }
+.session-row-tools { position: relative; flex: 0 0 32px; width: 32px; height: 24px; }
+.session-row-tools.has-delete { flex-basis: 56px; width: 56px; }
+.session-row-tools.has-delete .session-reltime { margin-left: auto; }
+.session-row-tools.has-delete .session-archive-btn { width: 28px; }
+.session-row-tools.has-delete .session-delete-btn { left: 28px; color: var(--board-card-status-danger-fg); }
+.session-worktree-status { flex: 0 1 auto; max-width: 42%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-caption); color: var(--fg-secondary); background: transparent; border: 0; padding: 2px 4px; cursor: pointer; }
+.session-worktree-status:hover { color: var(--fg-primary); }
+.archived-session-view { position: absolute; inset: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg-primary); }
+.archived-session-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border-subtle); }
+.archived-session-history { flex: 1; min-height: 0; overflow: auto; padding: 16px; }
+.archived-session-history:has(.archived-gui-transcript) { display: flex; flex-direction: column; overflow: hidden; }
+.archived-session-history > pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+.session-delete-confirm .modal-actions { flex-wrap: wrap; }
+.archived-session-actions { display: flex; gap: 4px; padding: 0 8px 4px; }
+.archived-session-actions button[aria-pressed='true'] { background: var(--interaction-selected-hover); color: var(--fg-selected-secondary); }
+.archived-session-delete-selection { display: grid; gap: 6px; max-height: 40vh; overflow: auto; padding: 8px 16px; }
+.session-harness-icon { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: var(--fg-secondary); }
+.session-item:hover .session-harness-icon,
+.session-item:focus-within .session-harness-icon { display: inline-flex; }
+.session-item:hover .session-state-slot:has(.session-harness-icon) .session-state,
+.session-item:focus-within .session-state-slot:has(.session-harness-icon) .session-state { visibility: hidden; }
+.session-item[data-has-children] .session-state-slot:hover .session-harness-icon { visibility: hidden; }
+.session-row-tools .session-reltime { display: block; line-height: 24px; transition: opacity var(--dur-micro) var(--ease-hover), visibility 0s linear var(--dur-micro); }
+.session-row-tools .session-archive-btn {
+  position: absolute; inset: 0; width: 32px; height: 24px; visibility: hidden;
+  font-size: var(--font-ui); background: var(--interaction-selected-hover); color: var(--fg-selected-secondary);
+}
+.session-item:hover .session-archive-btn,
+.session-item:focus-within .session-archive-btn,
+.board-card:hover .session-archive-btn,
+.board-card:focus-within .session-archive-btn { visibility: visible; }
+.session-item:hover .session-row-tools .session-reltime,
+.session-item:focus-within .session-row-tools .session-reltime,
+.board-card:hover .session-row-tools:has(.session-archive-btn) .session-reltime,
+.board-card:focus-within .session-row-tools:has(.session-archive-btn) .session-reltime { visibility: hidden; opacity: 0; }
+/* 相对时间：常驻显示（紧凑格式 5m/3h/2d），悬停时同一槽位显示更多按钮。
+   固定宽度 + 右对齐：最长 4 字符（10mo），不随内容抖动 */
+.session-reltime {
+  flex-shrink: 0;
+  width: 32px;
+  text-align: right;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+
+.session-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.session-pin-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  height: 12px;
+  color: var(--fg-primary);
+  opacity: 0.85;
+}
+
+/* worktree 隔离标记（分支小图标，紧随会话名） */
+.session-wt-mark {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  color: var(--fg-muted);
+}
+
+/* R-18b 多仓隔离组：分支图标旁的组大小（主仓+嵌套仓总数；静态标记无进出场） */
+.session-wt-group {
+  margin-left: 2px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--fg-muted);
+}
+
+
+.session-pin-svg {
+  display: block;
+}
+
+/* 置顶只用角标，不占选中底色（hover 仍正常叠白） */
+.session-item.is-pinned:not(.active) {
+  background: transparent;
+}
+
+.session-item.is-pinned:not(.active):hover {
+  background: var(--interaction-hover);
+}
+
+.session-rename-input {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-input); /* design.md §1.1：输入控件凹槽底 */
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  outline: none;
+}
+
+.session-state {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-primary);
+  opacity: 1;
+  /* 有子会话的行 hover 时状态点淡出、让位给展开箭头（见 .session-state-slot） */
+  transition: opacity var(--dur-micro) var(--ease-standard);
+}
+
+.session-state-svg {
+  display: block;
+}
+
+/* 空闲态槽位弱化：idle/无信号/已退出/定时任务（工作中/需要你/已完成/出错带状态色不弱化） */
+.session-state-idle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+  opacity: 0.6;
+}
+
+/* ===== 会话状态图标（映射点 StatusIcon.tsx；工作中 spinner 几何在 base.css .ui-spinner） ===== */
+.status-ic {
+  display: block;
+}
+
+.st-working { color: var(--status-info-fg); }
+.st-idle { color: var(--fg-muted); }
+.st-needsyou { color: var(--status-warning-fg); }
+.st-done { color: var(--status-success-fg); }
+.st-error { color: var(--status-danger-fg); }
+.st-nosignal { color: var(--purple); }
+
+/* 工作中 spinner：几何 + 旋转在 base.css；相位由 IconSpinner 负 animation-delay 对齐全局时钟 */
+
+/* 需要你：轻呼吸提醒（幅度克制，scale 1→1.12） */
+.session-state-attn {
+  animation: session-state-attn var(--dur-breath) var(--ease-loop) infinite;
+  transform-origin: center;
+}
+
+@keyframes session-state-attn {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+/* 实用功能 = 磁贴网格（图标在上、名称在下）：框上的快捷入口，不再占一长列。
+   快捷键收进 title 提示；分组标题隐藏（磁贴本身即分组） */
+.left-panel > .panel-header:not(.sub) {
+  display: none;
+}
+
+.utility-feature-list {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px;
+  padding: 4px var(--left-pad-x);
+}
+
+.utility-feature-list .utility-feature-item {
+  position: relative;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 8px 4px 6px;
+  border-radius: var(--radius-card);
+  background: var(--interaction-hover);
+  color: var(--fg-secondary);
+  text-align: center;
+}
+
+.utility-feature-list .utility-feature-item:hover {
+  background: var(--interaction-selected-hover);
+  color: var(--fg-selected-primary);
+}
+
+.utility-feature-list .utility-feature-item:active {
+  transform: scale(0.97);
+}
+
+.utility-feature-list .utility-feature-item.active {
+  /* 磁贴静息规则的特异性高于通用 .session-item.active，需在同层显式覆盖。 */
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+.utility-feature-list .utility-feature-item .session-name {
+  flex: none;
+  max-width: 100%;
+  justify-content: center;
+  font-size: var(--font-caption);
+}
+
+.utility-feature-list .utility-feature-item .kbd-hint {
+  display: none;
+}
+
+.utility-feature-list .utility-feature-item .utility-feature-icon {
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
+.utility-feature-list .utility-feature-item .utility-feature-svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* 记忆中心角标等挂件：磁贴右上角 */
+.utility-feature-list .utility-feature-item > :not(.utility-feature-icon):not(.session-name):not(.kbd-hint) {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  margin: 0;
+}
+
+.utility-feature-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  min-height: 32px;
+  padding: 6px 10px;
+  margin: 0 0 2px 0;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.utility-feature-item:hover {
+  background: var(--interaction-hover);
+}
+
+.utility-feature-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+
+.utility-feature-item.active .utility-feature-icon {
+  color: var(--fg-primary);
+}
+
+.utility-feature-svg {
+  display: block;
+}
+
+/* 侧栏：扩展条目文字图标（emoji / 首字符），13/16 两档中的 13 档 */
+.utility-feature-icon-text {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-control);
+  line-height: 1;
+  color: var(--fg-secondary);
+}
+
+/* 快捷键提示：静息隐藏，悬停/键盘聚焦该行才浮出（常驻是噪音） */
+.kbd-hint {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  opacity: 0;
+  transition: opacity var(--dur-micro) var(--ease-hover);
+}
+
+.utility-feature-item:hover .kbd-hint,
+.utility-feature-item:focus-visible .kbd-hint {
+  opacity: 1;
+}
+
+/* 折叠态左栏常驻于工作面下，唤出时由整个工作面划开露出。 */
+.sessions-float {
+  position: absolute;
+  top: 0;
+  bottom: var(--frame-gap);
+  left: 0;
+  z-index: 0;
+  padding: 0;
+  pointer-events: none;
+}
+
+.sessions-float.is-open {
+  pointer-events: auto;
+}
+
+/* 工作区切换胶片在场时整列暂隐（胶片全屏盖，直切无过渡） */
+.sessions-float.is-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ---------- 左缘热区（划开工作面唤出左栏，仿虚拟屏把手两层） ----------
+   检测用 window pointermove（App SessionsHotZone）——常驻 DOM 检测带会挡住
+   底下终端/网页内容的点击；根壳纯测量，不吃指针 */
+.sessions-hot-root {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-dropdown);
+}
+
+/* 内层唤出区：把手命中域 24px 宽 × min(160px,30%) 高，视觉是居中一枚小胶囊 */
+.sessions-hot-ghost {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 24px;
+  height: min(160px, 30%);
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.sessions-hot-ghost-inner {
+  width: 14px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-pill);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--font-ui);
+  line-height: 1;
+  user-select: none;
+}
+
+.sessions-hot-ghost:hover .sessions-hot-ghost-inner {
+  color: var(--fg-primary);
+}
+
+/* Open panes share selection; a small marker identifies the current pane independently of keyboard focus. */
+.left-panel .session-item.is-pane-open,
+.left-panel .utility-feature-item.is-pane-open {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+.left-panel .session-item.is-pane-open:hover,
+.left-panel .utility-feature-item.is-pane-open:hover {
+  background: var(--interaction-selected-hover);
+}
+.left-panel .session-item::after,
+.left-panel .utility-feature-item::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: calc(50% - 6px);
+  width: 2px;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  background: var(--fg-selected-secondary);
+  pointer-events: none;
+  transform-origin: center;
+  transform: scaleY(0.25);
+  opacity: 0;
+  transition: transform var(--dur-micro) var(--ease-exit), opacity var(--dur-micro) var(--ease-exit);
+}
+.left-panel .session-item.is-pane-focused::after,
+.left-panel .utility-feature-item.is-pane-focused::after {
+  transform: scaleY(1);
+  opacity: 1;
+  transition-duration: var(--dur-menu);
+  transition-timing-function: var(--ease-standard);
+}
+
+/* Only fade edges with content outside the viewport; keep the band below text height. */
+.left-panel-scroll {
+  --scroll-fade-top: 0px;
+  --scroll-fade-bottom: 0px;
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--scroll-fade-top), #000 calc(100% - var(--scroll-fade-bottom)), transparent);
+}
+.left-panel-scroll[data-fade-top='true'] { --scroll-fade-top: 4px; }
+.left-panel-scroll[data-fade-bottom='true'] { --scroll-fade-bottom: 4px; }

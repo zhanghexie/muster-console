@@ -1,0 +1,37 @@
+export default async function ({ page, capture, assert, width }) {
+  const global = page.getByRole('tab', { name: /全局扩展/ });
+  await global.waitFor();
+  assert.equal(await global.getAttribute('aria-selected'), 'true');
+  await page.getByText('内置日报：示例工作区已有无法确认归属的同名扩展，保留原文件').waitFor();
+  await capture('transaction');
+  await page.getByRole('button', { name: '保留现场并结束恢复' }).click();
+  await page.getByText(/请先检查路径中是否有需要手动取回的数据/).waitFor();
+  await capture('transaction-confirm');
+  await page.getByRole('button', { name: '确认保留并结束恢复' }).click();
+  await page.getByText(/事务记录已保留至/).waitFor();
+  await page.getByRole('heading', { name: '下载的扩展' }).waitFor();
+  await page.getByRole('heading', { name: '本地扩展' }).waitFor();
+  await capture('global');
+  await page.getByRole('button', { name: /工作日报/ }).click();
+  await page.getByText('源码位置：').waitFor();
+  assert.doesNotMatch(await page.locator('.ext-extension-detail').first().innerText(), /Git 状态|受 Git 跟踪|未被 Git 跟踪/);
+  await capture('details');
+  await page.getByRole('switch', { name: '启用 工作日报' }).click();
+  assert.equal(await page.getByRole('switch', { name: '启用 工作日报' }).getAttribute('aria-checked'), 'false');
+  await global.focus(); await page.keyboard.press('ArrowRight');
+  const project = page.getByRole('tab', { name: /项目扩展/ });
+  assert.equal(await project.evaluate(element => element === document.activeElement), true);
+  await page.keyboard.press('Enter');
+  assert.equal(await project.getAttribute('aria-selected'), 'true');
+  await page.getByText('拉起当前项目的开发服务。').waitFor();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  assert.equal(overflow, false, `no horizontal overflow at ${width}px`);
+  await capture('project');
+  const projectPicker = page.getByRole('combobox', { name: '选择当前项目' }).or(page.getByRole('button', { name: '选择当前项目' }));
+  await projectPicker.click();
+  await page.getByRole('option', { name: '另一个项目' }).waitFor();
+  await capture('project-selector');
+  await page.getByRole('option', { name: '另一个项目' }).click();
+  await page.getByText('当前项目还没有扩展').waitFor();
+  assert.equal(await page.getByText('拉起当前项目的开发服务。').count(), 0);
+}

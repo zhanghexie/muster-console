@@ -1,0 +1,275 @@
+/* Central content keeps its DOM parent. Geometry and controls are independent. */
+/* HTML fullscreen owns the whole document, including existing body portals.
+ * Override only geometry; keep every view and iframe in its original parent. */
+.app-shell:has(.is-pane-fullscreen) > :not(.main-view),
+.main-view:has(.is-pane-fullscreen) > :not(.ws-stage),
+.workspace-page:has(.is-pane-fullscreen) > :not(.terminal-page),
+.h-strip:has(.is-pane-fullscreen) > :not(.workspace-page, [data-h-strip-overlay]),
+.ws-rail:has(.is-pane-fullscreen) > :not(.ws-pane-live) { display: none; }
+:is(.main-view, .ws-stage, .ws-rail, .ws-pane-live, .work-area, .h-strip, .workspace-page, .terminal-page):has(.is-pane-fullscreen) {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  inset: 0 !important;
+  transform: none !important;
+  transition: none !important;
+  border-radius: 0 !important;
+}
+.terminal-page > .center-panel.is-pane-fullscreen { border-radius: 0; box-shadow: none; }
+.center-panel.is-pane-fullscreen > .center-background-tabs { display: none; }
+.center-split-root { position: absolute; inset: 0; pointer-events: none; }
+.center-split-pane { position: absolute; min-width: 0; min-height: 0; pointer-events: none; z-index: 3; container: center-pane / inline-size; }
+.center-split-pane-body { position: absolute; inset: 0; pointer-events: none; }
+/* Search remains inside its conversation, below the hover chrome in every split. */
+.center-panel > .agent-chat-view,
+.center-panel > .right-dock-home > .right-dock-surface > .agent-chat-view { --chat-find-top: calc(var(--center-pane-toolbar-height) + 8px); }
+/* 固定到右侧（rightDock.tsx）：中栏原位与可移动宿主都不生成盒，视图仍按所在父容器定位。
+ * 会话视图因此多两层 DOM 父级，凡 `.center-panel > 会话视图` 的子选择器都需同时写出包装后的路径。 */
+.right-dock-home, .right-dock-surface { display: contents; }
+.center-file-dock { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; }
+.center-docked-placeholder {
+  position: absolute; inset: 0; z-index: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  color: var(--fg-secondary); background: var(--surface-canvas);
+}
+.center-docked-actions { display: flex; gap: 8px; }
+/* Only real internal dividers draw seams. Per-pane right/bottom borders would
+ * double the outer sheet rim and darken its rounded corners. */
+.center-split-pane-empty { position: absolute; inset: 0; pointer-events: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+.center-split-pane-empty { padding: 38px 16px 16px; }
+.center-snap-picker { display: flex; flex-direction: column; gap: 10px; width: min(320px, 100%); height: min(560px, 100%); min-height: 0; }
+.center-snap-picker > p { margin: 0; text-align: center; }
+.center-snap-search { display: flex; align-items: center; gap: 8px; flex-shrink: 0; padding: 8px 10px; background: var(--surface-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); }
+.center-snap-search:focus-within { border-color: var(--input-focus-border); }
+.center-snap-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--fg-primary); font: inherit; }
+.center-snap-create { display: flex; gap: 8px; flex-shrink: 0; }
+.center-snap-create > * { flex: 1; min-width: 0; }
+.center-snap-create > button.ui-btn { padding: 6px 8px; color: var(--fg-primary); background: var(--surface-input); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); font: inherit; }
+.new-task-dialog.split-shell-dialog { width: min(360px, calc(100vw - 32px)); }
+.split-shell-dialog h3 { margin: 0; }
+.split-shell-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 0; }
+.split-shell-list > button { width: 100%; }
+/* Reserve the scrollbar outside the shared content edge, including short search results. */
+.center-snap-assist { display: flex; flex: 1; flex-direction: column; gap: 6px; min-height: 0; margin-right: -8px; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: auto; scrollbar-color: auto; }
+.center-snap-assist::-webkit-scrollbar { width: 8px; }
+.center-snap-assist-choice { flex-shrink: 0; }
+.center-snap-assist-choice { display: flex; align-items: center; gap: 10px; text-align: left; padding: 9px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--fg-primary); background: var(--surface-canvas); }
+.center-snap-assist-choice:hover { background: var(--interaction-hover); }
+.center-snap-assist-choice > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.center-panel { --center-pane-toolbar-height: 36px; }
+.center-background-tabs { position: absolute; z-index: 20; left: 8px; bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: calc(100% - 16px); }
+.center-background-tab { display: flex; min-width: 0; align-items: center; background: var(--surface-chrome); border: 1px solid var(--border-subtle); border-radius: var(--radius-control); box-shadow: var(--shadow-card); }
+.center-background-select, .center-background-close { border: 0; color: var(--fg-primary); background: transparent; font: inherit; cursor: pointer; }
+.center-background-select { min-width: 0; max-width: 180px; overflow: hidden; padding: 5px 8px; text-overflow: ellipsis; white-space: nowrap; }
+.center-background-close { display: flex; align-items: center; justify-content: center; padding: 5px; }
+.center-background-select:hover, .center-background-close:hover { background: var(--interaction-hover); }
+/* Hover chrome reserves no content height and never moves the captured handle. */
+.center-utility-content { position: relative; display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.center-pane-toolbar-host { position: absolute; inset: 0 0 auto; height: var(--center-pane-toolbar-height); pointer-events: none; }
+.center-pane-toolbar-hotzone { position: absolute; inset: 0 0 auto; height: 10px; pointer-events: auto; }
+.center-split-pane-toolbar {
+  --fg-primary: var(--chrome-fg-primary); --fg-secondary: var(--chrome-fg-secondary); --fg-muted: var(--chrome-fg-muted);
+  --border-focus: var(--chrome-border-focus);
+  --interaction-hover: var(--chrome-interaction-hover); --interaction-selected: var(--chrome-interaction-selected);
+  --fg-selected-primary: var(--chrome-fg-selected-primary);
+  position: absolute; top: 0; left: 0; right: 0; height: var(--center-pane-toolbar-height);
+  display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr); align-items: center; gap: 8px; padding: 0 8px;
+  background: var(--surface-chrome); color: var(--fg-secondary); font-size: var(--font-caption); pointer-events: auto;
+}
+.center-split-pane-toolbar[data-mp-stage='out'], .center-split-pane-toolbar[data-mp-stage='out'] * { pointer-events: none; }
+.center-split-pane[data-top-left='true'] .center-split-pane-toolbar {
+  border-top-left-radius: var(--radius-page);
+  corner-top-left-shape: var(--corner-shape-page);
+}
+.center-split-pane[data-top-right='true'] .center-split-pane-toolbar {
+  border-top-right-radius: var(--radius-page);
+  corner-top-right-shape: var(--corner-shape-page);
+}
+.center-split-pane[data-floating='true'] .center-split-pane-toolbar { border-radius: var(--radius-card) var(--radius-card) 0 0; }
+.center-pane-leading { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+
+/* 层级路径面包屑（子代理通用化 D2）：子代理会话显示「会话 父 › 子代理 子」，
+   每级带层级标签，末级为当前会话（不可点），其余可点回跳。 */
+.center-pane-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.center-pane-crumb-wrap { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+
+.center-pane-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  min-width: 0;
+  cursor: pointer;
+  transition: background-color var(--dur-micro) var(--ease-hover);
+}
+
+.center-pane-crumb:hover { background: var(--interaction-hover); color: var(--fg-primary); }
+.center-pane-crumb:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+
+/* 末级（当前会话）：不悬浮、不换色，与可点的祖先区分 */
+.center-pane-crumb.is-current {
+  color: var(--fg-primary);
+  font-weight: 500;
+  cursor: default;
+}
+.center-pane-crumb.is-current:hover { background: transparent; }
+
+.center-pane-crumb-kind {
+  flex: none;
+  font-size: 10px;
+  line-height: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: calc(var(--radius-small) / 2);
+  background: var(--surface-alt);
+  color: var(--fg-muted);
+}
+
+.center-pane-crumb.is-current .center-pane-crumb-kind {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.center-pane-crumb-name {
+  min-width: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 分隔符 ›：IconChevronDown 旋转 -90°（与折叠箭头同一套朝向语义） */
+.center-pane-crumb-sep {
+  flex: none;
+  display: inline-flex;
+  color: var(--fg-muted);
+  transform: rotate(-90deg);
+}
+
+.center-pane-trailing { display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0; }
+/* Equal grid tracks keep the capture target at the physical pane center, independent of text/actions. */
+.center-split-handle {
+  display: flex; align-items: center; justify-content: center; width: 32px;
+  height: 28px; padding: 0; border: 0; border-radius: var(--radius-small);
+  background: transparent; color: var(--fg-secondary); font: inherit;
+  pointer-events: auto; touch-action: none; cursor: grab; opacity: 1;
+}
+.center-split-handle:hover, .center-pane-action:not(:disabled):hover { background: var(--interaction-hover); color: var(--fg-primary); }
+.center-split-handle:focus-visible, .center-pane-action:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+.center-split-handle-type {
+  flex: 0 1 auto; max-width: 120px; color: var(--fg-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.center-split-handle-dots { display: flex; flex: none; color: var(--fg-muted); }
+.center-split-handle-name { min-width: 0; color: var(--fg-primary); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.center-pane-status { display: inline-flex; align-items: center; gap: 5px; flex: none; white-space: nowrap; }
+.center-pane-progress { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); }
+.center-pane-actions { display: flex; align-items: center; gap: 2px; flex: none; }
+.center-pane-action { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--fg-secondary); font: inherit; cursor: pointer; }
+.center-pane-action:disabled { color: var(--fg-disabled); cursor: default; }
+.center-split-pane-toolbar > * { transition: opacity var(--dur-micro) var(--ease-standard); }
+.center-split-pane-toolbar.is-moving .center-split-handle { cursor: grabbing; color: var(--fg-primary); }
+/* 拖动进入顶缘 Snap 条区：把手条只做透明度淡出让 Snap 选择条露出。
+ * 必须原位保留（不改 transform/pointer-events）：元素是被捕获的按压目标，
+ * 移出指针位置或切 pointer-events:none 会触发 Chromium 补发 pointerup、
+ * 手势中途被取消（2026-10-10 实测）。 */
+.center-split-pane-toolbar.is-bar-drag > * {
+  opacity: 0;
+}
+@container center-pane (max-width: 560px) {
+  .center-pane-progress { display: none; }
+}
+@container center-pane (max-width: 420px) {
+  .center-split-pane-toolbar { gap: 4px; padding-inline: 4px; }
+  .center-pane-leading { gap: 5px; }
+  .center-split-handle-type, .center-pane-status > span { display: none; }
+  .center-pane-trailing .center-pane-action { width: 24px; }
+  /* Layout remains reachable via the central handle / More menu in compact panes. */
+  .center-pane-trailing:has(.center-split-pane-switch) .center-pane-layout-action { display: none; }
+}
+.center-split-divider {
+  position: absolute; z-index: 4; pointer-events: auto; touch-action: none; background: transparent;
+}
+.center-split-divider[aria-orientation='vertical'] { cursor: col-resize; }
+.center-split-divider[aria-orientation='horizontal'] { cursor: row-resize; }
+.center-split-divider > span { position: absolute; background: var(--divider-rest); pointer-events: none; }
+.center-split-divider[aria-orientation='vertical'] > span { left: 3px; top: 0; width: 1px; height: 100%; }
+.center-split-divider[aria-orientation='horizontal'] > span { top: 3px; left: 0; height: 1px; width: 100%; }
+.center-split-divider:hover > span { background: var(--divider-active); }
+.center-split-divider:focus-visible > span { background: var(--divider-focus); }
+.center-split-pane-switch {
+  display: flex; gap: 2px; flex: none;
+}
+.center-split-pane-switch button { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.center-split-pane-switch button[aria-pressed='true'] { background: var(--interaction-selected); }
+.center-split-pane-switch button[aria-pressed='true'] { color: var(--fg-selected-primary); }
+/* Central utilities sit below pane controls and drag scrims, including single-pane handles. */
+.center-panel > .center-utility-layer.utility-placement-center { z-index: 1; }
+/* The gesture owns transforms; tool entrance easing must not delay floating/docking geometry. */
+.center-panel.is-split > .center-utility-layer, .center-panel.is-pane-lifting > .center-utility-layer { transition-property: opacity; }
+/* Only the active visible sessions escape the single-utility hiding rule. */
+.center-panel.is-split:has(> .center-utility-layer.utility-placement-center:not([data-mp-stage='out'])) > .xfade.is-shown,
+.center-panel.is-split:has(> .center-utility-layer.utility-placement-center:not([data-mp-stage='out'])) > .right-dock-home > .right-dock-surface > .xfade.is-shown {
+  opacity: 1; visibility: visible;
+}
+.center-panel.is-split > .terminal-wrap, .center-panel.is-split > .agent-chat-view,
+.center-panel.is-split > .right-dock-home > .right-dock-surface > .terminal-wrap,
+.center-panel.is-split > .right-dock-home > .right-dock-surface > .agent-chat-view { z-index: 0; }
+/* Do not animate an ancestor of backdrop-filter: each bounded region owns presence. */
+.center-pane-capture-shield { position: absolute; inset: 0; z-index: 12; pointer-events: auto; }
+.center-drag-scrim { position: absolute; inset: 0; z-index: 6; pointer-events: none; }
+.center-drag-scrim[data-mp-stage='out'] { pointer-events: none; z-index: 1; }
+.center-pane-blur { position: absolute; pointer-events: none; overflow: hidden; border-radius: var(--radius-card); background: var(--surface-drag-preview); box-shadow: inset 0 0 0 1px var(--border-subtle); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+.center-pane-preview { border: 2px solid var(--border-focus); background: color-mix(in srgb, var(--interaction-selected) 70%, var(--surface-drag-preview)); box-shadow: inset 0 0 0 1px var(--border-focus), var(--shadow-card); }
+.center-pane-preview.is-close { border-color: var(--status-danger-fg); background: var(--status-danger-bg); }
+.center-drag-hint-pos { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 11; pointer-events: none; }
+.center-drag-hint { display: flex; align-items: center; gap: 8px; padding: 12px 18px; border: 2px solid var(--border-focus); border-radius: var(--radius-pill); background: var(--surface-overlay); color: var(--fg-primary); font-size: var(--font-ui); font-weight: 500; white-space: nowrap; box-shadow: var(--shadow-pop); }
+.center-drag-hint.is-close { border-color: var(--status-danger-fg); color: var(--status-danger-fg); }
+.center-snap-bar-position { position: absolute; top: 48px; left: 50%; transform: translateX(-50%); z-index: calc(var(--z-sticky) + 4); width: min(560px, calc(100% - 20px)); pointer-events: none; }
+/* One persistent picker slides from its own clipped bottom edge. */
+.center-snap-viewport { position: absolute; inset: 0; overflow: hidden; z-index: calc(var(--z-sticky) + 4); pointer-events: none; }
+.center-snap-bar-position { transition: transform var(--dur-panel) var(--ease-standard); }
+.center-snap-bar-position[data-mode='peek'] { transform: translate(-50%, calc(-100% - 30px)); }
+.center-snap-bar-position[data-mode='peek'] .center-snap-bar { pointer-events: none; }
+.center-snap-bar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; padding: 16px 20px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--surface-canvas); box-shadow: var(--shadow-card); pointer-events: auto; }
+.center-snap-layout { position: relative; height: 72px; }
+.center-snap-cell { position: absolute; padding: 3px; border: 2px solid var(--surface-canvas); border-radius: var(--radius-small); background: var(--interaction-hover); color: var(--fg-secondary); display: grid; place-items: center; box-shadow: inset 0 0 0 1px var(--border-control); }
+.center-snap-cell.is-occupied { background: var(--interaction-selected); color: var(--fg-selected-primary); }
+.center-snap-cell.is-active, .center-snap-cell:not(:disabled):hover { background: var(--primary-bg); color: var(--primary-fg); box-shadow: none; }
+.center-snap-ref-icon { display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.center-snap-layout.is-disabled .center-snap-cell { background: var(--interaction-hover); color: var(--fg-disabled); box-shadow: inset 0 0 0 1px var(--border-control); }
+.center-snap-bar[data-mp-stage='out'] { pointer-events: none; }
+.center-panel.is-snap-compact .center-snap-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.center-preview-divider { z-index: 7; pointer-events: none; }
+.center-split-drop-overlay { position: absolute; inset: 0; z-index: calc(var(--z-sticky) + 2); pointer-events: none; }
+.center-split-drop-overlay[data-active='true'] { pointer-events: auto; }
+@media (pointer: coarse) {
+  .center-panel { --center-pane-toolbar-height: 48px; }
+  .center-split-pane-toolbar.mp-scrim { opacity: 1; }
+  .center-split-pane-toolbar[data-mp-stage='out'], .center-split-pane-toolbar[data-mp-stage='out'] * { pointer-events: auto; }
+  .center-split-handle, .center-pane-action { min-height: 44px; }
+  .center-snap-bar-position { width: min(304px, calc(100% - 16px)); }
+  .center-snap-bar, .center-panel.is-snap-compact .center-snap-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .center-snap-layout { height: 96px; }
+  .center-snap-cell { min-width: 44px; }
+  .center-snap-assist-choice { min-height: 44px; }
+}
+/* ContextMenu secondary entries. */
+.ctx-item.has-flyout { padding-right: 26px; }
+.ctx-flyout-arrow { position: absolute; right: 8px; color: var(--fg-muted); }
+.ctx-flyout { position: fixed; min-width: 120px; }

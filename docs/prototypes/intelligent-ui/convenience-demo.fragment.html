@@ -1,0 +1,25 @@
+<ma-stack>
+  <ma-row><ma-badge tone="info">无需脚本</ma-badge><ma-text>输入、计算、比较和清单直接声明。</ma-text></ma-row>
+  <ma-grid>
+    <ma-card label="费用试算">
+      <ma-stack>
+        <ma-input name="price" label="单价" type="number" value="80" min="0"></ma-input>
+        <ma-input name="quantity" label="数量" type="number" value="3" min="1"></ma-input>
+        <ma-select name="discount" label="折扣" appearance="segmented" value="1">
+          <option value="1">原价</option><option value="0.9">九折</option><option value="0.8">八折</option>
+        </ma-select>
+        <ma-text id="total" name="total" expr="round(price * quantity * discount, 2)" format="number" digits="2" unit="元" variant="metric" label="预计费用"></ma-text>
+        <ma-button label="按当前费用继续" prompt="请按总费用 {total} 元分析：单价 {price}，数量 {quantity}，折扣 {discount}。"></ma-button>
+      </ma-stack>
+    </ma-card>
+    <ma-card label="环境详情">
+      <ma-table id="environment" variant="details"><script type="application/json">{"环境":"生产","版本":"2.0","部署区域":"上海","当前异常":0}</script></ma-table>
+    </ma-card>
+  </ma-grid>
+  <ma-table id="comparison" label="方案比较" variant="comparison"><script type="application/json">{"columns":[{"key":"label","label":"维度"},{"key":"small","label":"标准方案"},{"key":"large","label":"增强方案","recommended":true}],"rows":[{"label":"投入","small":"低","large":"中"},{"label":"覆盖","small":["基础","neutral"],"large":["完整","success"]},{"label":"维护","small":["简单","success"],"large":["需规划","warning"]}]}</script></ma-table>
+  <script id="phases" type="application/json">[{"id":"design","label":"确认方案","status":"done","description":"范围与预算已经确定"},{"id":"build","label":"实施","status":"doing","progress":50,"date":"10-13"},{"id":"verify","label":"验收","status":"todo","description":"检查效果与操作反馈"}]</script>
+  <ma-grid>
+    <ma-card label="实施进度"><ma-list id="phase-list" source="phases" variant="steps" completion="completed" label="实施进度"></ma-list></ma-card>
+    <ma-card label="验收清单"><ma-list id="todo-list" source="phases" variant="checklist" name="completed" label="验收清单"></ma-list></ma-card>
+  </ma-grid>
+</ma-stack>

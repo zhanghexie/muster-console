@@ -1,0 +1,136 @@
+.settings-tabpane:has(.settings-content) .settings-col { max-width: 1120px; }
+.settings-tabpane .settings-pane-title p { display: none; }
+.settings-content { flex-shrink: 0; display: flex; flex-direction: column; min-width: 0; container: settings-content / inline-size; padding-bottom: 24px; }
+.settings-page .settings-content .s-sec { margin: 0; gap: 0; }
+.settings-page .settings-content .s-sec + .s-sec { margin-top: var(--settings-section-gap); padding-top: 0; border-top: 0; }
+.settings-content .s-sec-h { margin-bottom: var(--settings-group-content-gap); }
+.settings-content .s-sec-h h2 { font-size: var(--font-title); font-weight: 500; }
+.settings-content .s-sec-desc { font-size: var(--font-ui); line-height: 1.6; margin: 4px 0 0; }
+.settings-content .s-rows { margin: 0; }
+.settings-content .s-row, .settings-content .s-frow { padding-left: 0; padding-right: 0; }
+.settings-content .s-sec-side { flex-wrap: wrap; justify-content: flex-end; }
+.settings-content .s-frow-tip { font-size: var(--font-ui); color: var(--fg-secondary); line-height: 1.6; }
+.settings-content .font-preview { margin: 0; }
+.general-inline-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.modal-mask.general-tips-mask { z-index: var(--z-confirm); padding: 16px; }
+.modal.general-tips-dialog { width: 640px; min-width: 0; max-width: 100%; max-height: calc(100dvh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+.general-tips-dialog .modal-head { flex: none; margin-bottom: 12px; }
+.general-tips-dialog .modal-head h3 { margin: 0; }
+.general-tips-body { overflow-y: auto; min-height: 0; scrollbar-gutter: stable; font-size: var(--font-ui); }
+.general-tips-body > p { color: var(--fg-secondary); line-height: 1.6; margin: 0 0 12px; }
+.general-tips-search { width: 100%; }
+.general-tips-results { padding-left: 22px; line-height: 1.7; margin: 16px 0; }
+.general-tips-results li { padding: 6px 0; }
+.general-tips-body .s-frow { padding: 12px 0 0; }
+.general-tips-body .general-tips-search-wrap { padding: 0; }
+.general-tips-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 16px; flex: none; }
+@container settings-content (max-width: 560px) {
+  .settings-content .s-row:has(.s-select, .s-seg, .notify-dnd-times):not(:has(.s-switch)) { flex-direction: column; align-items: stretch; gap: 8px; }
+  .settings-content .s-row:has(.s-select, .s-seg, .notify-dnd-times):not(:has(.s-switch)) > .s-row-r { max-width: 100%; justify-content: flex-start; }
+  .settings-content .s-row-r > .s-select { max-width: 100%; }
+}
+@media (max-width: 700px) {
+  .settings-tabpane:has(.settings-content) .settings-col { padding-left: 22px; padding-right: 22px; }
+  .settings-tabpane:has(.settings-content) .settings-pane-title { margin-left: -22px; margin-right: -22px; padding-left: 22px; padding-right: 22px; }
+}
+
+/* Task navigation has one hierarchy; range selectors stay within task toolbars. */
+.settings-task-layout { min-width: 0; }
+.settings-task-tabs { display: flex; flex-wrap: wrap; gap: 24px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 24px; }
+.settings-task-tabs > button { position: relative; padding: 0 0 13px; border: 0; background: transparent; color: var(--fg-secondary); font: inherit; font-size: var(--font-ui); cursor: pointer; }
+.settings-task-tabs > button[aria-pressed='true'] { color: var(--fg-primary); font-weight: 500; }
+.settings-task-tabs > button[aria-pressed='true']::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--fg-primary); border-radius: var(--radius-pill); }
+.settings-task-tabs > button:focus-visible { outline: 1px solid var(--border-focus); outline-offset: 4px; }
+.settings-task-tabs > button:disabled { color: var(--fg-disabled); cursor: default; }
+.settings-task-pages > .settings-task-view.is-shown { position: relative; inset: auto; }
+.settings-task-pages > .settings-task-view:not(.is-shown) { overflow: hidden; }
+.settings-content .settings-section, .settings-content .settings-pane-body { min-width: 0; }
+.settings-content .settings-section { gap: 0; }
+.settings-content .settings-hint { line-height: 1.6; }
+.settings-content .s-sec-h { gap: 12px; }
+.settings-content .s-sec-heading { flex: 1; min-width: 0; }
+.settings-content .s-row-l { min-width: 0; }
+.settings-content .s-row-r { flex-wrap: wrap; }
+.settings-content .kb-toolbar { margin-top: var(--settings-section-gap); padding-top: 0; border-top: 0; }
+.settings-content .kb-group { margin-top: 24px; }
+.settings-content .theme-groups { margin-top: 16px; }
+/* Entity editors retain a list/detail layout; their container is not a settings card. */
+.settings-content .llm-provider { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.settings-content .llm-provider-list { border: 0; border-radius: 0; background: transparent; }
+@container settings-content (max-width: 620px) {
+  .settings-content .llm-provider-list > .llm-provider > .llm-provider-body { padding-left: 0; }
+  .settings-content .s-sec-h { flex-wrap: wrap; }
+  .settings-content .s-sec-side { margin-left: 0; }
+}
+
+.settings-entity-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 24px; margin-top: 20px; }
+.settings-entity-list { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.settings-entity-list > button { padding: 10px 12px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--fg-primary); font: inherit; font-size: var(--font-ui); text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.settings-entity-list > button:hover { background: var(--interaction-hover); }
+.settings-entity-list > button[aria-pressed='true'] { background: var(--interaction-selected); color: var(--fg-selected-primary); }
+.settings-entity-list > button:focus-visible { outline: 1px solid var(--border-focus); outline-offset: 2px; }
+.settings-content .tt-editor { min-width: 0; }
+.settings-content .tt-editor .s-frow { padding-left: 0; }
+.settings-content .llm-provider .group-title-row { margin-top: var(--settings-section-gap); padding-top: 0; border-top: 0; }
+.settings-content .llm-provider .settings-split-main-head { padding-left: 22px; }
+.settings-content .llm-password-input-wrap { flex-wrap: wrap; }
+.settings-content .llm-password-input { flex: 1 1 180px; }
+.llm-connection-result { font-size: var(--font-ui); line-height: 1.6; margin: 8px 0 0; overflow-wrap: anywhere; }
+.llm-connection-result.is-ok { color: var(--status-success-fg); }
+@container settings-content (max-width: 620px) {
+  .settings-entity-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .settings-entity-list { max-height: 180px; overflow-y: auto; }
+  .settings-content .llm-provider .settings-split-main-head { padding-left: 0; }
+}
+
+.settings-content .system-shortcut-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; gap: 0 20px; }
+.settings-content .system-shortcut-form > .s-sec-actions { grid-column: 1 / -1; }
+.settings-content .kb-workbench-section { margin-top: var(--settings-section-gap); padding-top: 0; border-top: 0; }
+.settings-content .kb-workbench-section > h2 { margin: 0 0 var(--settings-group-content-gap); font-size: var(--font-title); font-weight: 500; }
+.settings-content .kb-workbench-section .kb-toolbar { margin-top: 0; padding-top: 0; border: 0; }
+@container settings-content (max-width: 560px) {
+  .settings-content .system-shortcut-form { grid-template-columns: minmax(0, 1fr); }
+}
+
+.settings-content .worktree-storage-row { flex-wrap: wrap; }
+.settings-content .worktree-storage-row > .s-input { flex: 1 1 240px; min-width: 0; width: auto; }
+.settings-content .worktree-storage-row > button { flex: none; white-space: nowrap; }
+
+[data-settings-layout='flat'] .s-sec-body > .s-adv { padding-left: 0; padding-right: 0; background: transparent; box-shadow: none; border-radius: 0; }
+
+.settings-content .webaccess-hook { display: flex; flex-direction: column; gap: 12px; }
+.settings-content .webaccess-hook > .settings-hint { margin: 0; }
+.settings-content .webaccess-hook .webaccess-urls { margin-bottom: 0; }
+.settings-content .webaccess-hook .webaccess-url-row { padding: 8px 10px; background: var(--surface-input); color: var(--input-fg-primary); border: 1px solid var(--input-border); border-radius: var(--radius-control); }
+.settings-content .webaccess-hook .webaccess-url-row code { flex: 1; min-width: 0; color: inherit; }
+.settings-content .webaccess-url-row > button { flex: none; white-space: nowrap; }
+.settings-content .hook-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+.settings-content .hook-secret-value { color: var(--fg-secondary); overflow-wrap: anywhere; }
+
+/* Provider, Agent and capability details use the same reading hierarchy. */
+.settings-detail-header { margin: 0 0 24px; min-width: 0; }
+.settings-detail-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; min-height: 32px; }
+.settings-page .settings-detail-header h2 { margin: 0; font-size: var(--font-head); font-weight: 500; line-height: 1.4; overflow-wrap: anywhere; min-width: 0; }
+.settings-detail-icon { display: inline-flex; align-items: center; flex: none; }
+.settings-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--fg-secondary); font-size: var(--font-caption); }
+.settings-detail-header .settings-detail-description { margin: 8px 0 0; color: var(--fg-secondary); font-size: var(--font-ui); line-height: 1.6; overflow-wrap: anywhere; }
+.settings-page .settings-detail-header .worker-product-status { margin: 0; padding: 0; }
+.settings-content .llm-provider-list > .llm-provider > .llm-provider-body { padding: 0; }
+.settings-page .worker-task-view .s-sec-h { margin-bottom: var(--settings-group-content-gap); }
+.settings-page .worker-task-view .s-sec-h h2 { font-size: var(--font-title); }
+.settings-page .worker-task-view .s-sec-desc { margin: 4px 0 0; }
+@container settings-content (max-width: 620px) {
+  .settings-content .llm-provider-list > .llm-provider { padding-left: 0; }
+  .settings-content .llm-provider-list > .settings-split-nav { padding-right: 0; }
+}
+.settings-page .worker-pane.is-narrow { grid-template-columns: minmax(0, 1fr); }
+.settings-page .worker-pane.is-narrow > .worker-list { border: 0; padding-right: 0; }
+.settings-page .worker-pane.is-narrow > .worker-detail { padding-left: 0; }
+
+@container settings-content (max-width: 620px) {
+  .settings-entity-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .settings-entity-layout > .settings-entity-list { padding-right: 0; border: 0; }
+  .settings-entity-layout > .settings-task-pages { padding-left: 0; }
+}
+
+.system-shortcut-form .kb-chord { align-self: flex-start; min-width: 112px; max-width: 100%; }

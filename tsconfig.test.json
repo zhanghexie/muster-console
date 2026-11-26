@@ -1,0 +1,31 @@
+{
+  // 测试代码自身的类型检查：组件单测（Vitest）与 E2E（Playwright）。
+  // 不查的话，组件改了 props、api 契约改了形状，旧用例照样「跑得通」却已测不到东西。
+  // 离线自测 test/*.mjs 是纯 JS，不在此列。
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "types": ["node", "vitest/globals"],
+    "incremental": true,
+    "tsBuildInfoFile": "./.tmp/tsbuildinfo/test.tsbuildinfo"
+  },
+  "include": [
+    "test/unit/**/*",
+    "test/e2e/**/*",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "src/preload/index.d.ts",
+    "src/main/webAccess/ws.d.ts",
+    "src/shared/unidiff.d.ts"
+  ],
+  "exclude": ["test/unit/node-main/**"]
+}

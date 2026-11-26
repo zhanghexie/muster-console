@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>原型 · 索引状态页：检索试验台（条目5）现状 vs 改后</title>
+<!--
+  记忆面板改造计划 · 条目 5 交互原型。现状/改后切换对比；改后含可交互试验台（mock 数据）：
+  输入一句话 → 看召回结果与得分构成；切换「词法+向量 / 纯词法」亲手感受向量层的差别。
+  token 抄自 base.css / memory.css（2026-09-25 快照）。数据虚构。
+-->
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-panel: #1e1e1e; --bg-raised: #252526; --bg-overlay: #2a2a2a; --bg-input: #232323;
+    --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e; --hairline: #2c2c2c;
+    --green: #45d0a0; --yellow: #dcc765; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(250,250,250,0.05); --selected-fill: rgba(250,250,250,0.08); --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, 'OPPO Sans', 'Courier New', monospace;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+    --dur-panel: 280ms; --dur-micro: 120ms;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 26px 0 80px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+
+  .view-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .view-toggle button { padding: 5px 16px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .view-toggle button.is-active { background: var(--selected-fill); color: var(--ink); }
+  .pane { display: none; } .pane.is-show { display: block; }
+
+  .memory-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .index-card { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px 16px; }
+  .review-card-head { display: flex; align-items: center; gap: 8px; }
+  .review-card-head h3 { margin: 0; font-size: var(--font-ui); font-weight: 500; }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-tag.is-warn { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-dim { background: transparent; border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-tag.is-other { background: var(--bg-inset); color: var(--text-2); }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .memory-callout { padding: 10px 12px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--yellow) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.55; margin-top: 8px; }
+  .memory-source { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--font-caption); color: var(--text-2); }
+  .memory-source .memory-bar { flex: 1; height: 5px; border-radius: var(--radius-pill); background: var(--bg-inset); overflow: hidden; }
+  .memory-source .memory-bar i { display: block; height: 100%; background: color-mix(in srgb, var(--green) 65%, transparent); }
+  .memory-source-n { color: var(--text-3); min-width: 22px; text-align: right; }
+  .memory-card-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: var(--font-caption); color: var(--text-3); }
+  .ui-btn { padding: 4px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn:hover { background: var(--hover-fill); }
+
+  /* —— 改后：试验台 —— */
+  .lab { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px 16px; margin-bottom: 10px; }
+  .lab-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .lab-input-row { display: flex; gap: 8px; }
+  .lab-input { flex: 1; padding: 8px 12px; border-radius: var(--radius-control); border: 1px solid var(--hairline); background: var(--bg-input); color: var(--ink); font: inherit; font-size: var(--font-ui); outline: none; }
+  .lab-input:focus { border-color: color-mix(in srgb, var(--ink) 30%, var(--hairline)); }
+  .lab-go { padding: 8px 18px; }
+  .lab-suggest { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .lab-suggest button { padding: 2px 10px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--text-3); font-size: var(--font-caption); cursor: pointer; }
+  .lab-suggest button:hover { color: var(--ink); background: var(--hover-fill); }
+  .lab-mode { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: var(--font-caption); color: var(--text-2); }
+  .lab-switch { display: inline-flex; border-radius: var(--radius-pill); background: var(--bg-inset); padding: 2px; }
+  .lab-switch button { border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); padding: 3px 12px; border-radius: var(--radius-pill); cursor: pointer; }
+  .lab-switch button.is-active { background: var(--bg-overlay); color: var(--ink); box-shadow: 0 1px 3px rgba(0,0,0,0.35); }
+  .lab-hint { font-size: var(--font-caption); color: var(--text-3); }
+
+  .hit { padding: 10px 12px; border-radius: var(--radius-small); background: var(--bg-canvas); margin-top: 8px; opacity: 0; transform: translateY(4px); animation: hit-in var(--dur-panel) var(--ease-standard) forwards; }
+  @keyframes hit-in { to { opacity: 1; transform: none; } }
+  .hit-text { font-size: var(--font-ui); }
+  .hit-text mark { background: color-mix(in srgb, var(--yellow) 28%, transparent); color: var(--ink); border-radius: 3px; padding: 0 2px; }
+  .hit-text .tagword { color: var(--green); font-family: var(--font-mono); font-size: 12px; }
+  .hit-why { margin-top: 5px; font-size: var(--font-caption); color: var(--text-2); }
+  .hit-why b { color: var(--text-2); font-weight: 500; }
+  .score-row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+  .score-bar { flex: 1; height: 6px; border-radius: var(--radius-pill); overflow: hidden; display: flex; background: var(--bg-inset); }
+  .score-bar i { height: 100%; }
+  .score-bar .s-lex { background: color-mix(in srgb, var(--green) 70%, transparent); }
+  .score-bar .s-vec { background: color-mix(in srgb, var(--blue) 70%, transparent); }
+  .score-bar .s-fresh { background: color-mix(in srgb, var(--purple) 60%, transparent); }
+  .score-legend { display: flex; gap: 12px; font-size: 10.5px; color: var(--text-3); }
+  .score-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .lab-empty { padding: 18px 0 6px; text-align: center; color: var(--text-3); font-size: var(--font-caption); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（条目 5 · 检索试验台）。切「改后」后可以<b>真的输入查询</b>（或点建议词），看召回哪几条、每条得分怎么构成；再切「纯词法」模式重试同一句，<b>亲手感受向量层多召回了什么</b>。数据为虚构样例。</div>
+
+  <div class="view-toggle">
+    <button id="btnBefore" class="is-active">现状</button>
+    <button id="btnAfter">改后</button>
+  </div>
+
+  <!-- ============ 现状 ============ -->
+  <div class="pane is-show" id="paneBefore">
+    <div class="memory-split">
+      <div class="index-card">
+        <div class="review-card-head"><h3>BM25 词法检索</h3><span class="memory-tag is-lesson">恒开</span></div>
+        <div class="memory-meta-dim" style="margin-top:6px">恒开 · 全库 42 块</div>
+        <div class="memory-source"><span style="min-width:56px">策展记忆</span><span class="memory-bar"><i style="width:29%"></i></span><span class="memory-source-n">12</span></div>
+        <div class="memory-source"><span style="min-width:56px">会话转录</span><span class="memory-bar"><i style="width:72%"></i></span><span class="memory-source-n">30</span></div>
+        <div class="memory-meta-dim" style="margin-top:8px">转录会话 5 场</div>
+      </div>
+      <div class="index-card">
+        <div class="review-card-head"><h3>向量检索</h3><span class="memory-tag is-warn">已降级（纯词法）</span></div>
+        <div class="memory-meta-dim" style="margin-top:6px">目标模型 local:Xenova/bge-small-zh-v1.5:q8</div>
+        <div class="memory-callout">降级原因：provider 创建失败：[memory-embedding] 本地模型未就位：Xenova/bge-small-zh-v1.5（未配置目录/内置资源，缓存不存在，且未开启 allowDownload）</div>
+        <div class="memory-card-foot"><span>待嵌入 0 块</span><button class="ui-btn">重建索引</button></div>
+      </div>
+    </div>
+    <div class="memory-meta-dim" style="margin-top:14px">↑ 现状只有引擎健康遥测：看得见"引擎状态"，看不见"检索是怎么想问题的"。</div>
+  </div>
+
+  <!-- ============ 改后 ============ -->
+  <div class="pane" id="paneAfter">
+    <div class="lab">
+      <div class="lab-head"><h3 style="margin:0;font-size:var(--font-ui);font-weight:500">试一句话</h3><span class="memory-meta-dim">输入问题，看记忆系统会召回什么、为什么</span></div>
+      <div class="lab-input-row">
+        <input class="lab-input" id="q" value="界面卡顿怎么办" placeholder="像对 Agent 一样提问…">
+        <button class="ui-btn lab-go" id="go">检索</button>
+      </div>
+      <div class="lab-suggest">
+        <button>界面卡顿怎么办</button>
+        <button>打包很慢</button>
+        <button>数据库用什么</button>
+      </div>
+      <div class="lab-mode">
+        检索模式
+        <span class="lab-switch">
+          <button id="modeHybrid" class="is-active">词法 + 向量</button>
+          <button id="modeLex">纯词法</button>
+        </span>
+        <span class="lab-hint" id="modeHint">向量层开启：能召回「意思相近但用词不同」的记忆</span>
+      </div>
+      <div id="results"></div>
+    </div>
+
+    <div class="memory-split">
+      <div class="index-card">
+        <div class="review-card-head"><h3>BM25 词法检索</h3><span class="memory-tag is-lesson">恒开</span></div>
+        <div class="memory-meta-dim" style="margin-top:6px">恒开 · 全库 42 块</div>
+        <div class="memory-source"><span style="min-width:56px">策展记忆</span><span class="memory-bar"><i style="width:29%"></i></span><span class="memory-source-n">12</span></div>
+        <div class="memory-source"><span style="min-width:56px">会话转录</span><span class="memory-bar"><i style="width:72%"></i></span><span class="memory-source-n">30</span></div>
+      </div>
+      <div class="index-card">
+        <div class="review-card-head"><h3>向量检索</h3><span class="memory-tag is-lesson">运行中</span></div>
+        <div class="memory-meta-dim" style="margin-top:6px">本地模型 bge-small-zh · 基准 18 ms/条 · 健康良好</div>
+        <div class="memory-meta-dim" style="margin-top:4px">引擎状态细节收进「详情」折叠，健康时不再占版面</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // —— 视图切换 ——
+  var btnB = document.getElementById('btnBefore'), btnA = document.getElementById('btnAfter');
+  var paneB = document.getElementById('paneBefore'), paneA = document.getElementById('paneAfter');
+  function show(which) {
+    btnB.classList.toggle('is-active', which === 'b'); btnA.classList.toggle('is-active', which === 'a');
+    paneB.classList.toggle('is-show', which === 'b'); paneA.classList.toggle('is-show', which === 'a');
+  }
+  btnB.onclick = function(){ show('b'); }; btnA.onclick = function(){ show('a'); };
+
+  // —— mock 语料（kind: lex=词面命中, vec=仅语义相近） ——
+  var CORPUS = [
+    { text: '#lesson 渲染掉帧排查：先看 CPU longtask，聊天滚动只有 20-45fps。', kinds: { 卡顿: 'lex', 掉帧: 'lex' }, vec: ['界面卡顿怎么办'], why: { lex: '字面命中「卡顿」', vec: '语义相近：「掉帧」≈「卡顿」' } },
+    { text: '#decision 动画只允许 transform/opacity，避免合成器外掉帧。', kinds: {}, vec: ['界面卡顿怎么办'], why: { vec: '语义相近：讲的就是「卡顿」的成因与对策' } },
+    { text: '#bug 终端 resize 后 xterm 盖满了整个面板。', kinds: {}, vec: [], why: {} },
+    { text: '#preference 派活默认 GLM-5.3-Flash（provider zhipu）。', kinds: {}, vec: [], why: {} },
+    { text: '#lesson electron-builder 打包慢：NSIS 逐文件扫描是主因。', kinds: {}, vec: ['打包很慢'], why: { lex: '字面命中「打包」「慢」', vec: '语义相近：「打包很慢」≈「打包慢」' } },
+    { text: '#decision 记忆库统一 SQLite 派生索引，markdown 为准。', kinds: { 数据库: 'lex' }, vec: ['数据库用什么'], why: { lex: '字面命中「数据库」', vec: '语义相近：回答「用什么」' } }
+  ];
+
+  var mode = 'hybrid';
+  var mH = document.getElementById('modeHybrid'), mL = document.getElementById('modeLex');
+  var hint = document.getElementById('modeHint');
+  function setMode(m) {
+    mode = m;
+    mH.classList.toggle('is-active', m === 'hybrid'); mL.classList.toggle('is-active', m === 'lex');
+    hint.textContent = m === 'hybrid' ? '向量层开启：能召回「意思相近但用词不同」的记忆' : '只按字面找词：换个说法就找不到（对照上面的结果试试）';
+    if (document.getElementById('q').value.trim()) run();
+  }
+  mH.onclick = function(){ setMode('hybrid'); }; mL.onclick = function(){ setMode('lex'); };
+
+  function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function hl(text, words) {
+    var out = esc(text);
+    (words || []).forEach(function (w) {
+      if (!w) return;
+      out = out.split(esc(w)).join('<mark>' + esc(w) + '</mark>');
+    });
+    return out;
+  }
+  function run() {
+    var q = document.getElementById('q').value.trim();
+    var box = document.getElementById('results');
+    if (!q) { box.innerHTML = '<div class="lab-empty">输入一句话再点检索</div>'; return; }
+    var hits = [];
+    CORPUS.forEach(function (c, idx) {
+      var lexHit = Object.keys(c.kinds).some(function (k) { return q.indexOf(k) >= 0; });
+      var vecHit = c.vec.indexOf(q) >= 0;
+      if (lexHit) hits.push({ c: c, vec: mode === 'hybrid' && vecHit, lex: true, idx: idx });
+      else if (mode === 'hybrid' && vecHit) hits.push({ c: c, vec: true, lex: false, idx: idx });
+    });
+    if (!hits.length) { box.innerHTML = '<div class="lab-empty">没有命中——换种问法，或切「词法 + 向量」试试语义召回</div>'; return; }
+    box.innerHTML = hits.map(function (h, i) {
+      var words = Object.keys(h.c.kinds).filter(function (k) { return q.indexOf(k) >= 0; });
+      var lexW = h.lex ? 62 : 0, vecW = h.vec ? 34 : 0, freshW = 4;
+      var why = h.lex ? h.c.why.lex : h.c.why.vec;
+      if (h.lex && h.vec && h.c.why.vec) why = h.c.why.lex + '；' + h.c.why.vec;
+      var vecNote = (mode === 'lex' && !h.lex) ? '' : '';
+      return '<div class="hit" style="animation-delay:' + (i * 60) + 'ms">' +
+        '<div class="hit-text">' + hl(h.c.text, words) + '</div>' +
+        '<div class="hit-why"><b>为什么是这条：</b>' + why + '</div>' +
+        '<div class="score-row"><div class="score-bar">' +
+          '<i class="s-lex" style="width:' + lexW + '%"></i><i class="s-vec" style="width:' + vecW + '%"></i><i class="s-fresh" style="width:' + freshW + '%"></i>' +
+        '</div><span class="memory-meta-dim">综合 0.' + (72 - i * 7) + '</span></div>' +
+      '</div>';
+    }).join('') + '<div class="score-legend" style="margin-top:10px"><span><i style="background:color-mix(in srgb, var(--green) 70%, transparent)"></i>词法（字面命中）</span><span><i style="background:color-mix(in srgb, var(--blue) 70%, transparent)"></i>向量（语义相近）</span><span><i style="background:color-mix(in srgb, var(--purple) 60%, transparent)"></i>新近度等</span></div>';
+  }
+  document.getElementById('go').onclick = run;
+  document.getElementById('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+  document.querySelectorAll('.lab-suggest button').forEach(function (b) {
+    b.onclick = function () { document.getElementById('q').value = b.textContent; run(); };
+  });
+  run();
+</script>
+</body>
+</html>

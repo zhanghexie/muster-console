@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MetaAgent · 会话状态胶囊方案</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../../../src/renderer/src/styles/base.css">
+  <style>
+    /* Interaction study only; base typography, geometry and motion tokens come from production. */
+    :root { --study-sidebar-width: 320px; }
+    :root[data-theme="light"] {
+      color-scheme: light;
+      --bg-frame: #f0f3f9; --bg-panel: #fff; --bg-raised: #f7f7f5; --bg-overlay: #fff;
+      --ink: #2f2e2b; --ink-soft: #45443f; --text-2: #55534f; --text-3: #64625d;
+      --hairline: #e3e2dd; --yellow: #795800; --blue: #2464a4; --green: #18704f;
+      --hover-fill: rgba(20,18,10,.045); --hover-fill-strong: rgba(20,18,10,.08);
+    }
+    body { height: auto; min-height: 100dvh; overflow: auto; background: var(--bg-panel); color: var(--ink); }
+    button, select, input { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, [tabindex]:focus-visible, select:focus-visible { outline: 1px solid var(--ink-soft); outline-offset: 2px; }
+    .study { max-width: 1140px; margin: 24px auto; padding: 0 20px; }
+    .study-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 16px; }
+    h1 { font-size: var(--font-title); font-weight: 500; }
+    .muted { color: var(--text-2); font-size: var(--font-caption); }
+    .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 18px; margin-bottom: 12px; font-size: var(--font-ui); }
+    .control-group { display: inline-flex; align-items: center; gap: 8px; }
+    .segmented { display: inline-flex; gap: 2px; padding: 3px; background: var(--hover-fill); border-radius: var(--radius-control); }
+    .segmented button { background: transparent; color: var(--text-2); border: 0; padding: 5px 10px; border-radius: var(--radius-small); }
+    .segmented button[aria-pressed="true"] { background: var(--selection-surface); color: var(--ink); }
+    input[type="range"] { width: 96px; accent-color: var(--text-2); }
+    input[type="checkbox"] { accent-color: var(--text-2); }
+    .mode-select { background: var(--bg-raised); color: var(--ink); border: 1px solid var(--hairline); padding: 5px 8px; border-radius: var(--radius-small); }
+    .hint { margin-bottom: 16px; line-height: 1.6; color: var(--text-2); font-size: var(--font-ui); }
+    .app { background: var(--frame-surface, var(--bg-frame)); border: 1px solid var(--hairline); border-radius: var(--radius-card); overflow: hidden; }
+    .app[data-accent="true"] { --frame-surface: color-mix(in srgb, #8b7bff 28%, var(--bg-frame)); }
+    .app-bar { height: 36px; display: flex; align-items: center; gap: 20px; padding: 0 14px; font-size: var(--font-caption); }
+    .brand { font-size: var(--font-body); }
+    .app-bar strong { font-weight: 500; }
+    .window-controls { margin-left: auto; color: var(--text-3); word-spacing: 12px; }
+    .body { display: grid; grid-template-columns: minmax(0, var(--study-sidebar-width)) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); height: 690px; }
+    .sidebar { display: flex; flex-direction: column; min-width: 0; min-height: 0; padding: 0 var(--frame-gap) var(--frame-gap); }
+    .sidebar-scroll { flex: 1; min-height: 0; overflow: auto; }
+    .section-title { margin: 18px 2px 10px; font-size: var(--font-caption); font-weight: 500; color: var(--text-3); }
+    .utilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(58px, 1fr)); gap: 6px; }
+    .utility { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; height: 56px; background: var(--hover-fill); border: 0; border-radius: var(--radius-control); color: var(--text-2); font-size: var(--font-caption); white-space: nowrap; }
+    .utility svg { width: 15px; height: 15px; }
+    .utility[aria-pressed="true"] { background: var(--selection-surface); color: var(--ink); }
+    .sessions-title { margin-top: 34px; }
+    .session-list { display: grid; gap: 3px; }
+    .session-row { position: relative; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 10px; border-radius: var(--radius-control); cursor: pointer; min-width: 0; transition-property: none; }
+    .session-row:hover { background: var(--hover-fill); }
+    .session-row[aria-current="true"] { background: var(--selection-surface); }
+    .status-icon { width: 15px; height: 15px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--text-3); }
+    .status-icon svg { width: 14px; height: 14px; }
+    .status-icon[data-state="waiting"] { color: var(--yellow); }
+    .status-icon[data-state="working"] { color: var(--blue); }
+    .status-icon[data-state="done"] { color: var(--green); }
+    .session-name { flex: 1; min-width: 0; font-size: var(--font-ui); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .status-chip { flex: 0 1 auto; min-width: 0; max-width: 35%; display: inline-flex; padding: 2px 7px; border-radius: var(--radius-pill); corner-shape: round; background: var(--hover-fill-strong); color: var(--text-2); font-size: var(--font-caption); line-height: 18px; }
+    .chip-viewport { min-width: 0; overflow: hidden; }
+    .chip-text { display: block; width: max-content; white-space: nowrap; transform: translateX(0); }
+    /* A looping text translation, not panel enter/exit. Pause at both ends; never duplicate glyphs. */
+    @keyframes study-status-scroll {
+      0%, 12% { transform: translateX(0); }
+      88%, 100% { transform: translateX(var(--scroll-end)); }
+    }
+    .status-chip[data-overflow="true"] .chip-text { animation: study-status-scroll calc(var(--dur-breath) * var(--scroll-factor, 4)) linear infinite alternate; animation-play-state: paused; }
+    .app[data-scroll="hover"] .session-row:hover .status-chip[data-overflow="true"] .chip-text,
+    .app[data-scroll="hover"] .session-row:focus-within .status-chip[data-overflow="true"] .chip-text,
+    .app[data-scroll="auto"] .status-chip[data-overflow="true"] .chip-text { animation-play-state: running; }
+    .app[data-scroll="auto"] .status-chip:hover .chip-text { animation-play-state: paused; }
+    .app[data-scroll="static"] .chip-text { animation: none; }
+    .app[data-layout="single"] .status-chip[data-empty="true"] { display: none; }
+    .app[data-layout="two"] .session-row {
+      display: grid; height: 48px; padding: 5px 10px;
+      grid-template-columns: 15px minmax(0, 1fr) 28px;
+      grid-template-rows: 18px 18px; row-gap: 2px;
+    }
+    .app[data-layout="two"] .status-icon { grid-column: 1; grid-row: 1; }
+    .app[data-layout="two"] .session-name { grid-column: 2; grid-row: 1; }
+    .app[data-layout="two"] .status-chip { grid-column: 2; grid-row: 2; justify-self: start; max-width: 100%; padding: 0 7px; }
+    .app[data-layout="two"] .trail { grid-column: 3; grid-row: 1; height: 18px; }
+    .app[data-layout="two"] .chip-text { animation: none; }
+    .capsule-surface, .capsule-expanded { display: none; }
+    /* Persistent layers: reveal by transform/opacity, never animate width or reflow the row. */
+    .app[data-layout="unfold"] .status-chip {
+      position: relative; flex: 0 0 var(--closed-w, 56px); width: var(--closed-w, 56px); max-width: none;
+      background: transparent; isolation: isolate;
+      --capsule-solid: color-mix(in srgb, var(--ink) 12%, var(--frame-surface, var(--bg-frame)));
+    }
+    .app[data-layout="unfold"] .status-chip .chip-viewport { position: relative; z-index: 2; width: calc(var(--closed-w, 56px) - 14px); }
+    .app[data-layout="unfold"] .chip-text { width: auto; overflow: hidden; text-overflow: ellipsis; animation: none; }
+    .app[data-layout="unfold"] .capsule-surface {
+      display: block; position: absolute; right: 0; top: 0; width: var(--expanded-w, 76px); height: 22px;
+      z-index: 1; pointer-events: none;
+    }
+    .capsule-surface::before, .capsule-surface::after {
+      content: ''; position: absolute; width: 22px; height: 22px; top: 0;
+      border-radius: 50%; corner-shape: round; background: var(--capsule-solid);
+    }
+    .capsule-surface::before { left: 0; transform: translateX(var(--cap-offset, 0px)); transition: transform var(--dur-exit) var(--ease-exit); }
+    .capsule-surface::after { right: 0; }
+    .capsule-fill {
+      position: absolute; left: 11px; right: 11px; top: 0; height: 22px; background: var(--capsule-solid);
+      transform-origin: right center; transform: scaleX(var(--fill-scale, 1)); transition: transform var(--dur-exit) var(--ease-exit);
+    }
+    .app[data-layout="unfold"] .capsule-expanded {
+      display: block; position: absolute; right: 0; top: 0; width: var(--expanded-w, 76px); height: 22px;
+      z-index: 3; padding: 2px 7px; opacity: 0; pointer-events: none;
+      transition: opacity var(--dur-micro) var(--ease-exit);
+    }
+    .expanded-viewport { display: block; width: 100%; overflow: hidden; }
+    .expanded-text { display: block; width: max-content; white-space: nowrap; }
+    .app[data-layout="unfold"] .chip-viewport {
+      opacity: 1; transition: opacity var(--dur-micro) var(--ease-hover) var(--dur-exit);
+    }
+    .app[data-layout="unfold"] .status-chip[data-open="true"] .capsule-surface::before {
+      transform: translateX(0); transition: transform var(--dur-panel) var(--ease-standard);
+    }
+    .app[data-layout="unfold"] .status-chip[data-open="true"] .capsule-fill {
+      transform: scaleX(1); transition: transform var(--dur-panel) var(--ease-standard);
+    }
+    .app[data-layout="unfold"] .status-chip[data-open="true"] .chip-viewport {
+      opacity: 0; transition: opacity var(--dur-micro) var(--ease-exit);
+    }
+    .app[data-layout="unfold"] .status-chip[data-open="true"] .capsule-expanded {
+      opacity: 1; pointer-events: auto; transition: opacity var(--dur-menu) var(--ease-hover) var(--dur-panel);
+    }
+    .app[data-layout="unfold"] .status-chip[data-open="true"][data-expanded-overflow="true"] .expanded-text {
+      animation: study-status-scroll calc(var(--dur-breath) * var(--scroll-factor, 4)) linear infinite alternate;
+      animation-delay: calc(var(--dur-panel) + var(--dur-move));
+    }
+    .name-expanded { display: none; }
+    .name-label { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .app[data-layout="unfold"] .session-name { position: relative; overflow: visible; height: 22px; line-height: 22px; }
+    .app[data-layout="unfold"] .name-label { opacity: 1; transition: opacity var(--dur-micro) var(--ease-hover) var(--dur-exit); }
+    .app[data-layout="unfold"] .name-expanded {
+      display: block; position: absolute; left: 0; top: 0; width: var(--name-expanded-w); height: 22px;
+      opacity: 0; pointer-events: none; transition: opacity var(--dur-micro) var(--ease-exit);
+    }
+    .name-expanded-viewport { display: block; overflow: hidden; width: 100%; }
+    .session-name[data-name-overflow="true"] .name-expanded-viewport,
+    .status-chip[data-expanded-overflow="true"] .expanded-viewport {
+      mask-image: linear-gradient(to right, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+    }
+    .name-expanded-text { display: block; width: max-content; white-space: nowrap; --scroll-end: var(--name-scroll-end); }
+    .app[data-layout="unfold"] .session-name[data-open="true"] .name-label { opacity: 0; transition-delay: 0s; }
+    .app[data-layout="unfold"] .session-name[data-open="true"] .name-expanded {
+      opacity: 1; pointer-events: auto; transition: opacity var(--dur-menu) var(--ease-hover) var(--dur-micro);
+    }
+    .app[data-layout="unfold"] .session-name[data-open="true"][data-name-overflow="true"] .name-expanded-text {
+      animation: study-status-scroll calc(var(--dur-breath) * var(--name-scroll-factor, 4)) linear infinite alternate;
+      animation-delay: calc(var(--dur-panel) + var(--dur-move));
+    }
+    .app[data-layout="unfold"] .session-name, .app[data-layout="unfold"] .status-chip {
+      opacity: 1; transition: opacity var(--dur-micro) var(--ease-hover) var(--dur-exit);
+    }
+    .app[data-layout="unfold"] .session-row[data-active="status"] .session-name,
+    .app[data-layout="unfold"] .session-row[data-active="name"] .status-chip {
+      opacity: 0; pointer-events: none; transition: opacity var(--dur-micro) var(--ease-exit);
+    }
+    .trail { flex: 0 0 28px; height: 24px; display: grid; place-items: center; position: relative; }
+    .time { color: var(--text-3); font-size: var(--font-caption); }
+    .more { display: none; width: 26px; height: 24px; padding: 0; border: 0; border-radius: var(--radius-small); background: var(--hover-fill-strong); color: var(--text-2); }
+    .session-row:hover .time, .session-row:focus-within .time { visibility: hidden; }
+    .session-row:hover .more, .session-row:focus-within .more { display: block; position: absolute; }
+    .terminal-title { margin-top: 34px; }
+    .terminal-empty { padding: 14px 10px; font-size: var(--font-ui); line-height: 2.2; color: var(--text-2); }
+    .workspace-header { flex-shrink: 0; height: 36px; display: flex; align-items: center; gap: 20px; color: var(--text-3); padding: 0 10px; }
+    .workspaces { flex-shrink: 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
+    .workspace { min-width: 0; height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-radius: var(--radius-pill); corner-shape: round; background: var(--hover-fill); font-size: var(--font-ui); }
+    .workspace.active { background: var(--selection-surface); }
+    .avatar { display: grid; place-items: center; width: 23px; height: 23px; flex-shrink: 0; background: var(--hover-fill-strong); border-radius: 50%; corner-shape: round; font-size: var(--font-caption); }
+    .workspace-name { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+    .workspace-status, .workspace-chat { flex-shrink: 0; color: var(--text-2); font-size: var(--font-caption); }
+    .notification { width: 18px; height: 18px; border-radius: 50%; corner-shape: round; text-align: center; line-height: 18px; color: var(--yellow); background: color-mix(in srgb, var(--yellow) 15%, transparent); font-size: var(--font-caption); }
+    .main { min-width: 0; min-height: 0; margin: 0 var(--frame-gap) var(--frame-gap) 0; border-radius: var(--radius-card); background: var(--bg-panel); padding: 24px; display: flex; flex-direction: column; }
+    .main-heading { font-size: var(--font-title); font-weight: 500; margin-bottom: 8px; }
+    .main-subtitle { color: var(--text-2); font-size: var(--font-ui); line-height: 1.7; }
+    .detail { margin-top: 52px; max-width: 510px; }
+    .detail-label { color: var(--text-3); font-size: var(--font-caption); margin-bottom: 10px; }
+    .detail-name { font-size: var(--font-title); font-weight: 500; margin-bottom: 18px; }
+    .detail-status { font-size: var(--font-body); color: var(--ink-soft); line-height: 1.9; overflow-wrap: anywhere; }
+    .detail-note { color: var(--text-2); font-size: var(--font-ui); line-height: 1.8; margin-top: 28px; }
+    .composer { margin-top: auto; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius-card); color: var(--text-3); font-size: var(--font-ui); min-height: 82px; background: var(--bg-panel); }
+    .study-footer { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; margin-top: 12px; line-height: 1.7; font-size: var(--font-caption); color: var(--text-2); }
+    @media (max-width: 700px) {
+      .study { padding: 0 12px; margin: 16px auto; }
+      .body { grid-template-columns: minmax(0, 1fr); height: 690px; }
+      .sidebar { width: min(var(--study-sidebar-width), 100%); }
+      .main { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .status-chip[data-overflow="true"] .chip-text, .expanded-text, .name-expanded-text { animation: none !important; }
+      .capsule-surface::before, .capsule-fill, .capsule-expanded, .chip-viewport, .session-name, .status-chip, .name-label, .name-expanded { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="study">
+    <header class="study-heading"><h1>会话列表 · 状态胶囊方案</h1><span class="muted">交互原型 · OPPO Sans</span></header>
+    <div class="controls">
+      <div class="segmented" aria-label="会话布局"><button data-layout-button="unfold" aria-pressed="false">自适应胶囊 · 互斥展开</button><button data-layout-button="single" aria-pressed="true">单行 · 滚动胶囊</button><button data-layout-button="two" aria-pressed="false">统一两行 · 短状态</button></div>
+      <div class="segmented" aria-label="主题"><button data-theme-button="dark" aria-pressed="true">深色</button><button data-theme-button="light" aria-pressed="false">浅色</button></div>
+      <label class="control-group">长状态 <select id="scroll-mode" class="mode-select"><option value="hover">悬停滚动（推荐）</option><option value="auto">自动滚动</option><option value="static">静止对照</option></select></label>
+      <label class="control-group">栏宽 <input id="sidebar-width" type="range" min="260" max="360" value="320"><output id="width-value">320px</output></label>
+      <label class="control-group"><input id="accent" type="checkbox">工作区主题色</label>
+    </div>
+    <p class="hint" id="mode-hint">悬停或用 Tab 聚焦会话，长状态在胶囊内往返滚动；名称和行高保持不动。</p>
+    <section class="app" data-layout="single" data-scroll="hover" data-accent="false" aria-label="工作台原型">
+      <header class="app-bar"><span class="brand">◈</span><strong>演示·游乐场</strong><span class="muted">▥ 全局看板</span><span class="window-controls">− □ ×</span></header>
+      <div class="body">
+        <aside class="sidebar">
+          <div class="sidebar-scroll">
+            <h2 class="section-title">实用功能</h2>
+            <div class="utilities" id="utilities"></div>
+            <h2 class="section-title sessions-title">工作会话</h2>
+            <div class="session-list" id="sessions" role="list" aria-label="工作会话"></div>
+            <h2 class="section-title terminal-title">终端</h2>
+            <div class="terminal-empty">还没有终端<br>点击 + 选择本机 Shell</div>
+          </div>
+          <div class="workspace-header" aria-hidden="true"><span>+</span><span>⌄</span></div>
+          <div class="workspaces">
+            <div class="workspace active"><span class="avatar">🤖</span><span class="workspace-name">演示·游乐场</span><span class="notification" aria-label="1 项需要处理">1</span><span class="workspace-status">已完成</span><span class="workspace-chat">对话</span></div>
+            <div class="workspace"><span class="avatar">⚛️</span><span class="workspace-name">演示·前端项目</span><span class="workspace-status">空闲</span><span class="workspace-chat">对话</span></div>
+            <div class="workspace"><span class="avatar">⚙️</span><span class="workspace-name">演示·后端服务</span><span class="workspace-status">空闲</span><span class="workspace-chat">对话</span></div>
+            <div class="workspace"><span class="avatar">👽</span><span class="workspace-name">MetaWorld Mobile（移动端工程）</span><span class="workspace-status">空闲</span><span class="workspace-chat">对话</span></div>
+            <div class="workspace"><span class="avatar">🎮</span><span class="workspace-name">preview-samples</span><span class="workspace-status">空闲</span><span class="workspace-chat">对话</span></div>
+          </div>
+        </aside>
+        <main class="main">
+          <h2 class="main-heading">名称、状态、时间，各守一个位置</h2>
+          <p class="main-subtitle">所有会话一行显示，38px 高。状态只在自身胶囊内移动。</p>
+          <div class="detail" aria-live="polite">
+            <p class="detail-label">选中会话 · 完整状态</p><h3 id="detail-name" class="detail-name"></h3><p id="detail-status" class="detail-status"></p>
+            <p class="detail-note">左侧保留长、短、无状态和长名称几个例子。可以缩窄侧栏，观察胶囊如何分配空间；悬停右侧操作时，也不会压缩名称和状态。</p>
+          </div>
+          <div class="composer">对 Agent 说点什么…</div>
+        </main>
+      </div>
+    </section>
+    <footer class="study-footer"><span>黄色只用于等待图标和通知标记，文字保持中性。</span><span>仅用于体验布局与滚动，不连接真实会话。</span></footer>
+  </div>
+  <script>
+    const icons = {
+      idle: '<path d="M12.5 9A5.5 5.5 0 0 1 5 1.5 5.5 5.5 0 1 0 12.5 9Z"/>',
+      waiting: '<circle cx="7" cy="7" r="5.3"/><path d="M7 3.7v4M7 9.7h.01"/>',
+      working: '<circle cx="7" cy="7" r="5.3"/><path d="M7 3.5V7l2.5 1.5"/>',
+      done: '<path d="m3 7 2.5 2.5L11 4"/>',
+      scheduled: '<circle cx="7" cy="7" r="5.3"/><path d="M7 3.5V7l2.5 1.5"/>',
+      stats: '<path d="M2 12h10M3 9V6M7 9V2M11 9V4"/>',
+      memory: '<path d="M4 2h6v10L7 9.5 4 12Z"/>',
+      extensions: '<path d="M5 2h4v2h2v3h-1v3H7v2H4v-2H2V6h3Z"/>',
+      daily: '<rect x="2" y="3" width="10" height="9" rx="1"/><path d="M2 6h10M4 1.5v3M10 1.5v3M4.5 8h1M8.5 8h1M4.5 10h1"/>'
+    };
+    const svg = kind => '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + icons[kind] + '</svg>';
+    const sessions = [
+      { name: '工作面板 9', status: '', shortStatus: '空闲', state: 'idle', time: '1m' },
+      { name: '工作面板 8', status: '等待确认', shortStatus: '等待确认', state: 'waiting', time: '45m' },
+      { name: '测试', status: '已按用户要求置为「需要你」，等待确认后继续', shortStatus: '等待你确认', state: 'waiting', time: '54m' },
+      { name: '输入框 Markdown 交互修复', status: '检查换行、列表续写与撤销行为', shortStatus: '检查输入交互', state: 'working', time: '2h' },
+      { name: '文件预览优化', status: '已完成', shortStatus: '已完成', state: 'done', time: '1d' },
+      { name: '编译与热重载', status: '监控中 · 0 错误', shortStatus: '监控中 · 0 错误', state: 'working', time: '1mo' }
+    ];
+    const utilities = [['scheduled','定时任务'],['stats','使用统计'],['memory','记忆整理'],['extensions','扩展管理'],['daily','工作日报']];
+    const list = document.querySelector('#sessions');
+    for (const [i, session] of sessions.entries()) {
+      const row = document.createElement('div');
+      row.className = 'session-row'; row.tabIndex = 0; row.dataset.index = i; row.setAttribute('role','button');
+      row.setAttribute('aria-label', session.name + '，' + (session.status || '空闲'));
+      row.setAttribute('aria-current', String(i === 0));
+      row.innerHTML = '<span class="status-icon" data-state="' + session.state + '">' + svg(session.state) + '</span><span class="session-name" tabindex="0" role="button" aria-label="展开名称：' + session.name + '"><span class="name-label"></span><span class="name-expanded"><span class="name-expanded-viewport"><span class="name-expanded-text"></span></span></span></span>' +
+        '<span class="status-chip" data-empty="' + !session.status + '" tabindex="0" aria-label="完整状态：' + (session.status || '空闲') + '"><span class="capsule-surface"><span class="capsule-fill"></span></span><span class="chip-viewport"><span class="chip-text"></span></span><span class="capsule-expanded"><span class="expanded-viewport"><span class="expanded-text"></span></span></span></span>' +
+        '<span class="trail"><span class="time">' + session.time + '</span><button class="more" aria-label="查看 ' + session.name + ' 完整状态">···</button></span>';
+      row.querySelector('.name-label').textContent = session.name;
+      row.querySelector('.name-expanded-text').textContent = session.name;
+      row.querySelector('.chip-text').textContent = session.status;
+      row.querySelector('.expanded-text').textContent = session.status || session.shortStatus;
+      const chip = row.querySelector('.status-chip');
+      const name = row.querySelector('.session-name');
+      let hovered = '';
+      let focused = '';
+      const showField = target => {
+        row.dataset.active = target;
+        chip.dataset.open = String(target === 'status');
+        name.dataset.open = String(target === 'name');
+        name.inert = target === 'status'; chip.inert = target === 'name';
+        name.setAttribute('aria-expanded', String(target === 'name'));
+        chip.setAttribute('aria-expanded', String(target === 'status'));
+      };
+      row.closeExpansion = () => { hovered = ''; focused = ''; showField(''); };
+      const updateOpen = () => {
+        const requested = hovered || focused;
+        const field = requested === 'name' ? name : chip;
+        const target = app.dataset.layout === 'unfold' && field.dataset.expandable === 'true' ? requested : '';
+        if (target) document.querySelectorAll('.session-row').forEach(other => { if (other !== row) other.closeExpansion(); });
+        showField(target);
+      };
+      row.refreshExpansion = updateOpen;
+      for (const [element, field] of [[name, 'name'], [chip, 'status']]) {
+        element.addEventListener('pointerenter', () => { hovered = field; updateOpen(); });
+        element.addEventListener('pointerleave', () => { if (hovered === field) hovered = ''; updateOpen(); });
+        element.addEventListener('focusin', () => { focused = field; updateOpen(); });
+        element.addEventListener('focusout', () => { if (focused === field) focused = ''; updateOpen(); });
+        element.addEventListener('click', () => { focused = field; updateOpen(); });
+        element.addEventListener('keydown', e => { if (e.key === 'Escape') { row.closeExpansion(); e.stopPropagation(); } });
+      }
+      const choose = () => {
+        document.querySelectorAll('.session-row').forEach(r => r.setAttribute('aria-current', String(r === row)));
+        document.querySelectorAll('.utility').forEach(b => b.setAttribute('aria-pressed','false'));
+        document.querySelector('#detail-name').textContent = session.name;
+        document.querySelector('#detail-status').textContent = session.status || '空闲 · 暂无状态摘要';
+      };
+      row.addEventListener('click', choose);
+      row.addEventListener('keydown', e => { if (e.target === row && ['Enter',' '].includes(e.key)) { e.preventDefault(); choose(); } });
+      list.append(row);
+      if (i === 0) choose();
+    }
+    for (const [kind, label] of utilities) {
+      const b = document.createElement('button'); b.className = 'utility'; b.setAttribute('aria-pressed','false');
+      b.innerHTML = svg(kind) + '<span>' + label + '</span>';
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.utility').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+        document.querySelectorAll('.session-row').forEach(r => r.setAttribute('aria-current','false'));
+        document.querySelector('#detail-name').textContent = label;
+        document.querySelector('#detail-status').textContent = '实用功能选中态同样保持中性色。此处仅演示导航选中效果。';
+      });
+      document.querySelector('#utilities').append(b);
+    }
+    function measure() {
+      document.querySelectorAll('.status-chip').forEach(chip => {
+        const text = chip.querySelector('.chip-text');
+        let distance;
+        if (app.dataset.layout === 'unfold') {
+          const row = chip.closest('.session-row');
+          const name = row.querySelector('.session-name');
+          const expandedText = chip.querySelector('.expanded-text');
+          const nameText = name.querySelector('.name-expanded-text');
+          const available = chip.getBoundingClientRect().right - name.getBoundingClientRect().left;
+          const nameReserve = Math.max(56, Math.min(nameText.scrollWidth, available / 2));
+          const minimumWidth = Math.min(56, expandedText.scrollWidth + 14);
+          const closedWidth = Math.max(minimumWidth, Math.min(expandedText.scrollWidth + 14, available - 7 - nameReserve));
+          chip.style.setProperty('--closed-w', closedWidth + 'px');
+          const expandedWidth = Math.min(available, Math.max(closedWidth, expandedText.scrollWidth + 14));
+          chip.style.setProperty('--expanded-w', expandedWidth + 'px');
+          chip.style.setProperty('--cap-offset', (expandedWidth - closedWidth) + 'px');
+          chip.style.setProperty('--fill-scale', (closedWidth - 22) / (expandedWidth - 22));
+          chip.dataset.expandable = String(expandedText.scrollWidth > closedWidth - 14 + 1);
+          distance = Math.max(0, expandedText.scrollWidth - (expandedWidth - 14));
+          chip.dataset.expandedOverflow = String(distance > 1);
+          name.style.setProperty('--name-expanded-w', available + 'px');
+          name.dataset.expandable = String(nameText.scrollWidth > name.clientWidth + 1);
+          const nameDistance = Math.max(0, nameText.scrollWidth - available);
+          name.dataset.nameOverflow = String(nameDistance > 1);
+          name.style.setProperty('--name-scroll-end', -nameDistance + 'px');
+          name.style.setProperty('--name-scroll-factor', Math.max(3, Math.ceil(nameDistance / 42) + 2));
+        } else {
+          distance = Math.max(0, text.scrollWidth - chip.querySelector('.chip-viewport').clientWidth);
+        }
+        chip.dataset.overflow = String(distance > 1);
+        chip.style.setProperty('--scroll-end', -distance + 'px');
+        chip.style.setProperty('--scroll-factor', Math.max(3, Math.ceil(distance / 42) + 2));
+        chip.closest('.session-row').refreshExpansion();
+      });
+    }
+    const app = document.querySelector('.app');
+    const hint = document.querySelector('#mode-hint');
+    function updateHint() {
+      hint.textContent = app.dataset.layout === 'unfold'
+        ? '短状态贴合文字，长状态被截断时至少 56px，不与名称重叠。只有被截断的名称 / 状态才展开并隐藏另一项；本来显示完整的保持原样。最大展开仍放不下才滚动。'
+        : app.dataset.layout === 'two'
+        ? '统一 48px 两行：上方名称与时间，下方中性短状态胶囊；空闲会话也保持相同高度。点击查看完整说明。'
+        : {
+        hover: '悬停或用 Tab 聚焦会话，长状态在胶囊内往返滚动；名称和行高保持不动。',
+        auto: '超出宽度的状态自动往返滚动，首尾停留；指针移到胶囊上会暂停，便于阅读。',
+        static: '静止对照：只显示胶囊容纳的部分。点击会话可在右侧查看完整状态。'
+      }[app.dataset.scroll];
+    }
+    function setLayout(layout) {
+      app.dataset.layout = layout;
+      document.querySelectorAll('[data-layout-button]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layoutButton === layout)));
+      document.querySelector('#scroll-mode').disabled = layout !== 'single';
+      document.querySelectorAll('.session-row').forEach(row => {
+        const session = sessions[Number(row.dataset.index)];
+        row.closeExpansion();
+        row.querySelector('.chip-text').textContent = layout === 'two' ? session.shortStatus : layout === 'unfold' ? (session.status || session.shortStatus) : session.status;
+      });
+      document.querySelector('.main-subtitle').textContent = layout === 'unfold'
+        ? '所有会话单行 38px。名称和状态显示完整时保持并列；需要展开时才隐藏另一项。'
+        : layout === 'two'
+        ? '所有会话统一两行，48px 高。名称独占第一行，第二行只放简短状态。'
+        : '所有会话一行显示，38px 高。状态只在自身胶囊内移动。';
+      document.querySelector('.detail-note').textContent = layout === 'unfold'
+        ? '试试「工作面板 8」：名称和状态都显示完整，悬停或点击保持并列。「输入框 Markdown 交互修复」中被截断的名称或状态才会展开并隐藏另一项。点击可以保持展开，点到别处或按 Escape 收回。时间和操作位置始终不动。'
+        : layout === 'two'
+        ? '这就是刚才建议的两行方案：即使空闲也保留第二行短状态，所有条目高度和文字位置统一。这里的短文案是原型示例，完整说明仍保留在选中会话中。'
+        : '左侧保留长、短、无状态和长名称几个例子。可以缩窄侧栏，观察胶囊如何分配空间；悬停右侧操作时，也不会压缩名称和状态。';
+      updateHint();
+      requestAnimationFrame(measure);
+    }
+    document.querySelectorAll('[data-layout-button]').forEach(b => b.addEventListener('click', () => setLayout(b.dataset.layoutButton)));
+    document.querySelector('#scroll-mode').addEventListener('change', e => {
+      app.dataset.scroll = e.target.value;
+      updateHint();
+    });
+    document.querySelectorAll('[data-theme-button]').forEach(b => b.addEventListener('click', () => {
+      document.documentElement.dataset.theme = b.dataset.themeButton;
+      document.querySelectorAll('[data-theme-button]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+      requestAnimationFrame(measure);
+    }));
+    document.querySelector('#sidebar-width').addEventListener('input', e => {
+      document.documentElement.style.setProperty('--study-sidebar-width', e.target.value + 'px');
+      document.querySelector('#width-value').textContent = e.target.value + 'px';
+    });
+    document.querySelector('#accent').addEventListener('change', e => { app.dataset.accent = String(e.target.checked); });
+    new ResizeObserver(measure).observe(list);
+    document.fonts.ready.then(measure);
+    const requestedLayout = new URLSearchParams(location.search).get('layout');
+    setLayout(['two', 'single', 'unfold'].includes(requestedLayout) ? requestedLayout : 'unfold');
+    measure();
+  </script>
+</body>
+</html>

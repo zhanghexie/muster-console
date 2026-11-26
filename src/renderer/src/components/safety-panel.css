@@ -1,0 +1,6 @@
+.agent-safety-sheet .memory-curator-view { min-height: 0; }
+
+/* Absolute subsystem layers cannot contribute intrinsic height to the default floating panel. */
+.agent-float.is-expanded .agent-float-panel:has(.agent-safety-sheet) {
+  min-height:min(520px, calc(100vh * 2 / 3), calc(100vh - 50px));
+}

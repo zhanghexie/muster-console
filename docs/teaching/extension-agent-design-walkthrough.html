@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>扩展 Agent 设计原则</title>
+  <style>
+    :root { --acc:#5b5ce2; --acc-soft:#eef0ff; --bg:#f6f7fb; --card:#fff; --line:#e2e5ef; --ink:#222735; --dim:#667085; --pain-bg:#fff4f2; --pain-bd:#ffcfc7; --pain-tx:#8f3227; --sol-bg:#f1fbf0; --sol-bd:#b3e0a4; --sol-tx:#29631c; --con-bg:#10131c; --con-tx:#d7dbe8; --mono:ui-monospace,Consolas,monospace; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.65 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif; }
+    .topbar { position:sticky; top:0; z-index:3; display:flex; align-items:center; gap:18px; padding:14px 22px; background:rgba(246,247,251,.94); backdrop-filter:blur(12px); border-bottom:1px solid var(--line); }
+    .title { min-width:220px; font-weight:800; letter-spacing:.01em; } .title small { display:block; color:var(--dim); font-weight:500; font-size:12px; }
+    .progress { flex:1; height:7px; border-radius:99px; background:#e1e3ed; overflow:hidden; } .progress i { display:block; height:100%; width:0; background:var(--acc); transition:width .2s ease; }
+    .dots { display:flex; gap:5px; } .dot { width:8px; height:8px; border-radius:50%; background:#c7cad7; } .dot.on { background:var(--acc); }
+    button { border:1px solid #cfd3e3; border-radius:9px; background:#fff; color:var(--ink); padding:8px 12px; cursor:pointer; font:inherit; } button:hover { border-color:var(--acc); color:var(--acc); } button:disabled { cursor:default; opacity:.45; }
+    .navbtns { display:flex; gap:7px; } .stage { max-width:1080px; margin:0 auto; padding:34px 22px 60px; } .screen { display:none; } .screen.on { display:block; }
+    h1 { font-size:34px; line-height:1.2; margin:0 0 12px; } h2 { margin:0 0 12px; font-size:25px; } h3 { margin:0 0 8px; font-size:17px; }
+    .lead { color:var(--dim); max-width:780px; font-size:17px; margin:0 0 24px; } .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; } .grid.two { grid-template-columns:repeat(2,1fr); }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 10px 28px rgba(31,38,70,.04); } .card p { margin:6px 0 0; color:var(--dim); }
+    .box { border:1px solid; border-radius:12px; padding:14px 16px; margin:16px 0; } .box.pain { background:var(--pain-bg); border-color:var(--pain-bd); color:var(--pain-tx); } .box.sol { background:var(--sol-bg); border-color:var(--sol-bd); color:var(--sol-tx); }
+    .tag { display:inline-block; border-radius:99px; padding:2px 8px; font-size:12px; font-weight:800; background:rgba(255,255,255,.72); margin-bottom:5px; } .ref { margin-top:17px; } .ref summary { color:var(--acc); cursor:pointer; } .reftag { display:inline-block; margin:5px 5px 0 0; padding:3px 8px; border-radius:7px; color:#3944a9; background:var(--acc-soft); font:12px var(--mono); }
+    pre { overflow:auto; margin:12px 0 0; padding:14px; border-radius:10px; background:var(--con-bg); color:var(--con-tx); font:13px/1.65 var(--mono); } code { font-family:var(--mono); }
+    .lab { margin-top:20px; padding:16px; border:1px dashed #b8bdd3; border-radius:15px; background:#fbfbff; } .lab-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:12px; } .lab-head strong { margin-right:auto; } .console { min-height:92px; max-height:210px; overflow:auto; padding:12px; border-radius:10px; background:var(--con-bg); color:var(--con-tx); font:13px/1.65 var(--mono); } .console .g { color:#92e6a5; } .console .y { color:#ffd580; } .console .r { color:#ff9d9d; } .console .b { color:#9fc5ff; } .lab-hint { color:var(--dim); font-size:13px; margin-top:8px; }
+    .flow { display:flex; align-items:stretch; gap:9px; flex-wrap:wrap; margin:22px 0; } .flow .node { flex:1; min-width:135px; padding:14px; border:1px solid var(--line); border-radius:12px; background:#fff; } .arrow { align-self:center; color:var(--acc); font-size:21px; }
+    table.map { width:100%; border-collapse:collapse; background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; } table.map th,table.map td { text-align:left; vertical-align:top; padding:11px 12px; border-bottom:1px solid var(--line); } table.map th { background:#f0f1ff; color:#38419b; } table.map tr:last-child td { border-bottom:0; }
+    .choice { display:flex; gap:9px; flex-wrap:wrap; } .choice button.active { background:var(--acc); border-color:var(--acc); color:#fff; } .metric { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; margin-top:12px; } .metric div { padding:10px; border-radius:10px; background:#f1f2f8; } .metric b { display:block; font-size:20px; }
+    footer { max-width:1080px; margin:0 auto; padding:0 22px 32px; color:var(--dim); font-size:12px; }
+    @media (max-width:760px) { .topbar { flex-wrap:wrap; } .title { min-width:160px; } .progress { order:4; flex-basis:100%; } .grid,.grid.two { grid-template-columns:1fr; } h1 { font-size:28px; } }
+  </style>
+</head>
+<body>
+  <div class="topbar"><span class="title">扩展 Agent 设计原则<small>从“面板扩展”走向“宿主 Agent 能力单元”</small></span><div class="progress"><i id="pbar"></i></div><div class="dots" id="dots"></div><div class="navbtns"><button id="prev">← 上一站</button><button id="next">下一站 →</button></div></div>
+  <main class="stage">
+    <section class="screen" id="s0">
+      <h1>先把讨论对象抽象对</h1>
+      <p class="lead">书架、Git 面板、知识库和日报只是不同领域。我们要设计的是一种稳定的扩展单元，让它能拥有界面，也能安全地接入宿主 Agent。</p>
+      <div class="box pain"><span class="tag">痛点</span><br>如果扩展自己画聊天、自己请求模型、自己保存历史、自己执行写入，每个扩展都会重新实现一套 Agent 系统。</div>
+      <div class="box sol"><span class="tag">设计目标</span><br>宿主统一管理 Agent Session、消息流、工具循环、审批和恢复。扩展只贡献领域能力、上下文和界面。</div>
+      <div class="flow"><div class="node"><b>扩展 UI</b><br><small>业务界面和用户选择</small></div><div class="arrow">→</div><div class="node"><b>宿主 Agent Session</b><br><small>模型、事件、工具循环</small></div><div class="arrow">→</div><div class="node"><b>扩展能力</b><br><small>工具、数据、上下文</small></div></div>
+      <details class="ref"><summary>源码指引</summary><span class="reftag">src/main/agentSession/host/</span><span class="reftag">src/renderer/src/chatSurface/</span><span class="reftag">src/main/extensions/</span></details>
+    </section>
+    <section class="screen" id="s1">
+      <h2>扩展、插件和 Agent Session 分三层</h2>
+      <p class="lead">三者解决不同问题。用户安装的扩展包、宿主内部的 Kernel 插件和运行中的 Agent Session 不应混成一个概念。</p>
+      <div class="grid"><div class="card"><h3>扩展包</h3><p>可审核、可同步、可绑定工作区或项目。包含 views、tools、background、data 等。</p></div><div class="card"><h3>Kernel 插件</h3><p>宿主内部的装配单元。通过 Runtime Kernel 注册域、能力、事件和资源。</p></div><div class="card"><h3>Agent Session</h3><p>一次真实的模型交互。拥有历史、回合、工具调用、取消、恢复和 UI 投影。</p></div></div>
+      <div class="lab"><div class="lab-head"><strong>实验 A · 绑定面</strong><button id="bind-ui">挂载 UI</button><button id="bind-agent">绑定 Agent</button><button id="bind-tool">加入工具</button><button id="bind-data">连接数据</button></div><div class="metric"><div><b id="bind-count">0</b>个已绑定面</div><div><b id="bind-status">未运行</b>实例状态</div><div><b id="bind-kind">—</b>当前缺口</div></div><div class="console" id="bind-log"></div><div class="lab-hint">完整的 AI 原生扩展至少需要 UI、Agent、工具、数据四个面。它们由宿主分别治理。</div></div>
+      <details class="ref"><summary>源码指引</summary><span class="reftag">src/main/runtimeKernel/kernelContracts.ts</span><span class="reftag">src/shared/extension.ts</span></details>
+    </section>
+    <section class="screen" id="s2">
+      <h2>宿主拥有 Agent Loop</h2>
+      <p class="lead">扩展只描述业务能力。宿主负责把用户输入、模型请求、工具执行、流式输出和持久事件组织成可恢复的回合。</p>
+      <pre><code>user message
+  → prepare turn
+  → model request
+  → stream assistant
+  → tool call
+  → tool result
+  → next step or turn end</code></pre>
+      <div class="lab"><div class="lab-head"><strong>实验 B · 事件事实和投影</strong><button id="turn-send">发送消息</button><button id="turn-tool">调用工具</button><button id="turn-cancel">取消回合</button><button id="turn-crash">模拟崩溃</button><button id="turn-rebuild">从日志重建</button></div><div class="console" id="turn-log"></div><div class="lab-hint">事实日志可以重建消息投影。取消和崩溃必须留下明确状态，不能把未完成回合伪装成成功。</div></div>
+      <details class="ref"><summary>源码指引</summary><span class="reftag">src/main/agentSession/host/agentSessionHost.ts</span><span class="reftag">src/main/runtimeKernel/sessionEventLog.ts</span><span class="reftag">src/main/runtimeKernel/guiSession.ts</span></details>
+    </section>
+    <section class="screen" id="s3">
+      <h2>扩展贡献工具和上下文</h2>
+      <p class="lead">工具决定 Agent 能做什么。上下文决定 Agent 在这一轮应该看到什么。两者都需要声明、授权、预算和实例绑定。</p>
+      <div class="grid two"><div class="card"><h3>工具</h3><p>带 JSON Schema、权限类别、取消信号和结构化结果。写操作先生成提案，再提交。</p><pre><code>domain.search
+domain.proposeChange
+domain.applyChange</code></pre></div><div class="card"><h3>上下文</h3><p>按需读取当前选择、过滤器、视图状态和领域资源。上下文有大小上限，不能把整个数据集常驻 prompt。</p><pre><code>context.describe()
+context.read({ key, budget })</code></pre></div></div>
+      <div class="lab"><div class="lab-head"><strong>实验 C · 上下文预算</strong><button id="ctx-small">读取小范围</button><button id="ctx-large">请求全量</button><button id="ctx-reset">清空上下文</button></div><div class="console" id="ctx-log"></div><div class="lab-hint">通用扩展应把上下文设计成可组合的资源读取，而不是让模型直接接触扩展内部对象。</div></div>
+      <details class="ref"><summary>源码指引</summary><span class="reftag">src/main/agentSession/types.ts</span><span class="reftag">src/main/extensions/extensionDynamicTools.ts</span><span class="reftag">src/main/extensions/extensionToolSchema.ts</span></details>
+    </section>
+    <section class="screen" id="s4">
+      <h2>界面和 Agent 通过事件连接</h2>
+      <p class="lead">扩展主界面保留领域交互，聊天界面使用宿主 ChatSurface。两者通过选择状态、结构化结果和领域事件同步。</p>
+      <div class="flow"><div class="node"><b>用户选择</b><br><small>selection / filter / route</small></div><div class="arrow">→</div><div class="node"><b>Context Snapshot</b><br><small>有界、可审计、按实例绑定</small></div><div class="arrow">→</div><div class="node"><b>Agent Turn</b><br><small>工具和回复</small></div><div class="arrow">→</div><div class="node"><b>State Changed</b><br><small>面板刷新</small></div></div>
+      <div class="lab"><div class="lab-head"><strong>实验 D · 领域变更闭环</strong><button id="proposal">生成提案</button><button id="approve">批准提案</button><button id="apply">执行变更</button><button id="disable">禁用实例</button></div><div class="console" id="mutation-log"></div><div class="lab-hint">实例禁用、会话关闭和迟到工具结果都必须经过同一个生命周期屏障。</div></div>
+      <details class="ref"><summary>源码指引</summary><span class="reftag">src/renderer/src/chatSurface/ChatSurfaceView.tsx</span><span class="reftag">src/main/extensions/extensionPanelBridge.ts</span><span class="reftag">src/main/runtimeKernel/lifecycleScope.ts</span></details>
+    </section>
+    <section class="screen" id="s5">
+      <h2>安全和生命周期是产品能力</h2>
+      <p class="lead">扩展可以接近模型、数据和本机能力。治理面必须和功能面一起设计。</p>
+      <div class="grid"><div class="card"><h3>身份</h3><p>实例、工作区、项目和会话由宿主绑定。模型参数不能选择目标。</p></div><div class="card"><h3>权限</h3><p>工具声明读取、写入和高风险操作。审批发生在宿主统一入口。</p></div><div class="card"><h3>恢复</h3><p>流式事件、取消、崩溃和重启都能分类，未知状态不自动重投。</p></div></div>
+      <table class="map"><thead><tr><th>设计原则</th><th>扩展获得的能力</th><th>宿主保留的责任</th></tr></thead><tbody><tr><td>宿主拥有 Agent Loop</td><td>声明工具和上下文</td><td>模型、回合、事件、恢复</td></tr><tr><td>工具可无 UI 工作</td><td>返回结构化领域结果</td><td>决定何时显示 ChatSurface 或卡片</td></tr><tr><td>写入先提案后提交</td><td>生成变更方案</td><td>审批、事务、审计和回滚</td></tr><tr><td>实例边界优先</td><td>使用当前实例数据</td><td>身份、权限、生命周期和迟到结果</td></tr></tbody></table>
+      <div class="box sol"><span class="tag">当前待决策</span><br>第一版可以先采用“每个扩展实例一条长期 Agent Session”。多线程、Agent 分叉、结构化 UI 和热更新建立在这条基础合同之上。</div>
+      <details class="quiz"><summary>自测一：为什么不让每个扩展直接调用 llm.chat？</summary><p>因为它会让每个扩展重复实现会话、工具循环、流式状态、取消、恢复和审批。宿主也无法统一治理这些行为。</p></details>
+      <details class="quiz"><summary>自测二：为什么上下文提供器不能返回整个领域数据库？</summary><p>因为模型上下文、权限和性能都需要有界。按需资源读取可以把选择状态、预算和访问记录留在宿主合同中。</p></details>
+    </section>
+  </main>
+  <footer>教学用途 · 概念简化版，API 形状对照 MetaAgent workbench 当前源码 · 草稿版本 2026-11-07</footer>
+  <script>
+    var IDS=['s0','s1','s2','s3','s4','s5'], cur=0;
+    function el(id){ return document.getElementById(id); }
+    function log(id, text, cls){ var node=document.createElement('div'); node.className=cls||''; node.textContent=text; el(id).appendChild(node); el(id).scrollTop=el(id).scrollHeight; }
+    function go(i){ cur=Math.max(0,Math.min(IDS.length-1,i)); IDS.forEach(function(id,n){ el(id).classList.toggle('on',n===cur); }); el('pbar').style.width=((cur+1)/IDS.length*100)+'%'; el('dots').innerHTML=IDS.map(function(_,n){ return '<i class="dot '+(n===cur?'on':'')+'"></i>'; }).join(''); el('prev').disabled=cur===0; el('next').disabled=cur===IDS.length-1; window.scrollTo({top:0,behavior:'instant'}); }
+    el('prev').onclick=function(){go(cur-1)}; el('next').onclick=function(){go(cur+1)}; document.addEventListener('keydown',function(e){ if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return; if(e.key==='ArrowLeft')go(cur-1); if(e.key==='ArrowRight')go(cur+1); });
+    var bound=[]; ['ui','agent','tool','data'].forEach(function(kind){ el('bind-'+kind).onclick=function(){ if(bound.indexOf(kind)<0) bound.push(kind); el('bind-count').textContent=bound.length; el('bind-status').textContent=bound.length===4?'ready':'partial'; el('bind-kind').textContent=bound.length===4?'complete':(['ui','agent','tool','data'].filter(function(x){return bound.indexOf(x)<0})[0]||'—'); log('bind-log','+ contribution: '+kind,'g'); }; });
+    el('turn-send').onclick=function(){log('turn-log','seq 1  user/message accepted','b');}; el('turn-tool').onclick=function(){log('turn-log','seq 2  tool/call → extension tool','y'); log('turn-log','seq 3  tool/result structured result','g');}; el('turn-cancel').onclick=function(){log('turn-log','turn cancelled with explicit outcome','r');}; el('turn-crash').onclick=function(){log('turn-log','process stopped before turn/end','r');}; el('turn-rebuild').onclick=function(){log('turn-log','replay durable events → projection restored','g');};
+    el('ctx-small').onclick=function(){log('ctx-log','context.read selected=12 budget=8KB → admitted','g');}; el('ctx-large').onclick=function(){log('ctx-log','context.read full dataset → rejected: budget exceeded','r');}; el('ctx-reset').onclick=function(){el('ctx-log').innerHTML=''; log('ctx-log','context snapshot cleared','b');};
+    el('proposal').onclick=function(){log('mutation-log','proposal created: 3 records changed','y');}; el('approve').onclick=function(){log('mutation-log','host approval granted','g');}; el('apply').onclick=function(){log('mutation-log','apply committed → state.changed','g');}; el('disable').onclick=function(){log('mutation-log','instance retired → abort pending calls','r');};
+    go(0);
+  </script>
+</body>
+</html>

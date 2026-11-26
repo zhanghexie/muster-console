@@ -1,0 +1,1793 @@
+/* files.css — 由 styles.css 拆分（域：files）。规范见 /design.md。修改请守住 token。 */
+
+
+/* ---------- 文件面板 ---------- */
+
+.files-panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.files-panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  /* 三栏顶栏统一高度（2026-09-07）：定高 36px、垂直居中（内容 28px 按钮）。
+     勿改回 min-height+上下 padding——按钮 28px 会把工具条撑到 40+，与中栏顶栏底线错位 */
+  height: 36px;
+  padding: 0 10px;
+  flex-shrink: 0;
+  /* 框与页（2026-09-27 用户批准原型）：页头不画结构线；透明边保留 1px 几何，三栏顶栏继续同高 */
+  border-bottom: 1px solid transparent;
+}
+
+/* 右簇（打开/关闭文件列表 + 文件|Git 页签）贴工具条右缘：auto margin 加在右簇第一个元素上（2026-08-28 起） */
+.files-panel-toolbar .side-list-toggle {
+  margin-left: auto;
+}
+
+.files-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.files-panel-split {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.files-panel-editor-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+/* 文件树 */
+
+.workspace-file-tree-single { height: 100%; min-height: 0; }
+.workspace-file-trees { height: 100%; min-height: 0; overflow: auto; padding: 4px 8px 12px; }
+.workspace-file-trees > .file-tree { height: auto; min-height: 0; }
+.workspace-file-trees .file-tree-scroll { flex: none; overflow: visible; padding: 0; }
+.file-tree-root-caption { min-width: 0; display: flex; flex-direction: column; }
+.file-tree-root-path {
+  padding: 0 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* 树（L1）与编辑器（L0）的边界由海拔色差天然形成，不画线（design.md §3） */
+.file-tree {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.file-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 8px 8px 4px 8px;
+  flex-shrink: 0;
+  min-height: 32px;
+}
+
+/* 分组标题规范：caption 11px / 500 / --text-3 / 0.02em（design.md §3/§5） */
+.file-tree-toolbar-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-secondary);
+  padding: 2px 4px;
+}
+
+.file-tree-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.file-tree-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  /* 行圆角后左右留白，同 ui-list 模式 */
+  padding: 4px 8px 12px;
+}
+
+/* 方向键选中时焦点在树或当前行上。选中态用行底色，不再叠一圈焦点框。 */
+.file-tree .file-tree-scroll:focus,
+.file-tree .file-tree-scroll:focus-visible,
+.file-tree .file-tree-row:focus,
+.file-tree .file-tree-row:focus-visible {
+  outline: none;
+}
+
+.file-tree-dir {
+  min-width: 0;
+}
+
+/* 树行 = 列表行规范：高 28–32、radius-control、hover 叠白（design.md §9） */
+.file-tree-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 28px;
+  margin: 0;
+  padding-right: 12px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  user-select: none;
+}
+
+.file-tree-row[draggable='true'] {
+  cursor: grab;
+}
+
+.file-tree-row[draggable='true']:active {
+  cursor: grabbing;
+}
+
+.file-tree-row:hover {
+  background: var(--interaction-hover);
+}
+
+/* 多选（Ctrl/⌘、Shift）行底色：比 is-active 弱一档；同时命中时 is-active 在后覆盖 */
+.file-tree-row.is-multiselected {
+  background: var(--interaction-pressed);
+}
+
+.file-tree-row.is-multiselected:hover {
+  background: var(--interaction-selected);
+}
+
+.file-tree-row.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+  box-shadow: none;
+}
+
+.file-tree-row.is-active:hover { background: var(--interaction-selected-hover); }
+.file-tree-row.is-active .file-tree-folder { color: var(--fg-selected-secondary); }
+
+
+.file-tree-row.is-root {
+  padding-left: 4px;
+  font-weight: 500;
+}
+
+/* 叶子行图标对位槽（目录行的展开态已并入文件夹图标，见 IconFolderOpen） */
+.file-tree-twist-spacer {
+  width: 14px;
+  flex-shrink: 0;
+}
+
+/* 文件夹图标槽：IconFolder 细线 SVG（用户验收：实心块与线条风不搭） */
+.file-tree-folder {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+
+.file-tree-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-tree-name.is-dir-name {
+  font-weight: 500;
+}
+
+.file-tree-link {
+  flex: none;
+  color: var(--fg-secondary);
+}
+
+.file-tree-hint {
+  padding: 4px 4px;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+/* 编辑器 */
+
+/* 编辑器区：贴地内容面 L0（design.md §1.1） */
+.file-editor {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface-canvas);
+  /* 跳转定义浮层（.jump-def-*）的定位基准 */
+  position: relative;
+}
+
+/* 编辑器区 L0，头部 L1，边界靠色差不画线（design.md §10） */
+.file-editor-header {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  flex-shrink: 0;
+  background: var(--surface-canvas);
+}
+
+/* 文件编辑与代码预览沿用 L0 画布；阅读态另在下方摊平到 L1 主面。 */
+.files-panel .file-editor,
+.files-panel .file-editor-header {
+  background: none;
+}
+
+.files-panel .file-editor-main {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+  background: var(--surface-canvas);
+}
+
+/* Markdown 与普通文本预览同聊天正文：不再嵌一整张深色卡。 */
+.files-panel .file-editor-main.is-reading-surface {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--surface-canvas);
+}
+
+.file-editor-main.is-reading-surface .file-editor-preview-md {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  background: var(--surface-canvas);
+}
+
+/* 普通文本与代码都由 CM 消费 ResolvedAppearance 的同一画布，不再覆盖局部主题种子。 */
+
+.file-editor-path {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* 字重 600 仅 --font-title 允许（design.md §5） */
+.file-editor-name {
+  font-size: var(--font-control);
+  font-weight: 500;
+  color: var(--fg-primary);
+  flex-shrink: 0;
+}
+
+.file-editor-rel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.file-editor-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* 编辑↔预览：药丸凹槽分段（格式对齐会话「对话|轨迹」.agent-chat-viewtabs）：
+   raised 凹槽底 + pill 圆角，选中片 selected-fill（hover 规则须在选中态之前） */
+.file-editor-mode {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  margin-right: 4px;
+}
+
+.file-editor-mode-btn {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--fg-muted);
+  font: inherit;
+  font-size: var(--font-caption);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+
+.file-editor-mode-btn:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover);
+}
+
+.file-editor-mode-btn.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  color: var(--fg-selected-primary);
+  background: var(--interaction-selected);
+}
+
+.file-editor-status-text {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+/* 外部修改冲突横幅：磁盘内容与本地有分歧，要求用户显式选择 */
+.file-editor-conflict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--status-warning-bg);
+  flex-shrink: 0;
+}
+
+.file-editor-conflict-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-caption);
+  color: var(--status-warning-fg);
+}
+
+/* 编辑器↔预览叠放容器（.xfade-stack/.xfade 见 base.css）：两视图常驻淡切 */
+.file-editor-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* 静止后卸合成提示：xfade 只动 opacity，不要在含正文的预览/编辑层上留
+ * transform / will-change（GPU 层文字必糊，见 md 预览发虚）。 */
+.file-editor-pane.xfade.is-shown {
+  transform: none;
+  will-change: auto;
+}
+
+.file-editor-preview {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  background: var(--surface-canvas);
+}
+
+.file-editor-preview-md {
+  padding: 16px 20px 32px;
+  transform: none;
+  will-change: auto;
+}
+
+.file-editor-markdown-layout {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.file-editor-markdown-layout > .file-editor-preview {
+  flex: 1 1 auto;
+}
+
+.file-editor-toc {
+  --fg-primary: var(--canvas-fg-primary);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --border-focus: var(--canvas-border-focus);
+  flex: 0 0 220px;
+  min-width: 180px;
+  max-width: 260px;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 8px;
+  border-left: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  transform-origin: right center;
+}
+
+.file-editor-toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 4px 8px;
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.file-editor-toc-header strong {
+  color: var(--fg-primary);
+  font-weight: 500;
+}
+
+.file-editor-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.file-editor-toc-item {
+  display: block;
+  width: 100%;
+  min-height: 26px;
+  padding-top: 4px;
+  padding-right: 6px;
+  padding-bottom: 4px;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-caption);
+  line-height: 1.35;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-editor-toc-item:hover,
+.file-editor-toc-item:focus-visible {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+@media (max-width: 520px) {
+  .file-editor-toc {
+    flex-basis: 180px;
+    min-width: 160px;
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+}
+
+.file-editor-md-body {
+  max-width: 760px;
+  /* 居中取整 CSS 像素：奇数宽父级 + margin:auto 会把整篇推到 0.5px */
+  margin-left: round(nearest, max(0px, calc((100% - min(100%, 760px)) / 2)), 1px);
+  margin-right: auto;
+  font-size: var(--font-body);
+  line-height: 1.7;
+  color: var(--fg-primary);
+}
+
+/* HTML 内容在浅色画布上渲染（内容底，非壳层色） */
+.file-editor-preview-html {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #fff;
+}
+
+.file-editor-html-peek {
+  display: none;
+  position: absolute;
+  inset: 0;
+}
+
+/* 文件编辑器可以保活移到另一栏，按宿主 DOM 的实际虚拟屏决定命中。 */
+[data-h-peek] .file-editor-html-peek {
+  display: block;
+}
+
+.file-editor-empty-inner,
+.file-editor-error-state {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+/* 文件夹概览（目录预览）：L0 舞台上的列表卡片 L2 + hairline（design.md §9） */
+.file-editor-folder {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.file-editor-folder-counts {
+  margin: 0 0 8px;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.file-editor-folder-note {
+  margin: 0;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.file-editor-folder-list {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  max-width: 520px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.file-editor-folder-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-ui);
+  text-align: left;
+}
+
+.file-editor-folder-item:hover {
+  background: var(--interaction-hover);
+}
+
+.file-editor-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-editor-empty-title,
+.file-editor-error-title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.file-editor-empty-desc,
+.file-editor-error-desc {
+  margin: 0;
+  max-width: 360px;
+  font-size: var(--font-control);
+  line-height: 1.55;
+  color: var(--fg-secondary);
+}
+
+.file-editor-cm {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface-canvas);
+}
+
+.file-editor-cm .cm-editor {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  height: 100%;
+  background: var(--surface-canvas);
+}
+
+/* Markdown 源编辑的文档感模式（is-prose）：比例字体 + 正文字号 + 阅读行高；
+ * 行内代码/代码块经 CM 高亮 t.monospace 仍走 --font-mono（workbenchCmTheme.ts） */
+.file-editor-cm.is-prose .cm-scroller {
+  font-family: var(--font-sans);
+  font-size: var(--font-body);
+  line-height: 1.7;
+}
+
+/* 普通文本只读态保持等宽与行号以免空白对齐失真，放松字号/行距便于长读。 */
+.file-editor-cm.is-plain-reading .cm-scroller {
+  font-size: var(--font-body);
+  line-height: 1.7;
+}
+
+.file-editor-cm .cm-editor.cm-focused {
+  outline: none;
+}
+
+/* The scroller must shrink inside the editor rather than keep an intrinsic
+   minimum height and push its horizontal scrollbar beyond the clipped host. */
+.file-editor-cm .cm-scroller {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+  min-width: 0;
+  box-sizing: border-box;
+  scrollbar-gutter: auto;
+}
+
+/* Non-auto standard scrollbar colors disable Chromium's ::-webkit-scrollbar
+   styling. Use the same custom track in both modes, without system arrows. */
+.file-editor .file-editor-cm .cm-scroller,
+.file-editor .file-editor-preview {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+.file-editor-cm .cm-scroller::-webkit-scrollbar,
+.file-editor-preview::-webkit-scrollbar { width: 8px; height: 8px; }
+.file-editor-cm .cm-scroller::-webkit-scrollbar-button,
+.file-editor-preview::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+
+/* 媒体预览：stage 贴地 L0（design.md §10） */
+.file-media {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+}
+
+.file-media-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 16px;
+}
+
+.file-media-stage-audio {
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 音频态的标题/meta 用三级文字（design.md §10） */
+.file-media-title {
+  margin: 0;
+  font-size: var(--font-body);
+  color: var(--fg-secondary);
+}
+
+.file-media-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+/* 画幅黑边是视频内容需要，非壳层背景 */
+.file-media-video {
+  max-width: 100%;
+  max-height: 100%;
+  background: #000;
+}
+
+.file-media-audio {
+  width: min(480px, 100%);
+}
+
+.file-media-pdf {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: var(--surface-canvas);
+}
+
+.file-media-meta {
+  margin: 0;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.file-media-error {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.file-media-error-title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.file-media-error-desc,
+.file-media-error-meta {
+  margin: 0;
+  max-width: 420px;
+  font-size: var(--font-control);
+  line-height: 1.5;
+  color: var(--fg-secondary);
+}
+
+/* Quick Open：脱离文档流的浮层，必为 L3 + shadow-pop + radius-card（design.md §7/§10） */
+.quick-open-mask {
+  --quick-open-gap: min(18vh, 140px);
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: var(--quick-open-gap);
+}
+
+.quick-open {
+  --mp-fly-gap: var(--quick-open-gap);
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(72vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+/* 输入凹槽：比所在浮层暗一档，hairline 边（design.md §1.1/§9） */
+.quick-open-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: calc(100% - 16px);
+  box-sizing: border-box;
+  margin: 8px 8px 0;
+  min-height: 32px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-control);
+  padding: 6px 12px;
+  outline: none;
+}
+
+.quick-open-input::placeholder {
+  color: var(--fg-secondary);
+}
+
+.quick-open-input:focus,
+.quick-open-input:focus-visible {
+  box-shadow: none;
+}
+
+.quick-open-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px 4px;
+}
+
+.quick-open-tab {
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-caption);
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.quick-open-tab:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.quick-open-tab.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  font-weight: 500;
+}
+
+.quick-open-section-title {
+  padding: 8px 10px 4px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.quick-open-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 10px 12px;
+}
+
+.quick-open-loading-label {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.quick-open-loading-row {
+  height: 28px;
+  width: 90%;
+  border-radius: var(--radius-control);
+}
+
+.quick-open-loading-row.w60 { width: 60%; }
+.quick-open-loading-row.w70 { width: 70%; }
+.quick-open-loading-row.w82 { width: 82%; }
+.quick-open-loading-row.w90 { width: 90%; }
+
+.quick-open-mark {
+  color: var(--status-info-fg);
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  padding: 0;
+}
+
+.quick-open-item.is-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quick-open-item-meta {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+}
+
+.quick-open-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+
+.quick-open-footer kbd {
+  font: inherit;
+  font-size: inherit;
+  color: var(--fg-secondary);
+  background: var(--interaction-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.quick-open-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 8px 8px;
+}
+
+/* 结果行 = 列表行规范：radius-control，hover 叠白 / 选中叠白加浓（design.md §8/§9） */
+.quick-open-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.quick-open-item:hover:not(.is-disabled) {
+  background: var(--interaction-hover);
+}
+
+.quick-open-item.is-active {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.quick-open-item.is-active:hover:not(.is-disabled) { background: var(--interaction-selected-hover); }
+.quick-open-item.is-active .quick-open-item-path { color: var(--fg-selected-secondary); }
+.quick-open-item.is-active .quick-open-item-chord { color: var(--fg-selected-muted); }
+
+.quick-open-item.is-cmd {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.quick-open-item.is-disabled {
+  opacity: 1; color: var(--fg-disabled);
+  background: transparent;
+  cursor: default;
+}
+
+.quick-open-item.is-disabled :is(.quick-open-item-path, .quick-open-item-chord) { color: var(--fg-disabled); }
+
+.quick-open-item-chord {
+  flex-shrink: 0;
+  font-size: var(--font-caption);
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.quick-open-group-title {
+  padding: 8px 10px 2px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  color: var(--fg-secondary);
+}
+
+.quick-open-item-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.quick-open-item-path {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.quick-open-item-preview {
+  font-size: var(--font-caption);
+  font-family: var(--font-mono);
+  color: var(--fg-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.quick-open-item-preview mark {
+  background: var(--status-warning-bg);
+  color: var(--fg-primary);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.quick-open-case {
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--fg-secondary);
+  font: inherit;
+  font-size: var(--font-caption);
+  font-family: var(--font-mono);
+  padding: 1px 6px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.quick-open-case:hover {
+  background: var(--interaction-hover);
+  color: var(--fg-primary);
+}
+
+.quick-open-case.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  font-weight: 500;
+}
+
+/* 空态：居中三级文字一句话（design.md §9） */
+.quick-open-hint,
+.quick-open-error {
+  padding: 16px 12px;
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+  text-align: center;
+}
+
+/* 当前文件内查找：与会话查找共用 .chat-find-pos / FindFloatBar */
+.file-editor > .chat-find-pos {
+  z-index: 14;
+}
+
+/* CM 命中高亮：yellow soft 底，活动命中加大浓度（与全局搜索 mark 同族，design.md §1.3） */
+.cm-content .cm-find-match {
+  background: color-mix(in srgb, var(--yellow) 22%, transparent);
+  border-radius: 2px;
+}
+
+.cm-content .cm-find-match.is-active {
+  background: color-mix(in srgb, var(--yellow) 55%, transparent);
+}
+
+/* 文件 Diff：加载/空态居中，三级文字一句话（design.md §9；叠加在 git-diff-empty 上） */
+.file-diff-empty {
+  flex: 1;
+  min-height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-secondary);
+}
+/* ── 跳转定义浮层（Ctrl/Cmd+点击符号） ──
+   组件内绝对定位：祖先链上有 transform 动画容器（xfade/虚拟屏），fixed 的定位基准
+   会变成 transform 祖先而非视口，坐标整体漂移——因此以 .file-editor 根为参照 */
+
+/* 右键符号菜单（复用 .jump-def-menu 容器，条目为动作项） */
+
+/* 跳转目标行闪烁高亮（flashLineField，JS 定时控制亮灭） */
+.file-editor-cm .cm-line.cm-flash-line {
+  background: var(--status-info-bg);
+}
+
+/* ---------- Office / 归档预览（FileDocPreview） ---------- */
+.file-doc {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-canvas);
+  overflow: auto;
+  padding: 16px;
+}
+
+.file-doc-note {
+  margin: 0 0 8px;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.file-doc-note.is-notice {
+  color: var(--status-warning-fg);
+}
+
+/* word：docx-preview 自带灰底页影，主题里改贴地 */
+.file-doc-word {
+  min-width: 0;
+}
+
+.file-doc-word .docx-wrapper {
+  background: transparent;
+  padding: 0;
+  /* A fixed-width page must overflow from the start edge. Centering it in a
+     narrower preview hides the left content beyond the scrollable area. */
+  align-items: flex-start;
+}
+
+.file-doc-word .docx-wrapper > section.docx {
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  margin-bottom: 12px;
+}
+
+/* sheet：页签 + 表格 */
+.file-doc-sheet-tabs {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  flex: none;
+  overflow-x: auto;
+  gap: 4px;
+  margin-bottom: 2px;
+  position: sticky;
+  top: -16px;
+  background: var(--surface-canvas);
+  padding: 2px 0 8px;
+  z-index: 1;
+}
+
+.file-doc-sheet-tab {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  position: relative;
+  flex: none;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.file-doc-sheet-tab[aria-selected='true'] {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+  border-color: var(--border-subtle);
+}
+
+.file-doc-sheet-tab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 2px solid currentColor;
+}
+
+.file-doc-sheet {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.file-doc-sheet-tab:focus-visible,
+.file-doc-sheet:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.file-doc-sheet table {
+  border-collapse: collapse;
+  font-size: var(--font-control);
+  font-family: var(--font-mono);
+}
+
+.file-doc-sheet td {
+  border: 1px solid var(--border-subtle);
+  padding: 3px 8px;
+  white-space: pre;
+  max-width: 420px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--fg-primary);
+}
+
+.file-doc-sheet tr:first-child td {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-primary);
+}
+
+/* slides：大纲卡列表 */
+.file-doc-slides {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-doc-slide {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  display: flex;
+  gap: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-canvas);
+  padding: 10px 12px;
+}
+
+.file-doc-slide-n {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--interaction-selected);
+  color: var(--fg-selected-secondary);
+  font-size: var(--font-control);
+  font-weight: 500;
+}
+
+.file-doc-slide-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.file-doc-slide-title {
+  margin: 0 0 2px;
+  font-size: var(--font-control);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+.file-doc-slide-body {
+  margin: 0;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* archive：条目清单表 */
+.file-doc-archive {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 720px;
+  font-size: var(--font-control);
+}
+
+.file-doc-archive th,
+.file-doc-archive td {
+  border: 1px solid var(--border-subtle);
+  padding: 4px 8px;
+  text-align: left;
+  color: var(--fg-primary);
+}
+
+.file-doc-archive th {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  color: var(--fg-selected-secondary);
+  font-weight: 500;
+}
+
+.file-doc-archive th.num,
+.file-doc-archive td.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.file-doc-archive td.name {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+.file-doc-archive tr.is-dir td {
+  color: var(--fg-secondary);
+}
+
+.file-doc-archive tr.is-dir td.name {
+  font-weight: 500;
+}
+
+/* 不支持预览的卡片：类型徽标 + 兜底动作 */
+.file-editor-unsupported-icon {
+  display: inline-flex;
+  opacity: 0.9;
+}
+
+.file-media-reveal-btn {
+  margin-top: 2px;
+}

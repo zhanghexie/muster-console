@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从零设计 Prime Agent · 交互式教学</title>
+<style>
+  :root {
+    --acc: #7c5cff; --acc-soft: #f1edff;
+    --bg: #f6f7fb; --card: #ffffff; --line: #e6e9f2;
+    --ink: #24292f; --dim: #57606a;
+    --pain-bg: #fff4f2; --pain-bd: #ffcfc7; --pain-tx: #8f3227;
+    --sol-bg: #f2fbef; --sol-bd: #b3e0a4; --sol-tx: #29631c;
+    --info-bg: #eaf3ff; --info-bd: #bcdcff; --info-tx: #0b5cc7;
+    --con-bg: #10131c; --con-tx: #d7dbe8;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; line-height: 1.75; }
+
+  .topbar { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .topbar .title { font-weight: 700; font-size: 15px; letter-spacing: .5px; }
+  .topbar .title small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+  .progress { flex: 1; min-width: 120px; height: 5px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--acc), #b39dff); transition: width .35s ease; }
+  .navbtns { display: flex; gap: 8px; }
+  .navbtns button { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 5px 12px; cursor: pointer; font-size: 13px; color: var(--ink); transition: all .15s; }
+  .navbtns button:hover:not(:disabled) { border-color: var(--acc); color: var(--acc); }
+  .navbtns button:disabled { opacity: .35; cursor: default; }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); cursor: pointer; transition: all .2s; }
+  .dots i.on { background: var(--acc); transform: scale(1.25); }
+
+  .stage { max-width: 900px; margin: 26px auto 80px; padding: 0 18px; }
+  section.screen { display: none; animation: fadein .3s ease; }
+  section.screen.on { display: block; }
+  @keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .kicker { color: var(--acc); font-weight: 700; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; }
+  h1 { font-size: 30px; line-height: 1.3; margin: 6px 0 14px; }
+  h2 { font-size: 24px; margin: 4px 0 16px; line-height: 1.35; }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  p { margin: 10px 0; }
+  .lead { font-size: 16.5px; color: var(--dim); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 22px 26px; margin: 18px 0; box-shadow: 0 1px 3px rgba(36,41,47,.04); }
+
+  .box { border-radius: 12px; border: 1px solid; padding: 14px 18px; margin: 16px 0; }
+  .box .tag { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 1px 10px; border-radius: 99px; margin-bottom: 8px; }
+  .pain { background: var(--pain-bg); border-color: var(--pain-bd); } .pain .tag { background: #ffd6cc; color: var(--pain-tx); }
+  .sol  { background: var(--sol-bg);  border-color: var(--sol-bd); }  .sol .tag  { background: #cdf0bd; color: var(--sol-tx); }
+  .reftag { display: inline-block; font-family: var(--mono); font-size: 12.5px; background: var(--info-bg); border: 1px solid var(--info-bd); color: var(--info-tx); border-radius: 8px; padding: 4px 11px; margin: 3px 5px 3px 0; }
+
+  pre { background: var(--con-bg); color: var(--con-tx); border-radius: 12px; overflow-x: auto; padding: 16px 18px; margin: 12px 0; font-family: var(--mono); font-size: 13.2px; line-height: 1.62; }
+  code.inline, p code, li code, td code { font-family: var(--mono); font-size: .88em; background: var(--acc-soft); color: #5a3cc8; border-radius: 5px; padding: 1.5px 6px; }
+  pre .cm { color: #6a7387; font-style: italic; } pre .st { color: #9ece6a; } pre .kw { color: #7aa2f7; } pre .yk { color: #7dcfff; }
+  .codecap { font-size: 12.5px; color: var(--dim); margin-top: -6px; margin-bottom: 12px; }
+
+  ul.tight li { margin: 6px 0 6px 4px; }
+  table.map { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 10px; }
+  table.map th, table.map td { border: 1px solid var(--line); padding: 8px 12px; text-align: left; vertical-align: top; }
+  table.map th { background: var(--acc-soft); }
+  table.map tr:nth-child(even) td { background: #fafbff; }
+  details.quiz { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 12px 0; background: #fffdf5; }
+  details.quiz summary { cursor: pointer; font-weight: 600; }
+  details.quiz[open] summary { color: var(--acc); }
+  details.ref { margin: 10px 0; }
+  details.ref summary { cursor: pointer; color: var(--dim); font-size: 13.5px; }
+
+  .lab { background: #fbfcff; border: 2px dashed #d8ccff; border-radius: 14px; padding: 20px 22px; margin: 22px 0; }
+  .lab-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .lab-head b { font-size: 16px; }
+  .lab-hint { font-size: 13px; color: var(--dim); margin: 8px 0 0; }
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 14px; cursor: pointer; font-size: 13.5px; transition: all .15s; }
+  .btn:hover:not(:disabled) { border-color: var(--acc); color: var(--acc); }
+  .btn.pri { background: var(--acc); border-color: var(--acc); color: #fff; font-weight: 600; }
+  .btn.pri:hover:not(:disabled) { filter: brightness(1.08); color: #fff; }
+  .btn:disabled { opacity: .45; cursor: default; pointer-events: none; }
+  .console { background: var(--con-bg); color: var(--con-tx); border-radius: 12px; padding: 14px 16px; font-family: var(--mono); font-size: 12.8px; line-height: 1.85; min-height: 60px; max-height: 300px; overflow-y: auto; margin-top: 12px; }
+  .console .l { white-space: pre-wrap; word-break: break-all; animation: lin .22s ease; }
+  @keyframes lin { from { opacity: 0; transform: translateX(-6px);} to {opacity:1;} }
+  .console .g { color: #9ece6a; } .console .r { color: #f7768e; } .console .y { color: #e0af68; }
+  .console .b { color: #7aa2f7; } .console .d { color: #6a7387; } .console .i1 { padding-left: 22px; } .console .i2 { padding-left: 44px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; min-height: 120px; max-height: 260px; overflow-y: auto; }
+  .panel h4 { font-size: 13px; color: var(--dim); margin-bottom: 8px; position: sticky; top: -12px; background: #fff; padding: 4px 0; }
+
+  .vartable { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.4px; }
+  .vartable td { padding: 3px 6px; border-top: 1px solid #eef0f6; }
+  .vartable td:first-child { color: #5a3cc8; font-weight: 700; white-space: nowrap; }
+  .empty-note { color: #98a0ab; font-size: 13px; }
+  .chatwrap .msg { max-width: 92%; border-radius: 11px; padding: 5px 11px; margin: 6px 0; font-size: 12.8px; line-height: 1.55; animation: lin .25s ease; font-family: var(--mono); white-space: pre-wrap; word-break: break-all; }
+  .chatwrap .user { background: var(--acc); color: #fff; margin-left: auto; }
+  .chatwrap .asst { background: #f1f3fa; border: 1px solid var(--line); }
+  .compact-tag { background: #fff8e1; border: 1px dashed #e0c355; color: #7a5200; border-radius: 10px; padding: 5px 11px; margin: 6px 0; font-size: 12.4px; }
+  .hcard { border: 1px solid #d8ccff; background: #f7f4ff; border-radius: 10px; padding: 6px 11px; margin: 6px 0; font-size: 12.6px; font-family: var(--mono); animation: lin .25s ease; }
+  .amsg { border: 1px solid #b3e0a4; background: #f2fbef; border-radius: 10px; padding: 6px 11px; margin: 6px 0; font-size: 12.6px; animation: lin .25s ease; }
+  .usagebar { font-family: var(--mono); font-size: 12.6px; padding: 8px 12px; background: var(--con-bg); color: var(--con-tx); border-radius: 10px; margin-top: 10px; }
+  .lock { display: inline-block; background: #eceef3; border: 1px solid var(--line); color: #57606a; border-radius: 99px; font-size: 12px; padding: 2px 10px; margin: 4px 6px 4px 0; }
+  tr.rownew td { animation: rowin .3s ease; }
+  @keyframes rowin { from { background: #efe9ff; } to { background: transparent; } }
+  .ledger-t { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.3px; }
+  .ledger-t td, .ledger-t th { padding: 4px 7px; border-top: 1px solid #eef0f6; text-align: left; }
+  .ledger-t th { color: #57606a; border-top: 0; }
+  .kind-memory { color: #0b5cc7; font-weight: 700; } .kind-prompt { color: #7a5200; font-weight: 700; }
+  .kind-skill { color: #29631c; font-weight: 700; } .kind-subagent { color: #8f3227; font-weight: 700; }
+
+  footer { text-align: center; color: var(--dim); font-size: 13px; padding: 30px 0 46px; }
+  .arrows-hint { text-align: center; color: #aab2bf; font-size: 12.5px; margin-top: 26px; user-select: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="title">从零设计 Prime Agent<small>迷你版教学 walkthrough</small></span>
+  <div class="progress"><i id="pbar"></i></div>
+  <div class="dots" id="dots"></div>
+  <div class="navbtns"><button id="prev">← 上一站</button><button id="next">下一站 →</button></div>
+</div>
+
+<div class="stage">
+
+<!-- ═══ s0 开场 ═══ -->
+<section class="screen" id="s0">
+  <div class="card">
+    <div class="kicker">Walkthrough · Start</div>
+    <h1>一起从零造一个"迷你 Prime Agent"</h1>
+    <p class="lead">Prime Intellect 的 prime-agent 自称 <b>Self-Improving RLM Harness</b>。老规矩：每站一个真实痛点 → 朴素做法为何撑不住 → 引入概念 → 动手玩。</p>
+    <p>它的一句话哲学是 <b>"一切皆代码"（Everything is programmatic）</b>。对照你已经学过的 deepseek-harness「一切皆插件」——两大流派殊途同归：<b>模型面只是壳，权威状态在宿主</b>。</p>
+    <h3>路线图</h3>
+    <ul class="tight">
+      <li><b>第 0 站</b>：传统 tool-calling 裸脚本（三个痛点埋雷）</li>
+      <li><b>第 1 站</b>：工具太多、数据太大 → RLM：唯一工具就是写 Python（prompt-as-a-variable）</li>
+      <li><b>第 2 站</b>：状态无处安放 → 持久 kernel：变量跨调用、跨 compaction 存活（🧪 实验A）</li>
+      <li><b>第 3 站</b>：模型直接碰钱太危险 → host_request 桥：可信操作留在宿主</li>
+      <li><b>第 4 站</b>：派活给子代理 → rlm() 只回凭证不回答案（🧪 实验B）</li>
+      <li><b>第 5 站</b>：agent 越干越歪 → Continual Harness：/refine 小步自改进（🧪 实验C）</li>
+      <li><b>第 6 站</b>：任务跑一半断线 → daemon/compaction/goal/heartbeat 同一条路</li>
+      <li><b>🏁 总结</b>：三范式对照表 + 自测题</li>
+    </ul>
+    <p class="arrows-hint">←/→ 翻页 · 实验区全是活的</p>
+  </div>
+</section>
+
+<!-- ═══ s1 裸脚本 ═══ -->
+<section class="screen" id="s1">
+  <div class="kicker">Station 0</div>
+  <h2>传统 tool-calling 裸脚本</h2>
+  <div class="card">
+<pre><code data-lang="ts">// main.ts —— 每个 coding agent 的起点
+const tools = [read_file, grep, bash, edit, web_search, /* …几十个 */]
+
+while (true) {
+  const reply = await llm.chat(messages, toolSchemas)   // 每轮都带全部工具 schema
+  if (!reply.toolCalls.length) break
+  for (const call of reply.toolCalls) {
+    const output = await tools[call.name](call.args)
+    messages.push({ role: 'tool', content: output })     // 结果整块塞回上下文
+  }
+}</code></pre>
+    <div class="box pain"><span class="tag">痛点 ①</span>
+      工具越多，每轮请求携带的 <b>schema 越撑</b>；每个工具都要单独设计、注册、让模型学会挑选。
+    </div>
+    <div class="box pain"><span class="tag">痛点 ②</span>
+      <code class="inline">read_file</code> 返回什么，<b>什么就整个进入上下文</b>。想在一万个文件里找一行配置？先把一万个文件读进来。
+    </div>
+    <div class="box pain"><span class="tag">痛点 ③</span>
+      上一轮解析好的中间结果，下一轮就没了——<b>状态无处安放</b>，只能反复重算或塞进对话历史。
+    </div>
+    <p>记住这三个痛点。Prime Agent 的整个设计就是逐一回应它们。</p>
+  </div>
+</section>
+
+<!-- ═══ s2 RLM ═══ -->
+<section class="screen" id="s2">
+  <div class="kicker">Station 1 · RLM</div>
+  <h2>工具太多、数据太大 → 唯一工具是写 Python</h2>
+  <div class="card">
+    <div class="box sol"><span class="tag">核心翻转</span>
+      <b>Prompt-as-a-variable</b>：上下文不再是一堆消息 + 工具结果，而是 kernel 里的<b>变量</b>。
+      内置模型工具只剩一个 <code class="inline">ipython</code>——读改文件、跑命令、调技能、派子代理，全是模型写 Python。
+    </div>
+<pre><code data-lang="py"># 模型在持久 Python kernel 里找一行配置——不用把仓库读进上下文
+from pathlib import Path
+
+hits = [p for p in Path(".").rglob("*.toml")
+        if "max_workers" in p.read_text()]
+print(hits)          # 只把结论 print 给模型，海量中间数据留在变量里</code></pre>
+    <ul class="tight">
+      <li><b>痛点① 消解</b>：没有几十个工具 schema 了——能力 = kernel 里可调用的函数（技能就是 import 名）。</li>
+      <li><b>痛点② 消解</b>：海量数据留在变量里，模型按需 <code class="inline">print</code> 结论。<b>上下文给方向，kernel 存事实</b>。</li>
+      <li>官方论文称这是 RLM（Recursive Language Model）：工具与子代理都是"程序化调用"。</li>
+    </ul>
+    <div class="box pain"><span class="tag">留下的痛点③</span>
+      Python 变量默认活在一次进程里。任务跨几十轮、窗口满了要压缩历史、终端断了再连……<b>状态怎么活下来？</b> → 下一站。
+    </div>
+    <details class="ref"><summary>📖 源码指引（refs/prime-agent）</summary>
+      <span class="reftag">packages/coding-agent/docs/rlm.md ← 四大不变量</span>
+      <span class="reftag">src/core/tools/ipython.ts ← 唯一内置工具的包装</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s3 持久 kernel + 实验A ═══ -->
+<section class="screen" id="s3">
+  <div class="kicker">Station 2 · 持久 Kernel</div>
+  <h2>状态无处安放 → 变量跨调用、跨 compaction 存活</h2>
+  <div class="card">
+    <div class="box sol"><span class="tag">解法</span>
+      kernel 是<b>持久</b> REPL：变量、导入、解析结果跨工具调用存活；compaction 压缩<b>对话</b>时特意保住 kernel 状态；
+      会话还可把命名空间 <code class="inline">snapshot/restore</code> 成 <code class="inline">kernel-state.dill</code>，进程重启也能复活。
+    </div>
+<pre><code data-lang="text"># kernel 与 TS 宿主之间的 stdio 协议（每行一个 JSON 对象）
+requests   execute · interrupt · host_reply · snapshot · restore · list_names · shutdown
+events     ready · stdout · stderr · result · display · host_request · error · done</code></pre>
+  </div>
+
+  <div class="lab">
+    <div class="lab-head">🧪 <b>实验 A：持久 kernel 模拟器</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">
+      <button class="btn" data-kcell="c1">▶ cell1: 收集 *.md 文件</button>
+      <button class="btn" data-kcell="c2">▶ cell2: 过滤大文件</button>
+      <button class="btn" data-kcell="c3">▶ cell3: print(big[0])</button>
+      <span style="flex:1"></span>
+      <button class="btn" id="k-compact">🧹 compaction</button>
+      <button class="btn" id="k-restart">💀 重启 kernel</button>
+      <button class="btn" id="k-restore" disabled>♻ restore(dill)</button>
+    </div>
+    <div class="grid2">
+      <div class="panel chatwrap" id="k-chat"><h4>对话历史（进模型上下文的部分）</h4></div>
+      <div class="panel" id="k-vars"><h4>kernel 命名空间（不进上下文，但模型随时可查）</h4></div>
+    </div>
+    <div class="console" id="k-log"></div>
+    <p class="lab-hint">按顺序点三个 cell → 点「🧹 compaction」看对话被压缩成摘要但变量还在 →
+      「💀 重启」变量真没了 → 「♻ restore」从 dill 快照复活。这就是"状态为跨轮次设计"。</p>
+  </div>
+
+  <div class="card">
+    <details class="ref"><summary>📖 源码指引</summary>
+      <span class="reftag">docs/rlm-runtime.md § Kernel Lifecycle / Stdio Transport</span>
+      <span class="reftag">session-artifacts/&lt;id&gt;/kernel-state.dill</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s4 host bridge ═══ -->
+<section class="screen" id="s4">
+  <div class="kicker">Station 3 · Host Bridge</div>
+  <h2>模型直接碰钱太危险 → 可信操作留在宿主</h2>
+  <div class="card">
+    <div class="box pain"><span class="tag">痛点</span>
+      如果模型面什么都能干——调 provider、写转录、改调度——一个被污染的技能包就能烧你的 API 额度、篡改会话历史。
+    </div>
+    <div class="box sol"><span class="tag">解法 · typed host_request</span>
+      Python 侧是<b>纯 shim</b>（官方原话：不调 provider、不实现 agent loop）。凡属权威状态的操作，
+      都以 <code class="inline">rlm.host_request("rlm.run" | "goal.get" | …)</code> 事件发回 TS 宿主，宿主校验后执行，
+      用 <code class="inline">host_reply</code> 带回结果。<b>模型目录元数据可以过桥，auth store 永不过桥。</b>
+    </div>
+<pre><code data-lang="py"># Python 侧发起派活（shim），真正建子会话的是 TS 宿主
+handle = await rlm("inspect the API", name="api-reviewer")
+# → kernel 发出 host_request(rlm.run)
+# → 宿主校验深度 RLM_DEPTH < RLM_MAX_DEPTH、解析模型
+# → 宿主 admission 后 host_reply 带回 handle；cell 可 await 而不阻塞 kernel 其他任务</code></pre>
+    <ul class="tight">
+      <li>普通 Python cell <b>串行</b>（一个 kernel 一个 namespace）；子代理并发 = 各自独立 host request + 独立 child runtime。</li>
+      <li>请求的模型不可用 → spawn <b>直接失败</b>，绝不静默换模型。</li>
+    </ul>
+    <details class="ref"><summary>📖 源码指引</summary>
+      <span class="reftag">src/core/kernel/repl-manager.ts ← stdio 协议与 host-request 分派</span>
+      <span class="reftag">prime-agent-runtime/src/rlm/ ← Python 侧 shim（无 agent loop）</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s5 子代理 + 实验B ═══ -->
+<section class="screen" id="s5">
+  <div class="kicker">Station 4 · 子代理</div>
+  <h2>派活给子代理 → 只回凭证，不回答案</h2>
+  <div class="card">
+    <div class="box pain"><span class="tag">朴素做法的坑</span>
+      让 <code class="inline">rlm()</code> 等子代理跑完并返回完整回答？父上下文立刻被子代理的中间过程撑爆，
+      "递归"变成"上下文传染"，并行也无从谈起（还都卡在等待上）。
+    </div>
+    <div class="box sol"><span class="tag">解法</span>
+      <b>admission handle</b>：<code class="inline">rlm()</code> 在宿主收录任务后<b>立即返回</b>
+      <code class="inline">{rlm_child_id, name, session_dir, model}</code>——永不包含答案。
+      子代理干完活经 <code class="inline">agent_message.send(receiver_role="parent")</code> 或写文件回来；
+      <b>想并行就连续 spawn 几个然后结束回合</b>。
+    </div>
+<pre><code data-lang="py"># 父代理一回合派出三个独立子代理（深度默认封顶 2：root→child→grandchild）
+api_review = await rlm("Review the public API", name="api-reviewer")
+test_review = await rlm("Review the tests",   name="test-reviewer")
+audit       = await rlm("Slow audit",          name="audit")
+# 然后结束回合。子代理各用各的上下文，结果作为普通消息在未来回合到达。</code></pre>
+  </div>
+
+  <div class="lab">
+    <div class="lab-head">🧪 <b>实验 B：spawn 三连</b>
+      <button class="btn" data-rspawn="api-reviewer">spawn api-reviewer</button>
+      <button class="btn" data-rspawn="test-reviewer">spawn test-reviewer</button>
+      <button class="btn" data-rspawn="audit">spawn audit</button>
+      <button class="btn pri" id="r-end">结束回合</button>
+    </div>
+    <div class="console" id="r-log"></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="panel" id="r-parent"><h4>父上下文（只有 handle 和消息，没有子代理内部过程）</h4></div>
+      <div>
+        <div class="usagebar" id="r-usage">父 turn usage：input 0 tok · output 0 tok</div>
+        <div class="panel" style="margin-top:10px"><h4>子代理自己的世界（父看不见）</h4>
+          <div class="empty-note" id="r-inner">尚无子代理</div>
+        </div>
+      </div>
+    </div>
+    <p class="lab-hint">连续点三个 spawn：handle 立即回来（没等任何结果）。子代理在自己上下文里跑几十轮——父完全看不见。
+      结果稍后以 agent_message 到达，且<b>usage 异步归并进父 turn</b>（看左下计数）。点「结束回合」体会官方口号：spawn 完就走，别等。</p>
+  </div>
+
+  <div class="card">
+    <details class="ref"><summary>📖 源码指引</summary>
+      <span class="reftag">AgentSession.runRlmChild() ← 深度检查/建目录/收录/归并</span>
+      <span class="reftag">child_usage_attributed ← 用量异步折进父 assistant turn</span>
+      <span class="reftag">rlm.list_subagents() ← 注册表跨 compaction/重启存活</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s6 Continual Harness + 实验C ═══ -->
+<section class="screen" id="s6">
+  <div class="kicker">Station 5 · Continual Harness</div>
+  <h2>agent 越干越歪 → /refine 小步自改进</h2>
+  <div class="card">
+    <div class="box pain"><span class="tag">朴素做法的坑</span>
+      「让 agent 改自己的系统提示词」——一次跑偏，永久跑偏；改坏了没法回退；谁改的、凭什么改，全无记录。
+    </div>
+    <div class="box sol"><span class="tag">解法 · 状态账本 + 证据编辑</span>
+      <code class="inline">rlm.harness</code> 是持久账本：<b>4 种 kind</b>（prompt 备注 / memory / skill 描述 / 子代理规格）
+      × <b>2 种 scope</b>（会话级 <code class="inline">harness_state.json</code> / 全局 <code class="inline">~/.prime/agent/harness/</code>）。
+      <code class="inline">/refine</code> 审视当前轨迹，应用<b>小步、有证据</b>的 create/update/delete；
+      每次编辑记录快照可回滚；<b>base system prompt 永不可变</b>——自改进=积累经验层，不是改写核心。
+    </div>
+  </div>
+
+  <div class="lab">
+    <div class="lab-head">🧪 <b>实验 C：harness 账本</b>
+      <button class="btn pri" id="h-refine">▶ /refine 审视轨迹</button>
+      <button class="btn" id="h-apply" disabled>应用编辑</button>
+      <button class="btn" id="h-rollback" disabled>↩ 回滚</button>
+      <span class="lock">🔒 base system prompt 不可变</span>
+    </div>
+    <div class="panel" id="h-table" style="max-height:240px"></div>
+    <div class="console" id="h-log"></div>
+    <p class="lab-hint">点「/refine」：它从轨迹里找证据（比如用户两次纠正提交信息格式），生成三条小编辑 →
+      「应用」后账本变化且快照入栈 →「回滚」原样恢复。base prompt 的锁从头到尾没动过。</p>
+  </div>
+
+  <div class="card">
+    <details class="ref"><summary>📖 源码指引</summary>
+      <span class="reftag">prime-agent-runtime/src/rlm/harness.py ← 状态模型刻意小</span>
+      <span class="reftag">harness/harness_state.json（会话级）· ~/.prime/agent/harness/（全局）</span>
+      <span class="reftag">外部修改自动重载 ← kernel 写与 /refine 写互不覆盖</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s7 长时运行 ═══ -->
+<section class="screen" id="s7">
+  <div class="kicker">Station 6 · 长时运行</div>
+  <h2>任务跑一半断线 → 所有入口走同一条路</h2>
+  <div class="card">
+    <ul class="tight">
+      <li><b>daemon worker</b>：会话跑在 daemon 进程里，终端断了照跑，<code class="inline">prime-agent attach</code> 重连。</li>
+      <li><b>auto compaction</b>：<code class="inline">contextTokens &gt; window − reserve(16k)</code> 触发；
+        保最近 ~20k 消息 + <b>kernel 状态</b>；<code class="inline">/compact [指令]</code> 可定向摘要。</li>
+      <li><b>persistent goals</b>：<code class="inline">goal.create("ship the release", token_budget=200000)</code>，
+        预算记账，未完成自动续跑。</li>
+      <li><b>heartbeat / schedule / autonomous</b>：定时或有界自主地重新进入会话。</li>
+      <li><b>agent 间直接通信</b>：运行中的 agent 互发消息编排，不必经用户转发。</li>
+    </ul>
+    <div class="box sol"><span class="tag">点睛</span>
+      从会话队列往后，<b>用户消息、heartbeat、cron、goal 续跑、别的 agent 的消息，走同一条执行与持久化路径</b>。
+      所以"后台跑一整夜"不是特殊功能，只是换了个入口的普通回合。
+    </div>
+    <details class="ref"><summary>📖 源码指引</summary>
+      <span class="reftag">docs/architecture.md § Prompt Execution Flow</span>
+      <span class="reftag">docs/daemon.md · docs/long-running-agents.md · docs/compaction.md</span>
+    </details>
+  </div>
+</section>
+
+<!-- ═══ s8 总结 ═══ -->
+<section class="screen" id="s8">
+  <div class="kicker">Wrap-up</div>
+  <h2>🏁 三范式对照 + 自测</h2>
+  <div class="card">
+    <table class="map">
+      <tr><th></th><th>传统 tool-calling</th><th>dsh（一切皆插件）</th><th>prime-agent（一切皆代码）</th></tr>
+      <tr><td>模型能力扩展</td><td>注册工具 schema</td><td>插件往 ctx 键注册</td><td>kernel 里 import 的函数/技能</td></tr>
+      <tr><td>组合单位</td><td>代码里写死</td><td>cordis.yml 配置行</td><td>Python 语句（编程式）</td></tr>
+      <tr><td>上下文策略</td><td>工具结果整块塞回</td><td>事件溯源 + 投影</td><td>数据留变量，print 结论</td></tr>
+      <tr><td>子代理</td><td>无原生概念</td><td>插件可再入（subagent 系统）</td><td><code>rlm()</code> 原生调用，只回 handle</td></tr>
+      <tr><td>自改进</td><td>手改提示词</td><td>束/档案打补丁</td><td>/refine 小步编辑 + 快照回滚</td></tr>
+      <tr><td>共同底线</td><td colspan="3">模型面只是壳；凭证/转录/调度等权威状态留在宿主</td></tr>
+    </table>
+
+    <h3>自测三题（先自己答，再展开）</h3>
+    <details class="quiz"><summary>① 为什么 rlm() 敢"只回 handle 不回答案"？结果靠什么回来？</summary>
+      因为结果通道与调用通道彻底分离：调用只做 admission（宿主收录任务、记账、注册），答案经
+      <code class="inline">agent_message.send(receiver_role="parent")</code> 或文件在未来回合作为<b>普通消息</b>到达。
+      这样父上下文只增加一行 handle 和最终结论，子代理几十轮内部过程永不传染；多个 spawn 天然并行。
+    </details>
+    <details class="quiz"><summary>② compaction 压掉旧对话后，模型为什么还能用之前解析好的数据？</summary>
+      compaction 只摘要<b>对话条目</b>；kernel 是独立进程里的持久命名空间，<b>不在压缩范围</b>。
+      极端情况下进程没了，会话 artifacts 里的 <code class="inline">kernel-state.dill</code> 快照 + restore 请求可复活命名空间。
+      这就是"状态为跨轮次设计"。
+    </details>
+    <details class="quiz"><summary>③ /refine 改坏了怎么办？它为什么不碰 base system prompt？</summary>
+      每次编辑都记录 before/after 快照，可精确回滚到任意一步。base prompt 不可变是刻意的安全边界：
+      自改进只允许在<b>补充状态账本</b>（4 kind × 2 scope）上小步、有证据地进行——跑偏最多污染经验层，回滚即愈，核心永不被劫持。
+    </details>
+
+    <p style="margin-top:22px;color:var(--dim)">延伸：这篇的完整调研在 <code>docs/research/prime-agent-research.md</code>；与我们自进化路线的关系见 <code>docs/research/self-evolution-research.md</code>。</p>
+  </div>
+</section>
+
+</div><!-- /stage -->
+
+<footer>教学用途 · 概念简化版，API 形状对照 refs/prime-agent（快照 bc0fa760 / beta）· docs/teaching/prime-agent-walkthrough.html</footer>
+
+<script>
+'use strict';
+/* ═══════════ 导航 ═══════════ */
+var IDS = ['s0','s1','s2','s3','s4','s5','s6','s7','s8'];
+var cur = 0;
+function go(i){
+  cur = Math.max(0, Math.min(IDS.length-1, i));
+  for (var k=0;k<IDS.length;k++){
+    document.getElementById(IDS[k]).classList.toggle('on', k===cur);
+  }
+  document.getElementById('prev').disabled = (cur===0);
+  document.getElementById('next').disabled = (cur===IDS.length-1);
+  document.getElementById('pbar').style.width = ((cur)/(IDS.length-1)*100)+'%';
+  var dots=document.getElementById('dots'); dots.innerHTML='';
+  for(var d=0;d<IDS.length;d++){ (function(d){ var el=document.createElement('i');
+    if(d===cur)el.className='on'; el.title='第 '+d+' 页'; el.onclick=function(){go(d)}; dots.appendChild(el); })(d); }
+  window.scrollTo({ top: 0, behavior: "instant" });
+}
+document.getElementById('prev').onclick=function(){go(cur-1)};
+document.getElementById('next').onclick=function(){go(cur+1)};
+document.addEventListener('keydown',function(e){
+  var t=(e.target&&e.target.tagName)||'';
+  if(t==='INPUT'||t==='SELECT'||t==='TEXTAREA')return;
+  if(e.key==='ArrowRight')go(cur+1);
+  if(e.key==='ArrowLeft')go(cur-1);
+});
+go(0);
+
+/* ═══════════ 极简高亮 ═══════════ */
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function hl(src, lang){
+  src = esc(src);
+  var store=[];
+  function stash(html){ store.push(html); return '\u0000'+(store.length-1)+'\u0000'; }
+  if(lang==='yaml'){
+    src = src.replace(/^(\s*)#(.*)$/gm, function(m,a,b){return a+stash('<span class="cm">#'+b+'</span>');});
+    src = src.replace(/^(\s*)([\w@\/.-]+)(:)/gm, function(m,a,k,c){return a+'<span class="yk">'+k+'</span>'+c;});
+    src = src.replace(/'(?:[^'\\]|\\.)*'/g, function(m){return stash('<span class="st">'+m+'</span>');});
+  } else if(lang==='py'){
+    src = src.replace(/#.*$/gm, function(m){return stash('<span class="cm">'+m+'</span>');});
+    src = src.replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, function(m){return stash('<span class="st">'+m+'</span>');});
+    src = src.replace(/\b(def|return|await|async|import|from|for|in|if|else|None|True|False|class|lambda|not|and|or|print|with|while)\b/g,'<span class="kw">$1</span>');
+  } else {
+    src = src.replace(/\/\/.*$/gm, function(m){return stash('<span class="cm">'+m+'</span>');});
+    src = src.replace(/'(?:[^'\\]|\\.)*'/g, function(m){return stash('<span class="st">'+m+'</span>');});
+    src = src.replace(/\b(const|let|var|function|return|await|async|import|from|export|interface|type|class|extends|new|if|else|while|for|of|declare|module|super|this|true|false)\b/g,'<span class="kw">$1</span>');
+  }
+  src = src.replace(/\u0000(\d+)\u0000/g,function(m,i){return store[+i];});
+  return src;
+}
+var codes=document.querySelectorAll('pre code[data-lang]');
+for(var ci=0;ci<codes.length;ci++){
+  var cel=codes[ci];
+  cel.innerHTML=hl(cel.textContent, cel.dataset.lang);
+}
+
+/* ═══════════ Console 组件 ═══════════ */
+function Console(sel){ this.el=document.querySelector(sel); }
+Console.prototype.line=function(html, cls, indent){
+  var d=document.createElement('div');
+  d.className='l '+(cls||'')+(indent?' i'+indent:'');
+  d.innerHTML=html;
+  this.el.appendChild(d);
+  this.el.scrollTop=this.el.scrollHeight;
+};
+Console.prototype.clear=function(){ this.el.innerHTML=''; };
+
+/* ═══════════ 实验 A：持久 kernel ═══════════ */
+var kVars = {};            // kernel 命名空间
+var kSnapshot = null;      // 最近一次 dill 快照
+var kLog = new Console('#k-log');
+var CELLS = {
+  c1: { code: "files = [p.name for p in Path('.').glob('*.md')]",
+        out:  "→ files = ['README.md', 'DESIGN.md', 'NOTES.md']",
+        vars: { files: "['README.md', 'DESIGN.md', 'NOTES.md']" } },
+  c2: { code: "big = [f for f in files if size(f) > 50_000]",
+        out:  "→ big = ['DESIGN.md']",
+        vars: { big: "['DESIGN.md']" } },
+  c3: { code: "print(big[0])",
+        out:  "DESIGN.md",
+        vars: {} }
+};
+function renderVars(){
+  var names = Object.keys(kVars);
+  var html = '';
+  if (!names.length) html = '<div class="empty-note">（空命名空间）</div>';
+  for (var i=0;i<names.length;i++){
+    html += '<table class="vartable" style="display:block;margin:2px 0"><tr><td>'+esc(names[i])+'</td><td>'+esc(kVars[names[i]])+'</td></tr></table>';
+  }
+  byIdSet('k-vars', '<h4>kernel 命名空间（不进上下文，但模型随时可查）</h4>'+html);
+}
+function byIdSet(id, html){ document.getElementById(id).innerHTML = html; }
+function kChatAppend(html, cls){
+  var d=document.createElement('div');
+  d.className=cls||'msg asst';
+  d.innerHTML=html;
+  document.getElementById('k-chat').appendChild(d);
+  document.getElementById('k-chat').scrollTop = 1e9;
+}
+function runCell(id){
+  var c = CELLS[id] || {};
+  var code = c.code || '', out = c.out || '', vars = c.vars || {};
+  kChatAppend(esc(code), 'msg user');
+  kLog.line('<span class="d">kernel.execute</span> '+esc(code));
+  var took = Object.keys(vars);
+  for (var i=0;i<took.length;i++) kVars[took[i]] = vars[took[i]];
+  kLog.line('<span class="g">'+esc(out)+'</span>'+(took.length?' <span class="d">（'+took.map(esc).join(', ')+' 已存入命名空间）</span>':''));
+  if (took.length) renderVars();
+  kChatAppend('<span class="d">[ipython 结果]</span> '+esc(out));
+}
+document.querySelectorAll('[data-kcell]').forEach(function(b){
+  b.onclick=function(){ runCell(b.getAttribute('data-kcell')); };
+});
+document.getElementById('k-compact').onclick=function(){
+  kSnapshot = JSON.parse(JSON.stringify(kVars));
+  byIdSet('k-chat', '<h4>对话历史（进模型上下文的部分）</h4><div class="compact-tag">[compaction] 摘要：用户要求筛选超大 markdown；kernel 中 files/big 可用。</div>');
+  kLog.clear();
+  kLog.line('<span class="y">🧹 对话已压缩为摘要（保留最近 20k token 逻辑此处省略）</span>');
+  kLog.line('<span class="g">✔ kernel 命名空间不受影响：'+esc(Object.keys(kVars).join(', ')||'（空）')+'</span>');
+  kLog.line('<span class="d">✔ 快照已写入 kernel-state.dill</span>');
+  document.getElementById('k-restore').disabled = !kSnapshot;
+};
+document.getElementById('k-restart').onclick=function(){
+  kVars = {};
+  renderVars();
+  kLog.line('<span class="r">💀 kernel 进程退出，命名空间丢失</span>');
+  document.getElementById('k-restore').disabled = !kSnapshot;
+};
+document.getElementById('k-restore').onclick=function(){
+  if (!kSnapshot) return;
+  kVars = JSON.parse(JSON.stringify(kSnapshot));
+  renderVars();
+  kLog.line('<span class="g">♻ restore：命名空间从 kernel-state.dill 复活 → '+esc(Object.keys(kVars).join(', '))+'</span>');
+};
+renderVars();
+
+/* ═══════════ 实验 B：子代理编排 ═══════════ */
+var rLog = new Console('#r-log');
+var rSeq = 0, rUsageIn = 0, rUsageOut = 0, rSpawned = 0;
+function rUsageRender(){
+  byIdSet('r-usage', '父 turn usage：input '+rUsageIn+' tok · output '+rUsageOut+' tok'+(rUsageIn?' <span style="color:#9ece6a">（含已归并子代理用量）</span>':''));
+}
+document.querySelectorAll('[data-rspawn]').forEach(function(b){
+  b.onclick=function(){
+    var name = b.getAttribute('data-rspawn');
+    b.disabled = true;
+    rSeq++; rSpawned++;
+    var childId = 'sub-' + String(1000 + rSeq).slice(1);
+    var rounds = 30 + Math.floor(Math.random()*40);
+    var uIn = 8 + Math.floor(Math.random()*20), uOut = 20 + Math.floor(Math.random()*40);
+    rLog.line('<span class="b">→ host_request(rlm.run)</span> name=<span class="y">'+esc(name)+'</span>');
+    rLog.line('<span class="g">← admission handle</span> {rlm_child_id: <span class="y">"'+childId+'"</span>, name: "'+esc(name)+'", model: "继承父"} <span class="d">—— 不含答案</span>');
+    var d=document.createElement('div'); d.className='hcard';
+    d.innerHTML='🪪 handle: '+childId+' · '+esc(name)+' · <span class="d">session_dir: sub-'+childId.slice(4)+'/</span>';
+    document.getElementById('r-parent').appendChild(d);
+    var inner=document.createElement('div'); inner.className='hcard';
+    inner.innerHTML='⚙ '+esc(name)+'：自身上下文 <b>'+rounds+'</b> 轮（父看不见）…';
+    document.getElementById('r-inner').appendChild(inner);
+    setTimeout(function(){
+      var msg = '【'+name+'】审查完成：发现 2 个问题，详见 report-'+childId+'.md';
+      var m=document.createElement('div'); m.className='amsg';
+      m.innerHTML='📨 <b>agent_message</b>（来自 '+esc(name)+'）：'+esc(msg);
+      document.getElementById('r-parent').appendChild(m);
+      inner.innerHTML='✔ '+esc(name)+'：完成（'+rounds+' 轮）';
+      rUsageIn += uIn; rUsageOut += uOut; rUsageRender();
+      rLog.line('<span class="g">📨 agent_message 到达</span> <span class="d">from='+esc(name)+'；usage 已归并进父 turn（child_usage_attributed）</span>');
+    }, 2200 + rSpawned*1500);
+  };
+});
+document.getElementById('r-end').onclick=function(){
+  rLog.line('<span class="y">父回合结束——不等待任何子代理。</span> 结果将在未来回合作为普通消息到达（上面已在演示异步到达）。');
+};
+rUsageRender();
+
+/* ═══════════ 实验 C：Continual Harness ═══════════ */
+var hLog = new Console('#h-log');
+var hEntries = [
+  { id: 'mem-001', kind: 'memory', scope: 'local',  text: '用户偏好 pytest 作为测试框架' },
+  { id: 'pr-001',  kind: 'prompt', scope: 'local',  text: '提交信息用中文' },
+  { id: 'sk-001',  kind: 'skill',  scope: 'global', text: 'release-audit：发版前审计流程' }
+];
+var hSnapshots = [];
+var hPending = null;
+function kindCls(k){ return 'kind-' + (k || ''); }
+function renderHarness(){
+  var html = '<table class="ledger-t"><tr><th>kind</th><th>scope</th><th>id</th><th>内容</th></tr>';
+  for (var i=0;i<hEntries.length;i++){
+    var e = hEntries[i];
+    html += '<tr><td><span class="'+kindCls(e.kind)+'">'+e.kind+'</span></td><td>'+e.scope+'</td><td>'+e.id+'</td><td>'+esc(e.text)+'</td></tr>';
+  }
+  html += '</table>' + (hEntries.length ? '' : '<div class="empty-note">（账本为空）</div>');
+  byIdSet('h-table', html);
+}
+document.getElementById('h-refine').onclick=function(){
+  hLog.clear();
+  hLog.line('<span class="b">/refine</span> 审视当前轨迹 → 找到证据：');
+  hLog.line('<span class="i1 d">证据1：用户两次纠正提交信息格式（第 4、17 轮）</span>');
+  hLog.line('<span class="i1 d">证据2：本会话反复运行 `pnpm test` 而非 unittest</span>');
+  hLog.line('<span class="i1 d">证据3：sk-002「old-release-check」已连续 5 次未被选用</span>');
+  hLog.line('生成 3 条<b>小步编辑</b>：');
+  hLog.line('<span class="g i1">+ create memory</span>「本仓库跑测试用 pnpm test」（local）');
+  hLog.line('<span class="y i1">~ update prompt pr-001</span>「提交信息用中文，格式 type(scope): 摘要」');
+  hLog.line('<span class="r i1">- delete skill sk-002</span>「old-release-check」（长期未被选用）');
+  hPending = [
+    { op: 'create', entry: { id: 'mem-002', kind: 'memory', scope: 'local', text: '本仓库跑测试用 pnpm test' } },
+    { op: 'update', id: 'pr-001', text: '提交信息用中文，格式 type(scope): 摘要' },
+    { op: 'delete', id: 'sk-002' }
+  ];
+  document.getElementById('h-apply').disabled = false;
+};
+document.getElementById('h-apply').onclick=function(){
+  if (!hPending) return;
+  hSnapshots.push(JSON.parse(JSON.stringify(hEntries)));
+  var np = [];
+  for (var i=0;i<hPending.length;i++){
+    var e = hPending[i];
+    if (e.op === 'create') hEntries.push(e.entry);
+    else if (e.op === 'update'){
+      for (var j=0;j<hEntries.length;j++) if (hEntries[j].id === e.id) hEntries[j].text = e.text;
+    } else if (e.op === 'delete'){
+      for (var j2=0;j2<hEntries.length;j2++) if (hEntries[j2].id === e.id) hEntries.splice(j2,1);
+    }
+  }
+  hPending = null;
+  renderHarness();
+  document.getElementById('h-apply').disabled = true;
+  document.getElementById('h-rollback').disabled = false;
+  hLog.line('<span class="g">✔ 已应用；before 快照入栈（可回滚）。</span> <span class="d">🔒 base system prompt 未被触碰。</span>');
+};
+document.getElementById('h-rollback').onclick=function(){
+  if (!hSnapshots.length) return;
+  hEntries = hSnapshots.pop();
+  renderHarness();
+  document.getElementById('h-rollback').disabled = !hSnapshots.length;
+  hLog.line('<span class="y">↩ 回滚到上一快照。</span>');
+};
+renderHarness();
+</script>
+</body>
+</html>

@@ -1,0 +1,849 @@
+/* markdown.css — 由 styles.css 拆分（域：markdown）。规范见 /design.md。修改请守住 token。 */
+/* 聊天气泡与文件预览共用。内容色走 --syn-*（design.md §1.4），永不进壳层。 */
+
+/* 已完成消息的渲染隔离：流式更新别的消息时跳过本块之外的布局/绘制。
+ * 安全性：不含 size（高度照常撑开）；代码块横向滚动是 pre 自身的
+ * overflow-x（在 .md-body 边界内滚动），paint 裁剪不影响其滚动条与滚动手感。 */
+.md-body {
+  contain: layout paint;
+  /* 阅读域排版（design.md §5）：正文 15px + 1.75 行高（二次调校：密度优先，仍保阅读舒适） */
+  font-size: var(--font-body);
+  line-height: 1.75;
+}
+
+/* 长文档渲染面收敛下放（B1-1，次优先级）：视口外的直接子块跳过 layout/paint，
+ * 长消息入视口单帧 layout 只算可见块。回滚=删除这条子块规则（及下方复位行）。 */
+.md-body > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 100px;
+}
+
+/* 文件预览是整篇长文，不能沿用气泡的 paint 隔离。contain:paint 会在虚拟屏
+ * h-strip 的 translate3d / will-change 下晋升合成层，文字按位图缩放发虚。
+ * 选择器必须压过上面单类（本文件在 files.css 之后加载，双类仍更稳）。 */
+.md-body.file-editor-md-body,
+.file-editor-preview-md .md-body,
+.ma-files-detail .md-body {
+  contain: none;
+  transform: none;
+  will-change: auto;
+}
+
+/* B1-1 子块豁免：文件预览不进 content-visibility（同上 contain:none 的既有
+ * 决策；双类特异性压过单类子块规则）。回滚删除上面子块规则后本条即成空转。 */
+.md-body.file-editor-md-body > *,
+.file-editor-preview-md .md-body > *,
+.ma-files-detail .md-body > * {
+  content-visibility: visible;
+}
+
+/* Agent Markdown：气泡是对话语境，行高比整篇阅读略收（1.75→1.7） */
+.md-body.chat-text {
+  white-space: normal;
+  line-height: 1.7;
+}
+
+.chat-markdown-image {
+  display: inline-flex;
+  flex-direction: column;
+  max-width: min(100%, 320px);
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  vertical-align: top;
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  font: inherit;
+  text-align: left;
+  cursor: zoom-in;
+}
+
+.chat-markdown-image:focus-visible {
+  outline: 2px solid var(--raised-border-focus);
+  outline-offset: -2px;
+}
+
+.chat-markdown-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 220px;
+  height: auto;
+  object-fit: contain;
+}
+
+.chat-markdown-image-caption {
+  padding: 8px 12px;
+  color: var(--surface-raised-fg-secondary);
+  font-size: var(--font-ui);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* 用户输入的普通软换行按原样显示；标题/列表仍使用 Markdown 的块级排版。 */
+.chat-msg.user .md-body p,
+.chat-msg.user .md-body li {
+  white-space: pre-wrap;
+}
+
+/* 会话间注入的标题保持正文字号（也兼容历史 Setext 包裹）。 */
+.chat-msg.is-left-aligned:is([data-sender='scheduler'], [data-sender='agent']) .md-body.chat-text {
+  font-size: var(--font-body);
+}
+.chat-msg.is-left-aligned:is([data-sender='scheduler'], [data-sender='agent']) .md-body.chat-text :is(h1, h2, h3, h4, h5, h6) {
+  font-size: inherit;
+  line-height: inherit;
+}
+.chat-msg.is-left-aligned[data-sender='agent'] .md-body.chat-text :is(h1, h2, h3, h4, h5, h6) {
+  font-weight: inherit;
+}
+
+/* 文件长文与会话正文共用阅读节奏；代码块仍保留自己的 L0 局部表面。 */
+.md-body.file-editor-md-body {
+  line-height: 1.7;
+}
+
+.md-body > :first-child {
+  margin-top: 0;
+}
+
+.md-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* 正文间距用 space-after 模型（只写下边距）：与标题的上大下小配合，
+ * 折叠取 max 才不会把标题和它的正文推开——标题上距 1.3em > 段距 1em > 行距 */
+.md-body p {
+  margin: 0 0 1em;
+}
+
+/* 标题阶梯（2026-09-21 拉开层级，原为 h1–h3 同档 16px 的平头梯）：
+ * h1=20（head 档）/ h2=17（title 档）/ h3、h4=15+500——
+ * 500（Medium）+ 上大下小间距做分区。字重上限 500：OPPO Sans 无 600 档，
+ * 写 600 会被浏览器上行到 700，暗底中文 700 笔画发糊（design.md §5） */
+.md-body h1,
+.md-body h2,
+.md-body h3,
+.md-body h4 {
+  margin: 1.3em 0 0.35em;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--fg-primary);
+}
+
+.md-body h1 {
+  font-size: var(--font-head);
+  line-height: 1.35;
+}
+
+.md-body h2 {
+  font-size: var(--font-title);
+}
+
+.md-body h3,
+.md-body h4 {
+  font-size: var(--font-body);
+}
+
+.md-body ul,
+.md-body ol {
+  margin: 0 0 1em;
+  padding-left: 1.35em;
+}
+
+/* 嵌套列表是父项的内部结构：收成行距档，不吃段距 */
+.md-body li > ul,
+.md-body li > ol {
+  margin: 0 0 0.25em;
+}
+
+.md-body li {
+  margin: 0 0 0.3em;
+}
+
+.md-body li > p {
+  margin: 0 0 0.25em;
+}
+
+/* 引导段：段落紧邻列表/代码块/表格（典型是「…：」起头）时与本块一体，
+ * 收回行距档贴住内容；块与外界的分隔仍由块自身的 1em 下边距承担。
+ * pre 双形态：mermaid 回退是 .md-body 直下的裸 pre（直接命中），
+ * 正常路径被 CodeBlock 壳（.md-code-block）/mermaid 容器（.md-mermaid）包裹，按壳类判定 */
+.md-body p:has(+ ul),
+.md-body p:has(+ ol),
+.md-body p:has(+ pre),
+.md-body p:has(+ .md-code-block),
+.md-body p:has(+ .md-mermaid),
+.md-body p:has(+ :is(table, .md-table-scroll)) {
+  margin-bottom: 0.25em;
+}
+
+.md-body blockquote {
+  margin: 0 0 1em;
+  padding: 0.15em 0 0.15em 0.75em;
+  /* 引用条：仅保留必要的左侧描边（design.md §3） */
+  border-left: 2px solid var(--border-subtle);
+  color: var(--fg-secondary);
+}
+
+/* 引用内的段落收行距档：不吃段距，防止引用块被撑开 */
+.md-body blockquote > p {
+  margin: 0 0 0.4em;
+}
+
+.md-body blockquote > p:last-child {
+  margin-bottom: 0;
+}
+
+.md-body hr {
+  border: none;
+  border-top: 1px solid var(--border-subtle);
+  margin: 0 0 1em;
+}
+
+/* 链接属内容色：语法蓝（design.md §1.4）；不加下划线（用户验收）——蓝色即链接示意 */
+.md-body a {
+  color: var(--syn-blue);
+}
+
+/* 暗底中文粗体笔画发糊：正文强调用 500（Medium）；OPPO Sans 无 600 档，
+ * 写 600 会被上行到 700——全应用字重上限 500（design.md §5） */
+.md-body strong,
+.md-body b {
+  font-weight: 500;
+}
+
+.md-body code {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--surface-canvas);
+  color: var(--syn-fg);
+}
+
+/* 代码块壳：相对定位锚右上角复制钮；块级外距在壳上，内部 pre 归零
+ *（mermaid 回退的裸 pre 不在壳内，外距不受影响） */
+.md-code-block {
+  position: relative;
+  margin: 0 0 1em;
+}
+
+/* 壳内 pre 外距归零（外距由壳承担）。特异性压过下方 .md-body pre 的 1em */
+.md-body .md-code-block > pre {
+  margin: 0;
+}
+
+/* 代码块：L0 贴地内容面 + hairline 描边（design.md §10） */
+.md-body pre {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0 0 1em;
+  padding: 8px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+}
+
+/* 复制钮：悬浮代码块（或键盘聚焦）才现身；已复制态常显并转绿 */
+.md-code-copy {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-overlay);
+  color: var(--fg-secondary);
+  font-family: inherit;
+  font-size: var(--font-control);
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-micro) var(--ease-hover), color var(--dur-micro) var(--ease-hover);
+}
+
+.md-code-block:hover .md-code-copy,
+.md-code-copy:focus-visible {
+  opacity: 1;
+}
+
+.md-code-copy:hover {
+  color: var(--fg-primary);
+}
+
+.md-code-copy.is-done,
+.md-code-copy:active {
+  opacity: 1;
+  color: var(--status-success-fg);
+}
+
+/* 标题后的块补上间距：标题下边距小（贴自己的正文段落），紧邻的块用自身
+ * 上边距拉开（折叠取 max），否则表格/代码块会直接怼在标题上 */
+.md-body :is(h1, h2, h3, h4) + .md-code-block,
+.md-body :is(h1, h2, h3, h4) + pre,
+.md-body :is(h1, h2, h3, h4) + :is(table, .md-table-scroll),
+.md-body :is(h1, h2, h3, h4) + .md-mermaid {
+  margin-top: 0.75em;
+}
+
+.md-body pre code {
+  padding: 0;
+  background: transparent;
+  font-size: var(--font-ui);
+  line-height: 1.6;
+  color: var(--syn-fg);
+}
+
+/* ---------- 数学公式（remark-math + rehype-katex）：$…$ 行内 / $$…$$ 块级 ----------
+ * 字形样式与字体（woff2）由 MarkdownBody 引入的 katex.min.css 提供，
+ * 颜色走 currentColor 自动随主题；这里只补阅读域适配。 */
+.md-body .katex {
+  /* KaTeX 默认 1.21em 偏大，压回与正文（15px）协调的一档 */
+  font-size: 1.15em;
+}
+
+/* 块级公式并入 space-after 间距模型（同 p 的 1em 下距、无上距）；
+ * 超宽公式横向滚动（同 pre 的 overflow-x 策略），不撑破气泡 contain 边界 */
+.md-body .katex-display {
+  margin: 0 0 1em;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 0;
+}
+
+/* pele 图表主题映射：pele 输出的 SVG 内联引用 var(--pele-*)，颜色经容器映射实时生效、切主题无需重渲
+   （对位原 mermaid themeVariables：bg=background、surface=mainBkg、line/muted=lineColor、border=nodeBorder） */
+.md-mermaid,
+.md-mermaid-overlay {
+  --pele-bg: var(--surface-canvas);
+  --pele-fg: var(--fg-primary);
+  --pele-muted: var(--fg-secondary);
+  --pele-line: var(--fg-secondary);
+  --pele-surface: var(--surface-raised);
+  --pele-surface-alt: var(--surface-overlay);
+  --pele-border: var(--border-control);
+  --pele-accent: var(--fg-primary);
+  --pele-font: var(--font-sans);
+}
+
+/* mermaid：与代码块同壳；图过宽横向滚；失败/流式半成品回退源码 */
+.md-mermaid {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0 0 1em;
+  padding: 10px 12px;
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 图按自然尺寸绘制：SVG 根带 viewBox 像素宽高（normalizeMermaidSvg 保证），
+   超容器宽只缩小、永不放大；窄长图不再被拉满整列，容器内居中 */
+.md-mermaid svg {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  pointer-events: none;
+}
+
+.md-mermaid.is-openable {
+  cursor: zoom-in;
+}
+
+.md-body pre.md-mermaid-fallback {
+  color: var(--syn-muted);
+}
+
+.md-body pre.md-mermaid-fallback.is-error {
+  border-style: dashed;
+}
+
+/* mermaid/图片全屏查看：portal 到 body，避开 .md-body contain:paint。
+   磨砂遮罩复用 base.css 的 backdrop-blur-overlay；本层只负责定位，
+   勿给 backdrop-filter 祖先加进出场动画（会持续触发重过滤）。 */
+.md-mermaid-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+}
+
+.md-mermaid-overlay[data-mp-stage='out'] {
+  pointer-events: none;
+}
+
+.md-mermaid-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+}
+
+.md-mermaid-viewport.is-dragging {
+  cursor: grabbing;
+}
+
+.md-mermaid-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.md-mermaid-stage svg {
+  display: block;
+  max-width: none;
+  height: auto;
+  pointer-events: none;
+}
+
+/* 图片大图查看器（ImageLightbox）复用同一 stage 骨架 */
+.md-mermaid-stage img {
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.md-mermaid-toolbar {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  z-index: 1;
+}
+
+.md-mermaid-zoom-label {
+  min-width: 3.2em;
+  text-align: center;
+  font-size: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-secondary);
+}
+
+.md-mermaid-hint {
+  margin-left: 4px;
+  margin-right: 4px;
+  font-size: var(--font-ui);
+  color: var(--fg-muted);
+  white-space: nowrap;
+}
+
+.md-body pre.md-mermaid-fallback {
+  color: var(--syn-muted);
+}
+
+.md-body pre.md-mermaid-fallback.is-error {
+  border-style: dashed;
+}
+
+.md-body .md-table-scroll {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  margin: 0 0 1em;
+}
+
+.md-body .md-table-scroll:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.md-body table {
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0 0 1em;
+  width: 100%;
+  font-size: var(--font-ui);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.md-body .md-table-scroll > table {
+  margin: 0;
+}
+
+.md-table-scroll :is(th, td) {
+  word-break: keep-all;
+}
+
+/* 表格线 = 白名单内的描边（design.md §3）：外框圆角挂在 table 上，
+ * 单元格只补右/下单线（separate 模型不双边），末行/末列去线避让外框 */
+.md-body th,
+.md-body td {
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 5px 10px;
+  text-align: left;
+}
+
+.md-body th:last-child,
+.md-body td:last-child {
+  border-right: none;
+}
+
+/* 末行去线避让外框：必须限定 tbody——thead 里只有一行 tr，裸写 tr:last-child
+ * 会连表头下边线一起去掉 */
+.md-body tbody tr:last-child th,
+.md-body tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.md-body input[type='checkbox'] {
+  margin-right: 0.4em;
+}
+
+/* ---------- 文件链接（ws-file-link）：类型图标 + 标签（聊天/预览共用） ---------- */
+.ws-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  vertical-align: baseline;
+  text-decoration: none;
+}
+
+.ws-file-link .ws-file-link-label {
+  text-decoration: none;
+}
+
+/* 类型图标着色（SVG currentColor；徽标底=同色 13% 透明度，深浅主题都可读） */
+.fti-code { color: var(--syn-blue); }
+.fti-config { color: var(--syn-purple); }
+.fti-markdown { color: var(--syn-cyan); }
+.fti-text { color: var(--fg-secondary); }
+.fti-file { color: var(--fg-secondary); }
+.fti-image { color: var(--syn-orange); }
+.fti-audio { color: var(--syn-purple); }
+.fti-video { color: var(--syn-red); }
+.fti-pdf { color: var(--syn-red); }
+.fti-word { color: var(--syn-blue); }
+.fti-sheet { color: var(--status-success-fg); }
+.fti-slides { color: var(--syn-orange); }
+.fti-archive { color: var(--syn-yellow); }
+.fti-font { color: var(--fg-secondary); }
+
+/* ---------- ma-ui 部件卡（智能界面 M2）：ui.render 产物链接的呈现 ---------- */
+/* contain 登记（docs/features/chat-transcript.md 登记表同款约定）：
+ * 自然高度由 runtime 协商，视口外整卡跳过 layout/paint。 */
+.md-body .ma-ui-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+
+.ma-ui-card {
+  display: block;
+  margin: 12px 0;
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--surface-canvas);
+  overflow: hidden;
+  /* 一次性内容入场（opacity-only，token 时长；AGENTS.md 动画规约允许的唯一
+   * keyframes 用途）；打断/退场语义不存在——卡片随消息挂载即在场 */
+  animation: ma-ui-card-in var(--dur-panel) var(--ease-standard);
+}
+
+/* 内容及两侧留白都使用会话 canvas 底色，仅顶部栏保留 raised。 */
+.ma-ui-card.is-inline {
+  --fg-primary: var(--raised-fg-primary);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --border-focus: var(--raised-border-focus);
+  --interaction-hover: var(--raised-interaction-hover);
+  padding: 0 0 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-chat-card);
+  background: var(--surface-canvas);
+  color: var(--raised-fg-primary);
+  box-shadow: none;
+}
+.ma-ui-toolbar { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 28px; }
+.ma-ui-card.is-inline .ma-ui-toolbar { justify-content: space-between; margin-bottom: 8px; }
+.ma-ui-card.is-inline .ma-ui-collapse { margin-left: auto; }
+.ma-ui-card.is-inline.is-collapsed { padding-bottom: 0; background: var(--surface-raised); }
+.ma-ui-card.is-inline.is-collapsed .ma-ui-toolbar { margin-bottom: 0; border-bottom: 0; }
+.ma-ui-card.is-inline .acc-body {
+  padding-inline: 12px;
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  background: var(--surface-canvas);
+  color: var(--canvas-fg-primary);
+}
+.ma-ui-card.is-inline .ma-ui-frame { background: var(--surface-canvas); }
+.ma-ui-summary { flex: 1; font-size: var(--font-ui); color: var(--fg-secondary); }
+.ma-ui-collapse { font: inherit; font-size: var(--font-caption); color: var(--fg-muted); border: none; border-radius: var(--radius-control); background: transparent; padding: 4px 8px; cursor: pointer; }
+.ma-ui-collapse:hover { color: var(--fg-primary); background: var(--interaction-hover); }
+.ma-ui-collapse:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.ma-ui-error { display: grid; gap: 10px; padding: 12px 0; color: var(--fg-secondary); font-size: var(--font-ui); }
+.ma-ui-error-actions { display: flex; gap: 12px; }
+.ma-ui-warning { color: var(--status-warning-fg); font-size: var(--font-caption); padding: 6px 0; }
+
+@keyframes ma-ui-card-in {
+  from { opacity: 0; }
+}
+
+.ma-ui-card .ma-ui-frame {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color-scheme: inherit;
+}
+
+/* 加载态：等产物 runtime 的桥活体信号（resize/stats），背景骨架占位 */
+.ma-ui-card.is-loading .ma-ui-frame {
+  opacity: 0.6;
+}
+
+/* 懒挂载占位：滚入视口前不建 iframe，等高骨架避免滚动跳变 */
+.ma-ui-frame-holder {
+  background: var(--surface-raised);
+}
+
+/* 加载失败卡：桥信号超时（文件缺失/协议失败/渲染异常的统一出口）；附网页区兜底按钮 */
+.ma-ui-card.is-missing {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+}
+
+.ma-ui-card.is-missing .ma-ui-missing-text {
+  font-size: var(--font-ui);
+  color: var(--fg-secondary);
+}
+
+.ma-ui-card.is-missing .ma-ui-missing-path {
+  font: var(--font-caption)/1.5 var(--font-mono);
+  color: var(--fg-muted);
+  word-break: break-all;
+}
+
+.ma-ui-card.is-missing .ma-ui-missing-open {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+/* browser 卡：链接卡形态（原型 .ma-linkcard 的宿主版：图标 + 标题 + mono 文件名 + ↗） */
+.ma-ui-card .ma-ui-linkcard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 14px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.ma-ui-card .ma-ui-linkcard:hover,
+.ma-ui-card .ma-ui-linkcard:focus-visible {
+  background: var(--interaction-hover);
+}
+
+.ma-ui-card .ma-ui-linkcard:focus-visible {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
+
+.ma-ui-card .ma-ui-linkcard-glyph {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-control);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 12%, transparent);
+}
+
+.ma-ui-card .ma-ui-linkcard-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ma-ui-card .ma-ui-linkcard-title {
+  font: 500 var(--font-ui)/1.4 var(--font-sans);
+  color: var(--fg-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ma-ui-card .ma-ui-linkcard-file {
+  font: var(--font-caption)/1.5 var(--font-mono);
+  color: var(--fg-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ma-ui-card .ma-ui-linkcard-go {
+  margin-left: auto;
+  color: var(--fg-muted);
+}

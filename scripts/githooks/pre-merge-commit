@@ -1,0 +1,9 @@
+#!/bin/sh
+#
+# 合入门禁（全量）：真合并（非快进）生成合并提交前，对合并结果跑类型检查 + 离线全量 +
+# 组件单测全套。两边分支各自绿、合在一起坏（语义冲突）只有这里拦得住。逻辑在 scripts/gate.mjs。
+# 宿主 sessions.integrate（mergeIsolate）的 git merge 同样经过本钩子，被拒时报 gate-failed 并 abort。
+# 跳过：git merge --no-verify 或 SKIP_TESTS=1。
+#
+# 本文件必须是 LF 行尾（.gitattributes 已锁定）。
+exec node scripts/gate.mjs --mode full

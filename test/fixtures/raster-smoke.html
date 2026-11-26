@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <script type="module">
+      import { Terminal } from '../../node_modules/@xterm/xterm/lib/xterm.mjs';
+
+      const el = document.createElement('div');
+      el.style.width = '640px';
+      el.style.height = '240px';
+      document.body.appendChild(el);
+      const t = new Terminal({
+        cols: 40,
+        rows: 10,
+        fontSize: 13,
+        fontFamily: 'Consolas, monospace',
+        allowProposedApi: true,
+        theme: { background: '#0a0a0a', foreground: '#e4e4e7' }
+      });
+      t.open(el);
+      await new Promise((r) => t.write('\x1b[37mHelloCapture\x1b[0m\r\n\x1b[31mRED-LINE\x1b[0m', r));
+      t.scrollToBottom();
+      const line0 = t.buffer.active.getLine(0)?.translateToString(true) ?? '';
+      const line1 = t.buffer.active.getLine(1)?.translateToString(true) ?? '';
+      const cols = t.cols;
+      const rows = t.rows;
+      const cellW = 8;
+      const cellH = 16;
+      const canvas = document.createElement('canvas');
+      canvas.width = cols * cellW;
+      canvas.height = rows * cellH;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textBaseline = 'middle';
+      ctx.font = '13px Consolas, monospace';
+      const originY = t.buffer.active.viewportY;
+      let glyphs = 0;
+      for (let r = 0; r < rows; r++) {
+        const line = t.buffer.active.getLine(originY + r);
+        if (!line) continue;
+        for (let c = 0; c < cols; ) {
+          const cell = line.getCell(c);
+          if (!cell) {
+            c += 1;
+            continue;
+          }
+          const w = cell.getWidth();
+          if (w === 0) {
+            c += 1;
+            continue;
+          }
+          const ch = cell.getChars() || '';
+          if (ch && ch !== ' ') {
+            glyphs += 1;
+            ctx.fillStyle = cell.isFgRGB()
+              ? '#' + (cell.getFgColor() >>> 0).toString(16).padStart(6, '0').slice(-6)
+              : '#e4e4e7';
+            ctx.fillText(ch, c * cellW, r * cellH + cellH / 2);
+          }
+          c += Math.max(1, w);
+        }
+      }
+      const dataUrl = canvas.toDataURL('image/png');
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = () => rej(new Error('png decode failed'));
+        img.src = dataUrl;
+      });
+      const probe = document.createElement('canvas');
+      probe.width = img.width;
+      probe.height = img.height;
+      const pctx = probe.getContext('2d');
+      pctx.drawImage(img, 0, 0);
+      const pix = pctx.getImageData(0, 0, probe.width, probe.height).data;
+      let lit = 0;
+      for (let i = 0; i < pix.length; i += 4) {
+        if (Math.abs(pix[i] - 10) + Math.abs(pix[i + 1] - 10) + Math.abs(pix[i + 2] - 10) > 40) lit += 1;
+      }
+      window.__rasterSmoke = { line0, line1, glyphs, lit, dataUrl };
+    </script>
+  </body>
+</html>

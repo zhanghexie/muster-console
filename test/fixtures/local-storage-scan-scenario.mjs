@@ -1,0 +1,51 @@
+export default async function ({ page, capture, assert }) {
+  await page.getByRole('heading', { name: '存储项目' }).waitFor();
+  const scanCount = () => page.evaluate(() => window.__uiFixture.calls.filter(call => call.path === 'localStorage.scan').length);
+  assert.equal(await scanCount(), 0, 'Opening settings must not scan');
+  assert.ok(await page.getByText('尚未扫描').isVisible());
+  assert.ok(await page.getByText('点击“开始扫描”查看本机存储占用。').isVisible());
+  assert.equal(await page.getByRole('combobox', { name: '选择存储范围' }).isDisabled(), true);
+  assert.equal(await page.locator('.local-storage-notices').count(), 0, 'No overview explanations are shown');
+  await capture('before-scan');
+
+  await page.evaluate(() => window.__uiFixture.markStoragePartial());
+  await page.evaluate(() => window.__uiFixture.pauseStorageScan());
+  await page.getByRole('button', { name: '开始扫描' }).click();
+  assert.equal(await scanCount(), 1);
+  const status = page.getByText('正在扫描本机存储…').locator('..');
+  assert.ok(await status.locator('.brand-loader-orbit').count(), 'Use the production brand loader during the scan');
+  const orbit = status.locator('.brand-loader-orbit');
+  assert.equal(await orbit.evaluate(el => getComputedStyle(el).animationName), 'brand-orbit');
+  const before = await orbit.evaluate(el => Number(el.getAnimations()[0]?.currentTime ?? 0));
+  await page.waitForTimeout(120);
+  const after = await orbit.evaluate(el => Number(el.getAnimations()[0]?.currentTime ?? 0));
+  assert.ok(after > before, 'The brand animation advances while scanning');
+  assert.equal(await page.getByRole('button', { name: '重新扫描' }).isDisabled(), true);
+  await capture('scanning');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await orbit.evaluate(el => getComputedStyle(el).animationName), 'none', 'Reduced motion stops the animation');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => window.__uiFixture.resumeStorageScan());
+  await page.getByRole('navigation', { name: '存储类别' }).waitFor();
+  assert.equal(await page.locator('.local-storage .brand-loader').count(), 0, 'The loader ends with the scan');
+  assert.equal(await page.locator('.local-storage-notices').count(), 0, 'Partial measurements do not add an overview warning');
+  assert.match(await page.locator('.local-storage-summary strong').innerText(), /≥/, 'Partial sizes remain marked');
+  await capture('scanned');
+
+  await page.getByRole('navigation', { name: '存储类别' }).getByRole('button', { name: /^会话/ }).click();
+  await page.getByRole('checkbox', { name: '选择 代码审查与改进' }).check();
+  await page.getByRole('button', { name: '检查清理影响' }).click();
+  const dialog = page.getByRole('dialog', { name: '确认清理所选项目？' });
+  await dialog.getByRole('button', { name: '确认清理' }).click();
+  await page.locator('.local-storage-results').waitFor();
+  assert.equal(await scanCount(), 1, 'Completing cleanup must not trigger a scan');
+  assert.equal(await page.getByRole('navigation', { name: '存储类别' }).count(), 1, 'Remaining items stay visible');
+  assert.equal(await page.getByRole('checkbox', { name: '选择 代码审查与改进' }).isDisabled(), true, 'Started cleanup is no longer selectable');
+  await capture('after-cleanup');
+  await page.evaluate(() => window.__setStorageLocale('en'));
+  assert.ok(await page.getByText('1 started').isVisible());
+  await capture('after-cleanup-english');
+  await page.getByRole('button', { name: 'Rescan' }).click();
+  await page.getByRole('navigation', { name: 'Storage categories' }).waitFor();
+  assert.equal(await scanCount(), 2, 'Only the user starts the next scan');
+}

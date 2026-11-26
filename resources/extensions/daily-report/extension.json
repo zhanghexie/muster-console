@@ -1,0 +1,166 @@
+{
+  "id": "daily-report",
+  "name": "工作日报",
+  "version": "4.0.0",
+  "description": "通过 AI 和人共同管理日报待办。",
+  "icon": "builtin-extension:daily-report",
+  "scope": "global",
+  "surface": {
+    "kind": "sidebar",
+    "entry": "ui/panel.html",
+    "title": "工作日报"
+  },
+  "domain": {
+    "entry": "domain.mjs",
+    "queries": [
+      "todos.open",
+      "todos.list",
+      "journal.dates"
+    ],
+    "commands": [
+      "todo.create",
+      "todo.update",
+      "todo.setStatus",
+      "todo.delete"
+    ],
+    "events": [
+      "state.changed"
+    ],
+    "queryDefs": [
+      {
+        "id": "todos.open",
+        "title": "查询未完成待办",
+        "permission": "read",
+        "parameters": {
+          "type": "object"
+        }
+      },
+      {
+        "id": "todos.list",
+        "title": "查询全部待办",
+        "permission": "read",
+        "parameters": {
+          "type": "object"
+        }
+      },
+      {
+        "id": "journal.dates",
+        "title": "查询工作日志日期",
+        "permission": "read",
+        "parameters": {
+          "type": "object"
+        }
+      }
+    ],
+    "commandDefs": [
+      {
+        "id": "todo.create",
+        "title": "新增待办",
+        "permission": "edit",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "todo.update",
+        "title": "编辑待办",
+        "permission": "edit",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "todo.setStatus",
+        "title": "更新待办状态",
+        "permission": "edit",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "id",
+            "status"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "status": {
+              "enum": [
+                "todo",
+                "doing",
+                "done"
+              ]
+            },
+            "date": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "todo.delete",
+        "title": "删除待办",
+        "permission": "dangerous",
+        "parameters": {
+          "type": "object",
+          "required": [
+            "id"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    ]
+  },
+  "agent": {
+    "profile": "scheduler-pi",
+    "systemPrompt": "agent.md",
+    "skills": [],
+    "mcp": []
+  },
+  "data": {
+    "workspace": true,
+    "shared": false
+  },
+  "permissions": [
+    "data",
+    "agent.state",
+    "agent.commands",
+    "hostTools",
+    "theme"
+  ]
+}

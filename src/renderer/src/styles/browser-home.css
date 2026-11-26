@@ -1,0 +1,97 @@
+.browser-home {
+  --fg-primary: var(--canvas-fg-primary);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  container: browser-home / size;
+  background: var(--surface-canvas);
+  color: var(--fg-primary);
+}
+.browser-home-wallpaper-anchor { position: sticky; top: 0; z-index: 0; height: 0; pointer-events: none; }
+.browser-home-wallpaper-viewport { position: absolute; top: 0; right: 0; left: 0; height: 100cqh; overflow: hidden; }
+.browser-home-wallpaper-image { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; }
+.browser-home-wallpaper-image.browser-home-wallpaper-default {
+  background-image: url('../assets/browser-home/brand-orbit-dark.png');
+}
+:root[data-theme='light'] .browser-home-wallpaper-image.browser-home-wallpaper-default { background-image: url('../assets/browser-home/brand-orbit-light.png'); }
+.browser-home.is-hidden { visibility: hidden; pointer-events: none; }
+.browser-home-inner { position: relative; z-index: 1; box-sizing: border-box; min-height: 100%; max-width: 1200px; margin: auto; padding: clamp(32px, 7vh, 72px) 28px 32px; display: flex; flex-direction: column; gap: clamp(24px, 4vh, 40px); }
+.browser-home-search-area { position: relative; z-index: 1; width: min(100%, 720px); align-self: center; display: flex; flex-direction: column; gap: 8px; }
+.browser-home-search { --fg-primary: var(--raised-fg-primary); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted); --interaction-hover: var(--raised-interaction-hover); --interaction-pressed: var(--raised-interaction-pressed); --border-focus: var(--raised-border-focus); display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 12px; border: 1px solid color-mix(in srgb, var(--border-subtle) var(--browser-home-border-opacity, 100%), transparent); border-radius: var(--radius-card); background: color-mix(in srgb, var(--surface-raised) var(--browser-home-panel-opacity, 100%), transparent); color: var(--fg-secondary); }
+.browser-home-search > input { flex: 1; min-width: 0; height: 32px; border: 0; outline: 0; background: transparent; color: var(--fg-primary); font: inherit; font-size: var(--font-control); }
+.browser-home-search > input::placeholder { color: var(--fg-muted); opacity: 1; }
+.browser-home-engine-name { flex: 0 1 auto; min-width: 0; max-width: min(130px, 30%); overflow: hidden; color: var(--fg-muted); font-size: var(--font-control); text-overflow: ellipsis; white-space: nowrap; }
+.browser-home .browser-home-engine-settings { flex: none; width: 32px; min-height: 32px; padding: 0; color: var(--raised-fg-secondary); }
+.browser-home-search-results { --fg-primary: var(--overlay-fg-primary); --fg-secondary: var(--overlay-fg-secondary); --fg-selected-primary: var(--overlay-fg-selected-primary); --interaction-hover: var(--overlay-interaction-hover); --interaction-selected: var(--overlay-interaction-selected); --interaction-pressed: var(--overlay-interaction-pressed); box-sizing: border-box; position: absolute; top: calc(100% + 8px); right: 0; left: 0; z-index: 1; display: flex; flex-direction: column; gap: 2px; max-height: min(480px, calc(100vh - 120px)); overflow-y: auto; overscroll-behavior: contain; padding: 8px; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background: var(--surface-overlay); color: var(--fg-primary); box-shadow: var(--shadow-tooltip); }
+.browser-home-search-engines { display: flex; flex-shrink: 0; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+.browser-home .browser-home-search-engines .btn.is-selected { background: var(--interaction-selected); color: var(--fg-selected-primary); border-color: var(--overlay-border-focus); }
+.browser-home .browser-home-search-engines .btn.is-selected:hover:not(:disabled):not([aria-disabled='true']) { background: var(--interaction-selected-hover); }
+.browser-home-result { display: flex; flex-shrink: 0; gap: 12px; align-items: center; justify-content: space-between; min-width: 0; padding: 7px; border: 0; border-radius: var(--radius-small); background: transparent; color: var(--fg-primary); text-align: left; cursor: pointer; }
+.browser-home-result small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-secondary); }
+.browser-home-result:hover, .browser-home-result.is-selected { background: var(--interaction-hover); }
+.browser-home-panel { --fg-primary: var(--raised-fg-primary); --fg-secondary: var(--raised-fg-secondary); --fg-muted: var(--raised-fg-muted); --fg-selected-primary: var(--raised-fg-selected-primary); --fg-selected-secondary: var(--raised-fg-selected-secondary); --interaction-hover: var(--raised-interaction-hover); --interaction-selected: var(--raised-interaction-selected); --interaction-pressed: var(--raised-interaction-pressed); --border-focus: var(--raised-border-focus); box-sizing: border-box; display: flex; flex: 1 0 auto; flex-direction: column; min-width: 0; min-height: 360px; max-height: 680px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--border-subtle) var(--browser-home-border-opacity, 100%), transparent); border-radius: var(--radius-card); background: color-mix(in srgb, var(--surface-raised) var(--browser-home-panel-opacity, 100%), transparent); color: var(--fg-primary); }
+.browser-home.has-material-blur :is(.browser-home-search, .browser-home-panel) { backdrop-filter: blur(var(--browser-home-material-blur)); }
+.browser-home-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 16px 20px 8px; }
+.browser-home .browser-home-icon-button { flex: none; width: 32px; min-height: 32px; padding: 0; color: var(--fg-secondary); }
+.browser-home-path { flex: 1; min-width: 100px; display: flex; align-items: center; gap: 4px; overflow: hidden; color: var(--fg-secondary); }
+.browser-home-path button { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 3px; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.browser-home-path button:hover { color: var(--fg-primary); }
+.browser-home .browser-home-panel .btn.is-selected { background: color-mix(in srgb, var(--interaction-selected) var(--browser-home-selection-opacity, 100%), transparent); color: var(--fg-selected-primary); }
+.browser-home .btn.is-keyboard-active { background: var(--interaction-selected); color: var(--fg-selected-primary); box-shadow: none; }
+.browser-home :is(button, a):focus-visible { outline: none; box-shadow: none; background: color-mix(in srgb, var(--interaction-selected) var(--browser-home-selection-opacity, 100%), transparent); }
+.browser-home .btn:focus-visible { border-color: transparent; }
+.browser-home-columns { box-sizing: border-box; flex: 1; min-height: 260px; display: grid; grid-template-columns: minmax(100px, 0.8fr) minmax(150px, 1.1fr) minmax(160px, 1fr); gap: 16px; padding: 8px 16px 12px; outline: none; }
+/* The list itself receives focus after a pointer selection so its keyboard
+   handler stays active. Its selected row already carries the focus state;
+   suppress the global keyboard-focus fill from painting the whole region. */
+.browser-home .browser-home-columns[tabindex]:not([tabindex='-1']):not(input:not([type='checkbox']):not([type='radio'])):not(textarea):not([contenteditable]):focus-visible:not([data-drop]) { box-shadow: none !important; }
+.browser-home-column { min-width: 0; min-height: 0; overflow: auto; }
+.browser-home-parent { color: var(--fg-secondary); }
+.browser-home-preview { padding: 0 4px; }
+.browser-home-row { box-sizing: border-box; width: 100%; min-width: 0; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--fg-primary); text-align: left; font: inherit; cursor: pointer; }
+.browser-home-row svg { flex: none; color: var(--fg-secondary); }
+.browser-home-favicon { width: 15px; height: 15px; flex: none; object-fit: contain; }
+.browser-home-row:hover { background: color-mix(in srgb, var(--interaction-hover) var(--browser-home-selection-opacity, 100%), transparent); }
+.browser-home-row.is-selected, .browser-home-row.is-multi { background: color-mix(in srgb, var(--interaction-selected) var(--browser-home-selection-opacity, 100%), transparent); color: var(--fg-selected-primary); }
+.browser-home-row.is-selected .browser-home-row-text > small, .browser-home-row.is-multi .browser-home-row-text > small { color: var(--fg-selected-secondary); }
+.browser-home-row.is-cut { color: var(--fg-muted); }
+.browser-home-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.browser-home-row-text > span, .browser-home-row-text > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browser-home-row-text > small, .browser-home-details small, .browser-home-empty { color: var(--fg-secondary); font-size: var(--font-caption); }
+.browser-home-details { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 12px 8px; overflow-wrap: anywhere; }
+.browser-home-details strong { font-size: var(--font-control); }
+.browser-home-details a { color: var(--fg-primary); }
+.browser-home-details p { margin: 0; white-space: pre-wrap; }
+.browser-home-empty { padding: 10px 8px; }
+.browser-home-footer { box-sizing: border-box; display: flex; flex: 0 0 48px; align-items: center; gap: 12px; min-width: 0; height: 48px; padding: 0 20px; overflow-x: auto; overflow-y: hidden; }
+.browser-home-navigation, .browser-home-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 2px; white-space: nowrap; }
+.browser-home .browser-home-direction { flex: none; width: 28px; min-height: 28px; padding: 0; color: var(--fg-secondary); }
+.browser-home .browser-home-action { gap: 4px; min-height: 28px; padding: 4px 6px; color: var(--fg-secondary); }
+.browser-home-action kbd { color: var(--fg-muted); font: inherit; font-size: var(--font-caption); }
+.browser-home-dialog { width: min(560px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; }
+.browser-home-dialog-fields { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; }
+.browser-home-dialog-fields label { display: flex; flex-direction: column; gap: 4px; }
+.browser-home-dialog-fields input, .browser-home-dialog-fields textarea { width: 100%; box-sizing: border-box; }
+.browser-home-dialog-fields :is(input, textarea)::placeholder { color: var(--fg-muted); opacity: 1; }
+.browser-home-dialog-fields textarea { min-height: 90px; resize: vertical; }
+.browser-home-engines { max-height: 240px; overflow: auto; padding: 0 16px; }
+.browser-home-engine-row { display: flex; align-items: center; gap: 6px; padding: 4px 0; }
+.browser-home-engine-row label { flex: 1; display: flex; gap: 8px; align-items: center; min-width: 0; }
+.browser-home-engine-row input[type='radio'] { flex: none; margin: 0; accent-color: var(--fg-secondary); }
+.browser-home-appearance-dialog { width: min(440px, calc(100vw - 24px)); }
+.browser-home-appearance-content { display: flex; flex-direction: column; gap: 14px; padding: 12px 16px 18px; }
+.browser-home-appearance-preview { position: relative; display: grid; place-items: center; height: 130px; overflow: hidden; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); background-color: var(--surface-canvas); }
+.browser-home-appearance-preview > span { position: relative; display: block; width: 66%; height: 60%; border: 1px solid var(--border-subtle); border-radius: var(--radius-card); }
+.browser-home-wallpaper-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.browser-home-wallpaper-actions .btn { display: inline-flex; align-items: center; gap: 6px; }
+.browser-home-wallpaper-actions .btn.is-selected { background: var(--interaction-selected); color: var(--fg-selected-primary); }
+.browser-home-transparency { display: flex; align-items: center; gap: 12px; }
+.browser-home-transparency input { flex: 1; min-width: 0; accent-color: var(--ws-accent); }
+.browser-home-transparency > span:last-child { min-width: 36px; color: var(--fg-secondary); text-align: right; }
+@container browser-home (max-width: 760px) { .browser-home-inner { padding: 28px 20px 24px; gap: 24px; } .browser-home-columns { grid-template-columns: minmax(150px, 1fr) minmax(150px, 0.9fr); } .browser-home-parent { display: none; } }
+@container browser-home (max-width: 500px) { .browser-home-inner { padding: 16px 12px 20px; gap: 16px; } .browser-home-panel { flex: 0 0 auto; min-height: 0; max-height: none; } .browser-home-toolbar { padding: 12px 12px 4px; } .browser-home-columns { min-height: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; gap: 8px; padding: 8px 8px 12px; align-content: start; } .browser-home-current { min-height: 100px; max-height: min(45vh, 360px); } .browser-home-preview { max-height: 180px; } .browser-home-footer { display: grid; flex-basis: 72px; height: 72px; grid-template-columns: max-content; grid-template-rows: 28px 28px; gap: 4px; align-content: center; padding: 4px 12px; } }

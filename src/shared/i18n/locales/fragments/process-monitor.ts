@@ -1,0 +1,42 @@
+/** 运行监视器（进程树 / 手动采集 / 归属上下文）词条；ChromeBar 入口与 ProcessMonitorPanel 共用。 */
+export const frag: Record<string, string> = {
+  '运行监视器': 'Process monitor',
+  '运行监视器（{{chord}}）': 'Process monitor ({{chord}})',
+  '按任务查看 Electron 与受管子进程的实时关系':
+    'Live Electron and managed child processes, grouped by task',
+  '采样中…': 'Sampling…',
+  '轻量采样': 'Lightweight sampling',
+  '进程': 'Processes',
+  '轻量记录': 'Samples kept',
+  '根进程': 'Root process',
+  '自动采样轻量运行；重型采集请在详情中手动触发':
+    'Automatic sampling stays lightweight; request heavy capture manually from the details pane',
+  '父子进程关系': 'Process tree',
+  'PID': 'PID',
+  'CPU': 'CPU',
+  '内存': 'Memory',
+  '服务': 'Service',
+  '暂时没有可观测进程': 'No observable processes',
+  '当前进程': 'Selected process',
+  '工作集': 'Working set',
+  '开始 CPU 采集': 'Start CPU capture',
+  '停止采集（{{time}}）': 'Stop capture ({{time}})',
+  '生成堆快照…': 'Creating heap snapshot…',
+  '生成堆快照': 'Create heap snapshot',
+  '堆快照': 'Heap snapshot',
+  '{{label}}：{{path}}': '{{label}}: {{path}}',
+  'CPU 历史条形图': 'CPU history bar chart',
+  '最近采样': 'Latest sample',
+  '归属': 'Ownership',
+  '父进程 PID {{pid}}': 'Parent process PID {{pid}}',
+  '应用根进程': 'Application root process',
+  '业务上下文': 'Business context',
+  '会话：{{name}}': 'Session: {{name}}',
+  '任务：{{name}}': 'Task: {{name}}',
+  '未绑定到具体工作区或会话': 'Not bound to a specific workspace or session',
+  '由 Electron 统一进程指标提供': 'Provided by unified Electron process metrics',
+  '选择一个进程查看详情': 'Select a process to view its details',
+  '自动采样只保留内存环形记录；CPU 与堆快照仅在手动触发后生成有界诊断文件':
+    'Automatic sampling keeps an in-memory ring buffer only; CPU and heap captures write bounded diagnostic files only when triggered manually',
+  '已打开文件位置': 'Opened the file location'
+};

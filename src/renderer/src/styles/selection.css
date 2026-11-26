@@ -1,0 +1,423 @@
+/* selection.css — 由 styles.css 拆分（域：selection）。规范见 /design.md。修改请守住 token。 */
+
+
+/* 划词浮条：页内由 h-strip 定位并平移，独立表面用视口 fixed。
+ * 浮层规范（design.md §7/§10）：L3 底 + shadow-pop + radius-card */
+.sel-bar {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: fixed;
+  z-index: var(--z-menu);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  max-width: min(440px, calc(100vw - 16px));
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.sel-bar:active {
+  cursor: grabbing;
+}
+
+.sel-bar-drag {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  cursor: grab;
+}
+
+.sel-bar-drag:active {
+  cursor: grabbing;
+}
+
+/* 「爆炸」分词浮层（全局，固定遮罩盖整屏） */
+.sel-bang-mask {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 8px 16px 16px;
+  background: var(--scrim);
+  overflow: auto;
+}
+
+.sel-bang-panel {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  width: min(640px, 100%);
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* 弹窗头尾不画线（design.md §3）：靠内边距与字阶分区 */
+.sel-bang-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+.sel-bang-chips-wrap {
+  position: relative;
+  padding: 12px;
+  overflow: auto;
+  max-height: min(50vh, 400px);
+  min-height: 0;
+  user-select: none;
+  touch-action: none;
+}
+
+.sel-bang-chips,
+.sel-bang-chip {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  border: 1px solid var(--border-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  border-radius: var(--radius-control);
+  padding: 4px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  cursor: pointer;
+  max-width: 100%;
+  word-break: break-all;
+  text-align: left;
+  line-height: 1.35;
+  touch-action: none;
+}
+
+.sel-bang-chip:hover {
+  background: var(--interaction-hover);
+}
+
+/* 选中只靠底色加深标识（用户定稿：不用高亮边框）；边框维持原样，让 is-url/is-path 的类型微染色保留 */
+.sel-bang-chip.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  background: var(--interaction-selected);
+  cursor: grab;
+}
+
+.sel-bang-chip.is-on:active {
+  cursor: grabbing;
+}
+
+.sel-bang-chip.is-url {
+  border-color: var(--border-control);
+}
+
+.sel-bang-chip.is-path {
+  border-color: var(--border-control);
+}
+
+/* 弹窗尾：不画线不垫层（design.md §3），靠内边距与按钮组自身分区 */
+.sel-bang-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 12px;
+}
+
+.sel-bang-drag {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  flex: 1 1 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border: 1px dashed var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-ui);
+  cursor: grab;
+}
+
+.sel-bang-drag:active {
+  cursor: grabbing;
+}
+
+.sel-bang-hint {
+  margin: 12px 0 0;
+  color: var(--fg-muted);
+  font-size: var(--font-ui);
+}
+
+/* 文本工具结果卡：贴浮条原位的轻量浮层（TextToolResultCard portal 到 body） */
+.tt-card {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: fixed;
+  z-index: var(--z-menu);
+  width: min(480px, calc(100vw - 16px));
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 480px);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+}
+
+.tt-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--fg-muted);
+  font-size: var(--font-caption);
+}
+
+/* 进行中 spinner 走统一 IconSpinner（.ui-spinner）；无部分结果时 body 里也是空态文案 */
+
+/* 流式增量尾部的闪烁光标 */
+.tt-card-caret {
+  display: inline-block;
+  width: 7px;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--fg-primary);
+  animation: tt-caret-blink var(--dur-loop) steps(2) infinite;
+}
+
+@keyframes tt-caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.tt-card-name {
+  color: var(--fg-primary);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.tt-card-model {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tt-card-running {
+  flex: 1 1 auto;
+}
+
+.tt-card-elapsed {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-muted);
+}
+
+.tt-card-body {
+  padding: 0 12px 8px;
+  overflow: auto;
+  min-height: 24px;
+  user-select: text;
+}
+
+.tt-card-footer {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 8px 12px;
+}

@@ -1,0 +1,92 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+.tmp/
+.DS_Store
+
+# Playwright E2E 产物（trace/失败截图/报告）
+test-results/
+playwright-report/
+
+# 本机视觉自测、采集报告与浏览器会话产物（生成脚本和原型源码保留）
+/output/
+/.playwright-cli/
+/docs/prototypes/pi-trajectory-demo/*.png
+/docs/prototypes/redesign/*.png
+/docs/prototypes/settings-redesign/*.png
+/docs/prototypes/settings-redesign-v2/*.png
+/test/screenshot.png
+/test/ui-check.png
+
+.superpowers/
+
+.worktrees/
+
+# ZCode 本地会话产物（计划文件等，不随仓库）
+.zcode/
+
+
+# Claude Code 本地个人设置（不入库）
+.claude/settings.local.json
+
+# 开发隔离沙箱（工作区、appData、测试仓库、快照模板，不入库）
+.dev-sandbox/
+.dev-sandbox-template/
+
+# Local demo profiles, replay tapes and user-owned demo projects
+.muster-demo/
+.muster-demo-lock/
+.muster-demo-projects/
+
+# 宿主管理的历史日志与记忆归档
+/docs/journal/
+/docs/memory/
+
+# 第三方参考源码（本地只读对照，不入库）
+refs/
+
+.cursor/hooks.json
+.metaAgent/workspace.json
+/.muster/
+
+# 自定义事件注册表（运行时审批态，本机数据不入库；scaffold 的 .metaAgent/.gitignore 契约不含它）
+.metaAgent/events/
+
+# 记忆派生态库（SQLite 派生索引，删库可从 markdown+转录重建，不入库）
+.metaAgent/memory/
+.codex/hooks.json
+
+# Windows Git Bash 里 cmd 风格「> nul」重定向误生成的真实文件（bash 不把 nul 当设备名）
+nul
+
+# CodeGraph 索引（本地生成，勿提交）
+.codegraph/
+
+# run-dev 扩展的运行时锁（本机 PID/时间戳，不入库；代码对陈旧锁自愈）
+.metaAgent/extensions/run-dev/data/
+
+# 本地记忆 embedding 模型（构建期 scripts/fetch-memory-model.mjs 下载，模型文件绝不进 git）
+build/memory-model/
+.cursor/hooks.json
+
+# metaagent:begin (skill links)
+.agents/skills/apps
+.agents/skills/automations
+.agents/skills/browser
+.agents/skills/desktop
+.agents/skills/dispatch
+.agents/skills/dynamicTools
+.agents/skills/extensions
+.agents/skills/feedback
+.agents/skills/llm
+.agents/skills/memory
+.agents/skills/runtimes
+.agents/skills/themes
+.agents/skills/turn-changes
+.agents/skills/workflow
+.claude/skills
+.cursor/skills
+# metaagent:end (skill links)
+.workbuddy

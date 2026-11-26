@@ -1,0 +1,11 @@
+import '../../.agents/skills/ui-verification/assets/fixture-api';
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import '../../src/renderer/src/i18n';
+import {MemoryPane} from '../../src/renderer/src/components/settings/MemoryPane';
+import {applyTheme} from '../../src/renderer/src/theme';
+import {builtinTheme} from '../../src/shared/theme';
+applyTheme(builtinTheme(new URLSearchParams(location.search).get('theme')==='light'?'light':'dark')!);
+let config:any={memoryConsolidation:{enabled:true},llm:{providers:[{id:'demo',name:'已配置供应商',api:'openai-responses',models:[{id:'review',name:'知识审查模型'}]}]}};
+(window as any).api={config:{get:async()=>config,update:async(patch:any)=>(config={...config,...patch})}};
+createRoot(document.getElementById('root')!).render(<main className="settings-page" style={{display: 'block',padding:24,background:'var(--surface-canvas)',minHeight:'100vh'}}><MemoryPane/></main>);

@@ -1,0 +1,205 @@
+appId: com.zhanghexie.muster.console
+productName: Muster Console
+copyright: Copyright © Muster
+directories:
+  buildResources: build
+  output: release
+files:
+  - out/**/*
+  - '!out/main/agentSession/genericDriver/**'
+  - build/icon.ico
+  - build/icon.png
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!test/*'
+  - '!docs/*'
+  - '!.tmp/*'
+  - '!electron.vite.config.ts'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # claude（GUI）driver：SDK 纯 JS 进包，但平台包（claude-agent-sdk-win32-x64 等，单包 220MB
+  # 的 claude.exe）不随应用分发——打包版 pathToClaudeCodeExecutable 指向用户自己的 claude 安装
+  # （订阅鉴权本来就假设用户装了 claude，wmux 先例）；dev 无此排除、用平台包内建。
+  # 注意 node_modules 过滤器只采纳 `!` 模式（见底部依赖归类合同）。
+  - '!node_modules/@anthropic-ai/claude-agent-sdk-*/**'
+  # ── 生产依赖死重裁剪（0.1.23 起）──
+  # 安装耗时由「落盘文件数 + Defender 逐文件扫描」主导，字节数是次要因素。下面四类对运行时零用途，
+  # 却占 0.1.22 解包树 6969 个文件 / 55MB（sourcemap 4350 个 / 43MB 是文件数最大头）。
+  # 只影响 node_modules：out/ 内既无 .md/.map 也无 .ts（vite 只吐 .js），已核实。
+  # .ts/.mts/.cts 全部位于各包的 src/（openai/zod/@anthropic-ai 等），Node 运行时不会加载 TS。
+  # `*.{ts,mts,cts}` 同时覆盖 `.d.ts` / `.d.mts`（minimatch 按末段扩展名匹配），不必再写一条 `*.d.ts`。
+  # 排除模式的匹配口径见本文件末尾「排除模式合同」，改这几行前先读，并跑 test/packaging-file-filters.mjs。
+  - '!**/*.map'
+  - '!**/*.{ts,mts,cts}'
+  - '!**/*.md'
+  - '!**/{LICENSE,LICENCE,NOTICE,AUTHORS}*'
+# 只保留应用支持的两种界面语言（i18n 的 supportedLngs 就是 zh-CN + en，见 docs/features/i18n.md）。
+# Electron 默认发全部 55 个 Chromium locales/*.pak（46.6MB），裁到两个省 45.5MB。
+electronLanguages:
+  - zh-CN
+  - en-US
+# 依赖收集前剔除非目标平台的 @esbuild 预编译二进制（0.1.22 实测 271MB，占解包树 36%）。
+# 只能用钩子、不能用 files 排除，原因见末尾「排除模式合同」第 4 条与脚本头注释。
+beforePack: ./scripts/before-pack.mjs
+afterPack: ./scripts/desktop-driver/after-pack.mjs
+extraResources:
+  # Fixed per-target cache; beforePack validates it and afterPack rechecks the
+  # copied bytes, including LICENSE/NOTICE (the top-level files filter omits them).
+  - from: '.tmp/desktop-driver/${os}-${arch}/contents'
+    to: desktop-driver/contents
+  - from: resources/waiting-tips.json
+    to: waiting-tips.json
+  # The global LICENSE filter excludes dependency notices from asar. Ship
+  # the upstream Pi notice separately alongside the managed Pi-based engine.
+  - from: resources/third-party/pi-LICENSE.txt
+    to: third-party/pi-LICENSE.txt
+  - from: resources/third-party/harness-brands.txt
+    to: third-party/harness-brands.txt
+  - from: resources/third-party/lobe-icons-LICENSE.txt
+    to: third-party/lobe-icons-LICENSE.txt
+  - from: resources/third-party/magpie-LICENSE.txt
+    to: third-party/magpie-LICENSE.txt
+  - from: resources/third-party/octicons-LICENSE.txt
+    to: third-party/octicons-LICENSE.txt
+  # 宿主能力域九技能正文（P1 安装/升级链，2026-10-23）：真源 resources/skills/<域>/SKILL.md
+  # （frontmatter x-muster-version 为升级判定版本），随包分发到安装目录 resources/skills/；
+  # 主进程启动时 ensure 到 ~/.muster/skills/（src/main/metaAgent/hostSkillProvision.ts）。
+  # 必须走 extraResources 而非 files：顶层 files 的 '!**/*.md' 会把 asar 里的 SKILL.md 排掉，
+  # extraResources 是独立复制链不受 files 过滤（与 resources/cli 同机制）。
+  - from: resources/cli
+    to: cli
+  - from: resources/skills
+    to: skills
+  - from: resources/extensions/daily-report
+    to: extensions/daily-report
+    filter:
+      - extension.json
+      - domain.mjs
+      - agent.md
+      - client/styles.css
+      - ui/**
+asar: true
+asarUnpack:
+  - out/main/extensions/sdk/extension-background-worker.mjs
+  - out/main/extensions/sdk/v4-runtime-worker.mjs
+  - out/main/agentSession/drivers/pi/worker.cjs
+  - out/main/agentApps/service-worker.cjs
+  # 应用自身产物中按真实文件解析的部分：win32 preload + ACP 宿主 MCP shim + 入站 MCP
+  - out/main/agentSession/drivers/win32/**
+  - out/main/agentSession/drivers/codex/worker/**
+  - out/main/desktop/windows-escape-monitor.ps1
+  - out/main/desktop/unix-escape-worker.cjs
+  - out/main/desktop/waylandStopHelper.py
+  - out/main/agentSession/drivers/acp/**
+  - out/main/inboundMcp/**
+  - out/main/cliRuns/**
+  # 生产依赖整树解包：ELECTRON_RUN_AS_NODE 子进程使用纯 Node 语义，只认真实文件系统，从 app.asar.unpacked
+  # 解析不到 asar 内的包。历史上按包名手工补解包（node-pty/koffi/@cursor 闭包/
+  # @bufbuild+undici/js-yaml……），2026-09-04 漏 @bufbuild/protobuf、2026-09-10 又漏
+  # dsh-app-boot 的 js-yaml（子进程启动即 ERR_MODULE_NOT_FOUND）——不再打地鼠，整树
+  # 解包让子进程解析环境与 dev 一致。体积无死重：traversal 收集器只装生产依赖
+  # （渲染层依赖在 devDependencies 不进包），asar 相应变小、安装目录文件数变多。
+  - node_modules/**/*
+npmRebuild: false
+# ── 自动更新发布源 ──（electron-updater GitHub Releases；构建时烘进安装包 resources/app-update.yml）
+# 客户端从公开仓库 github.com/zhanghexie/muster-console 匿名读取已发布的 Release。
+# - releaseType: release = 出包即发布；默认 draft 要去 GitHub 手动点发布，更新器看不到 draft。
+# - 发布命令：GH_TOKEN=<PAT，Contents 读写权限> npm run release:win（electron-builder 自动上传
+#   Setup.exe/.blockmap/latest.yml 并建 tag+release）。发布机需能直连 github.com。
+# - 客户端更新检查走 api.github.com（匿名限流 60 次/小时/IP，更新检查最多 3 个请求，够用）。
+# dev 态联调（不打包）：项目根放 dev-app-update.yml（同样的 publish 结构）+ 启动加
+# MUSTER_UPDATER_DEV=1，详见 docs/features/auto-update.md。
+publish:
+  provider: github
+  owner: zhanghexie
+  repo: muster-console
+  releaseType: release
+# package.json 的 "packageManager": "traversal"（勿删）：强制 electron-builder 走 traversal 依赖
+# 收集器（直接遍历 node_modules，防环、秒级完成）。默认的 npm 收集器（npm list -a）在本仓依赖图上
+# 会指数级膨胀直至 OOM（2026-09-04 实测 12GB 堆不够）。该字段 corepack 也会读：若需在本仓用
+# corepack 跑 pnpm/yarn，须临时改掉本行。
+#
+# 依赖归类合同（决定哪些包进安装包）：traversal 收集器只从根 package.json 的
+# dependencies+optionalDependencies 出发遍历，devDependencies 一律不进包。
+# - 只被渲染层（src/renderer）引用的包 → 必须放 devDependencies：renderer 由 vite 全量打包
+#   （out/renderer 的 vendor-* chunk），node_modules 里再发一份是纯死重（2026-09-06 曾因此
+#   多发 mermaid 全家桶 ~160MB，asar 288→126MB 修复）。典型：react 系、@codemirror/*、
+#   @xterm/*、mermaid、xlsx、docx-preview。
+# - 被 main/preload/shared 引用（externalizeDepsPlugin 外置、运行时从 node_modules 解析），
+#   或被 createRequire/子进程按包名解析（qrcode、i18next、@vscode/ripgrep、@larksuite/cli、
+#   node-pty、yaml 等）→ 必须留在 dependencies。
+win:
+  icon: build/icon.ico
+  executableName: MusterConsole
+  # Keep upstream signed executables byte-identical during extraResources copy.
+  # electron-builder otherwise signs every .exe copied as an extra resource.
+  signExts:
+    - '!cua-driver.exe'
+    - '!cua-driver-uia.exe'
+    - '!cua-cursor-theme.exe'
+    - '!cua_driver_sdk.dll'
+    - '!cua_driver_node_runtime.node'
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: Muster-Console-${version}-Setup.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  # 防残留触发静默提权：HKLM per-machine 残留记录会让 /S 强制 UAC_RunElevated 且无人点时无限挂起
+  # （2026-09-13 实测）。此 include 在 initMultiUser 后镜像 /currentuser 完整语义：按残留清标志并
+  # setInstallModePerUser 整体切回 per-user 模式（只清标志会以未提权 per-machine 上下文继续安装）；
+  # 显式 /allusers 仍尊重原语义。注意卸载器的提权发生在 initMultiUser 内部，本 include 拦不到
+  include: build/installer.nsh
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  # 快捷方式/卸载项跟身份名走纯 ASCII（中文名「集序」只在应用界面里出现）
+  shortcutName: Muster Console
+  uninstallDisplayName: Muster Console
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+# ── macOS ──（2026-10-07 首次真实出包实测）必须在 macOS 上构建；准备步骤：
+#   1) `npm install`（electron v42+ 无 postinstall，二进制在 dev/build 进程树内首个
+#      require('electron') 时惰性下载并继承 npm_package_config 镜像，无需手动）；
+#   2) `npm run rebuild` 把 node-pty 编到宿主架构的 Electron ABI——build/Release 只能放
+#      一个架构，另一架构 dmg 的 pty.node 运行时由 lib/utils.js 回退到 prebuilds/darwin-<arch>/
+#      （N-API，Electron 43 实测可加载；其 spawn-helper 无执行位，beforePack 钩子会补 chmod）；
+#   然后 `npm run build:mac`。双架构 dmg **一次 electron-builder 运行连打**（x64+arm64），
+#   beforePack 对 darwin 一律保留两架构的 @esbuild（按架构裁剪会互删，
+#   详见 scripts/before-pack.mjs 头注释与 docs/features/packaging.md）。
+#   注意 CLI 的 --arm64/--x64 是与 yml arch 列表**取并集**不是覆盖，不能用来做单架构构建。
+# 分发需 Developer ID 签名 + 公证：main 手动 signed release workflow 通过 Actions secrets 注入
+# CSC_LINK / CSC_KEY_PASSWORD / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID，electron-builder 自动签名公证。
+# 本地和日常 CI 验证包不注入发布证书，用于构建与 packaged smoke。
+mac:
+  icon: build/icon.png # ≥512px png，electron-builder 自动转 icns；要更精细可换成 build/icon.icns
+  category: public.app-category.developer-tools
+  artifactName: Muster-Console-${version}-${arch}.${ext}
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+# ── Linux ──（同样需在 Linux 上构建；category 必填，缺失 electron-builder 直接报错）
+linux:
+  icon: build/icon.png
+  category: Development
+  maintainer: Muster
+  executableName: muster-console
+  artifactName: Muster-Console-${version}-${arch}.${ext}
+  target:
+    - AppImage
+    - deb
+# ── 排除模式合同（改 files 前必读；回归守卫 test/packaging-file-filters.mjs）──
+# 1. **不要给 win/mac/linux 加平台专属 `files`**。加了之后顶层 files 的正向模式（`out/**/*` 等）
+#    会在主匹配器里失效，electron-builder 判定「只有排除模式」并自动补 `**/*`，把整个仓库根目录
+#    （refs/、.dev-sandbox/、.tmp/）扫进 asar——2026-09-15 实测 Setup.exe 266MB→1061MB，
+#    而且构建正常退出、不报错。要按平台裁东西请走 beforePack 钩子。
+# 2. node_modules 的过滤器与应用目录的不是一套（app-builder-lib 的 getNodeModuleFileMatcher）：
+#    **只有 `!` 开头的模式会被采纳**，正向模式一律丢弃——所以「排掉一批再单独放回一个」办不到。
+# 3. 匹配的是**目标树相对路径**（filter.js 用 stat.moduleFullFilePath），形如
+#    `node_modules/openai/src/index.ts`；按扩展名裁（上面那四条）是可靠的。
+# 4. 合起来的后果：按包名做「排除一批、保留其一」在 files 里无解（平台专属 files 有第 1 条的坑，
+#    顶层 files 又无法区分构建目标），故 @esbuild 的平台裁剪放在 ./scripts/before-pack.mjs。

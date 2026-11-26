@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI 测试与视觉验收"
+  short_description: "复现本项目交互问题，运行回归测试并截图检查真实组件效果"
+  default_prompt: "使用 $ui-verification 验证这次 UI 修改，补充相关回归测试并截图查看实际效果。"

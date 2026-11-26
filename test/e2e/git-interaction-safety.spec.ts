@@ -1,0 +1,176 @@
+import { test, expect, _electron } from '@playwright/test';
+import fs from 'node:fs';
+import path from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { pathKey } from '../../src/shared/pathKey';
+
+test('Git 安全交互：真实分区丢弃、慢推送回执、远端更新与失败保留', async ({}, info) => {
+  test.setTimeout(100_000);
+  const project = path.resolve(__dirname, '../..');
+  const fixture = info.outputDir, root = path.join(fixture, 'workspace');
+  const userData = path.join(fixture, '.dev-sandbox/userData'), remote = path.join(fixture, 'remote.git');
+  fs.mkdirSync(userData, { recursive: true }); fs.mkdirSync(remote, { recursive: true });
+  const gitConfig = path.join(fixture, 'empty.gitconfig'); fs.writeFileSync(gitConfig, '');
+  const env: Record<string, string> = { ...Object.fromEntries(Object.entries(process.env).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && !entry[0].startsWith('GIT_'))),
+    GIT_CONFIG_GLOBAL: gitConfig, GIT_CONFIG_NOSYSTEM: '1', MUSTER_SANDBOX: '1', MUSTER_INSTANCE_ID: `git-safety-${process.pid}` };
+  for (const key of ['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'MUSTER_NO_SANDBOX', 'MUSTER_DEVTOOLS_PORT', 'MUSTER_WEB_PORT']) delete env[key];
+  const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'core.hooksPath=', '-c', 'commit.gpgsign=false', ...args], { cwd, env, windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  git(remote, 'init', '--bare', '-q', '-b', 'main'); git(fixture, 'clone', '-q', remote, root);
+  const identity = (cwd: string) => { git(cwd, 'config', 'user.name', 'Git UI'); git(cwd, 'config', 'user.email', 'git-ui@example.invalid'); };
+  identity(root); fs.writeFileSync(path.join(root, 'same.txt'), 'base\n'); git(root, 'add', '.'); git(root, 'commit', '-qm', 'base'); git(root, 'push', '-qu', 'origin', 'main');
+  const peer = path.join(fixture, 'peer'); git(fixture, 'clone', '-q', remote, peer); identity(peer);
+  const nested = path.join(root, 'packages/toolbox');
+  fs.mkdirSync(nested, { recursive: true }); git(nested, 'init', '-q', '-b', 'main');
+  const worktree = path.join(root, 'checkouts', 'linked topic');
+  fs.mkdirSync(path.dirname(worktree), { recursive: true });
+  git(root, 'worktree', 'add', '-qb', 'topic', worktree);
+  fs.appendFileSync(path.join(root, '.git/info/exclude'), '\n/packages/\n/checkouts/\n');
+  fs.writeFileSync(path.join(root, 'same.txt'), 'staged\n'); git(root, 'add', '.'); fs.writeFileSync(path.join(root, 'same.txt'), 'working\n');
+  fs.writeFileSync(path.join(userData, 'config.json'), JSON.stringify({ locale: 'zh-CN', themeId: 'dark', activeWorkspaceId: 'git-safety',
+    workspaces: [{ id: 'git-safety', name: 'Git 安全交互', path: root, accentOff: true }],
+    mcp: { enabled: false, servers: [] }, webAccess: { enabled: false } }));
+  fs.writeFileSync(path.join(userData, 'sessions.json'), '[]');
+  const app = await _electron.launch({ executablePath: require('electron'), args: [project, '--disable-gpu'], cwd: fixture, env });
+  const output = path.join(project, '.tmp/ui-captures/git-safety'); fs.mkdirSync(output, { recursive: true });
+  try {
+    const win = await app.firstWindow(); const errors: string[] = [];
+    win.on('pageerror', error => errors.push(error.message));
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1500, 920));
+    await win.locator('.app-shell').waitFor({ timeout: 40_000 }); await win.keyboard.press('Escape');
+    await expect(win.locator('.left-panel').getByRole('combobox', { name: '切换 Worktree', includeHidden: true })).toHaveCount(0);
+    await win.getByRole('button', { name: '展开右侧栏', exact: true }).click();
+    const pane = win.locator('.right-workspace');
+    await pane.getByRole('tablist', { name: '资源面板' }).getByRole('tab', { name: 'Git', exact: true }).click();
+    const tree = pane.getByRole('tree', { name: '仓库' });
+    const rootRow = tree.getByRole('treeitem', { name: /^workspace\b/ });
+    await expect(rootRow).toHaveAttribute('aria-level', '1');
+    await rootRow.click();
+    const directoryRow = tree.getByText('packages', { exact: true });
+    await directoryRow.click();
+    const leaf = tree.getByText('toolbox', { exact: true });
+    await expect(leaf.locator('..')).toHaveClass('git-repo-label');
+    const levels = await tree.getByRole('treeitem').evaluateAll(rows => rows.map(row => ({
+      level: row.getAttribute('aria-level'), icon: row.querySelector('.file-tree-folder')!.getBoundingClientRect().left
+    })));
+    expect(levels.map(row => row.level)).toEqual(['1', '2', '3']);
+    expect(levels[1].icon - levels[0].icon).toBeGreaterThanOrEqual(8);
+    expect(levels[2].icon - levels[1].icon).toBe(levels[1].icon - levels[0].icon);
+    await expect(tree.getByTitle(worktree, { exact: true })).toHaveCount(0);
+    const detail = pane.locator('.right-content-page.is-shown .git-detail');
+    const strip = detail.locator('.git-sync-strip'); await expect(strip).toBeVisible();
+    const location = pane.locator('.right-git-location');
+    const picker = location.getByRole('combobox', { name: '切换 Worktree' });
+    const assertCheckoutControlsFit = async () => {
+      await expect(picker).toBeInViewport();
+      const geometry = await location.evaluate(element => {
+        const branch = element.querySelector('.git-branch-name-btn')!;
+        const picker = branch.nextElementSibling!;
+        const branchBox = branch.getBoundingClientRect(), pickerBox = picker.getBoundingClientRect();
+        return { adjacent: picker.matches('.git-worktree-picker'), sameRow: Math.abs(branchBox.top - pickerBox.top) < 3,
+          fits: branchBox.right <= pickerBox.left && pickerBox.right <= element.getBoundingClientRect().right + 1 };
+      });
+      expect(geometry).toEqual({ adjacent: true, sameRow: true, fits: true });
+    };
+    await assertCheckoutControlsFit();
+    const capture = async (name: string, fullWindow = false) => {
+      await win.mouse.move(1, 1);
+      await expect(pane).toBeInViewport({ ratio: 0.99 });
+      const rect = (await pane.boundingBox())!;
+      const pixels = await app.evaluate(async ({ BrowserWindow }, { rect, fullWindow }) => (await BrowserWindow.getAllWindows()[0].capturePage(fullWindow ? undefined : { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) })).toPNG().toString('base64'), { rect, fullWindow });
+      fs.writeFileSync(path.join(output, `${name}.png`), Buffer.from(pixels, 'base64'));
+    };
+    const commit = detail.getByRole('button', { name: 'Commit', exact: true });
+    await expect(commit).toBeDisabled();
+    const disabledColor = await commit.evaluate(element => getComputedStyle(element).backgroundColor);
+    const dotAfterName = await rootRow.evaluate(row => row.querySelector('.file-tree-name')!.nextElementSibling?.classList.contains('git-dirty-dot'));
+    expect(dotAfterName).toBe(true);
+    await capture('dark-idle');
+    await detail.locator('.git-changes-section').first().getByText('same.txt', { exact: true }).click({ button: 'right' });
+    await win.getByText('丢弃未暂存改动', { exact: true }).click();
+    const dialog = win.getByRole('dialog', { name: '丢弃未暂存改动' });
+    await expect(dialog).toContainText('保留已暂存内容'); await expect(dialog).toContainText('same.txt');
+    await dialog.getByRole('button', { name: '丢弃', exact: true }).click();
+    await expect.poll(() => fs.readFileSync(path.join(root, 'same.txt'), 'utf8')).toBe('staged\n');
+    expect(git(root, 'diff', '--cached')).toContain('+staged');
+    await detail.getByRole('textbox', { name: '提交说明…' }).fill('local');
+    await expect(commit).toBeEnabled();
+    await expect.poll(() => commit.evaluate(element => getComputedStyle(element).backgroundColor)).not.toBe(disabledColor);
+    await commit.click();
+    await expect.poll(() => git(root, 'log', '-1', '--format=%s')).toBe('local');
+    fs.writeFileSync(path.join(remote, 'hooks/pre-receive'), '#!/bin/sh\nsleep 2\n', { mode: 0o755 });
+    await pane.getByRole('button', { name: 'Push', exact: true }).click();
+    await expect(strip).toContainText('正在推送'); await capture('dark-pushing');
+    await expect(strip).toContainText('推送成功');
+    expect(git(remote, 'rev-parse', 'main')).toBe(git(root, 'rev-parse', 'HEAD'));
+    git(peer, 'pull', '--ff-only'); fs.writeFileSync(path.join(peer, 'remote.txt'), 'remote\n'); git(peer, 'add', '.'); git(peer, 'commit', '-qm', 'remote change'); git(peer, 'push', '-q');
+    await pane.getByRole('button', { name: 'Fetch', exact: true }).click();
+    await expect(strip).toContainText('待拉 1'); await expect(strip).toContainText('刚刚检查');
+    await capture('dark-remote-update');
+    await win.evaluate(async () => window.api.themes.activate('light'));
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light'); await capture('light-remote-update');
+    const resourceSplit = pane.getByRole('separator', { name: '调整资源面板宽度' });
+    await resourceSplit.focus(); await win.keyboard.press('End');
+    await expect.poll(async () => strip.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    await assertCheckoutControlsFit();
+    await expect.poll(() => location.locator('.git-branch-name').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await capture('light-narrow');
+    git(root, 'pull', '--ff-only');
+    fs.writeFileSync(path.join(remote, 'hooks/pre-receive'), '#!/bin/sh\necho FIXTURE_PUSH_REJECTED >&2\nexit 1\n');
+    fs.writeFileSync(path.join(root, 'second.txt'), 'second\n'); git(root, 'add', 'second.txt'); git(root, 'commit', '-qm', 'second');
+    await pane.getByRole('button', { name: 'Push', exact: true }).click(); await expect(strip).toContainText('推送失败');
+    await pane.getByRole('button', { name: '刷新本地状态', exact: true }).click();
+    await expect(strip).toContainText('推送失败');
+    await strip.getByRole('button', { name: '详情', exact: true }).click();
+    await expect(win.getByRole('dialog', { name: 'Git 操作详情' })).toContainText('FIXTURE_PUSH_REJECTED');
+    await expect(win.getByRole('dialog', { name: 'Git 操作详情' })).toHaveCSS('opacity', '1');
+    await capture('light-failed-details', true);
+    const details = win.getByRole('dialog', { name: 'Git 操作详情' });
+    await details.getByRole('button', { name: '关闭', exact: true }).last().click();
+    await expect(details).toBeHidden();
+    await picker.focus();
+    await picker.press('ArrowDown');
+    const topic = win.getByRole('option', { name: 'linked topic · topic', exact: true });
+    await expect(topic).toBeVisible();
+    await win.screenshot({ path: path.join(output, 'light-worktree-toolbar.png'), animations: 'disabled' });
+    await topic.click();
+    const currentPath = pane.locator('.right-git-location .right-full-path');
+    await expect.poll(async () => pathKey((await currentPath.textContent()) ?? '')).toBe(pathKey(worktree));
+    await expect(pane.locator('.git-branch-name')).toHaveText('topic');
+    await expect(strip).toContainText('未设置上游');
+    await capture('light-no-upstream');
+    await picker.click();
+    await win.getByRole('option', { name: '主检出 · workspace', exact: true }).click();
+    await expect.poll(async () => pathKey((await currentPath.textContent()) ?? '')).toBe(pathKey(root));
+
+    const nestedRow = tree.getByRole('treeitem', { name: /^toolbox\b/ });
+    await nestedRow.click();
+    await expect.poll(async () => pathKey((await currentPath.textContent()) ?? '')).toBe(pathKey(nested));
+    await rootRow.click({ button: 'right' });
+    await win.getByRole('menuitemcheckbox', { name: '隐藏此仓库' }).click();
+    await expect(rootRow).toHaveClass(/\bis-dir\b/);
+    await expect(rootRow).toHaveAttribute('aria-expanded', 'true');
+    await expect(nestedRow).toHaveAttribute('aria-level', '3');
+    await rootRow.click();
+    await expect(rootRow).toHaveAttribute('aria-expanded', 'false');
+    await expect(nestedRow).toHaveCount(0);
+    await rootRow.press('Enter');
+    await expect(nestedRow).toHaveAttribute('aria-level', '3');
+    await expect.poll(async () => pathKey((await currentPath.textContent()) ?? '')).toBe(pathKey(nested));
+    await capture('light-hidden-parent');
+
+    await win.evaluate(async () => window.api.themes.activate('dark'));
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
+    await resourceSplit.press('Home');
+    await expect.poll(() => tree.evaluate(element => element.clientWidth)).toBeLessThanOrEqual(180);
+    await capture('dark-hidden-parent-narrow');
+
+    await pane.getByTitle(/^显示已隐藏的仓库/).click();
+    await expect(rootRow).toHaveClass(/\bis-hidden-repo\b/);
+    await rootRow.click({ button: 'right' });
+    await win.getByRole('menuitemcheckbox', { name: '显示此仓库' }).click();
+    await expect(rootRow).not.toHaveClass(/\bis-hidden-repo\b/);
+    await rootRow.click();
+    await expect.poll(async () => pathKey((await currentPath.textContent()) ?? '')).toBe(pathKey(root));
+    expect(errors).toEqual([]);
+  } finally { await app.close(); }
+});

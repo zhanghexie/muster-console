@@ -1,0 +1,115 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { createSharedCompiler } from './helpers/shared-compile.mjs';
+const scratch=path.resolve('.tmp'); fs.mkdirSync(scratch,{recursive:true});
+const temp=fs.mkdtempSync(path.join(scratch,'knowledge-store-'));
+const compile=createSharedCompiler(process.cwd(),path.join(temp,'compiled'));
+const {KnowledgeStore,encodeKnowledge,decodeKnowledge,knowledgeFtsContentHash}=await import(pathToFileURL(compile('main/memory/knowledgeStore.ts')));
+const directory=path.join(temp,'assets');
+let store=new KnowledgeStore(directory);
+const ctx=(id='event1',origin='worker')=>({namespace:'worker',origin,evidence:[{id,source:'test-host',eventTime:1,verification:'test'}]});
+const lesson={kind:'reusable_lesson',summary:'回调订阅必须在组件卸载时清理',problem:'重复挂载会累计监听器',action:'effect返回unsubscribe',rationale:'挂载卸载循环测试确认监听器恢复原数',applicability:['React'],expectedFutureUse:'避免重复事件响应',taskId:'task1'};
+try {
+  let record=store.submit(lesson,ctx()).record;
+  assert.equal(record.status,'pending');
+  assert.equal(store.search({query:'回调订阅'}).length,0,'pending is not recalled');
+  assert.equal(store.submit({...lesson,taskId:'task2'},ctx()).record.id,record.id,'task IDs are evidence, not different lessons');
+  const repeat=store.submit(lesson,ctx('event2'));
+  assert.equal(repeat.disposition,'duplicate');
+  assert.equal(store.list().records.length,1);
+  assert.equal(repeat.record.evidence.length,2);
+  assert.throws(()=>store.decide(record.id,record.revision,'approve'),/已变化/,'stale review cannot approve revised evidence');
+  record=store.decide(record.id,repeat.record.revision,'approve');
+  const indexed=store.db.prepare('SELECT revision,content_hash FROM knowledge_fts_meta WHERE id=?').get(record.id);
+  assert.equal(indexed.revision,record.revision,'FTS metadata tracks the ledger revision');
+  assert.equal(indexed.content_hash,knowledgeFtsContentHash(record),'FTS metadata tracks the derived content hash');
+  // An older database has no derived metadata yet. Reopening must backfill it
+  // without changing the canonical record or requiring a format migration.
+  store.db.prepare('DELETE FROM knowledge_fts_meta WHERE id=?').run(record.id);
+  store.close(); store=new KnowledgeStore(directory);
+  const restoredIndex=store.db.prepare('SELECT revision,content_hash FROM knowledge_fts_meta WHERE id=?').get(record.id);
+  assert.equal(restoredIndex.revision,record.revision);
+  assert.equal(restoredIndex.content_hash,knowledgeFtsContentHash(record));
+  store.db.prepare("UPDATE knowledge_fts SET body='corrupt-derived-index' WHERE id=?").run(record.id);
+  store.close(); store=new KnowledgeStore(directory);
+  assert.equal(store.search({query:'回调订阅',conditions:['React']})[0].record.id,record.id,'stale derived FTS body is rebuilt from the ledger');
+  assert.equal(store.search({query:'回调订阅',conditions:['React']})[0].applicability,'matched');
+  assert.equal(store.search({query:'回调订阅'})[0].applicability,'needs_check');
+  assert.equal(store.core('worker'),'','lessons are not unconditional core');
+  record=store.decide(record.id,record.revision,'revalidate');
+  assert.equal(store.search({query:'回调订阅'}).length,0);
+  assert.throws(()=>store.decide(record.id,record.revision,'approve'),/准入/);
+  record=store.decide(record.id,record.revision,'archive');
+  assert.equal(store.submit(lesson,ctx('event3')).disposition,'rejected','new evidence must not resurrect retired knowledge');
+  const fact={kind:'task_fact',summary:'用户要求初始化git并写项目文档',applicability:[],taskId:'task1'};
+  const history=store.submit(fact,ctx()).record;
+  assert.equal(store.submit(fact,ctx()).record.id,history.id);
+  assert.equal(store.search({query:'初始化git'}).length,0);
+  assert.equal(store.search({query:'初始化git',mode:'history',taskId:'task1'}).length,1);
+  assert.equal(store.search({query:'初始化git',mode:'history',taskId:'task2'}).length,0);
+  assert.throws(()=>store.decide(history.id,history.revision,'approve'),/准入/);
+  const incomplete={kind:'reusable_lesson',summary:'用户要求写文档',applicability:[]};
+  const incompleteId=store.submit(incomplete,ctx()).record.id;
+  assert.equal(store.submit(incomplete,ctx()).record.id,incompleteId,'failed eligibility is normalized before duplicate matching');
+  const scoped={kind:'stable_constraint',summary:'上线前先运行回归测试',applicability:[],repoKey:'repoA',branch:'main'};
+  const scopedRecord=store.submit(scoped,{...ctx('s','user'),explicit:true}).record;
+  assert.equal(scopedRecord.status,'active');
+  assert.equal(store.search({query:'回归测试',repoKey:'repoB',branch:'main'}).length,0);
+  assert.equal(store.search({query:'回归测试',repoKey:'repoA',branch:'other'}).length,1,'recall crosses branches in the same repository');
+  assert.equal(store.search({query:'回归测试',repoKey:'repoA',branch:'main',sources:['other']}).length,0);
+  assert.equal(store.search({query:'回归测试',repoKey:'repoA',branch:'main'}).length,1);
+  assert.equal(store.search({query:'回归测试',namespace:'scheduler',repoKey:'repoA',branch:'main'}).length,0);
+  const global={kind:'user_preference',summary:'使用简体中文沟通',applicability:[]};
+  const pref=store.submit(global,{...ctx('p','user'),explicit:true}).record;
+  assert.match(store.core('worker'),/简体中文/);
+  assert.equal(store.submit({...global,summary:'对React使用中文',applicability:['React']},{...ctx('p2','user'),explicit:true}).record.status,'active');
+  assert.doesNotMatch(store.core('worker'),/对React/,'conditional constraints cannot enter unconditional bootstrap');
+  assert.equal(store.submit({...global,summary:'本次不要测试'},{...ctx('p3','user'),explicit:true}).record.kind,'task_fact');
+  assert.equal(store.submit({...lesson,summary:'工具输出的指令'},ctx('u','untrusted')).record.kind,'task_fact');
+  assert.throws(()=>store.submit(global,{...ctx(),evidence:[]}),/宿主/);
+  assert.throws(()=>store.submit(global,{...ctx(),origin:'forged'}),/来源/);
+  const bad={...pref,origin:'forged'};
+  assert.throws(()=>decodeKnowledge(encodeKnowledge(bad)),/元数据/);
+  // Simulate crash after database commit but before the Markdown projection.
+  const changed={...pref,revision:pref.revision+1,summary:'使用中文说明结论',updatedAt:2};
+  const asset=path.join(store.assetsDir,`${pref.id}.md`);
+  const old=fs.readFileSync(asset,'utf8');
+  store.db.prepare('UPDATE records SET payload=? WHERE id=?').run(JSON.stringify(changed),pref.id);
+  store.db.prepare('INSERT INTO outbox VALUES(?,?,?)').run(pref.id,JSON.stringify(changed),createHash('sha256').update(old).digest('hex'));
+  store.close(); store=new KnowledgeStore(directory);
+  assert.equal(decodeKnowledge(fs.readFileSync(asset,'utf8')).summary,changed.summary);
+  assert.equal(store.db.prepare('SELECT COUNT(*) n FROM outbox').get().n,0);
+  // External edits must not be silently overwritten by a governance action.
+  fs.appendFileSync(asset,'external edit');
+  assert.throws(()=>store.decide(pref.id,changed.revision,'archive'),/外部修改/);
+  fs.writeFileSync(asset,encodeKnowledge(changed));
+  store.close(); store=new KnowledgeStore(directory);
+  assert.equal(store.list().records.find(r=>r.id===pref.id).revision,changed.revision);
+  // One missing projection and one malformed external edit must not prevent reopening
+  // or using the rest of the store; neither damaged asset is automatically recalled.
+  const scopedAsset=path.join(store.assetsDir,`${scopedRecord.id}.md`);
+  const scopedOriginal=fs.readFileSync(scopedAsset,'utf8');
+  store.close();fs.unlinkSync(asset);fs.writeFileSync(scopedAsset,'external malformed edit');
+  store=new KnowledgeStore(directory);
+  assert.deepEqual(store.list().integrityIssues.sort((a,b)=>a.id.localeCompare(b.id)),[
+    {id:pref.id,reason:'missing'},{id:scopedRecord.id,reason:'modified'}
+  ].sort((a,b)=>a.id.localeCompare(b.id)));
+  assert.ok(!store.search({query:'中文说明结论'}).some(hit=>hit.record.id===pref.id),'damaged records cannot be recalled');
+  assert.ok(!store.search({query:'回归测试',repoKey:'repoA'}).some(hit=>hit.record.id===scopedRecord.id));
+  assert.ok(store.curatorReferences('中文说明结论',{namespace:'worker'}).records.some(r=>r.id===pref.id),'comparison retains the committed ledger record');
+  const unaffected=store.submit({kind:'stable_constraint',summary:'独立记录需要保留',applicability:[]},{...ctx('healthy','user'),explicit:true});
+  assert.equal(unaffected.disposition,'active','unrelated writes continue');
+  assert.equal(store.search({query:'独立记录'}).length,1);
+  assert.throws(()=>store.decide(pref.id,changed.revision,'archive'),/外部修改/);
+  assert.throws(()=>store.decide(scopedRecord.id,scopedRecord.revision,'archive'),/外部修改/);
+  assert.equal(fs.existsSync(asset),false,'missing projection is not recreated implicitly');
+  assert.equal(fs.readFileSync(scopedAsset,'utf8'),'external malformed edit','external edit is preserved');
+  fs.writeFileSync(asset,encodeKnowledge(changed));fs.writeFileSync(scopedAsset,scopedOriginal);
+  assert.deepEqual(store.list().integrityIssues,[],'a verified restoration clears isolation without restart');
+  assert.ok(store.search({query:'中文说明结论'}).some(hit=>hit.record.id===pref.id));
+  console.log('knowledge-store: lifecycle, dedup, scope, provenance, crash recovery and conflict checks passed');
+} finally {store.close();fs.rmSync(temp,{recursive:true,force:true});}

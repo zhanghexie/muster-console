@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  原型 · 窗口背景模板（docs/plans/implemented/frame-backdrop-templates-plan.md 条目 1–4）。
+  单文件双击可开；token 抄自 src/renderer/src/styles/base.css :root（2026-09-29 快照）。
+  模板全部是静态 CSS：径向/锥形/重复渐变 + SVG feTurbulence 生成的颗粒与云雾遮罩，
+  颜色一律从工作区强调色 --a 用 oklch 相对色派生（切工作区整幅画跟着换色）。
+  界面内容为虚构样例。
+-->
+<head>
+<meta charset="UTF-8">
+<title>原型 · 窗口背景模板（现状 vs 改后）</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-frame: #111112; --bg-canvas: #141416; --bg-panel: #1b1b1d; --bg-raised: #232326; --bg-overlay: #262629; --bg-input: #161618;
+    --ink: #ededee; --ink-soft: #d9d9dc; --text-2: #a3a3a8; --text-3: #74747a; --hairline: #2a2a2d;
+    --green: #45d0a0; --yellow: #e8c65a; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(255,255,255,.05); --selected-fill: rgba(255,255,255,.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-small: 8px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px; --font-control: 14px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --shadow-page: 0 0 0 1px rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.35);
+    --glass-sheet: color-mix(in srgb, var(--bg-panel) 58%, transparent);
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); --dur-panel: 280ms; --dur-micro: 120ms;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0a0a0b; color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 24px 0 80px; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.75; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; margin-bottom: 14px; }
+  .seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius-pill); background: rgba(255,255,255,.04); }
+  .seg button { padding: 4px 14px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .seg button.is-active { background: var(--selected-fill); color: var(--ink); }
+  .lbl { color: var(--text-3); font-size: var(--font-caption); margin-right: 6px; }
+  .swatches { display: inline-flex; gap: 8px; align-items: center; }
+  .sw { width: 18px; height: 18px; border-radius: 50%; border: none; cursor: pointer; box-shadow: 0 0 0 2px transparent; transition: box-shadow var(--dur-micro); }
+  .sw.is-active { box-shadow: 0 0 0 2px #0a0a0b, 0 0 0 4px var(--ink-soft); }
+  .chk { display: inline-flex; align-items: center; gap: 6px; color: var(--text-2); font-size: var(--font-caption); cursor: pointer; user-select: none; }
+
+  /* ================= 模板：画在 .fx 上（真实实现 = .app-shell / .settings-page 的背景 + ::before 艺术层 + ::after 颗粒）================= */
+  .fx {
+    --a2: oklch(from var(--a) l c calc(h + 50));
+    --a3: oklch(from var(--a) l c calc(h - 45));
+    --ad: oklch(from var(--a) calc(l * .62) calc(c * .85) h);
+    position: relative; isolation: isolate; background-color: var(--bg-frame);
+  }
+  .fx::before, .fx::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit; }
+  .fx::after { z-index: -1; }
+
+  /* 颗粒：SVG 分形噪声平铺（静态栅格一次） */
+  .fx.grain::after, .fx.grain-strong::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: .05; mix-blend-mode: soft-light;
+  }
+  .fx.grain-strong::after { opacity: .11; }
+
+  /* 0 现状 · 角光 */
+  .t-corner {
+    background:
+      radial-gradient(60% 85% at 0% 0%, color-mix(in oklab, var(--a) 20%, transparent) 0%, transparent 72%),
+      radial-gradient(45% 60% at 0% 100%, color-mix(in oklab, var(--a) 9%, transparent) 0%, transparent 78%),
+      var(--bg-frame);
+  }
+
+  /* 1 极光：斜向光帘，竖向细纹 = 光帘褶皱 */
+  .t-aurora { background:
+      radial-gradient(50% 40% at 0% 100%, color-mix(in oklab, var(--a3) 14%, transparent), transparent 75%),
+      var(--bg-frame); }
+  .t-aurora::before {
+    background:
+      radial-gradient(38% 30% at 22% 62%, color-mix(in oklab, var(--a) 34%, transparent), transparent 72%),
+      radial-gradient(30% 22% at 40% 78%, color-mix(in oklab, var(--a2) 26%, transparent), transparent 72%),
+      radial-gradient(34% 26% at 8% 40%, color-mix(in oklab, var(--a3) 24%, transparent), transparent 72%);
+    transform: skewY(-14deg) scaleY(1.25); transform-origin: 0 100%;
+    /* 光帘褶皱：不等宽、无硬边的渐变纹 + 轻微模糊（硬边等距条纹会像条形码） */
+    -webkit-mask-image: repeating-linear-gradient(96deg, #000 0, rgba(0,0,0,.28) 13px, #000 21px, rgba(0,0,0,.5) 34px, rgba(0,0,0,.2) 46px, #000 58px),
+                        repeating-linear-gradient(91deg, #000 0, rgba(0,0,0,.45) 17px, #000 23px, rgba(0,0,0,.7) 41px);
+    -webkit-mask-composite: source-in;
+            mask-image: repeating-linear-gradient(96deg, #000 0, rgba(0,0,0,.28) 13px, #000 21px, rgba(0,0,0,.5) 34px, rgba(0,0,0,.2) 46px, #000 58px),
+                        repeating-linear-gradient(91deg, #000 0, rgba(0,0,0,.45) 17px, #000 23px, rgba(0,0,0,.7) 41px);
+            mask-composite: intersect;
+    filter: blur(2px);
+  }
+
+  /* 2 地平线：色域绘画式，光从底边升起，顶部保持深色 */
+  .t-horizon { background:
+      radial-gradient(55% 16% at 30% 100%, color-mix(in oklab, var(--a2) 42%, transparent), transparent 72%),
+      radial-gradient(90% 38% at 20% 100%, color-mix(in oklab, var(--a) 26%, transparent), transparent 70%),
+      linear-gradient(to top, color-mix(in oklab, var(--ad) 22%, transparent) 0%, transparent 46%),
+      var(--bg-frame); }
+  .t-horizon::before { background: linear-gradient(to top, transparent 0 11.2%, color-mix(in oklab, var(--a2) 28%, transparent) 11.2% 11.4%, transparent 11.4%);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 15%, #000 45%, transparent 75%);
+            mask-image: linear-gradient(90deg, transparent, #000 15%, #000 45%, transparent 75%); }
+
+  /* 3 丝绒：一团低饱和暗色 + 暗角 + 较粗颗粒，哑光质感 */
+  .t-velvet { background:
+      radial-gradient(140% 120% at 45% 50%, transparent 50%, rgba(0,0,0,.5) 100%),
+      radial-gradient(70% 75% at 22% 58%, color-mix(in oklab, var(--ad) 30%, transparent), transparent 72%),
+      radial-gradient(40% 45% at 12% 88%, color-mix(in oklab, var(--a3) 12%, transparent), transparent 70%),
+      var(--bg-frame); }
+
+  /* 4 流彩：多团邻近色相的网格渐变 + 细颗粒 */
+  .t-mesh { background:
+      radial-gradient(38% 55% at 0% 28%, color-mix(in oklab, var(--a) 30%, transparent), transparent 70%),
+      radial-gradient(34% 50% at 16% 100%, color-mix(in oklab, var(--a2) 30%, transparent), transparent 70%),
+      radial-gradient(40% 45% at 48% 108%, color-mix(in oklab, var(--a3) 24%, transparent), transparent 70%),
+      radial-gradient(26% 38% at 30% 55%, color-mix(in oklab, var(--a2) 12%, transparent), transparent 70%),
+      radial-gradient(30% 40% at 78% 110%, color-mix(in oklab, var(--a) 12%, transparent), transparent 70%),
+      var(--bg-frame); }
+
+  /* 5 光束：舞台追光穿过薄雾，从左上角向下方散开，避开顶边 */
+  .t-beams { background:
+      radial-gradient(40% 60% at 0% 0%, color-mix(in oklab, var(--a) 16%, transparent), transparent 70%),
+      var(--bg-frame); }
+  .t-beams::before {
+    background: conic-gradient(from 118deg at -2% -6%,
+      transparent 0deg, color-mix(in oklab, var(--a) 30%, transparent) 3deg, transparent 8deg,
+      transparent 13deg, color-mix(in oklab, var(--a2) 20%, transparent) 15deg, transparent 19deg,
+      transparent 25deg, color-mix(in oklab, var(--a) 24%, transparent) 29deg, transparent 35deg,
+      transparent 41deg, color-mix(in oklab, var(--a3) 16%, transparent) 43deg, transparent 47deg, transparent 360deg);
+    -webkit-mask-image: radial-gradient(95% 110% at 0% 0%, #000 0%, rgba(0,0,0,.5) 45%, transparent 85%);
+            mask-image: radial-gradient(95% 110% at 0% 0%, #000 0%, rgba(0,0,0,.5) 45%, transparent 85%);
+  }
+
+  /* 6 云雾：分形噪声生成的云团（每处形状都不一样），渐变着色，限定在左下半区 */
+  .t-cloud { background:
+      radial-gradient(45% 60% at 0% 0%, color-mix(in oklab, var(--a) 10%, transparent), transparent 72%),
+      var(--bg-frame); }
+  .t-cloud::before {
+    background: linear-gradient(150deg, color-mix(in oklab, var(--a) 60%, transparent), color-mix(in oklab, var(--a2) 48%, transparent) 55%, color-mix(in oklab, var(--a3) 40%, transparent));
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 620' preserveAspectRatio='none'%3E%3Cfilter id='c' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0032 .0058' numOctaves='5' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.4 0 0 0 -.95'/%3E%3C/filter%3E%3Crect width='1000' height='620' filter='url(%23c)'/%3E%3C/svg%3E"), radial-gradient(85% 100% at 0% 100%, #000 20%, transparent 78%);
+    -webkit-mask-size: 100% 100%; -webkit-mask-composite: source-in;
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 620' preserveAspectRatio='none'%3E%3Cfilter id='c' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.0032 .0058' numOctaves='5' seed='11'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 2.4 0 0 0 -.95'/%3E%3C/filter%3E%3Crect width='1000' height='620' filter='url(%23c)'/%3E%3C/svg%3E"), radial-gradient(85% 100% at 0% 100%, #000 20%, transparent 78%);
+            mask-size: 100% 100%; mask-composite: intersect;
+  }
+
+  /* ===== 几何系：内嵌 SVG（能读 CSS 变量上色），viewBox 1600×940 以左下角为锚 slice 铺满；
+     构图一律不进入顶部 60 单位（≈顶栏 36px），右上角窗口按钮区自然保持纯框色 ===== */
+  .fx > .art { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; display: block; }
+  .win .ui, .thumb .pv > i, .thumb .pv > u { z-index: 1; }
+  .g-a  { fill: color-mix(in oklab, var(--a) 30%, transparent); }
+  .g-a2 { fill: color-mix(in oklab, var(--a2) 25%, transparent); }
+  .g-a3 { fill: color-mix(in oklab, var(--a3) 24%, transparent); }
+  .g-ad { fill: color-mix(in oklab, var(--ad) 32%, transparent); }
+  .g-cv { fill: rgba(255,255,255,.028); }
+  .g-ink { fill: rgba(255,255,255,.08); }
+  .g-line { fill: none; stroke: rgba(255,255,255,.075); stroke-width: 1; }
+  .g-line-b { fill: none; stroke: rgba(255,255,255,.14); stroke-width: 1.2; }
+  .g-ring { fill: none; stroke: color-mix(in oklab, var(--a) 45%, transparent); stroke-width: 2; }
+  .t-geo { background: var(--bg-frame); }
+
+  /* 自定义壁纸：图片层（模糊 + 放大掩边）+ 暗化层；顶部 36px 渐隐回框色（顶栏干净、右上角纯色） */
+  .fx > .art-img { background: center / cover no-repeat; filter: blur(calc(var(--wb, 24px) * var(--wscale, 1))); transform: scale(1.08);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 36px, #000 84px); mask-image: linear-gradient(to bottom, transparent 0, transparent 36px, #000 84px); }
+  .fx > .art-dim { background: rgba(0,0,0, var(--wd, .45));
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 36px, #000 84px); mask-image: linear-gradient(to bottom, transparent 0, transparent 36px, #000 84px); }
+  .thumb .pv { --wscale: .18; }
+  .thumb .pv > .art-img, .thumb .pv > .art-dim { -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 7px, #000 16px); mask-image: linear-gradient(to bottom, transparent 0, transparent 7px, #000 16px); }
+  .pv .add { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; color: var(--text-2); font-size: 11px; background: rgba(255,255,255,.02); }
+  .wall-k { display: none; align-items: center; gap: 14px; }
+  .wall-k.is-show { display: inline-flex; }
+  .wall-k input[type=range] { width: 110px; accent-color: var(--ink-soft); }
+
+  /* 纯色：整个窗口底铺工作区色（按浓度与框色混合）；窗口按钮区同步成同一色（主进程 setTitleBarOverlay） */
+  .t-solid { --solid: color-mix(in oklab, var(--a) var(--solid-k, 28%), var(--bg-frame)); background: var(--solid); }
+  .t-solid .titlebtns { background: var(--solid); }
+  .solid-k { display: none; }
+  .solid-k.is-show { display: inline-flex; }
+
+  /* 7 涟漪：左下角同心细线，像水面或声波，线稿感 */
+  .t-ripple { background:
+      radial-gradient(60% 80% at 0% 100%, color-mix(in oklab, var(--a) 14%, transparent), transparent 72%),
+      radial-gradient(40% 60% at 0% 0%, color-mix(in oklab, var(--a3) 8%, transparent), transparent 72%),
+      var(--bg-frame); }
+  .t-ripple::before {
+    background: repeating-radial-gradient(circle at 4% 104%, transparent 0 25px, color-mix(in oklab, var(--a) 34%, transparent) 25px 26px, transparent 26.5px 28px);
+    -webkit-mask-image: radial-gradient(75% 95% at 0% 100%, #000 5%, rgba(0,0,0,.35) 45%, transparent 78%);
+            mask-image: radial-gradient(75% 95% at 0% 100%, #000 5%, rgba(0,0,0,.35) 45%, transparent 78%);
+  }
+
+  /* ================= 模拟窗口（按真实布局：36px 顶栏 / 8px 框缝 / 248px 左栏玻璃卡 / 中栏玻璃页）================= */
+  .win { position: relative; width: 100%; aspect-ratio: 16 / 9.4; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.07), 0 30px 80px rgba(0,0,0,.6); }
+  .win .ui { position: absolute; inset: 0; display: grid; grid-template-rows: 36px 1fr; transition: opacity var(--dur-panel) var(--ease-standard); }
+  .win.is-bare .ui { opacity: 0; }
+  .chrome { display: flex; align-items: center; gap: 14px; padding: 0 12px; font-size: var(--font-caption); color: var(--text-2); }
+  .chrome .ws { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); }
+  .chrome .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--a); }
+  .titlebtns { position: absolute; top: 0; right: 0; width: 138px; height: 36px; display: flex; justify-content: space-around; align-items: center; color: var(--text-2); background: var(--bg-frame); font-size: 12px; z-index: 3; }
+  .win.show-guard .titlebtns { outline: 1px dashed var(--yellow); outline-offset: -1px; }
+  .guard-tip { position: absolute; top: 40px; right: 6px; z-index: 3; font-size: 11px; color: var(--yellow); display: none; }
+  .win.show-guard .guard-tip { display: block; }
+  .body { display: grid; grid-template-columns: 248px 1fr; gap: 8px; padding: 0 8px 8px; min-height: 0; }
+  .sheet { background: var(--glass-sheet); border-radius: var(--radius-card); box-shadow: var(--shadow-page); min-height: 0; overflow: hidden; }
+  .left { padding: 12px 10px; display: flex; flex-direction: column; gap: 4px; }
+  .grp { color: var(--text-3); font-size: 11px; margin: 8px 6px 4px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: var(--radius-small); font-size: var(--font-caption); color: var(--ink-soft); }
+  .row.is-sel { background: var(--selected-fill); }
+  .row i { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); flex: none; }
+  .row i.g { background: var(--green); } .row i.y { background: var(--yellow); }
+  .row span { margin-left: auto; color: var(--text-3); font-size: 11px; }
+  .center { display: flex; flex-direction: column; }
+  .msgs { flex: 1; padding: 22px 0; display: flex; flex-direction: column; gap: 14px; width: min(620px, 88%); margin: 0 auto; font-size: var(--font-ui); color: var(--ink-soft); }
+  .bubble { align-self: flex-end; background: var(--bg-raised); padding: 8px 12px; border-radius: 14px; max-width: 70%; }
+  .muted { color: var(--text-2); }
+  .composer { width: min(620px, 88%); margin: 0 auto 14px; height: 64px; border-radius: 18px; background: var(--bg-raised); box-shadow: 0 0 0 1px rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.35), 0 16px 40px rgba(0,0,0,.28); padding: 12px 14px; color: var(--text-3); font-size: var(--font-caption); }
+
+  /* ================= 设置页「效果」卡 ================= */
+  .sec-title { margin: 28px 0 10px; font-size: var(--font-control); color: var(--ink); font-weight: 500; }
+  .s-card { background: var(--bg-panel); border-radius: var(--radius-card); box-shadow: var(--shadow-page); max-width: 760px; }
+  .s-row { display: flex; gap: 16px; padding: 14px 18px; align-items: center; }
+  .s-row + .s-row { border-top: 1px solid var(--hairline); }
+  .s-row.col { flex-direction: column; align-items: stretch; }
+  .s-txt { flex: 1; min-width: 0; }
+  .s-txt b { display: block; font-weight: 500; color: var(--ink); font-size: var(--font-ui); }
+  .s-txt p { color: var(--text-2); font-size: var(--font-caption); margin-top: 2px; }
+  .switch { width: 34px; height: 20px; border-radius: 999px; background: var(--green); position: relative; flex: none; cursor: pointer; border: none; }
+  .switch::after { content: ''; position: absolute; top: 3px; left: 17px; width: 14px; height: 14px; border-radius: 50%; background: #0f0f10; transition: left var(--dur-micro) var(--ease-standard); }
+  .switch.is-off { background: rgba(255,255,255,.14); } .switch.is-off::after { left: 3px; background: var(--ink-soft); }
+  .thumbs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 12px; transition: opacity var(--dur-micro); }
+  .thumbs.is-disabled { opacity: .38; pointer-events: none; }
+  .thumb { border: none; background: transparent; cursor: pointer; text-align: left; color: var(--text-2); font: inherit; font-size: var(--font-caption); }
+  .thumb .pv { display: block; aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,.06); transition: box-shadow var(--dur-micro); }
+  .thumb .pv > i { position: absolute; left: 30%; top: 16%; right: 5%; bottom: 7%; border-radius: 6px; background: var(--glass-sheet); }
+  .thumb .pv > u { position: absolute; left: 5%; top: 16%; width: 22%; bottom: 7%; border-radius: 6px; background: var(--glass-sheet); }
+  .thumb:hover .pv { box-shadow: 0 0 0 1px rgba(255,255,255,.18); }
+  .thumb.is-active .pv { box-shadow: 0 0 0 2px var(--ink-soft); }
+  .thumb.is-active { color: var(--ink); }
+  .thumb em { display: block; font-style: normal; margin-top: 6px; }
+  .thumb small { display: block; color: var(--text-3); font-size: 11px; line-height: 1.5; }
+  .pane-before .only-after, .pane-after .only-before { display: none; }
+  .mood { margin: 12px 2px 0; color: var(--text-2); font-size: var(--font-caption); min-height: 1.6em; }
+  .mood b { color: var(--ink); font-weight: 500; margin-right: 6px; }
+</style>
+</head>
+<body class="pane-after">
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（窗口背景模板，计划条目 1–4）。下方大窗口按真实布局叠了半透明的左栏卡和中栏页——背景会透过玻璃页隐约露出来，这就是上线后的真实观感。
+    点「设置」卡里的缩略图换模板；换工作区颜色看同一模板怎么跟着换色；勾「只看背景」隐藏界面看整幅画；勾「右上角约束」看 Windows 窗口按钮区（只能单色，渐变不能碰到这里）。全部是静态画面，不做动画。界面内容为虚构样例。</div>
+
+  <div class="bar">
+    <div class="seg"><button id="bBefore">现状</button><button id="bAfter" class="is-active">改后</button></div>
+    <div><span class="lbl">工作区颜色</span><span class="swatches" id="sws"></span></div>
+    <label class="chk"><input type="checkbox" id="cBare"> 只看背景</label>
+    <label class="chk"><input type="checkbox" id="cGuard"> 右上角约束</label>
+    <div class="wall-k" id="wallK">
+      <label class="chk">模糊 <input type="range" id="wB" min="0" max="48" value="24"></label>
+      <label class="chk">暗化 <input type="range" id="wD" min="0" max="80" value="45"></label>
+      <button class="ui-btn" id="wPick" style="padding:3px 12px;border-radius:999px;border:1px solid var(--hairline);background:transparent;color:var(--ink);font:inherit;font-size:12px;cursor:pointer">换一张</button>
+    </div>
+    <input type="file" id="wFile" accept="image/*" hidden>
+    <div class="seg solid-k" id="solidK"><button data-k="28%" class="is-active">深调</button><button data-k="55%">中调</button><button data-k="100%">原色</button></div>
+  </div>
+
+  <div class="win fx t-corner" id="win">
+    <div class="titlebtns"><span>—</span><span>☐</span><span>✕</span></div>
+    <div class="guard-tip">Windows 窗口按钮区：只能取单色</div>
+    <div class="ui">
+      <div class="chrome"><span class="ws"><span class="dot"></span>演示-游乐场</span><span>全局看板</span></div>
+      <div class="body">
+        <div class="sheet left">
+          <div class="grp">实用功能</div>
+          <div class="row"><i></i>定时任务</div><div class="row"><i></i>记忆整理</div>
+          <div class="grp">工作会话</div>
+          <div class="row is-sel"><i class="g"></i>编译与热重载<span>now</span></div>
+          <div class="row"><i class="y"></i>构建发布流水线<span>5m</span></div>
+          <div class="row"><i></i>智能代码审查<span>10m</span></div>
+          <div class="row"><i></i>端口占用检测<span>1m</span></div>
+        </div>
+        <div class="sheet center">
+          <div class="msgs">
+            <div class="bubble">把登录页的表单校验改成失焦时触发</div>
+            <div>已改好：<span class="muted">LoginForm.tsx</span> 的校验从 onChange 挪到 onBlur，空值提示保留即时反馈。</div>
+            <div class="muted">相关用例 3 个已更新并通过。</div>
+            <div class="bubble">顺手把错误提示的文案统一一下</div>
+            <div>好的，正在对齐错误提示文案……</div>
+          </div>
+          <div class="composer">给这个会话发消息…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mood" id="mood"></div>
+
+  <div class="sec-title">设置 · 外观 · 效果</div>
+  <div class="s-card">
+    <div class="s-row"><div class="s-txt"><b>全局面板周围灯带</b><p>有未读「需要你」时，顶部探出的看板上隔一会儿掠过一道柔和的暖色反光。关掉立即去掉</p></div><button class="switch"></button></div>
+    <div class="s-row"><div class="s-txt"><b>渐变与毛玻璃</b><p>窗口底的工作区染色渐变、面板半透明与弹出层背景模糊。关闭后全部改为实底，立即生效</p></div><button class="switch" id="fxSw"></button></div>
+    <div class="s-row col only-after">
+      <div class="s-txt"><b>窗口背景</b><p>铺在所有面板后面的底图，颜色跟随当前工作区。关掉「渐变与毛玻璃」时不生效</p></div>
+      <div class="thumbs" id="thumbs"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var T = [
+    ['corner', '角光', '默认', '工作区色从左上角渗入，左下一抹余光。安静、熟悉。', ''],
+    ['horizon', '地平线', 'Horizon', '光从底边升起，一道细亮的地平线，顶部留深色。色域绘画的静。', 'grain'],
+    ['velvet', '丝绒', 'Velvet', '低饱和暗色一团 + 暗角 + 粗颗粒，哑光，像高级面料。最克制的一款。', 'grain-strong'],
+    ['mesh', '流彩', 'Mesh', '多团邻近色相的网格渐变，饱和度最高，最鲜活。', 'grain'],
+    ['solid', '纯色', 'Solid', '整个窗口底铺满工作区色，无渐变无颗粒；右上角窗口按钮区同步成同一色。上方可切浓度。', ''],
+    ['mondrian', '蒙德里安', 'Mondrian', '不等分的格子，三格上工作区色系，格缝就是分割线。暗夜版的《红黄蓝构成》。', 'grain', 'geo'],
+    ['albers', '阿尔伯斯', 'Albers', '四层嵌套方块向下偏心，同色系由深到浅。「向正方形致敬」，最安静的几何。', 'grain', 'geo'],
+    ['bauhaus', '包豪斯', 'Bauhaus', '大圆、半圆、三角和一根横杆的构成，左下重、右上空。', 'grain', 'geo'],
+    ['suprematism', '至上主义', 'Suprematism', '马列维奇式：几块倾斜的色条与方块悬浮在暗色里，有动势。', 'grain', 'geo'],
+    ['grid', '网格', 'Swiss Grid', '瑞士平面设计的细网格，两处对齐网格的色块与一枚圆环，理性、精密。', '', 'geo'],
+    ['custom', '自定义壁纸', 'Wallpaper', '用你自己的图片：自动模糊 + 暗化保证可读，顶栏一条渐隐回框色。上方可调模糊与暗化。', '', 'img']
+  ];
+  var wallUrl = '';
+  var GEO = {
+    mondrian:
+      '<rect class="g-cv" x="0" y="60" width="260" height="270"/><rect class="g-cv" x="270" y="60" width="840" height="270"/><rect class="g-cv" x="1120" y="60" width="480" height="270"/>' +
+      '<rect class="g-a" x="0" y="340" width="260" height="460"/><rect class="g-cv" x="270" y="340" width="560" height="300"/><rect class="g-a3" x="840" y="340" width="270" height="300"/>' +
+      '<rect class="g-cv" x="1120" y="340" width="480" height="600"/><rect class="g-cv" x="270" y="650" width="560" height="290"/><rect class="g-a2" x="840" y="650" width="270" height="140"/>' +
+      '<rect class="g-cv" x="840" y="800" width="270" height="140"/><rect class="g-ad" x="0" y="810" width="260" height="130"/>',
+    albers:
+      '<rect class="g-ad" x="40" y="200" width="700" height="700"/><rect class="g-a3" x="120" y="320" width="540" height="540"/>' +
+      '<rect class="g-a" x="200" y="440" width="380" height="380"/><rect class="g-a2" x="280" y="560" width="220" height="220"/>',
+    bauhaus:
+      '<circle class="g-a" cx="300" cy="700" r="260"/><path class="g-a2" d="M620 940 A200 200 0 0 1 1020 940 Z"/>' +
+      '<path class="g-a3" d="M980 940 L1180 560 L1380 940 Z"/><circle class="g-ad" cx="980" cy="360" r="64"/>' +
+      '<rect class="g-ink" x="90" y="390" width="600" height="14"/><circle class="g-ring" cx="520" cy="520" r="120"/>',
+    suprematism:
+      '<g transform="rotate(-16 600 640)"><rect class="g-a" x="140" y="600" width="760" height="64"/><rect class="g-ink" x="220" y="700" width="420" height="10"/></g>' +
+      '<g transform="rotate(12 620 460)"><rect class="g-a3" x="540" y="380" width="170" height="170"/></g>' +
+      '<g transform="rotate(-28 300 820)"><rect class="g-a2" x="180" y="800" width="340" height="34"/></g>' +
+      '<circle class="g-ad" cx="980" cy="760" r="46"/><g transform="rotate(-16 1000 420)"><rect class="g-ink" x="860" y="410" width="260" height="6"/></g>',
+    grid: (function () {
+      var s = '<defs><pattern id="gp" width="40" height="40" patternUnits="userSpaceOnUse"><path class="g-line" d="M40 0H0V40"/></pattern>' +
+        '<pattern id="gP" width="200" height="200" patternUnits="userSpaceOnUse"><path class="g-line-b" d="M200 0H0V200"/></pattern>' +
+        '<radialGradient id="gm" cx="0" cy="1" r="1.15"><stop offset="0" stop-color="#fff"/><stop offset=".75" stop-color="#fff" stop-opacity="0"/></radialGradient>' +
+        '<mask id="gk"><rect x="0" y="60" width="1600" height="880" fill="url(#gm)"/></mask></defs>' +
+        '<g mask="url(#gk)"><rect x="0" y="60" width="1600" height="880" fill="url(#gp)"/><rect x="0" y="60" width="1600" height="880" fill="url(#gP)"/></g>' +
+        '<g filter="url(#gb)"><rect class="g-a" x="200" y="600" width="200" height="200"/><rect class="g-a3" x="400" y="800" width="400" height="40"/>' +
+        '<circle class="g-ring" cx="600" cy="600" r="80"/></g>';
+      return s;
+    })()
+  };
+  /* 高斯模糊：SVG 内滤镜，半径以 viewBox 单位计，缩略图与大窗口等比；网格自己管模糊范围（细线不糊） */
+  var GEO_BLUR = 44;
+  function geoSvg(id, uid) {
+    var body = GEO[id];
+    var blur = '<filter id="gb" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="' + GEO_BLUR + '"/></filter>';
+    body = id === 'grid' ? body.replace('<defs>', '<defs>' + blur) : '<defs>' + blur + '</defs><g filter="url(#gb)">' + body + '</g>';
+    if (uid) body = body.replace(/id="(\w+)"/g, 'id="$1' + uid + '"').replace(/url\(#(\w+)\)/g, 'url(#$1' + uid + ')');
+    return '<svg class="art" viewBox="0 0 1600 940" preserveAspectRatio="xMinYMax slice" aria-hidden="true">' + body + '</svg>';
+  }
+  /* 条目 1 未入选：aurora / beams / ripple（CSS 规则保留在上方以备复议） */
+  var ACC = ['#8b7bff', '#6cc2ff', '#45d0a0', '#ff9a5a', '#ff6fae', '#e8c65a'];
+  var win = document.getElementById('win'), cur = 'corner', acc = ACC[0], fxOn = true, mode = 'after';
+
+  function tpl(id) { return T.filter(function (x) { return x[0] === id; })[0]; }
+  function cls(id, extra) { var t = tpl(id); return 'fx ' + (t[5] ? 't-geo' : 't-' + id) + (t[4] ? ' ' + t[4] : '') + (extra || ''); }
+  function setArt(el, id, uid) {
+    [].forEach.call(el.querySelectorAll(':scope > .art, :scope > .add'), function (n) { n.remove(); });
+    var k = tpl(id)[5];
+    if (k === 'geo') el.insertAdjacentHTML('afterbegin', geoSvg(id, uid));
+    if (k === 'img') {
+      if (wallUrl) el.insertAdjacentHTML('afterbegin', '<div class="art art-img" style="background-image:url(' + wallUrl + ')"></div><div class="art art-dim"></div>');
+      else if (uid !== 'w') el.insertAdjacentHTML('beforeend', '<span class="add">＋ 选择图片</span>');
+    }
+  }
+  function paint() {
+    var id = mode === 'before' ? 'corner' : cur;
+    var keep = (win.classList.contains('is-bare') ? ' is-bare' : '') + (win.classList.contains('show-guard') ? ' show-guard' : '');
+    win.className = 'win ' + (fxOn ? cls(id) : 'fx') + keep;
+    setArt(win, fxOn ? id : 'corner', 'w');
+    document.documentElement.style.setProperty('--a', acc);
+    var t = T.filter(function (x) { return x[0] === id; })[0];
+    document.getElementById('mood').innerHTML = fxOn ? '<b>' + t[1] + ' · ' + t[2] + '</b>' + t[3] : '<b>已关闭</b>「渐变与毛玻璃」关：纯框色实底';
+    [].forEach.call(document.querySelectorAll('.thumb'), function (b) { b.classList.toggle('is-active', b.dataset.id === cur); });
+    document.getElementById('thumbs').classList.toggle('is-disabled', !fxOn);
+    document.getElementById('solidK').classList.toggle('is-show', fxOn && id === 'solid');
+    document.getElementById('wallK').classList.toggle('is-show', fxOn && id === 'custom');
+  }
+  var wFile = document.getElementById('wFile');
+  wFile.onchange = function () {
+    var f = wFile.files && wFile.files[0]; if (!f) return;
+    if (wallUrl) URL.revokeObjectURL(wallUrl);
+    wallUrl = URL.createObjectURL(f); wFile.value = '';
+    setArt(document.querySelector('.thumb[data-id=custom] .pv'), 'custom', 'tcustom');
+    cur = 'custom'; paint();
+  };
+  document.getElementById('wPick').onclick = function () { wFile.click(); };
+  document.getElementById('wB').oninput = function (e) { document.documentElement.style.setProperty('--wb', e.target.value + 'px'); };
+  document.getElementById('wD').oninput = function (e) { document.documentElement.style.setProperty('--wd', e.target.value / 100); };
+  [].forEach.call(document.querySelectorAll('#solidK button'), function (b) {
+    b.onclick = function () {
+      win.style.setProperty('--solid-k', b.dataset.k);
+      [].forEach.call(b.parentNode.children, function (x) { x.classList.toggle('is-active', x === b); });
+    };
+  });
+  var th = document.getElementById('thumbs');
+  T.forEach(function (t) {
+    var b = document.createElement('button'); b.className = 'thumb'; b.dataset.id = t[0];
+    b.innerHTML = '<span class="pv ' + cls(t[0]) + '"><u></u><i></i></span><em>' + t[1] + ' · ' + t[2] + '</em>';
+    setArt(b.querySelector('.pv'), t[0], 't' + t[0]);
+    b.onclick = function () {
+      if (t[0] === 'custom' && !wallUrl) { document.getElementById('wFile').click(); return; }
+      cur = t[0]; paint();
+    };
+    th.appendChild(b);
+  });
+  var sws = document.getElementById('sws');
+  ACC.forEach(function (c, i) {
+    var b = document.createElement('button'); b.className = 'sw' + (i ? '' : ' is-active'); b.style.background = c;
+    b.onclick = function () { acc = c; [].forEach.call(sws.children, function (x) { x.classList.toggle('is-active', x === b); }); paint(); };
+    sws.appendChild(b);
+  });
+  document.getElementById('cBare').onchange = function (e) { win.classList.toggle('is-bare', e.target.checked); };
+  document.getElementById('cGuard').onchange = function (e) { win.classList.toggle('show-guard', e.target.checked); };
+  document.getElementById('fxSw').onclick = function (e) { fxOn = !fxOn; e.target.classList.toggle('is-off', !fxOn); paint(); };
+  function setMode(m) {
+    mode = m; document.body.className = 'pane-' + m;
+    document.getElementById('bBefore').classList.toggle('is-active', m === 'before');
+    document.getElementById('bAfter').classList.toggle('is-active', m === 'after');
+    paint();
+  }
+  document.getElementById('bBefore').onclick = function () { setMode('before'); };
+  document.getElementById('bAfter').onclick = function () { setMode('after'); };
+  paint();
+</script>
+</body>
+</html>

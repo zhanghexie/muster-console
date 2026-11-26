@@ -1,0 +1,937 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../__sdk__/theme.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<svg style="display:none" aria-hidden="true">
+  <symbol id="i-cal" viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="12" rx="2"/><path d="M1.5 6h13M5 1.5v2M11 1.5v2"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.5 3.5L13 4.5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 16 16"><path d="M9.5 3l3.5 3.5L6 13.5H2.5V10zM8 4.5L11.5 8"/></symbol>
+  <symbol id="i-send" viewBox="0 0 16 16"><path d="M2.5 8L13.5 3 9 13.5l-1.8-4.2z"/><path d="M7.2 9.3L13.5 3"/></symbol>
+  <symbol id="i-ext" viewBox="0 0 16 16"><path d="M5 3h8v8M13 13H3V3"/><path d="M10.5 5.5l-6 6"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.5 4h11M6 4V2.5h4M4 4l.8 9.5h6.4L12 4M6.5 7v2M9.5 7v2"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 16 16"><path d="M6 1.5l1 2.8 2.8 1-2.8 1-1 2.8-1-2.8-2.8-1 2.8-1zM12 8.5l.6 1.7 1.7.6-1.7.6-.6 1.7-.6-1.7-1.7-.6 1.7-.6zM4 11.5l.4 1.1 1.1.4-1.1.4-.4 1.1-.4-1.1-1.1-.4 1.1-.4z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 16 16"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.5 1.5v3h-3"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+</svg>
+<div class="app" data-domain-surface="daily-report" data-domain-version="0">
+  <header class="hd">
+    <div class="hd-mark"><svg class="icon" aria-hidden="true"><use href="#i-cal"/></svg></div>
+    <div><span class="hd-title" data-i18n="工作日报">工作日报</span></div>
+    <span class="hd-sub" id="genStatus" data-i18n="当前工作区">当前工作区</span>
+  </header>
+  <div class="layout">
+    <aside class="cal-pane">
+      <div class="calendar-section"><div id="calBox"></div><div class="cal-legend" data-i18n="圆点表示有工作记录">圆点表示有工作记录</div></div>
+      <div class="todo-box">
+        <div class="todo-heading"><span class="todo-head" data-i18n="待办">待办</span></div>
+        <div class="todo-input" id="todoInput">
+          <input type="text" id="todoText" aria-label="待办标题…" data-i18n-aria="待办标题…" placeholder="待办标题…" data-i18n-placeholder="待办标题…" maxlength="200">
+          <textarea id="todoBody" aria-label="正文（可选）…" data-i18n-aria="正文（可选）…" placeholder="正文（可选）…" data-i18n-placeholder="正文（可选）…" rows="2"></textarea>
+          <div class="ti-row">
+            <button class="btn ghost" id="todoCancel" data-i18n="取消" hidden>取消</button>
+            <button class="btn primary" id="todoAdd"><svg class="icon"><use href="#i-plus"/></svg><span data-i18n="添加">添加</span></button>
+          </div>
+        </div>
+        <div class="todo-groups" id="todoList"></div>
+      </div>
+    </aside>
+    <div class="resizer" id="resizer" title="拖动调整宽度" data-i18n-title="拖动调整宽度"></div>
+    <main class="detail-pane" id="detail"></main>
+  </div>
+</div>
+<script src="../__sdk__/sdk.js"></script>
+<div class="ctx-menu" id="ctxMenu" hidden>
+  <div class="ctx-item" data-ctx-edit><svg class="icon"><use href="#i-edit"/></svg><span data-i18n="编辑">编辑</span></div>
+  <div class="ctx-item" data-ctx-dispatch><svg class="icon"><use href="#i-send"/></svg><span data-i18n="派活">派活</span></div>
+  <div class="ctx-item" data-ctx-jump><svg class="icon"><use href="#i-ext"/></svg><span data-i18n="跳转会话">跳转会话</span></div>
+  <div class="ctx-item danger" data-ctx-del><svg class="icon"><use href="#i-trash"/></svg><span data-i18n="删除">删除</span></div>
+</div>
+<div class="dsp-overlay" id="dspModal" hidden>
+  <div class="dsp-card">
+    <div class="dsp-title" id="dspTitle"></div>
+    <div class="dsp-msg" id="dspMsg"></div>
+    <div class="dsp-list" id="dspList"></div>
+    <button class="btn ghost dsp-cancel" id="dspCancel" data-i18n="取消">取消</button>
+  </div>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  const TODOS_FILE = 'todos.json';
+  const UI_FILE = 'ui.json';
+  const REPORTS_PREFIX = 'reports/';
+  const WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+  const TODO_STATUS = { todo: '未开始', doing: '进行中', done: '已完成' };
+  // Only host-authored labels are translated; journal text, reports, todo data
+  // and the model instruction below remain exactly as authored.
+  const EN = {
+    '圆点表示有工作记录': 'Dots mark days with work records', '把下一步留在这里': 'Make room for what’s next',
+    '当日概览': 'Day at a glance', '待推进': 'Open to-dos', '当日待办': 'To-dos for the day',
+    '把一天的进展，整理成篇。': 'Bring the day’s progress together.', '根据所选日期的工作日志生成，随时可以重新整理。': 'Create a report from this day’s journal. Regenerate whenever you need.',
+    '工作日报': 'Daily report', '当前工作区': 'Current workspace', '待办': 'To-dos', '待办标题…': 'To-do title…', '正文（可选）…': 'Details (optional)…',
+    '取消': 'Cancel', '拖动调整宽度': 'Drag to resize', '编辑': 'Edit', '派活': 'Delegate', '跳转会话': 'Open session', '删除': 'Delete',
+    '日': 'Sun', '一': 'Mon', '二': 'Tue', '三': 'Wed', '四': 'Thu', '五': 'Fri', '六': 'Sat', '周': '',
+    '上月': 'Previous month', '下月': 'Next month', '回到今天': 'Go to today', '今天': 'Today',
+    '未开始': 'Not started', '进行中': 'In progress', '已完成': 'Completed', '阻塞': 'Blocked', '搁置': 'On hold',
+    '问题': 'Problem', '要点': 'Highlights', '进展': 'Progress', '结论': 'Conclusion', '备注': 'Notes', '状态': 'Status',
+    '日志条目': 'Journal entries', '日报': 'Daily report', '正在生成日报…': 'Generating report…', '重新生成': 'Regenerate',
+    '生成今日日报': 'Generate today’s report', '生成这一天日报': 'Generate report for this day', '仅点击按钮时调用 LLM': 'The LLM is called only when you click the button',
+    '这一天没有 journal，无可生成内容': 'No journal entries for this day; there is nothing to generate.',
+    '这一天没有可识别的日志条目': 'No recognizable journal entries for this day', '日志格式需 ## [主题] 加状态': 'Use ## [topic] followed by 进行中, 已完成, 阻塞, or 搁置',
+    '这一天没有日志记录': 'No journal entries for this day', '集序宿主会话通过 memory 技能记录工作日志': 'Muster Console host sessions record work through the memory skill',
+    '工作日志读取失败：': 'Could not read the work journal: ', '工作日志目录读取失败：': 'Could not list work journals: ',
+    '保存待办失败：': 'Could not save to-dos: ', '保存界面偏好失败：': 'Could not save display preferences: ',
+    '创建': 'Created', '开始': 'Started', '完成': 'Completed', '时间线：': 'Timeline: ', '暂无': 'None',
+    '已派给': 'Delegated to', '跳转到该 Worker 会话': 'Open this worker session', '一键派活给 Worker（会先对齐需求再执行）': 'Delegate to a worker (requirements are clarified first)',
+    '保存': 'Save', '保存修改': 'Save changes', '添加': 'Add', '添加待办': 'Add to-do',
+    '派活失败：获取可用 CLI 列表出错': 'Delegation failed: could not get the available CLI list', '派活：': 'Delegate: ',
+    '派给哪种 CLI？Worker 收到后会先对齐需求、向你提问澄清细节，确认后再执行。': 'Which CLI should receive this? The worker will clarify the requirements with you before starting.',
+    '派活动作失败': 'Delegation failed', '派活失败：': 'Delegation failed: ', '这条待办还没有可跳转的会话': 'This to-do has no session to open yet.',
+    '跳转失败': 'Could not open the session', '跳转失败：': 'Could not open the session: ',
+    'LLM 返回空日报': 'The LLM returned an empty report', '保存日报失败：': 'Could not save the report: ', '日报已生成': 'Daily report generated', '生成失败：': 'Generation failed: ',
+    '缺少 sessionId': 'Missing sessionId', '缺少派活模式、runtimeId 或名称': 'Missing delegation mode, runtimeId, or name',
+    '未知日报查询：': 'Unknown daily report query: ', '未知日报命令：': 'Unknown daily report command: ', '待办标题不能为空': 'To-do title is required', '待办不存在': 'To-do not found', '待办状态不合法': 'Invalid to-do status',
+    'sessions.create 未返回会话 id': 'sessions.create did not return a session ID', '任务信未确认保存': 'The task message was not confirmed as stored', '已取消': 'Cancelled'
+  };
+  const tr = key => document.documentElement.lang === 'en' && Object.prototype.hasOwnProperty.call(EN, key) ? EN[key] : key;
+  function errorText(error) {
+    const value = String(error && error.message ? error.message : error);
+    const prefix = /^(?:Error: )*/.exec(value)[0];
+    return prefix + tr(value.slice(prefix.length));
+  }
+  const shortDate = s => (s || '').slice(5); // YYYY-MM-DD → MM-DD
+
+  let state = { todos: [], calWidth: 312, todoCollapsed: {} };
+  const journalDates = new Set();   // 有日志的日期 YYYY-MM-DD
+  const reportDates = new Set();    // 已有日报文件的日期
+  const reportCache = {};           // ds → 正文（仅内存）
+  let selected = null;
+  let calYear = 0, calMonth = 0;    // calMonth 0-based
+  let generating = false;           // 是否有日报生成中
+  let editingId = null;             // 正在编辑的待办 id（null = 新增模式）
+  let detailGeneration = 0;
+  let domainVersion = 0;
+
+  const $ = s => document.querySelector(s);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => fmt(new Date());
+  const isToday = s => s === today();
+  const weekName = s => { const d = new Date(s + 'T00:00:00'); return tr('周') + tr(WEEK[d.getDay()]); };
+  const mondayIdx = d => (d.getDay() + 6) % 7; // 周一=0
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  function cloneDomainValue(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function syncDomainSurface() {
+    const app = document.querySelector('.app');
+    if (app) app.dataset.domainVersion = String(domainVersion);
+  }
+
+  function getDomainSnapshot() {
+    return {
+      version: domainVersion,
+      selectedDate: selected,
+      state: cloneDomainValue(state),
+      journalDates: [...journalDates].sort(),
+      reportDates: [...reportDates].sort(),
+      selection: selected ? { date: selected } : null,
+      availableCommands: ['todo.create', 'todo.update', 'todo.setStatus', 'todo.delete', 'todo.recordDispatch']
+    };
+  }
+
+  async function queryDomain(name, args = {}) {
+    if (ma.agent && ma.agent.domain && typeof ma.agent.domain.query === 'function') {
+      return ma.agent.domain.query(name, { ...args, date: args.date || selected });
+    }
+    throw new Error(tr('日报 DomainRuntime 不可用'));
+  }
+
+  async function executeDomainCommand(name, args = {}) {
+    if (ma.agent && ma.agent.domain && typeof ma.agent.domain.command === 'function') {
+      const result = await ma.agent.domain.command(name, args);
+      await refreshFromAgentState();
+      return result;
+    }
+    throw new Error(tr('日报 DomainRuntime 不可用'));
+  }
+
+  // 扩展 DomainRuntime 适配面。
+  window.dailyReportDomain = Object.freeze({ getSnapshot: getDomainSnapshot, query: queryDomain, execute: executeDomainCommand });
+
+  function lastDispatch(t) {
+    return (t && t.dispatches && t.dispatches.length) ? t.dispatches[t.dispatches.length - 1] : null;
+  }
+  async function readJsonFile(rel, fallback) {
+    try {
+      const r = await ma.data.read(rel);
+      return JSON.parse(r.content);
+    } catch {
+      return fallback;
+    }
+  }
+  async function writeJsonFile(rel, obj) {
+    await ma.data.write(rel, JSON.stringify(obj, null, 2));
+  }
+  async function saveTodos() {
+    try {
+      await writeJsonFile(TODOS_FILE, { version: 1, todos: state.todos || [] });
+      domainVersion += 1;
+      syncDomainSurface();
+    } catch (e) {
+      await ma.notify(tr('保存待办失败：') + errorText(e));
+      throw e;
+    }
+  }
+  async function saveUi() {
+    try {
+      await writeJsonFile(UI_FILE, {
+        calWidth: state.calWidth,
+        todoCollapsed: state.todoCollapsed || {}
+      });
+    } catch (e) {
+      await ma.notify(tr('保存界面偏好失败：') + errorText(e));
+    }
+  }
+  async function loadReport(ds) {
+    if (Object.prototype.hasOwnProperty.call(reportCache, ds)) return reportCache[ds];
+    try {
+      const r = await ma.data.read(REPORTS_PREFIX + ds + '.md');
+      reportCache[ds] = r.content;
+      reportDates.add(ds);
+      return r.content;
+    } catch {
+      reportCache[ds] = null;
+      return null;
+    }
+  }
+  async function saveReportFile(ds, text) {
+    await ma.data.write(REPORTS_PREFIX + ds + '.md', text);
+    reportCache[ds] = text;
+    reportDates.add(ds);
+    domainVersion += 1;
+    syncDomainSurface();
+  }
+
+  /* ---------- 右键菜单 ---------- */
+  const ctxMenu = $('#ctxMenu');
+  let ctxTodoId = null;
+  function openCtxMenu(e, id) {
+    e.preventDefault();
+    ctxTodoId = id;
+    const t = (state.todos || []).find(x => x.id === id);
+    const jumpItem = ctxMenu.querySelector('[data-ctx-jump]');
+    jumpItem.hidden = !lastDispatch(t)?.sessionId;
+    const w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
+    ctxMenu.style.left = Math.min(e.clientX, window.innerWidth - w - 4) + 'px';
+    ctxMenu.style.top = Math.min(e.clientY, window.innerHeight - h - 4) + 'px';
+    ctxMenu.hidden = false;
+  }
+  document.addEventListener('mousedown', e => {
+    if (ctxMenu.hidden) return;
+    if (!ctxMenu.contains(e.target)) ctxMenu.hidden = true;
+  });
+  ctxMenu.querySelector('[data-ctx-edit]').onclick = () => {
+    ctxMenu.hidden = true;
+    if (!ctxTodoId) return;
+    const t = (state.todos || []).find(x => x.id === ctxTodoId);
+    if (!t) return;
+    editingId = t.id;
+    $('#todoText').value = t.text;
+    $('#todoBody').value = t.body || '';
+    $('#todoText').focus();
+    updateAddMode();
+  };
+  ctxMenu.querySelector('[data-ctx-dispatch]').onclick = () => {
+    ctxMenu.hidden = true;
+    if (ctxTodoId) dispatchTodo(ctxTodoId);
+  };
+  ctxMenu.querySelector('[data-ctx-jump]').onclick = () => {
+    ctxMenu.hidden = true;
+    if (ctxTodoId) jumpTodo(ctxTodoId);
+  };
+  ctxMenu.querySelector('[data-ctx-del]').onclick = () => {
+    ctxMenu.hidden = true;
+    if (ctxTodoId) delTodo(ctxTodoId);
+  };
+
+  /* ---------- 初始化 ---------- */
+  let refreshGeneration = 0;
+  async function refreshFromAgentState() {
+    const generation = ++refreshGeneration;
+    const [todosFile, uiFile] = await Promise.all([
+      readJsonFile(TODOS_FILE, null),
+      readJsonFile(UI_FILE, null)
+    ]);
+    if (generation !== refreshGeneration) return;
+    if (todosFile && Array.isArray(todosFile.todos)) state.todos = todosFile.todos;
+    if (uiFile) {
+      if (typeof uiFile.calWidth === 'number') state.calWidth = uiFile.calWidth;
+      if (uiFile.todoCollapsed) state.todoCollapsed = uiFile.todoCollapsed;
+    }
+    journalDates.clear();
+    reportDates.clear();
+    for (const key of Object.keys(reportCache)) delete reportCache[key];
+    try {
+      const result = await ma.journal.list();
+      result.dates.forEach(day => journalDates.add(day));
+    } catch (e) { await ma.notify(tr('工作日志目录读取失败：') + errorText(e)); }
+    try {
+      const list = await ma.data.list('reports');
+      list.forEach(entry => {
+        if (entry.dir) return;
+        const match = /^(\d{4}-\d{2}-\d{2})\.md$/.exec(entry.name);
+        if (match) reportDates.add(match[1]);
+      });
+    } catch (e) { /* reports 目录尚未创建 */ }
+    if (generation !== refreshGeneration) return;
+    domainVersion += 1;
+    syncDomainSurface();
+    applyCalWidth();
+    renderCalendar();
+    renderTodoList();
+    await renderDetail();
+  }
+
+  async function main() {
+    await ma.ready;
+    applyTranslations();
+
+    const todosFile = await readJsonFile(TODOS_FILE, null);
+    if (todosFile && Array.isArray(todosFile.todos)) state.todos = todosFile.todos;
+
+    const uiFile = await readJsonFile(UI_FILE, null);
+    if (uiFile) {
+      if (typeof uiFile.calWidth === 'number') state.calWidth = uiFile.calWidth;
+      if (uiFile.todoCollapsed) state.todoCollapsed = uiFile.todoCollapsed;
+    }
+
+    if (!state.todos) state.todos = [];
+    if (!state.todoCollapsed) state.todoCollapsed = {};
+    if (typeof state.calWidth !== 'number' || state.calWidth < 160) state.calWidth = 312;
+    applyCalWidth();
+    initResizer();
+
+    try {
+      const {dates} = await ma.journal.list();
+      dates.forEach(day => journalDates.add(day));
+    } catch (e) { await ma.notify(tr('工作日志目录读取失败：') + errorText(e)); }
+
+    try {
+      const list = await ma.data.list('reports');
+      list.forEach(e => {
+        if (e.dir) return;
+        const m = /^(\d{4}-\d{2}-\d{2})\.md$/.exec(e.name);
+        if (m) reportDates.add(m[1]);
+      });
+    } catch (e) { /* 尚无 reports 目录 */ }
+
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+    selected = today();
+    $('#todoAdd').onclick = addTodo;
+    $('#todoCancel').onclick = cancelEdit;
+    $('#todoText').addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing || event.keyCode === 229) return;
+      event.preventDefault();
+      void addTodo();
+    });
+    if (typeof ma.on === 'function') ma.on('state.changed', () => { void refreshFromAgentState(); });
+    updateAddMode();
+    initKeyboard();
+    renderCalendar();
+    renderTodoList();
+    await renderDetail();
+  }
+
+  /* ---------- 键盘快速切换 ---------- */
+  // ←/→ 前一天/后一天，↑/↓ 上一周/下一周；跨月自动翻页；输入框聚焦时不触发
+  function initKeyboard() {
+    document.addEventListener('keydown', e => {
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      let delta = null;
+      if (e.key === 'ArrowLeft') delta = -1;
+      else if (e.key === 'ArrowRight') delta = 1;
+      else if (e.key === 'ArrowUp') delta = -7;
+      else if (e.key === 'ArrowDown') delta = 7;
+      if (delta === null) return;
+      e.preventDefault();
+      shiftDate(delta);
+    });
+  }
+
+  function shiftDate(delta) {
+    const d = new Date(selected + 'T00:00:00');
+    d.setDate(d.getDate() + delta);
+    calYear = d.getFullYear();
+    calMonth = d.getMonth();
+    selectDate(fmt(d));
+  }
+
+  /* ---------- 日历 ---------- */
+  function renderCalendar() {
+    const pane = $('#calBox');
+    const first = new Date(calYear, calMonth, 1);
+    const days = new Date(calYear, calMonth + 1, 0).getDate();
+    const lead = mondayIdx(first);
+    const prevDays = new Date(calYear, calMonth, 0).getDate();
+    const todoDates = new Set();
+    (state.todos || []).forEach(t => {
+      if (t.createDate) todoDates.add(t.createDate);
+      if (t.doingDate) todoDates.add(t.doingDate);
+      if (t.doneDate) todoDates.add(t.doneDate);
+    });
+
+    let html = `<div class="cal-head">
+      <span class="cal-title">${document.documentElement.lang === 'en' ? new Intl.DateTimeFormat('en', { month: 'long', year: 'numeric' }).format(first) : `${calYear} 年 ${calMonth + 1} 月`}</span>
+      <span class="cal-nav">
+        <button id="calPrev" title="${tr('上月')}">‹</button>
+        <button id="calToday" title="${tr('回到今天')}">${tr('今天')}</button>
+        <button id="calNext" title="${tr('下月')}">›</button>
+      </span>
+    </div><div class="cal-grid">`;
+    [...WEEK.slice(1), WEEK[0]].forEach(w => { html += `<div class="cal-dow">${tr(w)}</div>`; });
+
+    for (let i = lead - 1; i >= 0; i--) {
+      const ds = fmt(new Date(calYear, calMonth - 1, prevDays - i));
+      html += `<button type="button" class="cal-day other" data-d="${ds}" aria-label="${ds}">${prevDays - i}</button>`;
+    }
+    for (let d = 1; d <= days; d++) {
+      const ds = fmt(new Date(calYear, calMonth, d));
+      const cls = ['cal-day'];
+      if (journalDates.has(ds)) cls.push('has');
+      if (todoDates.has(ds)) cls.push('todo-dot');
+      if (isToday(ds)) cls.push('today');
+      if (ds === selected) cls.push('selected');
+      html += `<button type="button" class="${cls.join(' ')}" data-d="${ds}" aria-label="${ds}" aria-pressed="${ds === selected}"${isToday(ds) ? ' aria-current="date"' : ''}>${d}${journalDates.has(ds) ? '<span class="dot"></span>' : ''}</button>`;
+    }
+    const tail = (7 - ((lead + days) % 7)) % 7;
+    for (let i = 1; i <= tail; i++) {
+      const ds = fmt(new Date(calYear, calMonth + 1, i));
+      html += `<button type="button" class="cal-day other" data-d="${ds}" aria-label="${ds}">${i}</button>`;
+    }
+    html += '</div>';
+    pane.innerHTML = html;
+
+    pane.querySelectorAll('.cal-day').forEach(el => {
+      el.onclick = () => selectDate(el.dataset.d);
+    });
+    $('#calPrev').onclick = () => { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } renderCalendar(); };
+    $('#calNext').onclick = () => { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } renderCalendar(); };
+    $('#calToday').onclick = () => {
+      const n = new Date();
+      calYear = n.getFullYear(); calMonth = n.getMonth();
+      selectDate(today());
+    };
+  }
+
+  function selectDate(ds) {
+    selected = ds;
+    const date = new Date(ds + 'T00:00:00');
+    calYear = date.getFullYear(); calMonth = date.getMonth();
+    renderCalendar();
+    renderTodoList();
+    renderDetail();
+  }
+
+  /* ---------- 拖拽调宽 ---------- */
+  function applyCalWidth() {
+    const pane = document.querySelector('.cal-pane');
+    if (pane) pane.style.width = state.calWidth + 'px';
+  }
+
+  function initResizer() {
+    const rz = $('#resizer');
+    const calPane = document.querySelector('.cal-pane');
+    let dragging = false;
+    rz.addEventListener('mousedown', e => {
+      dragging = true;
+      rz.classList.add('active');
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+      const left = calPane.getBoundingClientRect().left;
+      const w = Math.max(260, Math.min(420, e.clientX - left));
+      state.calWidth = Math.round(w);
+      applyCalWidth();
+    });
+    window.addEventListener('mouseup', () => {
+      if (!dragging) return;
+      dragging = false;
+      rz.classList.remove('active');
+      document.body.style.userSelect = '';
+      saveUi();
+    });
+  }
+
+  /* ---------- 日志解析 ---------- */
+  // 条目边界与 src/shared/journalFormat.ts 的 ENTRY_HEAD_RE 一致。
+  // 其它 ## 行不算条目头（不切断条目；# 开头的行也不作为条目正文展示）。
+  // test/journal-panel-parse.mjs 对两边做漂移守卫。
+  function parseEntries(md) {
+    if (!md) return [];
+    const HEAD = /^##\s*\[(.+?)\]\s*(进行中|已完成|阻塞|搁置)\s*$/;
+    const out = [];
+    let cur = null;
+    for (const raw of md.split('\n')) {
+      const l = raw.trim();
+      const m = HEAD.exec(l);
+      if (m) {
+        if (cur) out.push(cur);
+        cur = { title: m[1], status: m[2], lines: [] };
+        continue;
+      }
+      if (!cur) continue;
+      if (!l || /^#/.test(l) || /^<!--/.test(l)) continue;
+      cur.lines.push(l);
+    }
+    if (cur) out.push(cur);
+    return out;
+  }
+
+  function entriesToHtml(entries, cls, label) {
+    let html = `<div class="section-title">${label}</div>`;
+    entries.forEach(e => {
+      html += `<div class="entry ${cls}"><div class="t">${esc(e.title)}<span class="st">${esc(tr(e.status))}</span></div>`;
+      e.lines.forEach(l => {
+        if (!l) return;
+        const m = /^[-•*]\s*(问题|要点|进展|结论|备注|状态)\s*[:：]\s*(.*)$/.exec(l);
+        if (m) html += `<div class="ln"><span class="k">${esc(tr(m[1]))}${document.documentElement.lang === 'en' ? ': ' : '：'}</span>${esc(m[2])}</div>`;
+        else html += `<div class="ln">${esc(l)}</div>`;
+      });
+      html += '</div>';
+    });
+    return html;
+  }
+
+  /* ---------- 详情 ---------- */
+  async function renderDetail() {
+    const el = $('#detail');
+    const ds = selected;
+    const generation = ++detailGeneration;
+    let raw = '';
+    try {
+      const r = await ma.journal.read(ds);
+      raw = r.content;
+    } catch (e) {
+      if (selected === ds && generation === detailGeneration) el.innerHTML = `<div class="ma-empty">${tr('工作日志读取失败：')}${esc(errorText(e))}</div>`;
+      return;
+    }
+    // 异步竞态保护：两次 await 期间用户可能已切换日期，旧请求结果不再写入 DOM
+    if (selected !== ds || generation !== detailGeneration) return;
+    const entries = parseEntries(raw);
+
+    const todoVisible = todosVisibleOn(ds);
+    const date = new Date(ds + 'T00:00:00');
+    const monthLabel = new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en' : 'zh-CN', { year: 'numeric', month: 'long' }).format(date);
+    const stats = [
+      ['entries', entries.length, tr('日志条目')],
+      ['done', entries.filter(e => e.status === '已完成').length, tr('已完成')],
+      ['doing', entries.filter(e => e.status === '进行中').length, tr('进行中')],
+      ['open-todos', todoVisible.filter(x => x.st !== 'done').length, tr('待推进')]
+    ];
+    let html = `<div class="detail-content"><header class="d-head">
+      <span class="day-stamp" aria-hidden="true">${pad(date.getDate())}</span>
+      <div><div class="d-month">${monthLabel}</div><h1 class="d-date">${ds}</h1>
+      <div class="d-week">${weekName(ds)}${isToday(ds) ? `<span class="today-tag">${tr('今天')}</span>` : ''}</div></div>
+      </header><section class="day-summary" aria-label="${tr('当日概览')}">${stats.map(([key, value, label]) => `<div class="day-stat" data-stat="${key}"><span class="stat-value">${value}</span><span class="stat-label">${label}</span></div>`).join('')}</section>
+      <section class="content-section journal-section"><h2 class="section-heading"><span class="section-index">01</span>${tr('日志条目')}<span class="badge">${entries.length}</span></h2>`;
+
+    if (!entries.length) {
+      html += raw
+        ? `<div class="ma-empty">${tr('这一天没有可识别的日志条目')}<br><span style="font-size:12px;color:var(--fg-muted)">${tr('日志格式需 ## [主题] 加状态')}</span></div>`
+        : `<div class="ma-empty">${tr('这一天没有日志记录')}<br><span style="font-size:12px;color:var(--fg-muted)">${tr('集序宿主会话通过 memory 技能记录工作日志')}</span></div>`;
+    } else {
+      const done = entries.filter(e => e.status === '已完成');
+      const wip = entries.filter(e => e.status === '进行中');
+      const blocked = entries.filter(e => e.status === '阻塞');
+      const paused = entries.filter(e => e.status === '搁置');
+      if (wip.length) html += entriesToHtml(wip, 'wip', tr('进行中'));
+      if (blocked.length) html += entriesToHtml(blocked, 'wip', tr('阻塞'));
+      if (paused.length) html += entriesToHtml(paused, 'wip', tr('搁置'));
+      if (done.length) html += entriesToHtml(done, 'done', tr('已完成'));
+    }
+    html += '</section>';
+
+    // 待办区：按选中日期计算时间线状态，分组展示
+    if (todoVisible.length) {
+      html += `<section class="content-section day-todos"><h2 class="section-heading"><span class="section-index">02</span>${tr('当日待办')}<span class="badge">${todoVisible.length}</span></h2>`;
+      const doingT = todoVisible.filter(x => x.st === 'doing');
+      const todoT = todoVisible.filter(x => x.st === 'todo');
+      const doneT = todoVisible.filter(x => x.st === 'done');
+      if (doingT.length) html += todoBlockHtml(doingT, 'wip', tr('进行中'));
+      if (todoT.length) html += todoBlockHtml(todoT, 'todo', tr('未开始'));
+      if (doneT.length) html += todoBlockHtml(doneT, 'done', tr('已完成'));
+      html += '</section>';
+    }
+
+    // 日报区
+    html += `<section class="content-section report-section"><h2 class="section-heading"><span class="section-index">${todoVisible.length ? '03' : '02'}</span>${tr('日报')}</h2>`;
+    const report = await loadReport(ds);
+    if (selected !== ds || generation !== detailGeneration) return; // 也防止语言切换后旧渲染覆盖新结果
+
+    if (generating) {
+      html += `<div class="genbar"><span class="spin"></span><span class="hint">${tr('正在生成日报…')}</span></div>`;
+    } else if (report) {
+      html += `<div class="report">${renderMd(report)}</div>`;
+      html += `<div class="genbar"><button class="btn ghost" id="regenBtn"><svg class="icon"><use href="#i-refresh"/></svg>${tr('重新生成')}</button></div>`;
+    } else if (isToday(ds)) {
+      html += `<div class="report-empty"><p class="report-empty-title">${tr('把一天的进展，整理成篇。')}</p><div class="hint">${tr('根据所选日期的工作日志生成，随时可以重新整理。')}</div><div class="genbar">
+        <button class="btn primary" id="genBtn"><svg class="icon"><use href="#i-spark"/></svg>${tr('生成今日日报')}</button>
+      </div></div>`;
+    } else if (ds < today() && entries.length) {
+      html += `<div class="report-empty"><p class="report-empty-title">${tr('把一天的进展，整理成篇。')}</p><div class="hint">${tr('根据所选日期的工作日志生成，随时可以重新整理。')}</div><div class="genbar">
+        <button class="btn primary" id="genBtn"><svg class="icon"><use href="#i-spark"/></svg>${tr('生成这一天日报')}</button>
+      </div></div>`;
+    } else if (ds < today()) {
+      html += `<div class="genbar"><span class="hint">${tr('这一天没有 journal，无可生成内容')}</span></div>`;
+    }
+
+    html += '</section></div>';
+    el.innerHTML = html;
+    const genBtn = $('#genBtn');
+    if (genBtn) genBtn.onclick = manualGenerate;
+    const regenBtn = $('#regenBtn');
+    if (regenBtn) regenBtn.onclick = manualGenerate;
+  }
+
+  /* ---------- 待办 ---------- */
+  // 按选中日期计算该待办在当天的状态；未创建（ds < createDate）或已过完成日（ds > doneDate）→ 不显示
+  function statusOn(t, ds) {
+    if (!t.createDate || ds < t.createDate) return null;
+    if (t.doneDate && ds > t.doneDate) return null;
+    if (t.doneDate && ds >= t.doneDate) return 'done';
+    if (t.doingDate && ds >= t.doingDate) return 'doing';
+    return 'todo';
+  }
+
+  function todosVisibleOn(ds) {
+    return (state.todos || [])
+      .map(t => ({ t, st: statusOn(t, ds) }))
+      .filter(x => x.st)
+      .sort((a, b) => a.t.createDate === b.t.createDate ? a.t.createdAt - b.t.createdAt : a.t.createDate.localeCompare(b.t.createDate));
+  }
+
+  function todoItemHtml(t, st) {
+    const idAttr = esc(t.id).replace(/"/g, '&quot;');
+    const seg = [
+      { s: 'todo', label: tr('未开始') },
+      { s: 'doing', label: tr('进行中') },
+      { s: 'done', label: tr('已完成') }
+    ].map(a =>
+      `<button type="button" data-id="${idAttr}" data-status="${a.s}" aria-pressed="${st === a.s}" class="${st === a.s ? 'on' : ''}">${a.label}</button>`
+    ).join('');
+    const sub = [];
+    if (t.body) sub.push(esc(t.body));
+    const lastD = lastDispatch(t);
+    if (lastD) {
+      const label = `${tr('已派给')} ${esc(lastD.runtimeLabel || lastD.runtimeId || '')}`;
+      sub.push(
+        lastD.sessionId
+          ? `<button type="button" class="t-jump" data-id="${idAttr}" title="${tr('跳转到该 Worker 会话')}">${label}</button>`
+          : label
+      );
+    }
+    sub.push(todoTimelineHtml(t));
+    return `<div class="todo-item ${st}" data-id="${idAttr}">
+      <div class="t-row1">
+        <div class="t-title">${esc(t.text)}</div>
+        <div class="seg3">${seg}</div>
+        <button class="t-dispatch" data-id="${idAttr}" title="${tr('一键派活给 Worker（会先对齐需求再执行）')}"><svg class="icon"><use href="#i-send"/></svg>${tr('派活')}</button>
+      </div>
+      <div class="t-sub">${sub.join(' · ')}</div>
+    </div>`;
+  }
+
+  function todoTimelineHtml(todo) {
+    const parts = [`${tr('创建')} ${esc(shortDate(todo.createDate))}`];
+    if (todo.doingDate) parts.push(`${tr('开始')} ${esc(shortDate(todo.doingDate))}`);
+    if (todo.doneDate) parts.push(`${tr('完成')} ${esc(shortDate(todo.doneDate))}`);
+    return parts.join(' · ');
+  }
+
+  function renderTodoList() {
+    const ds = selected;
+    const visible = todosVisibleOn(ds);
+    const groups = [
+      { key: 'todo', label: tr('未开始') },
+      { key: 'doing', label: tr('进行中') },
+      { key: 'done', label: tr('已完成') }
+    ];
+    const collapsed = state.todoCollapsed || {};
+
+    const box = $('#todoList');
+    let html = '';
+    groups.forEach(g => {
+      const items = visible.filter(x => x.st === g.key);
+      const def = g.key === 'done'; // 已完成默认折叠，其余默认展开
+      const col = collapsed[g.key] === undefined ? def : collapsed[g.key];
+      html += `<div class="todo-group">
+        <button type="button" class="todo-group-h${col ? ' is-collapsed' : ''}" data-g="${g.key}" aria-expanded="${!col}">${g.label}<svg class="icon g-caret"><use href="#i-chev"/></svg><span class="g-n">${items.length}</span></button>
+        <div class="todo-list" data-list="${g.key}"${col ? ' hidden' : ''}>${
+          items.length ? items.map(x => todoItemHtml(x.t, g.key)).join('') : `<div class="todo-empty">${tr('暂无')}</div>`
+        }</div>
+      </div>`;
+    });
+    box.innerHTML = html;
+
+    box.querySelectorAll('.todo-group-h').forEach(h => {
+      h.onclick = () => {
+        const k = h.dataset.g;
+        const def = k === 'done';
+        const cur = collapsed[k] === undefined ? def : collapsed[k];
+        collapsed[k] = !cur;
+        state.todoCollapsed = collapsed;
+        saveUi();
+        renderTodoList();
+        box.querySelector(`[data-g="${k}"]`).focus();
+      };
+    });
+    box.querySelectorAll('.seg3 button').forEach(btn => {
+      btn.onclick = () => setTodoStatus(btn.dataset.id, btn.dataset.status);
+    });
+    box.querySelectorAll('.t-dispatch').forEach(btn => {
+      btn.onclick = e => { e.stopPropagation(); dispatchTodo(btn.dataset.id); };
+    });
+    box.querySelectorAll('.t-jump').forEach(btn => {
+      btn.onclick = e => { e.stopPropagation(); jumpTodo(btn.dataset.id); };
+    });
+    box.querySelectorAll('.todo-item').forEach(item => {
+      item.oncontextmenu = e => openCtxMenu(e, item.dataset.id);
+    });
+  }
+
+  function todoBlockHtml(list, cls, label) {
+    let html = `<div class="section-title">${label}</div>`;
+    list.forEach(x => {
+      html += `<div class="entry ${cls}"><div class="t">${esc(x.t.text)}<span class="st">${esc(tr(TODO_STATUS[x.st] || ''))}</span></div>`;
+      html += `<div class="ln"><span class="k">${tr('时间线：')}</span>${todoTimelineHtml(x.t)}</div></div>`;
+    });
+    return html;
+  }
+
+  async function saveTodosAndRender() {
+    await saveTodos();
+    renderTodoList();
+    renderDetail();
+    renderCalendar();
+  }
+
+  async function addTodo() {
+    const text = $('#todoText').value.trim();
+    if (!text) return;
+    const body = $('#todoBody').value.trim();
+    if (editingId) {
+      await executeDomainCommand('todo.update', { id: editingId, text, body });
+      editingId = null;
+    } else {
+      await executeDomainCommand('todo.create', { text, body, date: selected });
+    }
+    $('#todoText').value = '';
+    $('#todoBody').value = '';
+    updateAddMode();
+  }
+
+  function updateAddMode() {
+    const addBtn = $('#todoAdd');
+    const cancel = $('#todoCancel');
+    const card = $('#todoInput');
+    const label = addBtn.querySelector('span');
+    const icon = addBtn.querySelector('use');
+    if (editingId) {
+      label.textContent = tr('保存');
+      label.dataset.i18n = '保存';
+      icon.setAttribute('href', '#i-check');
+      addBtn.title = tr('保存修改');
+      cancel.hidden = false;
+      card.classList.add('editing');
+    } else {
+      label.textContent = tr('添加');
+      label.dataset.i18n = '添加';
+      icon.setAttribute('href', '#i-plus');
+      addBtn.title = tr('添加待办');
+      cancel.hidden = true;
+      card.classList.remove('editing');
+    }
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    $('#todoText').value = '';
+    $('#todoBody').value = '';
+    updateAddMode();
+    $('#todoText').focus();
+  }
+
+  /* ---------- 派活选择弹层（自绘，不依赖宿主 modal） ---------- */
+  let dspResolve = null;
+  let dspUpdate = null;
+  function showDispatchModal(title, msg, items) {
+    return new Promise(resolve => {
+      dspResolve = resolve;
+      dspUpdate = () => { $('#dspTitle').textContent = title(); $('#dspMsg').textContent = msg(); };
+      dspUpdate();
+      const list = $('#dspList');
+      list.innerHTML = items.map((it, i) =>
+        `<div class="dsp-item" data-i="${i}"><span class="dsp-dot"></span>${esc(it.label)}</div>`
+      ).join('');
+      list.querySelectorAll('.dsp-item').forEach(el => {
+        el.onclick = () => { hideDispatchModal(); const r = dspResolve; dspResolve = null; if (r) r(items[+el.dataset.i]); };
+      });
+      $('#dspModal').hidden = false;
+    });
+  }
+  function hideDispatchModal() { $('#dspModal').hidden = true; dspUpdate = null; }
+  $('#dspCancel').onclick = () => { hideDispatchModal(); const r = dspResolve; dspResolve = null; if (r) r(null); };
+
+  /* 一键派活：拉取可用 CLI → 自绘选择 → 创建 Worker 会话并注入简报（先对齐需求再执行） */
+  async function dispatchTodo(id) {
+    const t = (state.todos || []).find(x => x.id === id);
+    if (!t) return;
+    const _dbg = async msg => { try { await ma.storage.set('_dbg', { at: Date.now(), msg }); } catch {} };
+    let runtimes = null, listErr = '';
+    try {
+      runtimes = await ma.commands.execute('dispatch', { mode: 'list' });
+      await _dbg('list r=' + JSON.stringify(runtimes).slice(0, 600));
+      if (!Array.isArray(runtimes)) runtimes = null;
+    } catch (e) {
+      listErr = errorText(e);
+    }
+      await _dbg('runtimes=' + (runtimes ? runtimes.length + ':' + runtimes.map(x=>x.label).join('/') : 'null'));
+    if (!runtimes || !runtimes.length) {
+      await ma.notify(tr('派活失败：获取可用 CLI 列表出错') + (listErr ? (document.documentElement.lang === 'en' ? ' (' + listErr + ')' : '（' + listErr + '）') : ''));
+      return;
+    }
+    const rt = await showDispatchModal(
+      () => tr('派活：') + t.text.slice(0, 26),
+      () => tr('派给哪种 CLI？Worker 收到后会先对齐需求、向你提问澄清细节，确认后再执行。'),
+      runtimes
+    );
+    if (!rt) return; // 用户取消
+    const task = [
+      '你收到一个【待办任务】（描述可能很简略）：',
+      `任务名称：${t.text}`,
+      t.body ? `任务内容：${t.body}` : '任务内容：（未填写）',
+      '',
+      '这是派活给你的待办。请【先对齐需求】再动手：先复述你对该任务的理解；若信息不足、有歧义或缺少细节，直接在终端里逐条向用户提问澄清（目标、范围、产出、截止时间等），等用户确认后再开始执行。执行中按宿主协议上报状态与结论。'
+    ].join('\n');
+    try {
+      const r = await ma.commands.execute('dispatch', { mode: 'dispatch', runtimeId: rt.id, name: t.text, task });
+      if (!r || !r.ok) throw new Error((r && r.error) || tr('派活动作失败'));
+      const sessionId = r.sessionId || null;
+      await executeDomainCommand('todo.recordDispatch', { id: t.id, runtimeId: rt.id, runtimeLabel: rt.label, sessionId });
+      await ma.notify(document.documentElement.lang === 'en' ? `Delegated to ${rt.label}: ${t.text}` : `已派活给 ${rt.label}：${t.text}`);
+    } catch (e) {
+      await ma.notify(tr('派活失败：') + errorText(e));
+    }
+  }
+
+  async function jumpTodo(id) {
+    const t = (state.todos || []).find(x => x.id === id);
+    const sid = lastDispatch(t)?.sessionId;
+    if (!sid) {
+      await ma.notify(tr('这条待办还没有可跳转的会话'));
+      return;
+    }
+    try {
+      const r = await ma.commands.execute('dispatch', { mode: 'focus', sessionId: sid });
+      if (!r || !r.ok) throw new Error((r && r.error) || tr('跳转失败'));
+    } catch (e) {
+      await ma.notify(tr('跳转失败：') + errorText(e));
+    }
+  }
+
+  async function setTodoStatus(id, status) {
+    await executeDomainCommand('todo.setStatus', { id, status, date: selected });
+  }
+
+  async function delTodo(id) {
+    await executeDomainCommand('todo.delete', { id });
+  }
+
+  /* ---------- 日报生成 ---------- */
+  async function generateReport(ds) {
+    const r = await ma.journal.read(ds);
+    const sys = [
+      '你是工作日志整理助手。根据用户提供的某一天的工作日志条目，生成一份中文日报。',
+      '要求：',
+      '1. 首行标题：# YYYY-MM-DD 日报',
+      '2. 紧跟「今日概览」：2-3 句话总结当天整体工作',
+      '3. 按【已完成】【进行中】【阻塞】【搁置】分组，每组用 - 列出条目（主题 + 关键要点）',
+      '4. 只依据原文内容，不编造、不补充原日志没有的信息',
+      '5. 语言简洁要点化，纯 Markdown 输出，不要额外解释'
+    ].join('\n');
+    const res = await ma.llm.chat([
+      { role: 'system', content: sys },
+      { role: 'user', content: `日期：${ds}\n\n当日日志：\n${r.content}` }
+    ]);
+    const text = (res.text || '').trim();
+    if (!text) throw new Error(tr('LLM 返回空日报'));
+    try {
+      await saveReportFile(ds, text);
+    } catch (e) {
+      await ma.notify(tr('保存日报失败：') + errorText(e));
+      throw e;
+    }
+    return text;
+  }
+
+  /* 仅由所选日期的生成/重新生成按钮触发。 */
+  async function manualGenerate() {
+    if (generating) return;
+    const ds = selected;
+    generating = true;
+    await renderDetail();
+    try {
+      await generateReport(ds);
+      await ma.notify(tr('日报已生成'));
+    } catch (e) {
+      alert(tr('生成失败：') + errorText(e));
+    }
+    generating = false;
+    await renderDetail();
+  }
+
+  /* ---------- 日报 markdown 轻渲染 ---------- */
+  function renderMd(text) {
+    return text.split('\n').map(line => {
+      const t = line.trim();
+      if (!t) return '';
+      if (/^###\s/.test(t)) return `<div class="md-h3">${esc(t.slice(4))}</div>`;
+      if (/^##\s/.test(t)) return `<div class="md-h2">${esc(t.slice(3))}</div>`;
+      if (/^#\s/.test(t)) return `<div class="md-h1">${esc(t.slice(2))}</div>`;
+      if (/^[-*]\s/.test(t)) return `<div class="md-li">${esc(t.replace(/^[-*]\s/, ''))}</div>`;
+      if (/^\d+[.、)]\s/.test(t)) return `<div class="md-li">${esc(t)}</div>`;
+      return `<div class="md-p">${esc(line)}</div>`;
+    }).join('').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  }
+
+  function applyTranslations() {
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = tr(el.dataset.i18nPlaceholder); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', tr(el.dataset.i18nAria)));
+    document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = tr(el.dataset.i18nTitle); });
+    updateAddMode();
+    if (dspUpdate) dspUpdate();
+    if (selected) { renderCalendar(); renderTodoList(); void renderDetail(); }
+  }
+  new window.MutationObserver(applyTranslations).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+  main();
+})();
+</script>
+</body>
+</html>

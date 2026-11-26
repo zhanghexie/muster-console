@@ -1,0 +1,756 @@
+<!doctype html>
+<!--
+  设置界面重设计原型（2026-09-28）。对应计划：docs/plans/implemented/settings-redesign-plan.md（已实施；现状见 docs/features/settings.md）。
+  三视图：改后（可交互）/ 现状（文字占位；历史自测截图仅本机参考，源库不保存）/ 设计说明。
+  样式取自 src/renderer/src/styles/base.css :root 与 src/shared/theme.ts 内置深浅主题。
+  页面内所有服务商、地址、会话、数值均为虚构样例。
+-->
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<title>设置界面重设计原型 · MetaAgent</title>
+<style>
+:root {
+  --font-micro: 10px; --font-caption: 12px; --font-ui: 13px; --font-control: 14px; --font-body: 15px; --font-title: 17px; --font-head: 20px;
+  --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+  --radius-small: 6px; --radius-control: 8px; --radius-card: 12px; --radius-modal: 16px; --radius-pill: 999px;
+  --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); --ease-exit: cubic-bezier(0.4, 0, 0.2, 1); --ease-hover: ease-out;
+  --dur-micro: 120ms; --dur-menu: 160ms; --dur-panel: 280ms; --dur-exit: 200ms;
+  --ws-accent: #8b7bff; --on-accent: #0f0f10;
+}
+html[data-theme='dark'] {
+  --bg-frame: #111112; --bg-canvas: #141416; --bg-panel: #1b1b1d; --bg-raised: #232326; --bg-overlay: #262629; --bg-input: #161618;
+  --ink: #ededee; --ink-soft: #d9d9dc; --text-2: #a3a3a8; --text-3: #74747a; --hairline: #2a2a2d;
+  --green: #45d0a0; --yellow: #e8c65a; --red: #f3687b; --blue: #6cc2ff;
+  --hover-fill: rgba(255,255,255,0.05); --hover-fill-strong: rgba(255,255,255,0.09); --selected-fill: rgba(255,255,255,0.08);
+  --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.35), 0 16px 40px rgba(0,0,0,0.28);
+  --shadow-pop: 0 0 0 1px rgba(255,255,255,0.08), 0 20px 56px rgba(0,0,0,0.6);
+  --scrim: rgba(0,0,0,0.45);
+}
+html[data-theme='light'] {
+  --bg-frame: #ebeae6; --bg-canvas: #f7f7f5; --bg-panel: #ffffff; --bg-raised: #f7f7f5; --bg-overlay: #ffffff; --bg-input: #f3f3f1;
+  --ink: #2f2e2b; --ink-soft: #45443f; --text-2: #6f6d68; --text-3: #94928b; --hairline: #e3e2dd;
+  --green: #2e9d76; --yellow: #a87c0c; --red: #d9485f; --blue: #2f80d1;
+  --hover-fill: rgba(20,18,10,0.045); --hover-fill-strong: rgba(20,18,10,0.08); --selected-fill: rgba(20,18,10,0.06);
+  --shadow-card: 0 0 0 1px rgba(20,18,10,0.06), 0 1px 2px rgba(20,18,10,0.04), 0 8px 24px rgba(20,18,10,0.06);
+  --shadow-pop: 0 0 0 1px rgba(20,18,10,0.08), 0 16px 48px rgba(20,18,10,0.14);
+  --scrim: rgba(20,18,10,0.18);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: var(--font-sans); font-size: var(--font-ui); color: var(--ink); background: var(--bg-frame); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; cursor: pointer; border: none; background: none; }
+input, select, textarea { font: inherit; color: inherit; }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+
+/* ---------- 原型外壳：视图切换条（不属于设计本身） ---------- */
+.proto-bar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; gap: 4px; padding: 4px; border-radius: var(--radius-pill); background: var(--bg-overlay); box-shadow: var(--shadow-pop); }
+.proto-bar button { height: 28px; padding: 0 14px; border-radius: var(--radius-pill); color: var(--text-2); font-size: var(--font-ui); }
+.proto-bar button:hover { color: var(--ink); background: var(--hover-fill); }
+.proto-bar button.on { background: var(--ink); color: var(--bg-canvas); }
+.proto-bar .sep { width: 1px; background: var(--hairline); margin: 4px 2px; }
+.view { display: none; height: 100%; }
+.view.on { display: flex; }
+
+/* ---------- 改后：框（窗口底）+ 左导航画在框上 + 内容是一张页 ---------- */
+.s-app { flex: 1; display: flex; min-width: 0; padding-top: 52px;
+  background: radial-gradient(900px 600px at 0% 0%, color-mix(in oklab, var(--ws-accent) 14%, transparent), transparent 70%), var(--bg-frame); }
+.s-nav { width: 248px; flex: none; display: flex; flex-direction: column; padding: 4px 12px 16px 16px; }
+.s-back { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; margin: 0 0 12px -8px; border-radius: var(--radius-control); color: var(--text-2); width: fit-content; }
+.s-back:hover { background: var(--hover-fill); color: var(--ink); }
+.s-search { position: relative; margin-bottom: 14px; }
+.s-search input { width: 100%; height: 34px; padding: 0 10px 0 32px; border-radius: var(--radius-control); border: 1px solid transparent; background: var(--hover-fill); outline: none; font-size: var(--font-ui); }
+.s-search input:focus { border-color: color-mix(in oklab, var(--ws-accent) 55%, var(--hairline)); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ws-accent) 16%, transparent); background: var(--bg-input); }
+.s-search svg { position: absolute; left: 10px; top: 9px; color: var(--text-3); }
+.s-search kbd { position: absolute; right: 8px; top: 8px; }
+kbd { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 5px; font-family: var(--font-sans); font-size: var(--font-micro); color: var(--text-2); background: var(--hover-fill); box-shadow: inset 0 -1px 0 var(--hairline); }
+.s-results { position: absolute; top: 40px; left: 0; right: -60px; z-index: 20; padding: 4px; border-radius: var(--radius-card); background: var(--bg-overlay); box-shadow: var(--shadow-pop); opacity: 0; transform: translateY(-4px) scale(0.98); pointer-events: none; transition: opacity var(--dur-menu) var(--ease-standard), transform var(--dur-menu) var(--ease-standard); }
+.s-results.on { opacity: 1; transform: none; pointer-events: auto; }
+.s-hit { display: flex; flex-direction: column; gap: 1px; width: 100%; padding: 7px 10px; border-radius: var(--radius-control); text-align: left; }
+.s-hit:hover, .s-hit.active { background: var(--hover-fill-strong); }
+.s-hit b { font-weight: 500; font-size: var(--font-ui); }
+.s-hit span { font-size: var(--font-caption); color: var(--text-3); }
+.s-hit mark { background: color-mix(in oklab, var(--ws-accent) 30%, transparent); color: inherit; border-radius: 3px; }
+.s-noh { padding: 10px; color: var(--text-3); font-size: var(--font-caption); }
+.s-group { margin-bottom: 14px; }
+.s-group-h { font-size: var(--font-caption); color: var(--text-3); padding: 0 8px 4px; }
+.s-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 8px; border-radius: var(--radius-control); color: var(--text-2); text-align: left; transition: background-color var(--dur-micro) var(--ease-hover), color var(--dur-micro) var(--ease-hover); }
+.s-item:hover { background: var(--hover-fill); color: var(--ink); }
+.s-item.on { background: color-mix(in srgb, var(--bg-panel) 72%, transparent); color: var(--ink); box-shadow: 0 0 0 1px var(--hover-fill), 0 1px 2px rgba(0,0,0,0.16); }
+.s-item svg { flex: none; color: var(--text-3); }
+.s-item.on svg { color: var(--ws-accent); }
+.s-item .dot { margin-left: auto; width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+.s-nav-foot { margin-top: auto; padding: 0 8px; font-size: var(--font-caption); color: var(--text-3); display: flex; justify-content: space-between; }
+
+.s-sheet { flex: 1; min-width: 0; margin: 0 8px 8px 0; border-radius: var(--radius-card); background: var(--bg-panel); box-shadow: var(--shadow-card); overflow: hidden; position: relative; display: flex; }
+.s-scroll { flex: 1; overflow: auto; scroll-behavior: smooth; }
+.s-col { max-width: 760px; margin: 0 auto; padding: 40px 32px 120px; }
+.s-page { display: none; }
+.s-page.on { display: block; animation: pageIn var(--dur-panel) var(--ease-standard); }
+@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } } /* 一次性内容入场（动画规约允许） */
+.s-page-h { margin-bottom: 28px; }
+.s-page-h h1 { margin: 0 0 6px; font-size: var(--font-head); font-weight: 500; letter-spacing: -0.01em; }
+.s-page-h p { margin: 0; color: var(--text-2); font-size: var(--font-control); line-height: 1.6; }
+
+.s-sec { margin-bottom: 28px; }
+.s-sec-h { display: flex; align-items: baseline; justify-content: space-between; margin: 0 4px 8px; }
+.s-sec-h h2 { margin: 0; font-size: var(--font-ui); font-weight: 500; color: var(--text-2); }
+.s-sec-h .aside { font-size: var(--font-caption); color: var(--text-3); }
+.s-card { border-radius: var(--radius-card); background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--hairline); }
+.s-row { display: flex; align-items: center; gap: 24px; min-height: 56px; padding: 12px 16px; position: relative; }
+.s-row + .s-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--hairline); }
+.s-row .l { flex: 1; min-width: 0; }
+.s-row .t { font-size: var(--font-control); color: var(--ink); display: flex; align-items: center; gap: 8px; }
+.s-row .d { margin-top: 3px; font-size: var(--font-caption); color: var(--text-3); line-height: 1.55; }
+.s-row .r { flex: none; display: flex; align-items: center; gap: 8px; }
+.s-row.stack { flex-direction: column; align-items: stretch; gap: 10px; }
+.s-row.flash { animation: flash 1.6s var(--ease-exit); }
+@keyframes flash { 0%, 40% { background: color-mix(in oklab, var(--ws-accent) 16%, transparent); } }
+
+.tag { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: var(--radius-pill); font-size: var(--font-caption); color: var(--text-2); background: var(--hover-fill); }
+.tag.ok { color: var(--green); background: color-mix(in srgb, var(--green) 12%, transparent); }
+.tag.warn { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 14%, transparent); }
+.tag.ok::before, .tag.warn::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* 控件 */
+.sw { position: relative; width: 36px; height: 20px; border-radius: var(--radius-pill); background: var(--hover-fill-strong); transition: background-color var(--dur-micro) var(--ease-hover); flex: none; }
+.sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); opacity: 0.55; transition: transform var(--dur-menu) var(--ease-standard), opacity var(--dur-micro); }
+.sw[aria-checked='true'] { background: var(--ws-accent); }
+.sw[aria-checked='true']::after { transform: translateX(16px); background: var(--on-accent); opacity: 1; }
+html[data-theme='light'] .sw[aria-checked='true']::after { background: #fff; }
+.sw[aria-disabled='true'] { opacity: 0.45; cursor: default; }
+.seg { display: inline-flex; padding: 2px; border-radius: var(--radius-control); background: var(--hover-fill); }
+.seg button { height: 28px; padding: 0 12px; border-radius: var(--radius-small); color: var(--text-2); font-size: var(--font-ui); }
+.seg button:hover { color: var(--ink); }
+.seg button.on { background: var(--bg-panel); color: var(--ink); box-shadow: 0 0 0 1px var(--hover-fill), 0 1px 2px rgba(0,0,0,0.2); }
+.sel { position: relative; }
+.sel select { appearance: none; height: 32px; min-width: 180px; padding: 0 30px 0 10px; border-radius: var(--radius-control); border: 1px solid transparent; background: var(--hover-fill); color: var(--ink); font-size: var(--font-ui); outline: none; cursor: pointer; }
+.sel select:hover { background: var(--hover-fill-strong); }
+.sel::after { content: ''; position: absolute; right: 12px; top: 13px; width: 6px; height: 6px; border-right: 1.5px solid var(--text-3); border-bottom: 1.5px solid var(--text-3); transform: rotate(45deg); pointer-events: none; }
+select option { background: var(--bg-overlay); }
+.inp { height: 32px; padding: 0 10px; border-radius: var(--radius-control); border: 1px solid var(--hairline); background: var(--bg-input); outline: none; font-size: var(--font-ui); min-width: 0; }
+.inp:focus { border-color: color-mix(in oklab, var(--ws-accent) 55%, var(--hairline)); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ws-accent) 16%, transparent); }
+.inp.w { width: 100%; }
+.inp-wrap { position: relative; display: flex; }
+.inp-wrap .inp { flex: 1; padding-right: 60px; }
+.inp-wrap button { position: absolute; right: 4px; top: 4px; height: 24px; padding: 0 8px; border-radius: var(--radius-small); color: var(--text-2); font-size: var(--font-caption); }
+.inp-wrap button:hover { background: var(--hover-fill); color: var(--ink); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 14px; border-radius: var(--radius-control); background: var(--hover-fill); font-size: var(--font-ui); font-weight: 500; white-space: nowrap; transition: background-color var(--dur-micro) var(--ease-hover), transform var(--dur-micro) var(--ease-hover); }
+.btn:hover { background: var(--hover-fill-strong); }
+.btn:active { transform: scale(0.98); }
+.btn.primary { background: var(--ink); color: var(--bg-canvas); }
+.btn.primary:hover { background: var(--ink-soft); }
+.btn.ghost { background: transparent; color: var(--text-2); }
+.btn.ghost:hover { background: var(--hover-fill); color: var(--ink); }
+.btn.danger { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.btn.danger:hover { background: color-mix(in srgb, var(--red) 16%, transparent); }
+.btn.sm { height: 26px; padding: 0 10px; font-size: var(--font-caption); }
+.btn.accent { background: var(--ws-accent); color: var(--on-accent); }
+
+/* 折叠「高级」 */
+.adv { margin-top: 8px; }
+.adv > summary { list-style: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; margin-left: 8px; border-radius: var(--radius-control); color: var(--text-3); font-size: var(--font-caption); cursor: pointer; }
+.adv > summary::-webkit-details-marker { display: none; }
+.adv > summary:hover { background: var(--hover-fill); color: var(--ink); }
+.adv > summary svg { transition: transform var(--dur-micro) var(--ease-hover); }
+.adv[open] > summary svg { transform: rotate(90deg); }
+.adv > .s-card { margin-top: 8px; }
+
+/* 主题卡 */
+.themes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.theme-card { display: flex; flex-direction: column; gap: 8px; padding: 8px; border-radius: var(--radius-card); background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--hairline); text-align: left; transition: box-shadow var(--dur-micro) var(--ease-hover); }
+.theme-card:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+.theme-card.on { box-shadow: inset 0 0 0 2px var(--ws-accent); }
+.theme-card .thumb { height: 76px; border-radius: 8px; display: flex; gap: 5px; padding: 8px; }
+.theme-card .thumb i { display: block; border-radius: 5px; }
+.theme-card .name { display: flex; align-items: center; justify-content: space-between; padding: 0 4px 2px; font-size: var(--font-ui); }
+.theme-card .name small { color: var(--text-3); font-size: var(--font-caption); }
+.avatars { display: flex; flex-wrap: wrap; gap: 6px; }
+.av { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: var(--hover-fill); transition: transform var(--dur-micro) var(--ease-hover); }
+.av:hover { transform: scale(1.08); }
+.av.on { box-shadow: 0 0 0 2px var(--ws-accent); background: color-mix(in oklab, var(--ws-accent) 16%, transparent); }
+.av.up { font-size: 14px; color: var(--text-2); }
+.preview-font { padding: 14px 16px; border-radius: var(--radius-control); background: var(--bg-input); font-size: var(--font-body); color: var(--ink-soft); }
+
+/* 服务商 */
+.prov { display: grid; grid-template-columns: 220px 1fr; gap: 16px; }
+.prov-list { display: flex; flex-direction: column; gap: 2px; }
+.prov-item { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 10px; border-radius: var(--radius-control); text-align: left; }
+.prov-item:hover { background: var(--hover-fill); }
+.prov-item.on { background: var(--selected-fill); }
+.prov-logo { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; font-size: var(--font-caption); font-weight: 500; background: var(--hover-fill-strong); color: var(--ink); flex: none; }
+.prov-item .n { flex: 1; min-width: 0; }
+.prov-item .n b { display: block; font-weight: 500; font-size: var(--font-ui); }
+.prov-item .n span { font-size: var(--font-caption); color: var(--text-3); }
+.stat { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: none; }
+.stat.off { background: var(--text-3); }
+.prov-add { margin-top: 6px; justify-content: flex-start; }
+.prov-head { display: flex; align-items: center; gap: 12px; padding: 16px; }
+.prov-head .prov-logo { width: 36px; height: 36px; font-size: var(--font-control); border-radius: 10px; }
+.prov-head h3 { margin: 0; font-size: var(--font-title); font-weight: 500; }
+.prov-head .sub { font-size: var(--font-caption); color: var(--text-3); }
+.prov-head .r { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.model-row { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 16px; position: relative; }
+.model-row + .model-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--hairline); }
+.model-row .mn { flex: 1; font-family: var(--font-mono); font-size: 12.5px; }
+.model-row .ctx { color: var(--text-3); font-size: var(--font-caption); }
+.test-out { font-size: var(--font-caption); color: var(--green); }
+
+/* Runtime 卡 */
+.rt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.rt { position: relative; padding: 14px; border-radius: var(--radius-card); background: var(--bg-raised); box-shadow: inset 0 0 0 1px var(--hairline); text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.rt:hover { box-shadow: inset 0 0 0 1px var(--text-3); }
+.rt.on { box-shadow: inset 0 0 0 2px var(--ws-accent); }
+.rt .top { display: flex; align-items: center; gap: 8px; }
+.rt .ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: var(--font-caption); font-weight: 500; background: var(--hover-fill-strong); }
+.rt b { font-weight: 500; font-size: var(--font-control); }
+.rt .d { font-size: var(--font-caption); color: var(--text-3); line-height: 1.5; }
+.rt .badge { position: absolute; top: 12px; right: 12px; }
+
+/* 远程访问 */
+.hero { display: grid; grid-template-columns: 148px 1fr; gap: 20px; padding: 20px; align-items: center; }
+.qr { width: 148px; height: 148px; border-radius: var(--radius-card); background: #fff; padding: 12px; display: grid; grid-template-columns: repeat(21, 1fr); gap: 0; }
+.qr i { background: #111; }
+.qr i.o { background: transparent; }
+.url-main { display: flex; align-items: center; gap: 8px; margin: 10px 0 8px; padding: 6px 6px 6px 12px; border-radius: var(--radius-control); background: var(--bg-input); box-shadow: inset 0 0 0 1px var(--hairline); }
+.url-main .mono { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); }
+.steps { margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--font-caption); line-height: 1.8; }
+.url-row { display: flex; align-items: center; gap: 10px; padding: 8px 16px; position: relative; }
+.url-row + .url-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--hairline); }
+.url-row .mono { flex: 1; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 快捷键 */
+.kb-row { display: flex; align-items: center; height: 44px; padding: 0 16px; position: relative; }
+.kb-row + .kb-row::before { content: ''; position: absolute; top: 0; left: 16px; right: 16px; height: 1px; background: var(--hairline); }
+.kb-row .n { flex: 1; font-size: var(--font-ui); }
+.kb-row .keys { display: flex; gap: 4px; }
+.kb-row .keys kbd { height: 22px; padding: 0 7px; font-size: var(--font-caption); }
+.kb-row .edit { opacity: 0; margin-left: 10px; transition: opacity var(--dur-micro) var(--ease-hover); }
+.kb-row:hover .edit { opacity: 1; }
+
+/* 空态 */
+.empty { padding: 28px 16px; text-align: center; color: var(--text-3); font-size: var(--font-caption); }
+.empty b { display: block; color: var(--ink); font-size: var(--font-control); font-weight: 500; margin-bottom: 4px; }
+.empty .acts { display: flex; justify-content: center; gap: 8px; margin-top: 14px; }
+
+/* 关于 */
+.about { display: flex; align-items: center; gap: 16px; padding: 20px; }
+.logo { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg, var(--ws-accent), color-mix(in oklab, var(--ws-accent) 40%, #2fc4b2)); color: #fff; font-weight: 500; font-size: 22px; box-shadow: 0 8px 24px color-mix(in oklab, var(--ws-accent) 30%, transparent); }
+
+/* 未保存条：只在「需要保存的」设置被改过时浮起 */
+.savebar { position: absolute; left: 50%; bottom: 20px; z-index: 30; display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-radius: var(--radius-pill); background: var(--bg-overlay); box-shadow: var(--shadow-pop); transform: translate(-50%, 16px) scale(0.98); opacity: 0; pointer-events: none; transition: transform var(--dur-panel) var(--ease-standard), opacity var(--dur-panel) var(--ease-standard); }
+.savebar.on { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.savebar .msg { font-size: var(--font-ui); color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+.savebar .msg::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 3px color-mix(in oklab, var(--yellow) 22%, transparent); }
+.toast { position: absolute; left: 50%; bottom: 20px; transform: translate(-50%, 16px); opacity: 0; z-index: 31; padding: 8px 14px; border-radius: var(--radius-pill); background: var(--bg-overlay); box-shadow: var(--shadow-pop); font-size: var(--font-ui); color: var(--green); transition: transform var(--dur-panel) var(--ease-standard), opacity var(--dur-panel) var(--ease-standard); pointer-events: none; }
+.toast.on { transform: translate(-50%, 0); opacity: 1; }
+
+/* ---------- 现状视图 ---------- */
+.cur { flex: 1; padding: 60px 24px 24px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: var(--bg-frame); overflow: auto; }
+.cur-placeholder { width: min(1200px, 100%); min-height: 320px; display: grid; place-items: center; padding: 36px; text-align: center; border-radius: var(--radius-modal); background: var(--bg-panel); color: var(--text-2); font-size: var(--font-control); line-height: 1.7; }
+.cur .cap { color: var(--text-3); font-size: var(--font-caption); }
+
+/* ---------- 设计说明 ---------- */
+.notes { flex: 1; overflow: auto; padding: 64px 24px 48px; background: var(--bg-frame); }
+.notes-col { max-width: 900px; margin: 0 auto; }
+.notes h1 { font-size: var(--font-head); font-weight: 500; margin: 0 0 6px; }
+.notes > .notes-col > p { color: var(--text-2); margin: 0 0 24px; font-size: var(--font-control); line-height: 1.7; }
+.notes table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-panel); box-shadow: var(--shadow-card); margin-bottom: 24px; }
+.notes th, .notes td { text-align: left; padding: 11px 14px; vertical-align: top; line-height: 1.6; font-size: var(--font-ui); }
+.notes th { color: var(--text-3); font-weight: 500; font-size: var(--font-caption); background: var(--bg-raised); }
+.notes td + td, .notes th + th { border-left: 1px solid var(--hairline); }
+.notes tr + tr td { border-top: 1px solid var(--hairline); }
+.notes td:first-child { color: var(--text-3); white-space: nowrap; }
+.notes h2 { font-size: var(--font-title); font-weight: 500; margin: 28px 0 10px; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" role="tablist" aria-label="原型视图">
+  <button data-view="after" class="on">改后（可点）</button>
+  <button data-view="before">现状</button>
+  <button data-view="notes">设计说明</button>
+  <span class="sep"></span>
+  <button id="themeBtn">切到浅色</button>
+</div>
+
+<!-- ======================= 改后 ======================= -->
+<section class="view on" id="view-after">
+  <div class="s-app">
+    <nav class="s-nav" aria-label="设置分组">
+      <button class="s-back" onclick="toast('（原型）返回工作台：设置页收起，回到原来的会话')">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>
+        返回工作台 <kbd>Esc</kbd>
+      </button>
+      <div class="s-search">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>
+        <input id="q" placeholder="搜索设置" autocomplete="off" />
+        <kbd>Ctrl K</kbd>
+        <div class="s-results" id="results"></div>
+      </div>
+      <div id="navGroups"></div>
+      <div class="s-nav-foot"><span>MetaAgent 0.1.26</span><span>已是最新</span></div>
+    </nav>
+
+    <main class="s-sheet">
+      <div class="s-scroll" id="scroll">
+        <div class="s-col">
+
+          <!-- 通用 -->
+          <section class="s-page" data-page="general">
+            <header class="s-page-h"><h1>通用</h1><p>语言、字体和电脑行为。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>语言与文字</h2></div>
+              <div class="s-card">
+                <div class="s-row" id="f-lang"><div class="l"><div class="t">界面语言</div><div class="d">切换后立即生效，不用重启</div></div>
+                  <div class="r"><span class="sel"><select><option>跟随系统</option><option>简体中文</option><option>English</option></select></span></div></div>
+                <div class="s-row" id="f-font"><div class="l"><div class="t">字体</div><div class="d">中文部分也会用在编辑器和代码块里</div></div>
+                  <div class="r"><span class="sel"><select><option>OPPO Sans</option><option>思源黑体</option><option>微软雅黑</option></select></span></div></div>
+                <div class="s-row" id="f-size"><div class="l"><div class="t">字号</div><div class="d">终端字号在新开的终端里生效</div></div>
+                  <div class="r"><div class="seg" data-seg><button>紧凑</button><button class="on">标准</button><button>宽松</button></div></div></div>
+                <div class="s-row stack"><div class="preview-font">敏捷的棕色狐狸跳过懒狗 The quick brown fox 0123456789</div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>电脑</h2></div>
+              <div class="s-card">
+                <div class="s-row" id="f-sleep"><div class="l"><div class="t">任务运行时阻止休眠</div><div class="d">有任务在跑或定时任务快到点时，电脑不会自己睡着。错过的定时任务按各自的补跑规则处理</div></div>
+                  <div class="r"><button class="sw" role="switch" aria-checked="true"></button></div></div>
+                <div class="s-row" id="f-journal"><div class="l"><div class="t">会话结束自动写日志</div><div class="d">关闭 GUI 会话时，用「文本工具」的模型把这次会话总结成一条工作日志（对话会发给该模型）</div></div>
+                  <div class="r"><button class="sw" role="switch" aria-checked="false" data-form></button></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 外观 -->
+          <section class="s-page" data-page="appearance">
+            <header class="s-page-h"><h1>外观</h1><p>主题、头像和面板效果。点一下就切换，立即生效。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>主题</h2><span class="aside">当前工作区跟随全局</span></div>
+              <div class="themes" id="themes">
+                <button class="theme-card on" data-t="dark"><div class="thumb" style="background:#111112"><i style="width:22%;background:transparent"></i><i style="flex:1;background:#1b1b1d;box-shadow:0 0 0 1px rgba(255,255,255,.06)"></i></div><div class="name">深色<small>内置</small></div></button>
+                <button class="theme-card" data-t="light"><div class="thumb" style="background:#ebeae6"><i style="width:22%;background:transparent"></i><i style="flex:1;background:#fff;box-shadow:0 0 0 1px rgba(20,18,10,.06)"></i></div><div class="name">浅色<small>内置</small></div></button>
+                <button class="theme-card" data-t="custom"><div class="thumb" style="background:#0f1420"><i style="width:22%;background:transparent"></i><i style="flex:1;background:#18202e;box-shadow:0 0 0 1px rgba(255,255,255,.06)"></i></div><div class="name">午夜蓝<small>自定义</small></div></button>
+              </div>
+              <div class="s-card" style="margin-top:12px">
+                <div class="s-row" id="f-wstheme"><div class="l"><div class="t">这个工作区单独用一套主题</div><div class="d">关掉时跟随上面选的全局主题</div></div>
+                  <div class="r"><button class="sw" role="switch" aria-checked="false"></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">自定义主题</div><div class="d">复制一套现有主题，在色盘里逐项改颜色，改动实时预览</div></div>
+                  <div class="r"><button class="btn ghost sm">打开主题文件夹</button><button class="btn sm">新建主题</button></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>你的头像</h2></div>
+              <div class="s-card">
+                <div class="s-row stack" id="f-avatar"><div class="l"><div class="t">头像</div><div class="d">显示在你发的消息旁边</div></div>
+                  <div class="avatars" id="avatars"></div></div>
+                <div class="s-row" id="f-name"><div class="l"><div class="t">显示名</div><div class="d">鼠标悬停头像时显示，不填就是「我」</div></div>
+                  <div class="r"><input class="inp" placeholder="我" style="width:200px" /></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>效果</h2></div>
+              <div class="s-card">
+                <div class="s-row" id="f-glow"><div class="l"><div class="t">「需要你」时看板四周流光</div><div class="d">有未读的待处理会话时，全局看板边缘出现流动彩光</div></div>
+                  <div class="r"><button class="sw" role="switch" aria-checked="true"></button></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 模型服务商 -->
+          <section class="s-page" data-page="models">
+            <header class="s-page-h"><h1>模型服务商</h1><p>接入哪些大模型服务。配好后可以在聊天和定时任务里选用，也会同步给调度 Agent。</p></header>
+            <div class="prov">
+              <div class="prov-list">
+                <button class="prov-item on"><span class="prov-logo">D</span><span class="n"><b>DeepSeek</b><span>默认 · 3 个模型</span></span><span class="stat"></span></button>
+                <button class="prov-item"><span class="prov-logo">智</span><span class="n"><b>智谱 BigModel</b><span>2 个模型</span></span><span class="stat"></span></button>
+                <button class="prov-item"><span class="prov-logo">O</span><span class="n"><b>OpenRouter</b><span>已停用</span></span><span class="stat off"></span></button>
+                <button class="btn ghost prov-add"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>添加服务商</button>
+              </div>
+              <div>
+                <div class="s-card">
+                  <div class="prov-head"><span class="prov-logo">D</span><div><h3>DeepSeek</h3><div class="sub">默认服务商</div></div>
+                    <div class="r"><span class="tag ok">已启用</span><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+                </div>
+                <div class="s-sec" style="margin-top:16px">
+                  <div class="s-sec-h"><h2>连接</h2><span class="aside"><span class="test-out" id="testOut"></span></span></div>
+                  <div class="s-card">
+                    <div class="s-row stack" id="f-baseurl"><div class="l"><div class="t">接口地址</div></div><input class="inp w mono" value="https://api.example-llm.com/v1" data-form /></div>
+                    <div class="s-row stack" id="f-apikey"><div class="l"><div class="t">API Key</div></div><div class="inp-wrap"><input class="inp mono" type="password" value="sk-example-000000" data-form /><button onclick="const i=this.previousElementSibling;i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'显示':'隐藏'">显示</button></div></div>
+                    <div class="s-row" id="f-format"><div class="l"><div class="t">接口格式</div><div class="d">大多数第三方服务选第一个就行</div></div>
+                      <div class="r"><span class="sel"><select data-form><option>OpenAI 兼容（Chat Completions）</option><option>OpenAI Responses</option><option>Anthropic Messages</option></select></span></div></div>
+                    <div class="s-row"><div class="l"><div class="t">测试连接</div><div class="d">用上面的地址和 Key 发一个很小的请求</div></div>
+                      <div class="r"><button class="btn sm" onclick="testConn()">测试</button></div></div>
+                  </div>
+                  <details class="adv"><summary><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>高级：思考强度与协议细节</summary>
+                    <div class="s-card">
+                      <div class="s-row"><div class="l"><div class="t">思考方式</div><div class="d">一般保持自动，按接口地址判断</div></div><div class="r"><span class="sel"><select data-form><option>自动</option><option>DeepSeek 风格</option><option>OpenAI 风格</option></select></span></div></div>
+                      <div class="s-row"><div class="l"><div class="t">「关闭思考」真的关掉</div><div class="d">部分服务商的「关」档默认仍会思考</div></div><div class="r"><button class="sw" role="switch" aria-checked="false" data-form></button></div></div>
+                      <div class="s-row"><div class="l"><div class="t">思考强度对照</div><div class="d">应用里的 5 档分别对应服务商的哪个值，留空表示这档不可用</div></div><div class="r"><button class="btn sm">编辑对照</button></div></div>
+                    </div>
+                  </details>
+                </div>
+                <div class="s-sec">
+                  <div class="s-sec-h"><h2>模型</h2><button class="btn ghost sm">添加模型</button></div>
+                  <div class="s-card">
+                    <div class="model-row"><span class="mn">deepseek-chat</span><span class="tag">默认</span><span class="ctx">64K 上下文</span></div>
+                    <div class="model-row"><span class="mn">deepseek-reasoner</span><span class="ctx">64K 上下文</span></div>
+                    <div class="model-row"><span class="mn">deepseek-coder</span><span class="ctx">128K 上下文</span></div>
+                  </div>
+                </div>
+                <div class="s-sec"><div class="s-card"><div class="s-row"><div class="l"><div class="t">删除这个服务商</div><div class="d">用到它的定时任务会改用默认服务商</div></div><div class="r"><button class="btn danger sm">删除</button></div></div></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Worker -->
+          <section class="s-page" data-page="worker">
+            <header class="s-page-h"><h1>Worker</h1><p>终端里干活的 AI 命令行工具。选一个默认的，新建会话时优先用它。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>默认 Worker</h2></div>
+              <div class="rt-grid" id="rts">
+                <button class="rt on" data-form><span class="badge tag ok">已安装</span><span class="top"><span class="ic">Cu</span><b>Cursor CLI</b></span><span class="d">cursor-agent · 推荐</span></button>
+                <button class="rt" data-form><span class="badge tag ok">已安装</span><span class="top"><span class="ic">Cl</span><b>Claude Code</b></span><span class="d">claude</span></button>
+                <button class="rt" data-form><span class="badge tag warn">未检测到</span><span class="top"><span class="ic">Op</span><b>OpenCode</b></span><span class="d">opencode</span></button>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>可用的 Worker</h2><span class="aside">关掉的不会出现在新建菜单里</span></div>
+              <div class="s-card">
+                <div class="s-row"><div class="l"><div class="t">Cursor CLI</div><div class="d">额外启动参数：无</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="true"></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">Claude Code</div><div class="d">额外启动参数：--verbose</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="true"></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">OpenCode</div><div class="d">没在电脑上找到，装好后自动出现</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="false"></button></div></div>
+              </div>
+            </div>
+            <details class="adv" id="f-shell"><summary><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>高级：命令行环境</summary>
+              <div class="s-card">
+                <div class="s-row"><div class="l"><div class="t">后台命令用哪个 Shell</div><div class="d">自动时优先用 Git Bash（支持 &amp;&amp;、退出码更可靠）；不影响你新开的终端</div></div>
+                  <div class="r"><span class="sel"><select data-form><option>自动（优先 Bash）</option><option>强制 PowerShell</option></select></span></div></div>
+                <div class="s-row stack"><div class="l"><div class="t">Git Bash 位置</div><div class="d">自动找到：<span class="mono">D:\Git\bin\bash.exe</span>。装在别处找不到时再手动填</div></div>
+                  <input class="inp w mono" placeholder="留空 = 自动查找" data-form /></div>
+              </div>
+            </details>
+          </section>
+
+          <!-- 调度 Agent -->
+          <section class="s-page" data-page="dispatcher">
+            <header class="s-page-h"><h1>调度 Agent</h1><p>负责分派任务、盯进度的那个 AI。这里决定它怎么说话、守什么规矩、能用哪些工具。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>提示词</h2><button class="btn ghost sm">恢复默认</button></div>
+              <div class="s-card"><div class="s-row stack" id="f-prompt"><textarea class="inp w" style="height:140px;padding:10px;line-height:1.6;resize:vertical" data-form>你是 MetaAgent 工作台的调度 Agent……（此处为默认提示词正文，虚构节选）</textarea><div class="d" style="font-size:var(--font-caption);color:var(--text-3)">正在使用默认提示词。改动后保存即生效，下一轮对话起用新的</div></div></div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>规矩</h2><button class="btn ghost sm">添加一条</button></div>
+              <div class="s-card">
+                <div class="s-row"><div class="l"><div class="t">改代码前先读功能文档</div><div class="d">所有工作区 · 每次对话都带上</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">修 bug 必须带测试</div><div class="d">所有工作区 · 每次对话都带上</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              </div>
+            </div>
+            <details class="adv"><summary><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>参考：它能用的工具（只读）</summary>
+              <div class="s-card">
+                <div class="s-row"><div class="l"><div class="t">工作台能力清单</div><div class="d">操作会话、终端、Git、看板等 64 项能力</div></div><div class="r"><button class="btn ghost sm">查看</button></div></div>
+                <div class="s-row"><div class="l"><div class="t">Worker 可调用的工具</div><div class="d">终端里的 AI 能反向调用的 12 项</div></div><div class="r"><button class="btn ghost sm">查看</button></div></div>
+              </div>
+            </details>
+          </section>
+
+          <!-- 记忆 -->
+          <section class="s-page" data-page="memory">
+            <header class="s-page-h"><h1>记忆</h1><p>让 AI 按「意思」而不只是关键词找回以前的记忆。需要一个嵌入模型。</p></header>
+            <div class="s-card">
+              <div class="s-row"><div class="l"><div class="t">语义检索</div><div class="d">关掉时只按关键词匹配</div></div><div class="r"><button class="sw" role="switch" aria-checked="true"></button></div></div>
+              <div class="s-row"><div class="l"><div class="t">嵌入模型</div><div class="d">用哪个服务商把记忆转成向量</div></div><div class="r"><span class="sel"><select><option>智谱 · embedding-3</option><option>本地模型</option></select></span></div></div>
+              <div class="s-row"><div class="l"><div class="t">索引状态</div><div class="d">412 条记忆 · 上次更新 3 分钟前</div></div><div class="r"><span class="tag ok">正常</span><button class="btn ghost sm">打开记忆中心</button></div></div>
+            </div>
+          </section>
+
+          <!-- 文本工具 -->
+          <section class="s-page" data-page="text">
+            <header class="s-page-h"><h1>文本工具</h1><p>选中任意文字后弹出的 AI 小工具：翻译、解释、润色，也能加你自己的。</p></header>
+            <div class="s-card">
+              <div class="s-row"><div class="l"><div class="t">默认模型</div><div class="d">划词功能没单独指定时用它</div></div><div class="r"><span class="sel"><select data-form><option>DeepSeek · deepseek-chat</option><option>智谱 · glm-4-flash</option></select></span></div></div>
+              <div class="s-row"><div class="l"><div class="t">翻译</div><div class="d">中英互译，自动判断方向</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              <div class="s-row"><div class="l"><div class="t">解释</div><div class="d">用大白话讲清这段话</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              <div class="s-row"><div class="l"><div class="t">润色</div><div class="d">自定义 · 让语气更正式</div></div><div class="r"><button class="btn ghost sm">编辑</button><button class="sw" role="switch" aria-checked="false" data-form></button></div></div>
+            </div>
+            <div style="margin-top:10px"><button class="btn ghost sm">添加自定义功能</button></div>
+          </section>
+
+          <!-- 通知 -->
+          <section class="s-page" data-page="notify">
+            <header class="s-page-h"><h1>通知</h1><p>会话状态变化时怎么提醒你：桌面气泡、手机、飞书。同类提醒 45 秒内只发一次。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>什么时候提醒</h2></div>
+              <div class="s-card" id="f-phases">
+                <div class="s-row"><div class="l"><div class="t">需要你 <span class="tag warn">始终开启</span></div><div class="d">会话在等你回答或卡住了。这条不能关</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" aria-disabled="true"></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">已完成</div><div class="d">会话把活干完了</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+                <div class="s-row"><div class="l"><div class="t">出错</div><div class="d">会话报错停下了</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>安静时段</h2></div>
+              <div class="s-card" id="f-dnd">
+                <div class="s-row"><div class="l"><div class="t">免打扰</div><div class="d">这段时间只记录，不弹提醒（「需要你」除外）</div></div><div class="r"><button class="sw" role="switch" aria-checked="false" data-form id="dndSw"></button></div></div>
+                <div class="s-row" id="dndTime" style="display:none"><div class="l"><div class="t">时段</div></div><div class="r"><input class="inp mono" value="23:00" style="width:80px" data-form /><span style="color:var(--text-3)">到</span><input class="inp mono" value="08:00" style="width:80px" data-form /></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>飞书</h2></div>
+              <div class="s-card">
+                <div class="s-row" id="f-feishu"><div class="l"><div class="t">只推送绑定到飞书的会话</div><div class="d">关掉后所有会话的提醒都会发飞书卡片。需要先在「远程访问」里绑定飞书</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 远程访问 -->
+          <section class="s-page" data-page="remote">
+            <header class="s-page-h"><h1>远程访问</h1><p>用手机或别的电脑打开这个工作台。改动立即生效。</p></header>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>用网址打开</h2><span class="tag ok">服务运行中</span></div>
+              <div class="s-card">
+                <div class="hero">
+                  <div class="qr" id="qr" aria-label="二维码（虚构）"></div>
+                  <div>
+                    <div class="t" style="font-size:var(--font-control)">手机扫码，或复制网址到浏览器</div>
+                    <div class="url-main"><span class="mono">http://100.64.0.12:63840/?token=example••••••</span><button class="btn sm" onclick="toast('已复制网址')">复制</button></div>
+                    <ol class="steps"><li>手机和电脑在同一个网络（跨网可用 Tailscale 等组网工具）</li><li>这个网址等于工作台的全部权限，别发给别人</li></ol>
+                  </div>
+                </div>
+              </div>
+              <details class="adv"><summary><svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3l5 5-5 5"/></svg>其他网址（4 个）</summary>
+                <div class="s-card">
+                  <div class="url-row"><span class="mono">http://10.0.0.8:63840/?token=example••••••</span><button class="btn ghost sm">复制</button></div>
+                  <div class="url-row"><span class="mono">http://192.168.1.20:63840/?token=example••••••</span><button class="btn ghost sm">复制</button></div>
+                  <div class="url-row"><span class="mono">http://127.0.0.1:63840/?token=example••••••</span><span class="tag">本机</span><button class="btn ghost sm">复制</button></div>
+                </div>
+              </details>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>飞书</h2><span class="tag">未绑定</span></div>
+              <div class="s-card">
+                <div class="s-row"><div class="l"><div class="t">接入飞书机器人</div><div class="d">扫码创建飞书应用，之后能在飞书里和会话对话、收提醒</div></div><div class="r"><button class="btn sm">扫码接入</button></div></div>
+                <div class="s-row"><div class="l"><div class="t">飞书里能用的命令</div><div class="d">绑定后在机器人对话里发 /help 查看</div></div><div class="r"><button class="btn ghost sm">查看</button></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>安全</h2></div>
+              <div class="s-card"><div class="s-row"><div class="l"><div class="t">重置访问密钥</div><div class="d">怀疑网址泄露时用。所有已打开的网页都要重新扫码</div></div><div class="r"><button class="btn danger sm">重置</button></div></div></div>
+            </div>
+          </section>
+
+          <!-- 集成 -->
+          <section class="s-page" data-page="integrations">
+            <header class="s-page-h"><h1>集成</h1><p>给 AI 接上外部工具（MCP 服务器），比如数据库、浏览器、设计软件。</p></header>
+            <div class="s-sec">
+              <div class="s-card">
+                <div class="s-row" id="f-mcp"><div class="l"><div class="t">启用 MCP 工具</div><div class="d">调度 Agent 通过它调用下面这些服务器</div></div><div class="r"><button class="sw" role="switch" aria-checked="true" data-form></button></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>服务器</h2><div class="seg" data-seg><button class="on">全部工作区</button><button>仅这个工作区</button></div></div>
+              <div class="s-card">
+                <div class="empty"><b>还没有服务器</b>从 Cursor 一键导入你已经配好的，或者手动添加
+                  <div class="acts"><button class="btn sm primary">从 Cursor 导入</button><button class="btn sm">手动添加</button><button class="btn sm ghost">粘贴 JSON</button></div></div>
+              </div>
+            </div>
+            <div class="s-sec">
+              <div class="s-sec-h"><h2>给终端里的 AI 用</h2></div>
+              <div class="s-card">
+                <div class="s-row" id="f-inbound"><div class="l"><div class="t">让 Claude Code / Cursor 也能调用工作台</div><div class="d">把工作台的工具注册进这些命令行 AI 的配置文件，写入前会先让你确认</div></div><div class="r"><button class="btn sm">写入配置…</button></div></div>
+                <div class="s-row"><div class="l"><div class="t">开发者参考：壳层协议</div><div class="d">本机 HTTP 接口说明</div></div><div class="r"><button class="btn ghost sm">打开文档</button></div></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 快捷键 -->
+          <section class="s-page" data-page="keys">
+            <header class="s-page-h"><h1>快捷键</h1><p>悬停一行点「改」，然后按下新组合键。改动立即生效。</p></header>
+            <div style="display:flex;gap:8px;margin-bottom:12px"><input class="inp" placeholder="搜索命令" style="flex:1" /><button class="btn">按键反查</button></div>
+            <div class="s-sec"><div class="s-sec-h"><h2>导航</h2></div>
+              <div class="s-card">
+                <div class="kb-row"><span class="n">命令面板</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span><button class="btn ghost sm edit">改</button></div>
+                <div class="kb-row"><span class="n">虚拟屏切 Git / 终端</span><span class="keys"><kbd>Ctrl</kbd><kbd>\</kbd></span><button class="btn ghost sm edit">改</button></div>
+                <div class="kb-row"><span class="n">全局看板</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>G</kbd></span><button class="btn ghost sm edit">改</button></div>
+                <div class="kb-row"><span class="n">记忆中心</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>M</kbd></span><button class="btn ghost sm edit">改</button></div>
+              </div></div>
+            <div class="s-sec"><div class="s-sec-h"><h2>会话</h2></div>
+              <div class="s-card">
+                <div class="kb-row"><span class="n">新建会话</span><span class="keys"><kbd>Ctrl</kbd><kbd>N</kbd></span><button class="btn ghost sm edit">改</button></div>
+                <div class="kb-row"><span class="n">打开设置</span><span class="keys"><kbd>Ctrl</kbd><kbd>,</kbd></span><button class="btn ghost sm edit">改</button></div>
+              </div></div>
+          </section>
+
+          <!-- 关于 -->
+          <section class="s-page" data-page="about">
+            <header class="s-page-h"><h1>关于</h1><p>版本和更新。</p></header>
+            <div class="s-card">
+              <div class="about"><div class="logo">M</div><div style="flex:1"><div style="font-size:var(--font-title);font-weight:500">MetaAgent 工作台</div><div style="color:var(--text-3);font-size:var(--font-caption);margin-top:2px">版本 0.1.26 · Electron 38</div></div><button class="btn" id="f-update" onclick="toast('已是最新版本')">检查更新</button></div>
+              <div class="s-row"><div class="l"><div class="t">自动下载更新</div><div class="d">下载好后在下次启动时安装</div></div><div class="r"><button class="sw" role="switch" aria-checked="true"></button></div></div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+      <div class="savebar" id="savebar" role="status"><span class="msg" id="saveMsg">有 1 项更改未保存</span><button class="btn ghost sm" onclick="discard()">撤销</button><button class="btn primary sm" onclick="saveAll()">保存 <kbd style="background:transparent;box-shadow:none;color:inherit;opacity:.6">Ctrl S</kbd></button></div>
+      <div class="toast" id="toast"></div>
+    </main>
+  </div>
+</section>
+
+<!-- ======================= 现状 ======================= -->
+<section class="view" id="view-before">
+  <div class="cur">
+    <div class="cur-placeholder"><p>历史自测截图仅供本机参考，源库不保存。<br />交互原型与设计说明仍可查看。</p></div>
+    <div class="cap">历史对照覆盖模型服务商、外观、通知、Worker 终端与集成，采集于 2026-09-28 的浅色主题。</div>
+  </div>
+</section>
+
+<!-- ======================= 设计说明 ======================= -->
+<section class="view" id="view-notes">
+  <div class="notes"><div class="notes-col">
+    <h1>设置界面重设计</h1>
+    <p>方向：从「一个塞满说明文字的弹窗」改成「一张安静的设置页」。和主界面同一套「框与页」：左边导航画在窗口底上，右边内容是一张圆角页。功能一项不少，只改呈现、分组和保存方式。</p>
+    <h2>现在的问题 → 改法</h2>
+    <table>
+      <tr><th>#</th><th>现在的问题</th><th>改法</th></tr>
+      <tr><td>1</td><td>保存规则混乱：有的「即时生效」，有的「随保存生效」，有的卡片里还有自己的「保存 Shell 设置」按钮，底部又常驻「保存/取消」</td><td>去掉所有「即时生效/随保存生效」标签和卡内保存按钮。需要保存的项被改动后，底部才浮起「有 N 项更改未保存 · 撤销 · 保存」条（<kbd>Ctrl S</kbd>），没改就不出现。即时生效的项照旧即时</td></tr>
+      <tr><td>2</td><td>11 个页面平铺，每项还带一行小字描述，名称是内部叫法（能力参考、Worker 终端、Runtime）</td><td>四组带图标：常用 / AI / 连接 / 其他；改名：能力参考→调度 Agent，Worker 终端→Worker，远程连接→远程访问；新增「通用」页收拢语言、字体、防休眠、自动日志</td></tr>
+      <tr><td>3</td><td>说明文字满是路径和字段名（~/.pi/agent、runtimeOverrides、bgtasks.shell、reasoning_effort）</td><td>每项只留一句人话说明；路径、协议字段收进「高级」折叠区或直接删掉（开发者参考保留入口）</td></tr>
+      <tr><td>4</td><td>勾选框、整行宽下拉框、表单堆叠，读起来像配置文件</td><td>统一「行」布局：左边标题 + 一句说明，右边控件（开关 / 分段 / 下拉）；同类项装进一张卡，行间细线</td></tr>
+      <tr><td>5</td><td>设置里不能搜索（只能在命令面板里搜）</td><td>导航顶部加搜索框，复用命令面板已有的设置索引（数据现成），回车直达并高亮那一项</td></tr>
+      <tr><td>6</td><td>1200×860 固定弹窗，内容多的页（模型、远程）挤在里面滚动</td><td>整窗设置页，内容列最宽 760 居中；<kbd>Esc</kbd> / 「返回工作台」回到原来的会话</td></tr>
+      <tr><td>7</td><td>远程连接一次列 5 条长网址 + 大二维码</td><td>一条推荐网址 + 二维码作主角，其余网址折叠；「重置密钥」挪到单独的安全区</td></tr>
+      <tr><td>8</td><td>主题只有下拉框，看不到长什么样</td><td>主题做成缩略图卡，点一下即切换</td></tr>
+    </table>
+    <h2>不变的</h2>
+    <p>所有设置项、它们各自「即时生效还是需要保存」的规则、写入的配置位置、命令面板里的设置搜索跳转（focusItem 高亮），全部保持。</p>
+  </div></div>
+</section>
+
+<script>
+const NAV = [
+  { h: '常用', items: [['general', '通用', 'M8 2v2M8 12v2M2 8h2M12 8h2M3.8 3.8l1.4 1.4M10.8 10.8l1.4 1.4M3.8 12.2l1.4-1.4M10.8 5.2l1.4-1.4|c8,8,2.5'], ['appearance', '外观', 'M8 2a6 6 0 100 12c.8 0 1.2-.6 1-1.3-.3-.9.3-1.7 1.2-1.7H12a2 2 0 002-2A6 6 0 008 2z|c5,7,.8|c8,5,.8|c11,7,.8']] },
+  { h: 'AI', items: [['models', '模型服务商', 'M3 5l5-3 5 3v6l-5 3-5-3V5zM3 5l5 3 5-3M8 8v6'], ['worker', 'Worker', 'M2 4h12v8H2zM5 7l2 1.5L5 10M8.5 10H11'], ['dispatcher', '调度 Agent', 'M8 2v3M4.5 5h7a1.5 1.5 0 011.5 1.5v4A1.5 1.5 0 0111.5 12h-7A1.5 1.5 0 013 10.5v-4A1.5 1.5 0 014.5 5z|c6,8.5,.8|c10,8.5,.8'], ['memory', '记忆', 'M6 2.5a2.5 2.5 0 00-2.5 2.5v.3A2.5 2.5 0 002 7.5 2.5 2.5 0 003.5 10v.5A2.5 2.5 0 006 13h2V2.5H6zM10 2.5A2.5 2.5 0 0112.5 5v.3A2.5 2.5 0 0114 7.5 2.5 2.5 0 0112.5 10v.5A2.5 2.5 0 0110 13H8'], ['text', '文本工具', 'M3 4h10M3 8h6M3 12h8']] },
+  { h: '连接', items: [['notify', '通知', 'M4 7a4 4 0 118 0v3l1 2H3l1-2V7zM6.5 13.5a1.5 1.5 0 003 0'], ['remote', '远程访问', 'M5 2h6v12H5zM7.5 12h1'], ['integrations', '集成', 'M6 2v3M10 2v3M4.5 5h7v3a3.5 3.5 0 01-7 0V5zM8 11.5V14']] },
+  { h: '其他', items: [['keys', '快捷键', 'M2 4.5h12v7H2zM4.5 7h1M7.5 7h1M10.5 7h1M5 9.5h6'], ['about', '关于', 'c8,8,6|M8 7.5v3.5M8 5.2v.1']] }
+];
+function icon(d) {
+  const parts = d.split('|').map(p => p.startsWith('c') ? (() => { const [x, y, r] = p.slice(1).split(','); return `<circle cx="${x}" cy="${y}" r="${r}"/>`; })() : `<path d="${p}"/>`).join('');
+  return `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${parts}</svg>`;
+}
+const navEl = document.getElementById('navGroups');
+navEl.innerHTML = NAV.map(g => `<div class="s-group"><div class="s-group-h">${g.h}</div>${g.items.map(([id, label, d]) => `<button class="s-item" data-go="${id}">${icon(d)}<span>${label}</span></button>`).join('')}</div>`).join('');
+
+function go(id, focus) {
+  document.querySelectorAll('.s-page').forEach(p => p.classList.toggle('on', p.dataset.page === id));
+  document.querySelectorAll('.s-item').forEach(b => b.classList.toggle('on', b.dataset.go === id));
+  const sc = document.getElementById('scroll');
+  sc.style.scrollBehavior = 'auto'; sc.scrollTop = 0; sc.style.scrollBehavior = '';
+  if (focus) setTimeout(() => {
+    const el = document.getElementById(focus);
+    if (!el) return;
+    const det = el.closest('details') || (el.tagName === 'DETAILS' ? el : null);
+    if (det) det.open = true;
+    const row = el.classList.contains('s-row') ? el : (el.querySelector('.s-row') || el);
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  }, 60);
+}
+navEl.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) go(b.dataset.go); });
+go('general');
+
+/* 搜索：复用命令面板设置索引（此处为节选 mock） */
+const INDEX = [
+  ['界面语言', '通用', 'general', 'f-lang', '语言 english 中文'], ['字体', '通用', 'general', 'f-font', '字体族 font'], ['字号', '通用', 'general', 'f-size', '大小 紧凑 宽松'],
+  ['任务运行时阻止休眠', '通用', 'general', 'f-sleep', '休眠 睡眠 sleep'], ['会话结束自动写日志', '通用', 'general', 'f-journal', 'journal 日志'],
+  ['主题', '外观', 'appearance', 'themes', '深色 浅色 dark light'], ['工作区单独主题', '外观', 'appearance', 'f-wstheme', '工作区 主题'], ['头像', '外观', 'appearance', 'f-avatar', 'emoji 图片'],
+  ['显示名', '外观', 'appearance', 'f-name', '名字'], ['看板流光', '外观', 'appearance', 'f-glow', '灯带 glow'],
+  ['接口地址', '模型服务商', 'models', 'f-baseurl', 'base url endpoint'], ['API Key', '模型服务商', 'models', 'f-apikey', '密钥 token'], ['接口格式', '模型服务商', 'models', 'f-format', 'openai anthropic'],
+  ['默认 Worker', 'Worker', 'worker', 'rts', 'runtime cursor claude opencode'], ['命令行环境 / Git Bash', 'Worker', 'worker', 'f-shell', 'shell bash powershell'],
+  ['调度提示词', '调度 Agent', 'dispatcher', 'f-prompt', 'prompt 系统提示'], ['推送开关', '通知', 'notify', 'f-phases', '提醒 完成 出错'], ['免打扰', '通知', 'notify', 'f-dnd', '安静时段 dnd 夜间 静音'],
+  ['飞书只推绑定会话', '通知', 'notify', 'f-feishu', '飞书 lark'], ['网址 / 二维码', '远程访问', 'remote', 'qr', '手机 网页 token'], ['MCP 工具', '集成', 'integrations', 'f-mcp', 'mcp 服务器'],
+  ['让命令行 AI 调用工作台', '集成', 'integrations', 'f-inbound', '入站 mcp claude cursor'], ['检查更新', '关于', 'about', 'f-update', '版本 update']
+];
+const q = document.getElementById('q'), res = document.getElementById('results');
+let hits = [], hi = 0;
+function esc(s) { return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function renderHits() {
+  const v = q.value.trim().toLowerCase();
+  if (!v) { res.classList.remove('on'); return; }
+  hits = INDEX.filter(([t, p, , , k]) => (t + ' ' + p + ' ' + k).toLowerCase().includes(v)).slice(0, 7);
+  hi = 0;
+  res.innerHTML = hits.length ? hits.map(([t, p], i) => {
+    const at = t.toLowerCase().indexOf(v);
+    const tt = at >= 0 ? esc(t.slice(0, at)) + '<mark>' + esc(t.slice(at, at + v.length)) + '</mark>' + esc(t.slice(at + v.length)) : esc(t);
+    return `<button class="s-hit${i === 0 ? ' active' : ''}" data-i="${i}"><b>${tt}</b><span>${p}</span></button>`;
+  }).join('') : '<div class="s-noh">没有匹配的设置</div>';
+  res.classList.add('on');
+}
+function pick(i) { const h = hits[i]; if (!h) return; q.value = ''; res.classList.remove('on'); q.blur(); go(h[2], h[3]); }
+q.addEventListener('input', renderHits);
+q.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); hi = (hi + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % Math.max(hits.length, 1); res.querySelectorAll('.s-hit').forEach((b, i) => b.classList.toggle('active', i === hi)); }
+  if (e.key === 'Enter') pick(hi);
+  if (e.key === 'Escape') { q.value = ''; res.classList.remove('on'); }
+});
+res.addEventListener('mousedown', e => { const b = e.target.closest('.s-hit'); if (b) { e.preventDefault(); pick(+b.dataset.i); } });
+q.addEventListener('blur', () => setTimeout(() => res.classList.remove('on'), 100));
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); q.focus(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); if (dirty.size) saveAll(); }
+});
+
+/* 未保存条：只追踪「需要保存」的控件（data-form） */
+const dirty = new Set();
+function markDirty(el) { dirty.add(el); updateBar(); }
+function updateBar() {
+  document.getElementById('saveMsg').textContent = `有 ${dirty.size} 项更改未保存`;
+  document.getElementById('savebar').classList.toggle('on', dirty.size > 0);
+}
+function saveAll() { dirty.clear(); updateBar(); setTimeout(() => toast('已保存'), 120); }
+function discard() { dirty.forEach(el => { if (el._orig !== undefined) { if (el.classList.contains('sw')) el.setAttribute('aria-checked', el._orig); else el.value = el._orig; } }); dirty.clear(); updateBar(); syncDnd(); }
+document.querySelectorAll('[data-form]').forEach(el => { el._orig = el.classList.contains('sw') ? el.getAttribute('aria-checked') : el.value; if (!el.classList.contains('sw') && !el.classList.contains('rt')) el.addEventListener('input', () => markDirty(el)); });
+
+document.addEventListener('click', e => {
+  const sw = e.target.closest('.sw');
+  if (sw && sw.getAttribute('aria-disabled') !== 'true') {
+    sw.setAttribute('aria-checked', sw.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    if (sw.hasAttribute('data-form')) markDirty(sw);
+    if (sw.id === 'dndSw') syncDnd();
+  }
+  const sb = e.target.closest('[data-seg] button');
+  if (sb) sb.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === sb));
+  const rt = e.target.closest('.rt');
+  if (rt) { document.querySelectorAll('.rt').forEach(r => r.classList.toggle('on', r === rt)); markDirty(document.getElementById('rts')); }
+  const tc = e.target.closest('.theme-card');
+  if (tc) { document.querySelectorAll('.theme-card').forEach(c => c.classList.toggle('on', c === tc)); if (tc.dataset.t !== 'custom') setTheme(tc.dataset.t); }
+  const av = e.target.closest('.av:not(.up)');
+  if (av) document.querySelectorAll('.av').forEach(a => a.classList.toggle('on', a === av));
+});
+function syncDnd() { document.getElementById('dndTime').style.display = document.getElementById('dndSw').getAttribute('aria-checked') === 'true' ? '' : 'none'; }
+
+let toastT;
+function toast(t) { const el = document.getElementById('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 1600); }
+function testConn() { const o = document.getElementById('testOut'); o.style.color = 'var(--text-3)'; o.textContent = '测试中…'; setTimeout(() => { o.style.color = 'var(--green)'; o.textContent = '连接正常 · 320ms'; }, 700); }
+
+/* 头像 */
+document.getElementById('avatars').innerHTML = ['😊', '🐱', '🐶', '🦊', '🐸', '🐙', '🦄', '🐳', '🤖', '👾', '🧠', '⚡', '🔥', '💎', '🚀'].map((a, i) => `<button class="av${i === 0 ? ' on' : ''}">${a}</button>`).join('') + '<button class="av up" title="上传图片">＋</button>';
+
+/* 虚构二维码图案 */
+(() => { const qr = document.getElementById('qr'); let s = 7, h = ''; for (let y = 0; y < 21; y++) for (let x = 0; x < 21; x++) { const f = (x < 7 && y < 7) || (x > 13 && y < 7) || (x < 7 && y > 13); let on; if (f) { const cx = x > 13 ? x - 14 : x, cy = y > 13 ? y - 14 : y; on = cx === 0 || cx === 6 || cy === 0 || cy === 6 || (cx > 1 && cx < 5 && cy > 1 && cy < 5); } else { s = (s * 9301 + 49297) % 233280; on = s / 233280 > 0.52; } h += `<i class="${on ? '' : 'o'}"></i>`; } qr.innerHTML = h; })();
+
+/* 视图与主题 */
+document.querySelectorAll('.proto-bar [data-view]').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.proto-bar [data-view]').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.id === 'view-' + b.dataset.view));
+}));
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  document.getElementById('themeBtn').textContent = t === 'dark' ? '切到浅色' : '切到深色';
+  document.querySelectorAll('.theme-card').forEach(c => { if (c.dataset.t !== 'custom') c.classList.toggle('on', c.dataset.t === t); });
+}
+document.getElementById('themeBtn').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+</script>
+</body>
+</html>

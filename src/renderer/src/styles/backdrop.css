@@ -1,0 +1,309 @@
+/* backdrop.css — 窗口背景（框底图，design.md §1.1）。组件 components/FrameBackdrop.tsx；
+ * 形态事实源 docs/prototypes/frame-backdrop-templates/frame-backdrop-templates.html。
+ * 约定：一律静态（禁 animation/transition，底图铺在半透明页下，动了就整屏重绘）；
+ * 除纯色（主动同步窗口按钮区颜色）外，任何模板在顶栏右端保持纯 --bg-frame（titleBarOverlay 只能单色）。 */
+
+.frame-backdrop {
+  --fb-a: var(--ws-accent);
+  --fb-a2: oklch(from var(--fb-a) l c calc(h + 50));
+  --fb-a3: oklch(from var(--fb-a) l c calc(h - 45));
+  --fb-ad: oklch(from var(--fb-a) calc(l * 0.62) calc(c * 0.85) h);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background-color: var(--bg-frame);
+}
+
+/* 主窗口：铺满视口、垫在整棵树下（根层叠上下文里负层级，body 底色已传播到画布） */
+.frame-backdrop.is-window {
+  position: fixed;
+}
+
+.frame-backdrop::before,
+.frame-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* 颗粒：SVG 分形噪声平铺，栅格一次 */
+.frame-backdrop.has-grain::after,
+.frame-backdrop.has-grain-strong::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+}
+
+.frame-backdrop.has-grain-strong::after {
+  opacity: 0.11;
+}
+
+/* ===== 渐变系 ===== */
+
+.frame-backdrop.fb-corner {
+  background:
+    radial-gradient(60% 85% at 0% 0%, color-mix(in oklab, var(--fb-a) 20%, transparent) 0%, transparent 72%),
+    radial-gradient(45% 60% at 0% 100%, color-mix(in oklab, var(--fb-a) 9%, transparent) 0%, transparent 78%),
+    var(--bg-frame);
+}
+
+.frame-backdrop.fb-horizon {
+  background:
+    radial-gradient(55% 16% at 30% 100%, color-mix(in oklab, var(--fb-a2) 42%, transparent), transparent 72%),
+    radial-gradient(90% 38% at 20% 100%, color-mix(in oklab, var(--fb-a) 26%, transparent), transparent 70%),
+    linear-gradient(to top, color-mix(in oklab, var(--fb-ad) 22%, transparent) 0%, transparent 46%),
+    var(--bg-frame);
+}
+
+/* 地平线：0.2% 高的细亮线，左右渐隐 */
+.frame-backdrop.fb-horizon::before {
+  background: linear-gradient(
+    to top,
+    transparent 0 11.2%,
+    color-mix(in oklab, var(--fb-a2) 28%, transparent) 11.2% 11.4%,
+    transparent 11.4%
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 15%, #000 45%, transparent 75%);
+}
+
+.frame-backdrop.fb-velvet {
+  background:
+    radial-gradient(140% 120% at 45% 50%, transparent 50%, rgba(0, 0, 0, 0.5) 100%),
+    radial-gradient(70% 75% at 22% 58%, color-mix(in oklab, var(--fb-ad) 30%, transparent), transparent 72%),
+    radial-gradient(40% 45% at 12% 88%, color-mix(in oklab, var(--fb-a3) 12%, transparent), transparent 70%),
+    var(--bg-frame);
+}
+
+.frame-backdrop.fb-mesh {
+  background:
+    radial-gradient(38% 55% at 0% 28%, color-mix(in oklab, var(--fb-a) 30%, transparent), transparent 70%),
+    radial-gradient(34% 50% at 16% 100%, color-mix(in oklab, var(--fb-a2) 30%, transparent), transparent 70%),
+    radial-gradient(40% 45% at 48% 108%, color-mix(in oklab, var(--fb-a3) 24%, transparent), transparent 70%),
+    radial-gradient(26% 38% at 30% 55%, color-mix(in oklab, var(--fb-a2) 12%, transparent), transparent 70%),
+    radial-gradient(30% 40% at 78% 110%, color-mix(in oklab, var(--fb-a) 12%, transparent), transparent 70%),
+    var(--bg-frame);
+}
+
+/* ===== 纯色：工作区色按浓度与框色混合（--fb-solid-k 由组件按档位写入） ===== */
+
+.frame-backdrop.fb-solid {
+  background: color-mix(in oklab, var(--fb-a) var(--fb-solid-k, 28%), var(--bg-frame));
+}
+
+/* 原色档等浅底：顶栏与设置导航（直接画在框上的文字）切深色，保证可读 */
+html.fb-light-surface .chrome-bar,
+html.fb-light-surface .settings-nav {
+  --ink: #111112;
+  --ink-soft: #1e1e20;
+  --text-2: rgba(17, 17, 18, 0.72);
+  --text-3: rgba(17, 17, 18, 0.65);
+  --hover-fill: rgba(0, 0, 0, 0.06);
+  --hover-fill-strong: rgba(0, 0, 0, 0.1);
+  --selected-fill: rgba(0, 0, 0, 0.08);
+}
+
+/* ===== 几何系：内嵌 SVG，构图不进入 viewBox 顶部 60 单位（≈顶栏），模糊在 SVG 滤镜里 ===== */
+
+.frame-backdrop-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.fb-g-a {
+  fill: color-mix(in oklab, var(--fb-a) 30%, transparent);
+}
+.fb-g-a2 {
+  fill: color-mix(in oklab, var(--fb-a2) 25%, transparent);
+}
+.fb-g-a3 {
+  fill: color-mix(in oklab, var(--fb-a3) 24%, transparent);
+}
+.fb-g-ad {
+  fill: color-mix(in oklab, var(--fb-ad) 32%, transparent);
+}
+.fb-g-cv {
+  fill: rgba(255, 255, 255, 0.028);
+}
+.fb-g-ink {
+  fill: rgba(255, 255, 255, 0.08);
+}
+.fb-g-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.075);
+  stroke-width: 1;
+}
+.fb-g-line-b {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1.2;
+}
+.fb-g-ring {
+  fill: none;
+  stroke: color-mix(in oklab, var(--fb-a) 45%, transparent);
+  stroke-width: 2;
+}
+
+/* ===== 自定义壁纸：图片层（模糊 + 放大掩掉发虚边缘）+ 暗化层；顶部 36px 渐隐回框色 ===== */
+
+.frame-backdrop-img,
+.frame-backdrop-dim {
+  position: absolute;
+  inset: 0;
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--fb-top, 36px),
+    #000 calc(var(--fb-top, 36px) + var(--fb-fade, 48px))
+  );
+}
+
+.frame-backdrop-img {
+  background: center / cover no-repeat;
+  filter: blur(var(--fb-blur, 24px));
+  transform: scale(1.08);
+}
+
+.frame-backdrop-dim {
+  background: rgba(0, 0, 0, var(--fb-dim, 0.45));
+}
+
+/* 「渐变与毛玻璃」关：背景整体关闭，退回纯框色 */
+html.no-frame-fx .frame-backdrop {
+  display: none;
+}
+
+/* ===== 设置页缩略图（FrameBackdropPicker） ===== */
+
+.fb-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fb-picker.is-disabled .fb-thumbs {
+  opacity: var(--disabled-opacity);
+}
+
+.fb-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+}
+
+.fb-thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--bg-raised);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--font-ui);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--dur-micro) var(--ease-hover);
+}
+
+.fb-thumb:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 1px var(--focus-border);
+}
+
+.fb-thumb.is-selected {
+  box-shadow: inset 0 0 0 2px var(--ws-accent);
+  color: var(--text);
+}
+
+.fb-thumb:focus-visible {
+  outline: none;
+  box-shadow:
+    inset 0 0 0 1px var(--hairline),
+    0 0 0 2px var(--focus-border);
+}
+
+.fb-thumb:disabled {
+  cursor: default;
+}
+
+.fb-thumb-pv {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  height: 56px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: var(--bg-frame);
+  --fb-fade: 10px;
+}
+
+/* 毛玻璃关时窗口背景隐藏，但缩略图仍要看得见（整组置灰） */
+html.no-frame-fx .fb-thumb-pv .frame-backdrop {
+  display: block;
+}
+
+/* 示意玻璃页：右下角一块半透明面板，看背景透过页面的效果 */
+.fb-thumb-pane {
+  position: absolute;
+  top: 10px;
+  left: 22%;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 4px;
+  background: var(--glass-sheet);
+  box-shadow: inset 0 0 0 1px var(--hairline);
+}
+
+.fb-thumb-add {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.fb-thumb-name {
+  padding: 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fb-picker-opt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
+
+.fb-picker-label {
+  color: var(--text-2);
+  font-size: var(--font-ui);
+}
+
+.fb-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fb-slider input[type='range'] {
+  width: 140px;
+  accent-color: var(--ws-accent);
+}
+
+.fb-slider-v {
+  min-width: 36px;
+  color: var(--text-3);
+  font-size: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}

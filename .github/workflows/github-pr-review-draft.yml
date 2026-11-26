@@ -1,0 +1,47 @@
+name: GitHub PR review draft
+
+on:
+  pull_request:
+    types: [ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-review-draft-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  draft:
+    if: vars.MUSTER_PR_AUTO_REVIEW == 'true' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha || github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Generate review draft
+        run: node scripts/github-review-action.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MUSTER_REVIEW_MODEL_URL: ${{ vars.MUSTER_REVIEW_MODEL_URL }}
+          MUSTER_REVIEW_MODEL: ${{ vars.MUSTER_REVIEW_MODEL }}
+          MUSTER_REVIEW_MODEL_API_KEY: ${{ secrets.MUSTER_REVIEW_MODEL_API_KEY }}
+          MUSTER_REVIEW_OUTPUT: ${{ runner.temp }}/review-draft.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: github-pr-review-draft
+          path: ${{ runner.temp }}/review-draft.md
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,470 @@
+/* Harness 透明模式（pi-trajectory-plan v3 §6；视觉基准 pi-trajectory-demo/trace-demo.html）。
+   容器级开关：.agent-chat-view.harness-on；标注组件默认 display:none，开启态**按组件
+   逐个给 display**（flex 组件给 flex）——统一 display:block 会破坏布局。
+   唯一语义色紫（插话/注入图标），压缩 ⇡ 黄，其余单色；动效只用 duration/easing tokens token。 */
+
+/* 开关（顶栏右缘）：设置页「已启用 | 禁用」同款分段胶囊（llm-capsule-btn 复用），
+   左标签右控件；选中态样式由 .llm-capsule-btn.is-active-enabled/disabled 提供 */
+.harness-toggle {
+  display: inline-flex;
+  align-items: center;
+}
+.harness-toggle-label {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  /* 标签与胶囊组的间距挂标签自身 margin（不依赖容器 gap，规避热更/级联差异） */
+  margin-right: 14px;
+}
+
+.harness-input-label {
+  font-size: var(--font-caption);
+  color: var(--fg-secondary);
+}
+.harness-input {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 9px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-chat-card);
+  background: var(--surface-raised);
+  color: var(--fg-primary);
+}
+.harness-input pre {
+  margin: 4px 0 0;
+  max-height: min(45vh, 28rem);
+  overflow: auto;
+  scrollbar-width: thin;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-family: var(--font-mono, monospace);
+}
+
+/* 标注公共：默认隐藏；开启后按组件自身 display 显示 */
+.harness-a {
+  display: none;
+}
+.agent-chat-view.harness-on .harness-inject {
+  display: block;
+}
+.agent-chat-view.harness-on .harness-steer {
+  display: flex;
+}
+.agent-chat-view.harness-on .harness-drawer {
+  display: block;
+}
+.agent-chat-view.harness-on .harness-compact {
+  display: flex;
+}
+
+/* 透明模式下 hoverbar 常显：特异性 (0,4,0) 压过 chat.css 的
+   .chat-msg.chat-quiet .chat-hoverbar（0,3,0，opacity:0） */
+.agent-chat-view.harness-on .chat-msg.chat-quiet .chat-hoverbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ── 注入快照（§6.1）── */
+.harness-inject {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin: 2px 0 6px 36px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-input);
+  overflow: hidden;
+}
+.harness-inject summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  color: var(--fg-secondary);
+  font-size: 12px;
+}
+.harness-inject summary::-webkit-details-marker {
+  display: none;
+}
+.harness-inject summary:hover {
+  background: var(--interaction-hover);
+}
+.harness-inject .h-ico {
+  color: var(--purple);
+  font-size: 11px;
+}
+.harness-inject .h-segs {
+  color: var(--fg-muted);
+}
+.harness-inject .h-caret {
+  margin-left: auto;
+  color: var(--fg-muted);
+  transition: transform var(--dur-micro) var(--ease-hover);
+}
+.harness-inject[open] .h-caret {
+  transform: rotate(180deg);
+}
+.harness-seg {
+  border-top: 1px solid var(--border-subtle);
+  padding: 6px 10px;
+}
+.harness-seg label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+.harness-seg pre {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--surface-canvas);
+  border-radius: 4px;
+  color: var(--fg-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+  /* 全文可读：滚动查看（复制按钮在段 label 上） */
+  max-height: 240px;
+  overflow-y: auto;
+}
+/* 段内变动徽标（新增/更新） */
+.h-badge-inline {
+  flex: none;
+  font-size: 10px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 1px solid var(--purple);
+  color: var(--purple);
+}
+/* 段 label 尾部的复制按钮：hover 才显（与 hoverbar 同策略） */
+.harness-seg .h-copy {
+  flex: none;
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0 2px;
+  border-radius: 4px;
+}
+.harness-seg label:hover .h-copy {
+  color: var(--fg-secondary);
+  background: var(--interaction-hover);
+}
+.harness-seg .h-copy:hover {
+  color: var(--fg-primary);
+}
+
+/* ── 工具目录段 ── */
+.harness-tools .h-tool summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.harness-tools .h-tool summary::-webkit-details-marker {
+  display: none;
+}
+.harness-tools .h-tool summary:hover {
+  background: var(--interaction-hover);
+}
+.harness-tools .h-tool code {
+  color: var(--fg-secondary);
+  font-size: 11px;
+}
+.harness-tools .h-tool-src {
+  flex: none;
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  color: var(--fg-muted);
+}
+.harness-tools .h-tool-desc {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg-muted);
+}
+.harness-tools .h-tool-params {
+  padding: 2px 4px 4px 14px;
+  color: var(--fg-muted);
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── 插话线（§6.2）── */
+.harness-steer {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 4px 36px;
+  padding: 5px 10px;
+  border-left: 2px solid var(--purple);
+  background: var(--surface-input);
+  border-radius: 0 var(--radius-small) var(--radius-small) 0;
+  color: var(--fg-secondary);
+  font-size: 12px;
+}
+.harness-steer .h-badge {
+  flex: none;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--purple);
+  color: var(--purple);
+}
+.harness-steer .h-steer-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.harness-steer .h-time {
+  margin-left: auto;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+/* ── 计量 chips（挂在 assistant hoverbar 里，§6.3）── */
+.harness-metrics {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-right: 6px;
+}
+.harness-chip {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  border: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 每轮 harness 详情抽屉（§6.3）── */
+.harness-drawer {
+  --fg-primary: var(--canvas-fg-primary);
+  --border-focus: var(--canvas-border-focus);
+  --fg-secondary: var(--canvas-fg-secondary);
+  --fg-muted: var(--canvas-fg-muted);
+  --fg-selected-primary: var(--canvas-fg-selected-primary);
+  --fg-selected-secondary: var(--canvas-fg-selected-secondary);
+  --fg-selected-muted: var(--canvas-fg-selected-muted);
+  --interaction-hover: var(--canvas-interaction-hover);
+  --interaction-selected: var(--canvas-interaction-selected);
+  --interaction-selected-hover: var(--canvas-interaction-selected-hover);
+  --interaction-pressed: var(--canvas-interaction-pressed);
+  --status-neutral-fg: var(--canvas-status-neutral-fg);
+  --status-neutral-bg: var(--canvas-status-neutral-bg);
+  --status-neutral-border: var(--canvas-status-neutral-border);
+  --status-success-fg: var(--canvas-status-success-fg);
+  --status-success-bg: var(--canvas-status-success-bg);
+  --status-success-border: var(--canvas-status-success-border);
+  --status-warning-fg: var(--canvas-status-warning-fg);
+  --status-warning-bg: var(--canvas-status-warning-bg);
+  --status-warning-border: var(--canvas-status-warning-border);
+  --status-danger-fg: var(--canvas-status-danger-fg);
+  --status-danger-bg: var(--canvas-status-danger-bg);
+  --status-danger-border: var(--canvas-status-danger-border);
+  --status-info-fg: var(--canvas-status-info-fg);
+  --status-info-bg: var(--canvas-status-info-bg);
+  --status-info-border: var(--canvas-status-info-border);
+
+  margin: 2px 0 8px 36px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-small);
+  background: var(--surface-canvas);
+  overflow: hidden;
+}
+.harness-drawer summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 6px 10px;
+  color: var(--fg-secondary);
+  font-size: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.harness-drawer summary::-webkit-details-marker {
+  display: none;
+}
+.harness-drawer summary:hover {
+  background: var(--interaction-hover);
+}
+.harness-drawer table {
+  width: calc(100% - 20px);
+  margin: 0 10px 8px;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.harness-drawer th {
+  text-align: left;
+  color: var(--fg-muted);
+  font-weight: 500;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.harness-drawer td {
+  padding: 4px 6px;
+  color: var(--fg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.harness-drawer td.num {
+  color: var(--fg-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.harness-drawer .h-note {
+  padding: 0 10px 8px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+
+/* ── 压缩分隔（§6.4）：hairline 夹文案，⇡ 黄 ── */
+.harness-compact {
+  align-items: center;
+  gap: 8px;
+  margin: 8px 36px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.harness-compact::before,
+.harness-compact::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+.harness-compact .h-ico {
+  color: var(--status-warning-fg);
+}
+
+/* Bounded metadata readers share the injection card surface. */
+.harness-inject .h-title { flex: none; }
+.harness-inject .h-segs { min-width: 0; overflow-wrap: anywhere; }
+.h-metadata-status { margin: 6px 10px; font-size: 12px; color: var(--fg-secondary); overflow-wrap: anywhere; }
+.h-metadata-action { font: inherit; font-size: 12px; color: var(--fg-secondary); background: transparent; border: 1px solid var(--border-subtle); border-radius: var(--radius-small); padding: 3px 8px; cursor: pointer; }
+.h-metadata-action:hover { background: var(--interaction-hover); color: var(--fg-primary); }

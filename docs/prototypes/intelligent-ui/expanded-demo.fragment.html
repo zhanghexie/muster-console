@@ -1,0 +1,39 @@
+<ma-stack>
+  <ma-card label="筛选与资料">
+    <script type="application/json" id="regions">[{"value":"east","label":"华东","children":[{"value":"sh","label":"上海"},{"value":"hz","label":"杭州"}]},{"value":"south","label":"华南","children":[{"value":"sz","label":"深圳"}]}]</script>
+    <script type="application/json" id="teams">[{"value":"product","label":"产品团队","children":[{"value":"design","label":"设计"},{"value":"engineering","label":"研发"}]},{"value":"ops","label":"运营"}]</script>
+    <ma-grid columns="2">
+      <ma-date-range id="period" name="period" label="统计周期" start="2026-10-01" end="2026-10-31" min="2026-01-01" max="2026-12-31"></ma-date-range>
+      <ma-cascade id="region" name="region" label="地区" source="regions" labels='["大区","城市"]'></ma-cascade>
+      <ma-tree id="team" name="team" label="团队" source="teams" multiple></ma-tree>
+      <ma-file id="import" name="imported" label="导入本地数据" multiple></ma-file>
+    </ma-grid>
+  </ma-card>
+  <ma-card label="分页与选择">
+    <ma-input name="recordQuery" label="搜索记录" placeholder="例如：项目 119"></ma-input>
+    <ma-table id="records" label="项目列表" page-size="5" search="recordQuery" selection="recordIds" selection-mode="multiple" row-key="id" stats="recordStats"></ma-table>
+    <ma-row>
+      <ma-text expr="concat('筛选后 ', recordStats.filteredCount, ' 项')"></ma-text>
+      <ma-text expr="concat('已选择 ', recordStats.selectedCount, ' 项')"></ma-text>
+      <ma-badge id="selection-tone" bind="recordStats.selectedCount" tone-expr="recordStats.selectedCount > 0 ? 'success' : 'neutral'"></ma-badge>
+    </ma-row>
+  </ma-card>
+  <ma-card label="千行表格 · 聚焦后滚动">
+    <ma-table id="virtual-records" label="虚拟项目列表" virtual></ma-table>
+  </ma-card>
+  <ma-card label="只读 JSON 数据与方法语法">
+    <script type="application/json" id="read-only-demo">{"rows":[{"id":"a","label":"方案 A"},{"id":"b","label":"方案 B"},{"id":"c","label":"方案 C"}],"values":[1,2,3],"name":" 智能 Agent ","marker":"readonly-only-marker"}</script>
+    <ma-grid columns="3">
+      <ma-text id="read-only-count" label="数据行数" expr="count(source('read-only-demo').rows)" variant="metric"></ma-text>
+      <ma-text id="read-only-sum" label="合计" expr="sum(source('read-only-demo').values)" variant="metric"></ma-text>
+      <ma-text id="read-only-name" label="规范名称" expr="source('read-only-demo').name.trim().toUpperCase()"></ma-text>
+    </ma-grid>
+    <ma-input name="readOnlyFilter" label="名称包含" value="智能"></ma-input>
+    <ma-text id="read-only-match" label="是否匹配" expr="source('read-only-demo').name.includes(readOnlyFilter)"></ma-text>
+    <ma-table id="read-only-table" label="共享数据源" source="read-only-demo"></ma-table>
+  </ma-card>
+</ma-stack>
+<script>
+  document.getElementById('records').data = Array.from({length: 120}, (_, i) => ({id: 'record-' + i, label: '项目 ' + i, status: i % 2 ? '待确认' : '已确认'}));
+  document.getElementById('virtual-records').data = Array.from({length: 1000}, (_, i) => ({id: 'virtual-' + i, label: '虚拟项目 ' + i, amount: i * 10}));
+</script>

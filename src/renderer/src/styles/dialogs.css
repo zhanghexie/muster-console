@@ -1,0 +1,1132 @@
+/* dialogs.css — 由 styles.css 拆分（域：dialogs）。规范见 /design.md。修改请守住 token。 */
+/* 全局弹窗 = L3 底 + radius-modal + shadow-pop + scrim 遮罩（design.md §7/§10）。 */
+
+
+/* ---------- 右键菜单（L3 浮层，§10「快捷打开/右键菜单」） ---------- */
+
+.filter-popover-surface {
+  --fg-primary: var(--overlay-fg-primary);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --border-focus: var(--overlay-border-focus);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--filter-popover-radius, var(--radius-card));
+  background: var(--surface-overlay);
+  color: var(--fg-primary);
+  font-size: var(--font-ui);
+  box-shadow: var(--shadow-pop);
+}
+
+.filter-checkbox-row {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  gap: 8px;
+  padding-inline: 8px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+
+.filter-checkbox-row:hover:not(:disabled) {
+  background: var(--interaction-hover);
+}
+
+.filter-checkbox-row > input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--action-bg);
+  cursor: pointer;
+}
+
+.filter-row-label {
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.filter-color-dot {
+  --corner-shape: round;
+  flex: none;
+  display: inline-block;
+  inline-size: 10px;
+  block-size: 10px;
+  border: 1px solid color-mix(in srgb, var(--filter-dot-color), var(--fg-primary) 30%);
+  border-radius: 50%;
+  background: var(--filter-dot-color);
+  forced-color-adjust: none;
+}
+
+.ctx-menu {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: fixed;
+  /* 看板 overlay 也是 --z-menu(200) 且 sheet 有 will-change:transform；同档时
+   * Electron 命中测试会落到看板上，菜单看得见但点项等于点外关闭。+1 压过看板，
+   * 仍低于 --z-tooltip(250) / --z-confirm(300)。 */
+  z-index: calc(var(--z-menu) + 1);
+  min-width: 120px;
+  padding: 4px;
+  background: var(--surface-overlay); /* 浮层必为 L3（§1.1） */
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-pop);
+}
+
+/* 基础项样式在 chrome.css（.ui-menu-item 同款）；此处钉住右键菜单项规格：
+ * 高 28 / radius-control / 字阶 control（§9 菜单浮层） */
+.ctx-menu .ctx-item {
+  display: flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: var(--font-control);
+  border-radius: var(--radius-control);
+}
+
+.ctx-item:disabled,
+.ctx-item[aria-disabled='true'] {
+  opacity: 1; color: var(--fg-disabled);
+  cursor: default;
+}
+
+.ctx-item.is-danger {
+  color: var(--status-danger-fg);
+}
+
+.ctx-item.is-danger:is(:disabled, [aria-disabled='true']) { color: var(--fg-disabled); }
+
+/* 菜单勾选态（✓ 占固定槽位，勾选项与非勾选项文字对齐） */
+.ctx-item .ctx-check {
+  width: 14px;
+  flex: none;
+  margin-left: -4px;
+  font-size: var(--font-caption);
+  text-align: center;
+}
+
+.ctx-menu .ctx-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-subtle);
+}
+
+/* ---------- 全局 Tooltip（接管原生 title 提示，L3 浮层） ---------- */
+
+.app-tooltip {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  position: fixed;
+  z-index: var(--z-tooltip);
+  max-width: min(360px, calc(100vw - 16px));
+  padding: 5px 9px;
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-pop);
+  color: var(--fg-primary);
+  font-size: var(--font-caption);
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+
+/* 热身命中（刚隐藏又扫到相邻目标）：直接换位换字，不再播入场 */
+.app-tooltip.mp-pop.is-instant {
+  transition: none;
+}
+
+/* ---------- 通用错误条（红 soft 强调，§1.3 状态色用法） ---------- */
+
+/* 面板崩溃兜底（ErrorBoundary）：等宽字体展示错误消息/堆栈（§5 数字与状态码用 mono） */
+
+.retry-hint {
+  color: var(--status-warning-fg);
+  font-size: var(--font-ui);
+  padding: 4px 0;
+}
+
+/* ---------- 弹窗外壳（§7：L3 + radius-modal + shadow-pop + scrim） ---------- */
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+
+.app-confirm-mask {
+  /* Body portals use --z-confirm, and CustomSelect uses +1. Shell approvals must remain clickable above both. */
+  z-index: calc(var(--z-confirm) + 2);
+}
+
+.modal {
+  --fg-primary: var(--overlay-fg-primary);
+  --border-focus: var(--overlay-border-focus);
+  --fg-secondary: var(--overlay-fg-secondary);
+  --fg-muted: var(--overlay-fg-muted);
+  --fg-selected-primary: var(--overlay-fg-selected-primary);
+  --fg-selected-secondary: var(--overlay-fg-selected-secondary);
+  --fg-selected-muted: var(--overlay-fg-selected-muted);
+  --interaction-hover: var(--overlay-interaction-hover);
+  --interaction-selected: var(--overlay-interaction-selected);
+  --interaction-selected-hover: var(--overlay-interaction-selected-hover);
+  --interaction-pressed: var(--overlay-interaction-pressed);
+  --status-neutral-fg: var(--overlay-status-neutral-fg);
+  --status-neutral-bg: var(--overlay-status-neutral-bg);
+  --status-neutral-border: var(--overlay-status-neutral-border);
+  --status-success-fg: var(--overlay-status-success-fg);
+  --status-success-bg: var(--overlay-status-success-bg);
+  --status-success-border: var(--overlay-status-success-border);
+  --status-warning-fg: var(--overlay-status-warning-fg);
+  --status-warning-bg: var(--overlay-status-warning-bg);
+  --status-warning-border: var(--overlay-status-warning-border);
+  --status-danger-fg: var(--overlay-status-danger-fg);
+  --status-danger-bg: var(--overlay-status-danger-bg);
+  --status-danger-border: var(--overlay-status-danger-border);
+  --status-info-fg: var(--overlay-status-info-fg);
+  --status-info-bg: var(--overlay-status-info-bg);
+  --status-info-border: var(--overlay-status-info-border);
+
+
+  background: var(--surface-overlay); /* 弹窗必为 L3（§1.1） */
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-modal); /* 弹窗档，全应用唯一拥有者（§2） */
+  padding: 16px;
+  min-width: 420px;
+  max-width: 640px;
+  max-height: 80vh;
+  overflow-y: auto;
+  /* pop 阴影不含白描边，避免与 border 叠出双圈 */
+  box-shadow: var(--shadow-pop);
+}
+
+/* 弹窗标题：17 / 500，头尾不画线（§9） */
+.modal h3 {
+  margin-bottom: 12px;
+  font-size: var(--font-title);
+  font-weight: 500;
+  color: var(--fg-primary);
+}
+
+/* 标准弹窗头：只有标题 + 关闭钮（§9） */
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.modal-head h3 {
+  margin-bottom: 0;
+}
+
+.modal-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fg-secondary);
+  border-radius: var(--radius-control);
+  font-size: var(--font-body);
+  line-height: 1;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: var(--fg-primary);
+  background: var(--interaction-hover); /* 幽灵钮 hover 叠白（§8） */
+}
+
+/* 弹窗内按钮统一标准高 28（§4）；主/次层级由 .btn.primary / .btn / .btn.danger 承担 */
+.modal .btn,
+.modal .ui-btn {
+  min-height: 28px;
+}
+
+/* 确认弹窗详情：凹槽底 + 二级文字（§10 全局弹窗行） */
+.confirm-detail {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card); /* modal 内嵌 card，递减（§2） */
+  padding: 12px;
+  color: var(--fg-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-control);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.confirm-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+}
+
+.confirm-modal > .modal-head {
+  align-items: flex-start;
+}
+
+.confirm-desktop-modal {
+  width: min(640px, calc(100vw - 32px));
+  min-width: 0;
+}
+
+.confirm-desktop-evidence {
+  display: grid;
+  gap: 6px;
+  min-height: 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+.confirm-desktop-evidence img {
+  display: block;
+  max-width: 100%;
+  max-height: 35vh;
+  object-fit: contain;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.worktree-cleanup-error .confirm-modal {
+  width: min(450px, calc(100vw - 32px));
+  min-width: 0;
+}
+
+.chat-reset-modal {
+  min-width: 0;
+  width: min(640px, calc(100vw - 32px));
+}
+
+.chat-reset-modal .modal-actions {
+  flex-wrap: wrap;
+}
+
+.confirm-modal .confirm-head-text h3 {
+  margin-bottom: 0;
+}
+
+.confirm-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.confirm-subtitle {
+  margin: 4px 0 0;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.confirm-intent {
+  margin: 0 0 8px;
+  color: var(--fg-primary);
+  font-size: var(--font-body);
+}
+
+.confirm-summary {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  color: var(--fg-primary);
+  font-family: var(--font-ui);
+  font-size: var(--font-control);
+}
+
+.confirm-note {
+  margin: 0 0 8px;
+  color: var(--fg-primary);
+  font-size: var(--font-control);
+}
+
+.confirm-more {
+  margin-top: 4px;
+}
+
+.confirm-more > summary {
+  cursor: pointer;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+.confirm-tool-desc {
+  margin: 8px 0;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+/* 底部操作区：靠间距与主/次按钮分层，不画线（§3） */
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* ---------- 权限选项门（B2：预览/作用域/freeText） ---------- */
+
+.perm-preview {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+}
+
+.perm-preview-title {
+  margin: 0 0 6px;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+}
+
+.perm-preview-command {
+  margin: 0;
+}
+
+.perm-preview-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perm-preview-file {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.perm-preview-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-ui);
+  font-size: var(--font-control);
+  color: var(--fg-primary);
+}
+
+.perm-preview-change {
+  flex-shrink: 0;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.perm-change-add {
+  color: var(--fg-primary);
+}
+
+.perm-scope {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+.perm-scope-label {
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.perm-scope-btn {
+  padding: 2px 10px;
+}
+
+.perm-scope-on {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  background: var(--surface-input);
+  border-color: var(--fg-secondary);
+}
+
+.perm-freetext {
+  display: block;
+  margin: 0 0 8px;
+}
+
+.perm-freetext-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: var(--font-control);
+  color: var(--fg-secondary);
+}
+
+.perm-freetext-input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  font-family: var(--font-ui);
+  font-size: var(--font-control);
+  resize: vertical;
+}
+
+/* ---------- 新建/编辑工作区弹窗 ---------- */
+
+.create-ws-actions {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.create-ws-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+.create-ws-modal {
+  width: min(520px, calc(100vw - 32px));
+  max-width: 520px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* 零工作区常驻引导：压过菜单、tooltip 和确认层，保证没有其它界面能盖住它 */
+.modal-mask.is-required { z-index: calc(var(--z-confirm) + 3); }
+
+.create-ws-lead {
+  margin: 0 0 14px;
+  color: var(--fg-secondary);
+  font-size: var(--font-ui);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.create-ws-recommend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  background: var(--surface-input);
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.create-ws-recommend-text {
+  flex: 1 1 200px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.create-ws-recommend .ui-btn { flex: 0 0 auto; }
+
+.create-ws-modal .create-ws-avatar-grid {
+  min-width: 0;
+  grid-template-columns: repeat(auto-fill, 32px);
+}
+
+.worktree-preparation-body { display: grid; gap: 8px; min-width: 0; color: var(--fg-primary); font-weight: 400; letter-spacing: 0; }
+.worktree-preparation-body p { margin: 0; overflow-wrap: anywhere; }
+.worktree-preparation-body strong { font-weight: 500; font-size: var(--font-ui); }
+.worktree-preparation-source { color: var(--fg-secondary); font-size: var(--font-caption); overflow-wrap: anywhere; }
+.worktree-preparation-commands { display: grid; gap: 8px; min-width: 0; }
+.worktree-preparation-command { display: grid; gap: 4px; min-width: 0; }
+.worktree-preparation-command label { display: grid; gap: 4px; overflow-wrap: anywhere; }
+.worktree-preparation-command textarea { --fg-primary: var(--input-fg-primary); --border-focus: var(--input-border-focus); --fg-secondary: var(--input-fg-secondary); --fg-muted: var(--input-fg-muted); --fg-selected-primary: var(--input-fg-selected-primary); --fg-selected-secondary: var(--input-fg-selected-secondary); --fg-selected-muted: var(--input-fg-selected-muted); --interaction-hover: var(--input-interaction-hover); --interaction-selected: var(--input-interaction-selected); --interaction-selected-hover: var(--input-interaction-selected-hover); --interaction-pressed: var(--input-interaction-pressed); --status-neutral-fg: var(--input-status-neutral-fg); --status-neutral-bg: var(--input-status-neutral-bg); --status-neutral-border: var(--input-status-neutral-border); --status-success-fg: var(--input-status-success-fg); --status-success-bg: var(--input-status-success-bg); --status-success-border: var(--input-status-success-border); --status-warning-fg: var(--input-status-warning-fg); --status-warning-bg: var(--input-status-warning-bg); --status-warning-border: var(--input-status-warning-border); --status-danger-fg: var(--input-status-danger-fg); --status-danger-bg: var(--input-status-danger-bg); --status-danger-border: var(--input-status-danger-border); --status-info-fg: var(--input-status-info-fg); --status-info-bg: var(--input-status-info-bg); --status-info-border: var(--input-status-info-border);   width: 100%; min-width: 0; box-sizing: border-box; resize: vertical; background: var(--surface-input); color: var(--fg-primary); border: 1px solid var(--border-control); border-radius: var(--radius-control); padding: 8px; font: inherit; font-size: var(--font-control); }
+.worktree-preparation-command textarea:focus { outline: none; border-color: var(--border-focus); }
+.worktree-preparation-command > button, .worktree-preparation-commands > button { justify-self: start; }
+.worktree-preparation-recipe { display: grid; gap: 8px; min-width: 0; padding: 8px 0; border-top: 1px solid var(--border-subtle); }
+.worktree-preparation-recipe > strong { overflow-wrap: anywhere; }
+.worktree-preparation-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* 字段标签 = 分组标题规格：11 / 500 / --text-3 / 0.02em（§5） */
+.create-ws-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--fg-muted);
+}
+
+/* 字段：凹槽底 + hairline（§9 输入） */
+.create-ws-field input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 100%;
+  min-height: 28px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  padding: 5px 10px;
+  font-size: var(--font-control);
+  font-weight: 400;
+  letter-spacing: 0;
+  font-family: inherit;
+}
+
+.create-ws-field input::placeholder {
+  color: var(--fg-muted);
+}
+
+.create-ws-field input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.create-ws-avatar-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+/* 预览：pill 头像槽，与 AgentFloat 工作区头像同尺寸 */
+.create-ws-avatar-preview {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised); /* L3 弹窗内允许相邻层 L2 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-title);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.create-ws-avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.create-ws-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 32px);
+  gap: 4px;
+  flex: 1;
+}
+
+/* 外观设置等较宽容器：按 32px 格自动折列，避免 1fr 把格子拉稀 */
+.avatar-picker.is-embedded {
+  max-width: 420px;
+}
+
+.avatar-picker.is-embedded .create-ws-avatar-grid {
+  grid-template-columns: repeat(auto-fill, 32px);
+}
+
+.create-ws-avatar-choices {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+.avatar-picker-label {
+  color: var(--fg-secondary);
+  font-size: var(--font-caption);
+}
+
+.create-ws-avatar-preview.is-symbol {
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0;
+}
+
+.create-ws-avatar-pick.is-symbol img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+/* 选择格：统一中性凹槽底 + pill；hover 叠白不换海拔（§8） */
+.create-ws-avatar-pick {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: var(--surface-input);
+  cursor: pointer;
+  font-size: var(--font-title);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background var(--dur-micro) var(--ease-hover), border-color var(--dur-micro) var(--ease-hover);
+}
+
+.create-ws-avatar-pick:hover {
+  background: var(--interaction-hover);
+}
+
+.create-ws-avatar-pick.is-on {
+  --fg-primary: var(--fg-selected-primary);
+  --fg-secondary: var(--fg-selected-secondary);
+  --fg-muted: var(--fg-selected-muted);
+
+  border-color: var(--fg-selected-primary);
+  background: var(--interaction-selected); color: var(--fg-selected-primary);
+}
+
+.create-ws-avatar-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.create-ws-field .create-ws-avatar-custom input,
+.create-ws-avatar-custom input {
+  --fg-primary: var(--input-fg-primary);
+  --border-focus: var(--input-border-focus);
+  --fg-secondary: var(--input-fg-secondary);
+  --fg-muted: var(--input-fg-muted);
+  --fg-selected-primary: var(--input-fg-selected-primary);
+  --fg-selected-secondary: var(--input-fg-selected-secondary);
+  --fg-selected-muted: var(--input-fg-selected-muted);
+  --interaction-hover: var(--input-interaction-hover);
+  --interaction-selected: var(--input-interaction-selected);
+  --interaction-selected-hover: var(--input-interaction-selected-hover);
+  --interaction-pressed: var(--input-interaction-pressed);
+  --status-neutral-fg: var(--input-status-neutral-fg);
+  --status-neutral-bg: var(--input-status-neutral-bg);
+  --status-neutral-border: var(--input-status-neutral-border);
+  --status-success-fg: var(--input-status-success-fg);
+  --status-success-bg: var(--input-status-success-bg);
+  --status-success-border: var(--input-status-success-border);
+  --status-warning-fg: var(--input-status-warning-fg);
+  --status-warning-bg: var(--input-status-warning-bg);
+  --status-warning-border: var(--input-status-warning-border);
+  --status-danger-fg: var(--input-status-danger-fg);
+  --status-danger-bg: var(--input-status-danger-bg);
+  --status-danger-border: var(--input-status-danger-border);
+  --status-info-fg: var(--input-status-info-fg);
+  --status-info-bg: var(--input-status-info-bg);
+  --status-info-border: var(--input-status-info-border);
+
+
+  width: auto;
+  flex: 1;
+  min-width: 120px;
+  min-height: 28px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--fg-primary);
+  padding: 5px 10px;
+  font-size: var(--font-control);
+  font-family: inherit;
+}
+
+.create-ws-avatar-custom input::placeholder {
+  color: var(--fg-muted);
+}
+
+.create-ws-avatar-custom input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.create-ws-path-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.create-ws-path-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ws-roots-editor { min-width: 0; }
+.ws-roots-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--fg-secondary); font-size: var(--font-ui); }
+.ws-roots-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.ws-roots-list > li { --fg-primary: var(--input-fg-primary); --border-focus: var(--input-border-focus); --fg-secondary: var(--input-fg-secondary); --fg-muted: var(--input-fg-muted); --fg-selected-primary: var(--input-fg-selected-primary); --fg-selected-secondary: var(--input-fg-selected-secondary); --fg-selected-muted: var(--input-fg-selected-muted); --interaction-hover: var(--input-interaction-hover); --interaction-selected: var(--input-interaction-selected); --interaction-selected-hover: var(--input-interaction-selected-hover); --interaction-pressed: var(--input-interaction-pressed); --status-neutral-fg: var(--input-status-neutral-fg); --status-neutral-bg: var(--input-status-neutral-bg); --status-neutral-border: var(--input-status-neutral-border); --status-success-fg: var(--input-status-success-fg); --status-success-bg: var(--input-status-success-bg); --status-success-border: var(--input-status-success-border); --status-warning-fg: var(--input-status-warning-fg); --status-warning-bg: var(--input-status-warning-bg); --status-warning-border: var(--input-status-warning-border); --status-danger-fg: var(--input-status-danger-fg); --status-danger-bg: var(--input-status-danger-bg); --status-danger-border: var(--input-status-danger-border); --status-info-fg: var(--input-status-info-fg); --status-info-bg: var(--input-status-info-bg); --status-info-border: var(--input-status-info-border);   min-width: 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-input); }
+.ws-root-summary { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 12px; border: 0; border-radius: var(--radius-control); color: var(--fg-primary); background: transparent; font: inherit; font-weight: 400; text-align: left; cursor: pointer; }
+.ws-root-summary:hover:not(:disabled) { background: var(--interaction-hover); }
+.ws-root-summary:disabled { cursor: default; }
+.ws-root-summary > svg { flex: none; color: var(--fg-secondary); transition: transform var(--dur-micro) var(--ease-hover); }
+.ws-root-summary > svg.is-open { transform: rotate(180deg); }
+.ws-root-badge { flex: none; color: var(--fg-secondary); font-size: var(--font-caption); }
+.ws-root-path { flex: 1; min-width: 0; color: var(--fg-primary); font-size: var(--font-ui); line-height: 1.5; overflow-wrap: anywhere; }
+.ws-root-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 12px 12px; }
+.ws-root-actions [aria-pressed='true'] { background: var(--interaction-hover); border-color: var(--border-focus); }
+.ws-root-management { flex-basis: 100%; color: var(--fg-secondary); font-size: var(--font-caption); }
+.create-ws-identity { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+.create-ws-identity > .create-ws-field { flex: 1; min-width: 0; margin: 0; }
+.create-ws-identity > button { padding: 0; color: var(--fg-primary); cursor: pointer; }
+.create-ws-avatar-options > fieldset { padding-bottom: 16px; }
+.create-ws-settings-toggle { display: flex; align-items: center; gap: 8px; padding: 8px 0; border: 0; background: transparent; color: var(--fg-secondary); font: inherit; font-size: var(--font-control); cursor: pointer; }
+.create-ws-settings-toggle svg { transition: transform var(--dur-micro) var(--ease-hover); }
+.create-ws-settings-toggle svg.is-open { transform: rotate(180deg); }
+.create-ws-close-workspace { margin: 8px 0 16px; }
+.create-ws-modal .c-select-trigger { padding-inline: 12px; }
+.ws-roots-empty { margin: 10px 0; padding: 24px 10px; text-align: center; color: var(--fg-secondary); font-size: var(--font-ui); border: 1px dashed var(--border-subtle); border-radius: var(--radius-control); }
+
+.create-ws-avatar-lock { margin: 0; padding: 0; border: 0; min-width: 0; }
+.ws-root-dependencies { margin: 12px 0; min-width: 0; font-size: var(--font-control); }
+.ws-root-dependencies h4 { margin: 0 0 8px; font-size: var(--font-control); font-weight: 500; color: var(--fg-primary); }
+.ws-root-dependencies > p { margin: 0 0 8px; color: var(--fg-secondary); line-height: 1.6; }
+.ws-root-dependencies > ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 200px; overflow-y: auto; }
+.ws-root-dependencies li { display: flex; align-items: flex-start; gap: 8px; min-width: 0; }
+.ws-root-dependencies .ui-btn { flex: none; }
+.ws-root-dependency-text { display: grid; flex: 1; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.ws-root-dependency-kind, .ws-root-dependency-hint { color: var(--fg-secondary); }
+.ws-root-dependency-label { color: var(--fg-primary); }
+
+/* 内嵌危险确认卡：L3 弹窗内的 L2 卡 + hairline 描边（§1.1 嵌套相邻层） */
+.create-ws-confirm {
+  --fg-primary: var(--raised-fg-primary);
+  --border-focus: var(--raised-border-focus);
+  --fg-secondary: var(--raised-fg-secondary);
+  --fg-muted: var(--raised-fg-muted);
+  --fg-selected-primary: var(--raised-fg-selected-primary);
+  --fg-selected-secondary: var(--raised-fg-selected-secondary);
+  --fg-selected-muted: var(--raised-fg-selected-muted);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-selected: var(--raised-interaction-selected);
+  --interaction-selected-hover: var(--raised-interaction-selected-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --status-neutral-fg: var(--raised-status-neutral-fg);
+  --status-neutral-bg: var(--raised-status-neutral-bg);
+  --status-neutral-border: var(--raised-status-neutral-border);
+  --status-success-fg: var(--raised-status-success-fg);
+  --status-success-bg: var(--raised-status-success-bg);
+  --status-success-border: var(--raised-status-success-border);
+  --status-warning-fg: var(--raised-status-warning-fg);
+  --status-warning-bg: var(--raised-status-warning-bg);
+  --status-warning-border: var(--raised-status-warning-border);
+  --status-danger-fg: var(--raised-status-danger-fg);
+  --status-danger-bg: var(--raised-status-danger-bg);
+  --status-danger-border: var(--raised-status-danger-border);
+  --status-info-fg: var(--raised-status-info-fg);
+  --status-info-bg: var(--raised-status-info-bg);
+  --status-info-border: var(--raised-status-info-border);
+
+
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+}
+
+.create-ws-confirm p {
+  margin: 0 0 12px;
+  font-size: var(--font-control);
+  color: var(--fg-secondary); /* 确认详情文字二级（§10） */
+  line-height: 1.5;
+}
+
+.create-ws-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* 编辑工作区 · 代码索引行（开关复用设置页 llm-status-capsule-group 分段胶囊） */
+
+/* 子项目勾选清单（注意：.create-ws-field input 的全宽输入框规则必须在此覆写） */

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  原型：看板列表·条目1「卡片高度不一致」（board-list-fixes-plan，prototype-card-planning 技能试跑产物）。
+  现状/改后左右对照；数据虚构。样式 token 抄自 base.css，卡片结构按 board.css .board-card 复刻。
+-->
+<head>
+<meta charset="UTF-8">
+<title>原型 · 看板卡片高度（条目1）现状 vs 改后</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-canvas: #1a1a1a; --bg-raised: #252526; --ink: #e4e4e4; --text-2: #9e9e9e; --text-3: #7e7e7e;
+    --hairline: #2c2c2c; --green: #45d0a0; --yellow: #dcc765; --blue: #6cc2ff; --red: #f3687b;
+    --bg-inset: rgba(127,127,127,0.08);
+    --radius-control: 12px; --radius-card: 16px; --radius-pill: 999px;
+    --font-caption: 12px; --font-ui: 13px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.45);
+    --dur-micro: 120ms;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-canvas); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 26px 0 60px; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 16px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .col { border-radius: var(--radius-card); padding: 14px; }
+  .before { background: color-mix(in srgb, var(--bg-raised) 55%, transparent); border: 1px dashed var(--hairline); }
+  .after { background: color-mix(in srgb, var(--bg-raised) 70%, transparent); border: 1px solid var(--hairline); }
+  .col-label { font-size: 10.5px; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .before .col-label { color: var(--text-3); } .after .col-label { color: var(--green); }
+  .lane { display: flex; flex-direction: column; gap: 8px; }
+  .lane-title { font-size: var(--font-caption); color: var(--text-3); margin-bottom: 2px; }
+  /* 复刻 .board-card（board.css:255）：无固定高 */
+  .board-card { border: 1px solid var(--hairline); border-radius: var(--radius-card); background: var(--bg-raised); padding: 12px; cursor: pointer; transition: border-color var(--dur-micro) ease-out; }
+  .board-card:hover { border-color: color-mix(in srgb, var(--ink) 22%, var(--hairline)); }
+  .bc-head { display: flex; align-items: center; gap: 8px; }
+  .bc-name { font-weight: 500; font-size: var(--font-ui); }
+  .bc-capsule { margin-left: auto; padding: 1px 9px; border-radius: var(--radius-pill); font-size: 11px; background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .bc-capsule.waiting { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .bc-meta { margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+  .bc-task { margin-top: 6px; padding: 5px 8px; border-radius: 8px; background: var(--bg-inset); font-size: 11.5px; color: var(--text-2); }
+  .bc-review { margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+  .bc-more { margin-top: 6px; font-size: 11.5px; color: var(--text-3); }
+  /* 改后：等高 + 溢出收敛 */
+  .after .lane { align-items: stretch; }
+  .after .lane .lane-cards { display: flex; flex-direction: column; flex: 1; }
+  .after .board-card { flex: 1; display: flex; flex-direction: column; min-height: 96px; }
+  .after .board-card .bc-tail { margin-top: auto; }
+  .after .bc-task, .after .bc-review { display: flex; gap: 4px; align-items: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .after .bc-more-cnt { margin-top: 6px; font-size: 11.5px; color: var(--blue); }
+  .legend-note { margin-top: 14px; font-size: var(--font-caption); color: var(--text-2); }
+  .legend-note b { color: var(--green); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（看板列表·条目1「卡片高度不一致」）。左右两列同一桶的卡片：现状=内容多寡直接撑高（参差）；改后=<b>同桶内等高</b>（flex stretch + min-height 96px）+ 超长内容行内省略 + 多余块折叠成「还有 N 条」计数。数据虚构。</div>
+
+  <div class="pair">
+    <div class="col before">
+      <div class="col-label">现状（内容撑高，参差）</div>
+      <div class="lane">
+        <div class="lane-title">需要你 · 3</div>
+        <div class="board-card">
+          <div class="bc-head"><span class="bc-name">任务 t-1</span><span class="bc-capsule waiting">需要你</span></div>
+          <div class="bc-meta">metaAgent-workbench · 5 分钟前</div>
+        </div>
+        <div class="board-card">
+          <div class="bc-head"><span class="bc-name">任务 t-2</span><span class="bc-capsule waiting">需要你</span></div>
+          <div class="bc-meta">MetaApp · 12 分钟前</div>
+          <div class="bc-task">依赖：t-1 合入后才能继续</div>
+          <div class="bc-review">等待验收：2 个文件待确认</div>
+        </div>
+        <div class="board-card">
+          <div class="bc-head"><span class="bc-name">任务 t-3</span><span class="bc-capsule waiting">需要你</span></div>
+          <div class="bc-meta">metaagent-workbench · 1 小时前</div>
+          <div class="bc-task">依赖：t-2</div>
+          <div class="bc-review">等待验收：构建产物待人工验证</div>
+          <div class="bc-more">维度门：i18n 词条缺失 2</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col after">
+      <div class="col-label">改后（等高 + 收敛）</div>
+      <div class="lane">
+        <div class="lane-title">需要你 · 3</div>
+        <div class="lane-cards">
+          <div class="board-card">
+            <div class="bc-head"><span class="bc-name">任务 t-1</span><span class="bc-capsule waiting">需要你</span></div>
+            <div class="bc-meta">metaAgent-workbench · 5 分钟前</div>
+            <div class="bc-tail"></div>
+          </div>
+          <div class="board-card">
+            <div class="bc-head"><span class="bc-name">任务 t-2</span><span class="bc-capsule waiting">需要你</span></div>
+            <div class="bc-meta">MetaApp · 12 分钟前</div>
+            <div class="bc-tail">
+              <div class="bc-task"><span>依赖：t-1 合入后才能继续</span></div>
+              <div class="bc-review"><span>等待验收：2 个文件待确认</span></div>
+            </div>
+          </div>
+          <div class="board-card">
+            <div class="bc-head"><span class="bc-name">任务 t-3</span><span class="bc-capsule waiting">需要你</span></div>
+            <div class="bc-meta">metaagent-workbench · 1 小时前</div>
+            <div class="bc-tail">
+              <div class="bc-task"><span>依赖：t-2</span></div>
+              <div class="bc-more-cnt">还有 2 条 · 展开看全部</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend-note"><b>规则</b>：同桶 flex 等高（矮卡自然留白，视觉成列）；单行内容 nowrap+ellipsis；第三块起折叠为「还有 N 条」（点击悬浮展开，不进卡片高度）。等高仅限同桶内，跨桶不拉齐。</div>
+</div>
+</body>
+</html>

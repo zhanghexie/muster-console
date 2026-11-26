@@ -1,0 +1,558 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<!--
+  原型：记忆中心三页视觉打磨（docs/plans/memory-center-polish-plan.md 条目 1–3）。
+  条目 1 总览脑图：节点内收进脑形轮廓（策展核心/回收站不再压线出界）+ 主动提醒说明不再截字；
+  条目 2 索引状态：向量卡异常态人话化，按钮不再折行，原始报错收进「技术详情」，检索台不重复报错；
+  条目 3 条目总览：工具栏两行分工（搜索/排序/新增 | 筛选），无标签时不显示孤零零的「全部标签」，空库隐藏筛选。
+  token 抄自 src/renderer/src/styles/base.css :root（2026-09-28 快照）；脑图几何与 MemoryOverview.tsx 同坐标系。
+  数据均为虚构样例。
+-->
+<head>
+<meta charset="UTF-8">
+<title>原型 · 记忆中心三页打磨（条目 1–7）现状 vs 改后</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg-frame: #111112; --bg-canvas: #141416; --bg-panel: #1b1b1d; --bg-raised: #232326; --bg-overlay: #262629; --bg-input: #161618;
+    --ink: #ededee; --text-2: #a3a3a8; --text-3: #74747a; --hairline: #2a2a2d;
+    --green: #45d0a0; --yellow: #e8c65a; --red: #f3687b; --blue: #6cc2ff; --purple: #a88fff;
+    --hover-fill: rgba(255,255,255,0.05); --selected-fill: rgba(255,255,255,0.08); --bg-inset: rgba(127,127,127,0.08);
+    --shadow-card: 0 0 0 1px rgba(255,255,255,0.06), 0 2px 6px rgba(0,0,0,0.35), 0 16px 40px rgba(0,0,0,0.28);
+    --radius-control: 8px; --radius-card: 12px; --radius-pill: 999px; --radius-small: 6px;
+    --font-micro: 10px; --font-caption: 12px; --font-ui: 13px; --font-control: 14px; --font-title: 17px;
+    --font-sans: 'OPPO Sans', Geist, Inter, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    --font-mono: 'Cascadia Mono', 'Cascadia Code', Consolas, monospace;
+    --ease-standard: cubic-bezier(0.16, 1, 0.3, 1); --ease-hover: ease-out;
+    --dur-micro: 120ms; --dur-menu: 160ms; --dur-panel: 280ms;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg-panel); color: var(--ink); font-family: var(--font-sans); font-size: var(--font-ui); line-height: 1.6; padding: 20px 0 60px; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 20px; }
+  .proto-note { margin-bottom: 14px; padding: 10px 14px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.7; }
+  .proto-note b { color: var(--blue); font-weight: 500; }
+  .bar { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+  .seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: var(--radius-pill); background: var(--bg-inset); }
+  .seg button { padding: 4px 14px; border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; white-space: nowrap; }
+  .seg button.is-active { background: var(--selected-fill); color: var(--ink); }
+  .seg button:disabled { opacity: .45; cursor: not-allowed; }
+  .pane { display: none; } .pane.is-show { display: block; }
+  .pain { margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-control); border: 1px dashed color-mix(in srgb, var(--red) 40%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.8; }
+  .pain b { color: var(--red); font-weight: 500; }
+  .gain { margin-top: 10px; padding: 10px 14px; border-radius: var(--radius-control); border: 1px dashed color-mix(in srgb, var(--green) 40%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.8; }
+  .gain b { color: var(--green); font-weight: 500; }
+
+  /* ===== 条目 1：脑图 ===== */
+  .ov-card { position: relative; height: 640px; background: var(--bg-canvas); border-radius: var(--radius-card); border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent); overflow: hidden;
+    background-image: radial-gradient(ellipse 62% 55% at 50% 44%, color-mix(in srgb, var(--blue) 8%, transparent), transparent 70%); }
+  .ov-card svg { width: 100%; height: 100%; display: block; }
+  .mflow-brain { fill: url(#brainGrad); stroke: color-mix(in srgb, var(--ink) 22%, transparent); stroke-width: 0.07; }
+  .mflow-edge { fill: none; stroke-width: 1.6; stroke: color-mix(in srgb, var(--text-3) 55%, transparent); }
+  .mflow-edge.is-green { stroke: color-mix(in srgb, var(--green) 72%, transparent); }
+  .mflow-edge.is-yellow { stroke: color-mix(in srgb, var(--yellow) 72%, transparent); }
+  .mflow-edge.is-blue { stroke: color-mix(in srgb, var(--blue) 78%, transparent); stroke-width: 2.4; }
+  .mflow-edge.is-purple { stroke: color-mix(in srgb, var(--purple) 72%, transparent); stroke-dasharray: 5 5; }
+  .mflow-elabel { font-size: 10px; fill: var(--text-3); paint-order: stroke; stroke: var(--bg-canvas); stroke-width: 3px; stroke-linejoin: round; }
+  .mflow-elabel.is-blue { fill: color-mix(in srgb, var(--blue) 80%, var(--text-3)); }
+  .mflow-node { width: 100%; height: 100%; background: var(--bg-raised); border-radius: var(--radius-card); border: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); padding: 10px 12px; color: var(--ink); overflow: hidden; font-family: var(--font-sans); }
+  .mflow-node.is-out { border-color: color-mix(in srgb, var(--red) 70%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 40%, transparent); }
+  .mflow-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .mflow-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .mflow-dot.is-green { background: var(--green); } .mflow-dot.is-yellow { background: var(--yellow); } .mflow-dot.is-purple { background: var(--purple); }
+  .mflow-title { font-size: var(--font-ui); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mflow-badge { margin-left: auto; flex: none; padding: 1px 8px; border-radius: var(--radius-pill); font-size: 10.5px; line-height: 16px; font-weight: 500; color: var(--text-2); background: var(--bg-inset); }
+  .mflow-badge.is-yellow { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+  .mflow-badge.is-purple { color: var(--purple); background: color-mix(in srgb, var(--purple) 12%, transparent); }
+  .mflow-sub { margin-top: 4px; font-size: 11px; color: var(--text-3); line-height: 1.45; }
+  .mflow-sub.is-clip { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gate-d { fill: var(--bg-raised); stroke: color-mix(in srgb, var(--red) 80%, transparent); stroke-width: 1.6; }
+  .gate-c { fill: color-mix(in srgb, var(--red) 70%, transparent); }
+  .chk { font-size: var(--font-caption); color: var(--text-2); }
+  .chk .ok { color: var(--green); } .chk .bad { color: var(--red); }
+
+  /* ===== 共用页面件 ===== */
+  .memory-page { background: var(--bg-panel); border-radius: var(--radius-card); border: 1px solid var(--hairline); padding: 16px 20px 28px; }
+  .memory-inner { width: min(1040px, 100%); margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .memory-row { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 14px 16px; }
+  .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .head h3 { font-size: var(--font-ui); font-weight: 500; }
+  .memory-meta-dim { font-size: var(--font-caption); color: var(--text-3); }
+  .memory-tag { padding: 1px 9px; border-radius: var(--radius-pill); font-size: var(--font-caption); line-height: 1.7; white-space: nowrap; display: inline-block; }
+  .memory-tag.is-lesson { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+  .memory-tag.is-warn { background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); }
+  .memory-tag.is-dim { border: 1px solid var(--hairline); color: var(--text-3); }
+  .memory-callout { padding: 10px 12px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--yellow) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); line-height: 1.55; }
+  .memory-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: var(--font-caption); color: var(--text-3); }
+  .ui-btn { padding: 4px 14px; border-radius: var(--radius-pill); border: 1px solid var(--hairline); background: transparent; color: var(--ink); font: inherit; font-size: var(--font-caption); cursor: pointer; }
+  .ui-btn:hover { background: var(--hover-fill); }
+  .ui-btn.primary { background: var(--ink); color: #0f0f10; border-color: transparent; font-weight: 500; }
+  .ui-btn.primary:hover { background: #fff; }
+  .nowrap { white-space: nowrap; flex: none; }
+  .ui-input { flex: 1; min-width: 0; padding: 6px 12px; border-radius: var(--radius-control); border: 1px solid var(--hairline); background: var(--bg-input); color: var(--ink); font: inherit; font-size: var(--font-caption); }
+  .split { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 10px; }
+  .src { display: grid; grid-template-columns: 70px 1fr 28px; align-items: center; gap: 10px; font-size: var(--font-caption); color: var(--text-2); margin: 6px 0; }
+  .bar-t { height: 5px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; } .bar-t i { display: block; height: 100%; background: var(--text-3); }
+  .src .n { text-align: right; color: var(--text-3); }
+  .lab-row { display: flex; gap: 8px; margin: 8px 0; }
+  .chipline { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .lab-chip { padding: 2px 10px; border-radius: var(--radius-pill); background: var(--bg-inset); color: var(--text-3); font-size: var(--font-caption); border: none; font: inherit; font-size: var(--font-caption); }
+  .lab-empty { text-align: center; color: var(--text-3); font-size: var(--font-caption); padding: 14px 0 4px; }
+  .linkish { background: none; border: none; color: var(--blue); font: inherit; font-size: var(--font-caption); cursor: pointer; padding: 0; }
+  .details-toggle { background: none; border: none; color: var(--text-3); font: inherit; font-size: var(--font-caption); cursor: pointer; padding: 0; display: inline-flex; gap: 4px; align-items: center; }
+  .details-toggle i { display: inline-block; transition: transform var(--dur-micro) var(--ease-hover); font-style: normal; }
+  .is-open .details-toggle i { transform: rotate(180deg); }
+  .acc { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--dur-panel) var(--ease-standard); }
+  .is-open .acc { grid-template-rows: 1fr; }
+  .acc > div { overflow: hidden; min-height: 0; }
+  .raw { margin-top: 8px; padding: 8px 10px; border-radius: var(--radius-small); background: var(--bg-input); color: var(--text-3); font-family: var(--font-mono); font-size: 11px; line-height: 1.6; word-break: break-all; }
+  .state-line { display: flex; gap: 10px; align-items: flex-start; margin: 4px 0 2px; }
+  .state-ico { flex: none; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--yellow) 14%, transparent); color: var(--yellow); font-size: 12px; font-weight: 600; margin-top: 1px; }
+  .state-title { font-size: var(--font-ui); color: var(--ink); }
+  .state-desc { font-size: var(--font-caption); color: var(--text-3); margin-top: 2px; }
+  .actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; }
+  .actions .push { margin-left: auto; }
+  .hint-line { display: flex; gap: 8px; align-items: center; font-size: var(--font-caption); color: var(--text-3); padding: 6px 10px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--yellow) 6%, transparent); }
+  .hint-line .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); flex: none; }
+
+  /* ===== 条目 3：条目总览工具栏 ===== */
+  .memory-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .memory-chip { padding: 2px 10px; border-radius: var(--radius-pill); border: 1px solid transparent; background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); cursor: pointer; white-space: nowrap; }
+  .memory-chip:hover { background: var(--hover-fill); }
+  .memory-chip.is-active { background: var(--selected-fill); color: var(--ink); border-color: var(--hairline); }
+  .memory-chip.is-add { color: var(--yellow); border: 1px solid color-mix(in srgb, var(--yellow) 45%, transparent); }
+  .push { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .sep { width: 1px; height: 14px; background: var(--hairline); margin: 0 4px; }
+  .search-in { width: 200px; flex: none; }
+  .row-grow { flex: 1; }
+  .toggle-chip { display: inline-flex; gap: 6px; align-items: center; }
+  .toggle-chip .box { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--text-3); display: inline-grid; place-items: center; font-size: 9px; }
+  .memory-chip.is-active .box { background: var(--ink); border-color: var(--ink); color: #0f0f10; }
+  .ghost-link { background: none; border: none; color: var(--text-3); font: inherit; font-size: var(--font-caption); cursor: pointer; white-space: nowrap; }
+  .ghost-link:hover { color: var(--text-2); }
+  .ghost-link.is-active { color: var(--ink); }
+  .ui-empty { padding: 60px 0 40px; text-align: center; }
+  .ui-empty-title { font-size: var(--font-control); font-weight: 500; margin-bottom: 10px; }
+  .steps { display: inline-flex; flex-direction: column; gap: 6px; text-align: left; color: var(--text-2); font-size: var(--font-caption); }
+  .steps i { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--bg-inset); font-style: normal; font-size: 10px; margin-right: 8px; color: var(--text-3); }
+  .empty-actions { margin-top: 14px; display: flex; gap: 8px; justify-content: center; }
+  .entry { padding: 10px 14px; border-radius: var(--radius-card); background: var(--bg-raised); box-shadow: var(--shadow-card); font-size: var(--font-caption); color: var(--text-2); display: flex; gap: 10px; align-items: center; }
+  .entry b { color: var(--ink); font-weight: 500; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ===== 条目 4–7 ===== */
+  .shell { background: var(--bg-panel); border-radius: var(--radius-card); border: 1px solid var(--hairline); padding: 18px 20px 28px; min-height: 420px; }
+  .sh-kicker { font-size: 11px; color: var(--text-3); }
+  .sh-title { font-size: var(--font-title); font-weight: 600; margin-top: 2px; }
+  .sh-meta { font-size: var(--font-caption); color: var(--text-3); margin-top: 2px; min-height: 18px; }
+  .sh-tabs { display: flex; gap: 14px; margin: 12px 0 10px; border-bottom: 1px solid var(--hairline); }
+  .sh-tabs button { background: none; border: none; color: var(--text-2); font: inherit; font-size: var(--font-caption); padding: 6px 0; cursor: pointer; border-bottom: 2px solid transparent; }
+  .sh-tabs button.is-active { color: var(--ink); border-bottom-color: var(--ink); }
+  .intro { padding: 8px 12px; border-radius: var(--radius-control); background: color-mix(in srgb, var(--blue) 8%, transparent); color: var(--text-2); font-size: var(--font-caption); }
+  .intro b { color: var(--blue); font-weight: 500; margin-right: 6px; }
+  .narrow { width: min(760px, 100%); margin: 14px auto 0; }
+  .ui-empty-desc { color: var(--text-3); font-size: var(--font-caption); max-width: 380px; margin: 0 auto; }
+  .row-card { background: var(--bg-raised); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 12px 16px; }
+  .row-top { display: flex; gap: 12px; align-items: baseline; }
+  .row-title { flex: 1; font-size: var(--font-ui); color: var(--ink); }
+  .row-when { font-size: var(--font-caption); color: var(--text-3); white-space: nowrap; }
+  .row-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; font-size: var(--font-caption); color: var(--text-3); }
+  .row-lineage { margin-top: 8px; font-size: var(--font-caption); color: var(--text-3); }
+  .tag-green-line { border: 1px solid color-mix(in srgb, var(--green) 45%, transparent); color: var(--green); padding: 0 8px; border-radius: 999px; font-size: 11.5px; }
+  .tag-plain { background: var(--bg-inset); color: var(--text-2); padding: 0 8px; border-radius: 999px; font-size: 11.5px; }
+  .tag-dim { border: 1px solid var(--hairline); color: var(--text-3); padding: 0 8px; border-radius: 999px; font-size: 11.5px; }
+  .dotsep::before { content: '·'; margin: 0 2px; color: var(--text-3); }
+  .budget { height: 5px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; }
+  .budget i { display: block; height: 100%; background: var(--purple); }
+  .globe { padding: 1px 9px; border-radius: 999px; font-size: 11.5px; color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, transparent); }
+  .danger { color: var(--red); }
+  .rec-row { display: flex; gap: 12px; align-items: center; }
+  .rec-row .body { flex: 1; min-width: 0; }
+  .rec-kind { font-size: 11px; padding: 0 8px; border-radius: 999px; }
+  .rec-kind.is-del { color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+  .rec-kind.is-rw { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+  .group-title { font-size: var(--font-caption); color: var(--text-3); margin: 4px 0 8px; }
+  .chip-btn { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--hairline); background: transparent; color: var(--text-2); font: inherit; font-size: var(--font-caption); display: inline-flex; gap: 4px; align-items: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="proto-note"><b>交互原型</b>（记忆中心打磨计划 条目 1–7）。顶部选页面，再切「现状 / 改后」对比；红色虚线框写现状的毛病，绿色虚线框写改了什么。数据均为虚构样例。</div>
+
+  <div class="bar">
+    <span class="seg" id="pageSeg">
+      <button data-p="ov" class="is-active">条目 1 · 总览脑图</button>
+      <button data-p="idx">条目 2 · 索引状态</button>
+      <button data-p="ent">条目 3 · 条目总览</button>
+      <button data-p="glb">条目 4 · 各页共用</button>
+      <button data-p="row">条目 5 · 记忆卡片</button>
+      <button data-p="prof">条目 6 · 用户画像</button>
+      <button data-p="rec">条目 7 · 回收站</button>
+    </span>
+    <span class="seg" id="viewSeg">
+      <button data-v="b" class="is-active">现状</button>
+      <button data-v="a">改后</button>
+    </span>
+    <span class="chk" id="chk"></span>
+  </div>
+
+  <!-- ================= 条目 1 ================= -->
+  <div class="pane is-show" data-page="ov">
+    <div class="ov-card"><svg id="ovSvg" viewBox="50 8 1090 700" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg"></svg></div>
+    <div class="pain" data-when="b"><b>现状问题</b>：① 「策展核心」卡片右半截伸出脑形轮廓外，轮廓线从卡片中间穿过去（你红框的位置），两条绿箭头也落在轮廓外；② 「回收站」右下角压在轮廓线上；③ 「主动提醒」的说明折成两行，第二行被卡片底边截掉（「限频」只露半个字）；④ 画像写多了以后徽标变长（如「205 / 4K」），「用户画像 · USER.md」标题被挤成「用户画像 · USER...」。上方检查条会用红字标出压线、出界的卡片。</div>
+    <div class="gain" data-when="a"><b>改后</b>：右侧三张卡整体往里收：「策展核心」左移并缩窄，「回收站」上移并缩窄，所有卡片离轮廓至少留一圈空隙；进出策展核心的四条线重新走线（自动入库改成从巩固引擎正上方直上，「取代 · 可回滚」改从策展核心右侧下来），交叉点比现状少一处；「主动提醒」卡片加宽，说明文字一行放下；画像卡标题只留「用户画像」，USER.md 挪进说明行，徽标再长也不挤标题。节点、连线、颜色、交互都不变，只动位置。上线时补一条测试：每张脑内卡片的四个角都必须落在轮廓里，以后再调坐标也不会压线。</div>
+  </div>
+
+  <!-- ================= 条目 2 ================= -->
+  <div class="pane" data-page="idx">
+    <div class="memory-page"><div class="memory-inner">
+      <div data-when="b">
+        <div class="memory-row">
+          <div class="head"><h3>试一句话</h3><span class="memory-meta-dim">输入问题，看记忆系统会召回什么、为什么</span></div>
+          <div class="lab-row"><input class="ui-input" placeholder="像对 Agent 一样提问…"><button class="ui-btn">检索</button></div>
+          <div class="chipline"><span class="lab-chip">界面卡顿怎么办</span><span class="lab-chip">打包很慢</span><span class="lab-chip">数据库用什么</span></div>
+          <div class="chipline" style="margin:8px 0;font-size:12px;color:var(--text-3)">检索模式 <span class="seg"><button disabled>词法 + 向量</button><button class="is-active">纯词法</button></span> 向量层开启：能召回「意思相近但用词不同」的记忆</div>
+          <div class="memory-callout">向量层未启用：provider 创建失败：[memory-embedding] 本地模型未就位：Xenova/bge-small-zh-v1.5（未配置目录/内置资源、缓存不存在，且未开启 allowDownload）——「词法 + 向量」模式暂不可用，可先试纯词法。</div>
+          <div class="lab-empty">输入一句话再点检索</div>
+        </div>
+        <div class="split" style="margin-top:14px">
+          <div class="memory-row">
+            <div class="head"><h3>BM25 词法检索</h3><span class="memory-tag is-lesson">恒开</span></div>
+            <div class="memory-meta-dim">恒开 · 全库 21 块</div>
+            <div class="src"><span>工作日志</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+            <div class="src"><span>情景暂存</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+            <div class="src"><span>会话转录</span><span class="bar-t"><i style="width:100%"></i></span><span class="n">18</span></div>
+            <div class="src"><span>用户画像</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+            <div class="memory-meta-dim">转录会话 1 场</div>
+          </div>
+          <div class="memory-row">
+            <div class="head"><h3>向量检索</h3><span class="memory-tag is-warn">已降级（纯词法）</span></div>
+            <div class="memory-callout">降级原因：provider 创建失败：[memory-embedding] 本地模型未就位：Xenova/bge-small-zh-v1.5（未配置目录/内置资源、缓存不存在，且未开启 allowDownload）</div>
+            <div class="memory-card-foot"><span class="memory-meta-dim">在设置 → 记忆 里配置向量层（模型 / 自动下载 / API）</span><button class="ui-btn" style="width:86px">去设置配置向量</button></div>
+            <div class="memory-card-foot"><span>待嵌入 0 块</span><button class="ui-btn">重建索引</button></div>
+          </div>
+        </div>
+      </div>
+
+      <div data-when="a">
+        <div class="memory-row">
+          <div class="head"><h3>试一句话</h3><span class="memory-meta-dim">输入问题，看记忆系统会召回什么、为什么</span></div>
+          <div class="lab-row"><input class="ui-input" placeholder="像对 Agent 一样提问…"><button class="ui-btn nowrap">检索</button></div>
+          <div class="chipline"><span class="lab-chip">界面卡顿怎么办</span><span class="lab-chip">打包很慢</span><span class="lab-chip">数据库用什么</span></div>
+          <div class="chipline" style="margin:8px 0;font-size:12px;color:var(--text-3)">检索模式 <span class="seg"><button disabled title="向量检索没开，见下方">词法 + 向量</button><button class="is-active">纯词法</button></span> 只按字面找词：换个说法就找不到</div>
+          <div class="hint-line"><span class="dot"></span>向量检索没开，暂时只能按字面找。<button class="linkish" onclick="flash()">原因和开启方法见下方 ↓</button></div>
+          <div class="lab-empty">输入一句话再点检索</div>
+        </div>
+        <div class="split" style="margin-top:14px">
+          <div class="memory-row">
+            <div class="head"><h3>关键词检索</h3><span class="memory-meta-dim">BM25</span><span class="memory-tag is-lesson" style="margin-left:auto">一直开着</span></div>
+            <div class="memory-meta-dim">全库 21 块 · 转录会话 1 场</div>
+            <div class="src"><span>工作日志</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+            <div class="src"><span>情景暂存</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+            <div class="src"><span>会话转录</span><span class="bar-t"><i style="width:100%"></i></span><span class="n">18</span></div>
+            <div class="src"><span>用户画像</span><span class="bar-t"><i style="width:6%"></i></span><span class="n">1</span></div>
+          </div>
+          <div class="memory-row" id="vecCard">
+            <div class="head"><h3>向量检索</h3><span class="memory-tag is-warn" style="margin-left:auto">未开启</span></div>
+            <div class="state-line">
+              <span class="state-ico">!</span>
+              <div>
+                <div class="state-title">本地向量模型还没下载</div>
+                <div class="state-desc">开启后能找到「意思相近、用词不同」的记忆。可在设置里允许自动下载，或改用 API。</div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="ui-btn primary nowrap" onclick="toast('跳转：设置 → 记忆')">去设置开启</button>
+              <span class="memory-meta-dim push nowrap">待嵌入 0 块</span>
+              <button class="ui-btn nowrap">重建索引</button>
+            </div>
+            <div id="rawBox" style="margin-top:10px">
+              <button class="details-toggle" onclick="document.getElementById('rawBox').classList.toggle('is-open')">技术详情 <i>▾</i></button>
+              <div class="acc"><div><div class="raw">provider 创建失败：[memory-embedding] 本地模型未就位：Xenova/bge-small-zh-v1.5（未配置目录/内置资源、缓存不存在，且未开启 allowDownload）</div></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+    <div class="pain" data-when="b"><b>现状问题</b>：① 「去设置配置向量」按钮被右下角挤窄，字折成两行（红框位置），原因是按钮左边那句说明太长、按钮本身没设「不许折行」；「去设置配置」四个字也拗口；② 同一句开发者报错（provider / memory-embedding / allowDownload）在检索台和向量卡片里各出现一次，普通用户看不懂；③ 向量卡片底部两行说明、两个按钮排得很散，看不出该先点哪个；④ 左卡「恒开」出现两次（标签一次、正文一次）。</div>
+    <div class="gain" data-when="a"><b>改后</b>：向量卡片先说人话（「本地向量模型还没下载」+ 开了有什么用），主按钮「去设置开启」固定一行、醒目；「重建索引」降为次按钮，和「待嵌入」放同一行；原始报错收进可展开的「技术详情」（点开看）。检索台只留一行提示并指向下方卡片，不再重复整段报错（点「原因和开启方法见下方」试试）。左卡标题改成「关键词检索」，BM25 作为小字保留，去掉重复的「恒开」。</div>
+  </div>
+
+  <!-- ================= 条目 3 ================= -->
+  <div class="pane" data-page="ent">
+    <div class="bar" style="margin-bottom:10px"><span class="memory-meta-dim">样例数据：</span>
+      <span class="seg" id="dataSeg"><button data-d="empty" class="is-active">空库（你截图的状态）</button><button data-d="full">有 5 条、带标签</button></span>
+    </div>
+    <div class="memory-page"><div class="memory-inner" id="entInner"></div></div>
+    <div class="pain" data-when="b"><b>现状问题</b>：① 一行里挤了四类东西——范围筛选、两个特殊开关、「＋ 新增记忆」、排序切换，外观一模一样，分不清哪个是筛选、哪个是排序；② 「新增记忆」夹在筛选和排序中间，不像主操作；③ 「已取代」用了黄色描边（那是「新增」专用的样式），看起来像警告；④ 一条标签都没有时，第二行仍孤零零挂着一个「全部标签」；⑤ 空库时筛选全都没用，却照样摆着。</div>
+    <div class="gain" data-when="a" id="gain3"><b>改后</b>：第一行＝搜索框 + 排序 + 最右边的主按钮「＋ 新增记忆」；第二行＝筛选：「范围」三选一分段、「只看从未被召回」做成勾选开关，「已取代的旧条目」挪到最右、灰色文字链接（它是切到另一个只读列表，不是筛选）。有标签才显示标签行；空库时只留新增按钮和空态引导。切到「有 5 条」看完整形态，所有按钮都能点。</div>
+  </div>
+
+  <!-- ================= 条目 4 各页共用 ================= -->
+  <div class="pane" data-page="glb">
+    <div class="shell" id="shell"></div>
+    <div class="pain" data-when="b"><b>现状问题</b>（点上面的页签切换看）：① 每页顶部的蓝色说明条横跨整个面板，下面的内容却是居中的窄栏，两者左边缘对不齐，看起来像两块拼上去的；② 标题下那行小字每页说的东西不一样（总览是一句口号，条目页是条数，画像页是「USER.md · 205 / 4000 · 终审免审」这种内部说法），切页签时忽长忽短地跳；③ 页签叫「意图管理」，但总览脑图和页面正文都叫「主动提醒」，同一样东西两个名字；④ 空态不统一：审批队列空态有按钮，晋升审阅、意图管理空态只有一段话，没有下一步。</div>
+    <div class="gain" data-when="a"><b>改后</b>：说明条收进内容栏，和下方内容同宽、同一条左边缘；标题下小字固定为一句全局概况「5 条长期记忆 · 画像 205 / 4000 字 · 1 条待你把关」，切页签不跳；页签「意图管理」改名「主动提醒」，和脑图、正文统一；所有空态统一成「一句状态 + 一句解释 + 一个下一步按钮」（晋升审阅给「看排队中的新记忆」，主动提醒给「怎么设置提醒」示例）。</div>
+  </div>
+
+  <!-- ================= 条目 5 记忆卡片 ================= -->
+  <div class="pane" data-page="row">
+    <div class="memory-page"><div class="memory-inner" style="width:min(760px,100%)">
+      <div data-when="b" class="list">
+        <div class="row-card"><div class="row-top"><span class="row-title">打包前先跑 npm run rebuild，换 Electron 版本后 node-pty 要重编</span><span class="row-when">0 天 · 09-28 23:00</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span>从未被召回</span><span class="tag-plain">构建</span><span>manual</span></div>
+          <div class="row-lineage">↳ 来自 你手动添加</div></div>
+        <div class="row-card"><div class="row-top"><span class="row-title">Windows 下 Git Bash 丢弃输出一律用 &gt; /dev/null，不要写 &gt; nul</span><span class="row-when">0 天 · 09-28 23:00</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span>从未被召回</span><span class="tag-plain">规约</span><span class="tag-plain">windows</span><span>manual</span></div>
+          <div class="row-lineage">↳ 来自 你手动添加</div></div>
+        <div class="row-card"><div class="row-top"><span class="row-title">调度简报只给路径不给全文，协议类内容先落盘再引用</span><span class="row-when">12 天 · 09-16 10:02</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span>召回 5 次</span><span class="tag-plain">规约</span><span>consolidation</span></div>
+          <div class="row-lineage">↳ 来自 巩固晋升 · 会话「重构记忆面板」</div></div>
+      </div>
+      <div data-when="a" class="list">
+        <div class="row-card"><div class="row-top"><span class="row-title">打包前先跑 npm run rebuild，换 Electron 版本后 node-pty 要重编</span><span class="row-when">今天 23:00</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span class="tag-plain">#构建</span><span class="dotsep"></span><span>还没被用到过</span><span class="dotsep"></span><span>你手动添加</span></div></div>
+        <div class="row-card"><div class="row-top"><span class="row-title">Windows 下 Git Bash 丢弃输出一律用 &gt; /dev/null，不要写 &gt; nul</span><span class="row-when">今天 23:00</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span class="tag-plain">#规约</span><span class="tag-plain">#windows</span><span class="dotsep"></span><span>还没被用到过</span><span class="dotsep"></span><span>你手动添加</span></div></div>
+        <div class="row-card"><div class="row-top"><span class="row-title">调度简报只给路径不给全文，协议类内容先落盘再引用</span><span class="row-when">12 天前</span></div>
+          <div class="row-meta"><span class="tag-green-line">策展中</span><span class="tag-plain">#规约</span><span class="dotsep"></span><span>被用到 5 次</span><span class="dotsep"></span><span>巩固晋升 · <button class="linkish" onclick="toast('跳到来源会话')">会话「重构记忆面板」</button></span></div></div>
+      </div>
+    </div></div>
+    <div class="pain" data-when="b"><b>现状问题</b>：① 每张卡三行，第三行「↳ 来自 你手动添加」和第二行末尾的英文「manual」说的是同一件事（来源），重复且露了内部英文词；② 时间写成「0 天 · 09-28 23:00」，「0 天」读不通；③ 标签和其他小字混在一起，分不出哪个是你打的标签。</div>
+    <div class="gain" data-when="a"><b>改后</b>：卡片压成两行，来源只说一次、用人话，并挪到状态行末尾（能跳会话的保留链接）；时间改成「今天 23:00 / 昨天 / 12 天前」，悬停再看完整时间；标签统一带「#」，和其他状态区分开。「策展中」是上一轮定下的阶段词，本轮不改名。</div>
+  </div>
+
+  <!-- ================= 条目 6 用户画像 ================= -->
+  <div class="pane" data-page="prof">
+    <div class="memory-page"><div class="memory-inner" style="width:min(760px,100%)">
+      <div data-when="b">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="display:flex;gap:8px;align-items:center"><span class="memory-meta-dim">用户画像</span><span class="globe">◍ 全局资产 · 跟着你走</span></div>
+            <div class="memory-meta-dim" style="margin-top:4px">这里写的偏好（「Always 用简体中文回复」）对所有工作区的所有 Agent 生效——换项目、换工作区都带着；修改即时生效，你是最终把关人。</div>
+            <div style="width:240px;margin-top:8px"><div class="budget"><i style="width:5%"></i></div><div class="memory-meta-dim" style="margin-top:6px">205/4000 字符</div></div>
+          </div>
+          <button class="ui-btn">＋ 新增画像指令</button>
+        </div>
+        <div class="list" style="margin-top:14px">
+          <div class="row-card"><div class="row-top"><span class="row-title">我习惯用简体中文沟通，回复先给结论</span><span class="row-when">观察于 2026-09-28</span></div><div class="row-meta"><span class="memory-tag is-lesson">生效中</span><span class="tag-dim">Always / Never / Prefer</span></div></div>
+          <div class="row-card"><div class="row-top"><span class="row-title">我偏好先看 HTML 原型再拍板 UI 改动</span><span class="row-when">观察于 2026-09-28</span></div><div class="row-meta"><span class="memory-tag is-lesson">生效中</span><span class="tag-dim">Always / Never / Prefer</span></div></div>
+        </div>
+        <div class="memory-meta-dim" style="margin-top:18px">（空画像时：「USER.md 已建立，还没有指令——点右上「＋ 新增画像指令」写下第一条。」——按钮其实在右侧中间，不在右上）</div>
+      </div>
+      <div data-when="a">
+        <div class="memory-row">
+          <div style="display:flex;gap:10px;align-items:center"><h3 style="font-size:var(--font-ui);font-weight:500">你的偏好</h3><span class="globe">◍ 所有工作区通用</span><button class="ui-btn primary nowrap" style="margin-left:auto" onclick="toast('打开新增编辑器')">＋ 新增偏好</button></div>
+          <div class="memory-meta-dim" style="margin-top:6px">写在这里的偏好会带进每个工作区、每个 Agent 的对话，改完立即生效。</div>
+          <div style="display:flex;gap:10px;align-items:center;margin-top:12px"><div class="budget" style="flex:1"><i style="width:5%"></i></div><span class="memory-meta-dim nowrap">205 / 4000 字</span></div>
+        </div>
+        <div class="list" style="margin-top:12px">
+          <div class="row-card"><div class="row-top"><span class="row-title">我习惯用简体中文沟通，回复先给结论</span><span class="row-when">09-28 记下</span></div><div class="row-meta"><span class="memory-tag is-lesson">生效中</span></div></div>
+          <div class="row-card"><div class="row-top"><span class="row-title">我偏好先看 HTML 原型再拍板 UI 改动</span><span class="row-when">09-28 记下</span></div><div class="row-meta"><span class="memory-tag is-lesson">生效中</span></div></div>
+        </div>
+        <div class="ui-empty" style="padding:30px 0 0"><p class="memory-meta-dim">（空画像时改为标准空态：）</p><p class="ui-empty-title" style="margin-top:6px">还没有偏好</p><p class="ui-empty-desc">你在对话里说「以后都用中文回复」这类话，会被整理进这里；也可以自己先写一条。</p><div class="empty-actions"><button class="ui-btn primary">＋ 写第一条偏好</button></div></div>
+      </div>
+    </div></div>
+    <div class="pain" data-when="b"><b>现状问题</b>：① 顶部没有卡片边界，「＋ 新增画像指令」孤零零浮在右侧中间，和标题不在一行；② 用量条只有 240 像素宽，挂在说明文字下面，很难看出是用量；③ 每一条都挂着一模一样的「Always / Never / Prefer」标签——那是写死的格式提示，对每条都没有信息量；④ 说明里夹着英文示例「Always 用简体中文回复」，「画像指令」「全局资产」偏技术；⑤ 空画像时提示说按钮在「右上」，实际在右侧中间。</div>
+    <div class="gain" data-when="a"><b>改后</b>：顶部收成一张卡：标题「你的偏好」+「所有工作区通用」徽标 + 同行最右主按钮；用量条撑满整行，右侧写「205 / 4000 字」；去掉每条上的固定格式标签；文案改人话（「画像指令」→「偏好」）；空画像用标准空态并直接给按钮。页签名仍叫「用户画像」，与脑图一致。</div>
+  </div>
+
+  <!-- ================= 条目 7 回收站 ================= -->
+  <div class="pane" data-page="rec">
+    <div class="memory-page"><div class="memory-inner" style="width:min(760px,100%)">
+      <div data-when="b">
+        <div class="memory-meta-dim">改写前镜像 · 巩固改写前的全文备份</div>
+        <div class="ui-empty" style="padding:40px 0 30px"><p class="ui-empty-title">还没有前镜像</p><p class="ui-empty-desc">巩固引擎改写策展记忆前，会先把改写前的全文备份到这里——改坏了随时一键回滚。</p></div>
+        <div id="oldRec"><button class="chip-btn" onclick="document.getElementById('oldRec').classList.toggle('is-open')">删除备份（旧回收站） (1) ▾</button>
+          <div class="acc"><div><div style="margin-top:10px" class="memory-meta-dim">旧删除备份维持原恢复通道，随记忆重构 B8 并入统一回收站。</div>
+            <div class="row-card" style="margin-top:8px"><div class="rec-row"><span class="row-title">临时条目：稍后删除用来产生回收站记录</span><span class="row-when">2026-09-28 23:00:41</span><button class="ui-btn danger">彻底删除</button><button class="ui-btn">恢复</button></div></div>
+          </div></div></div>
+      </div>
+      <div data-when="a">
+        <div class="group-title">可恢复的备份（2）· 改错了、删错了都能从这里找回来</div>
+        <div class="list">
+          <div class="row-card"><div class="rec-row"><div class="body"><div class="row-title">临时条目：稍后删除用来产生回收站记录</div><div class="row-meta"><span class="rec-kind is-del">删除前备份</span><span>今天 23:00 · 你手动删除</span></div></div><button class="ui-btn nowrap" onclick="toast('已恢复')">恢复</button><button class="ui-btn danger nowrap" onclick="toast('确认后永久删除')">彻底删除</button></div></div>
+          <div class="row-card"><div class="rec-row"><div class="body"><div class="row-title">长期记忆（Worker 共享）· 改写前全文</div><div class="row-meta"><span class="rec-kind is-rw">改写前备份</span><span>09-27 14:12 · 巩固引擎合并了 2 条重复记忆 · 1,204 字</span></div><div class="row-meta" style="color:var(--text-2)">E2E 用 mock-llm 起 app；端口一律 listen(0) 再读回……</div></div><button class="ui-btn nowrap" onclick="toast('已回滚到改写前')">回滚</button><button class="ui-btn danger nowrap" onclick="toast('确认后永久删除')">彻底删除</button></div></div>
+        </div>
+        <div class="memory-meta-dim" style="margin-top:16px">（两类都没有时才显示空态：「回收站是空的——改写或删除记忆前，都会先在这里留一份备份」）</div>
+      </div>
+    </div></div>
+    <div class="pain" data-when="b"><b>现状问题</b>（点「删除备份」展开看）：① 明明有一条删除备份，页面正中却写着大大的「还没有前镜像」，第一眼以为回收站是空的；② 两种备份分成两块、样式不同，删除备份还被折叠藏在底下；③ 露出了开发内部说明「随记忆重构 B8 并入统一回收站」；④ 「前镜像」是工程词；改写备份的标题直接显示文件路径（如 docs/memory/MEMORY.md）。</div>
+    <div class="gain" data-when="a"><b>改后</b>：两种备份合成一个列表，按时间排，每条用彩色小标签区分「删除前备份 / 改写前备份」，按钮统一放右侧（恢复或回滚在前，彻底删除在后）；两类都没有时才显示空态；删掉开发内部说明；「前镜像」改叫「改写前备份」，文件路径换成「长期记忆（Worker 共享）」这种人话。恢复/回滚还走原来各自的通道，只改呈现。</div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--bg-overlay);padding:8px 16px;border-radius:999px;font-size:12px;box-shadow:var(--shadow-card);opacity:0;transition:opacity 120ms ease-out;pointer-events:none"></div>
+
+<script>
+  var page = 'ov', view = 'b', data = 'empty';
+  function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.style.opacity=1; clearTimeout(toast._t); toast._t=setTimeout(function(){t.style.opacity=0;},1600); }
+  function flash(){ var c=document.getElementById('vecCard'); c.style.transition='box-shadow 280ms'; c.style.boxShadow='0 0 0 1px var(--yellow)'; setTimeout(function(){c.style.boxShadow='';},900); }
+
+  // ===== 条目 1：脑图（坐标系与 MemoryOverview.tsx 一致）=====
+  var BRAIN_D = 'M29.75 27.625s2.184-.443 3.542-2.229c1.583-2.083 1.375-4.312 1.375-4.312 1.604-3-.5-5.813-.5-5.813C33.958 12.104 32 10.792 32 10.792c-1.271-3.021-4.083-3.833-4.083-3.833-2.208-2.583-6.125-2.5-6.125-2.5s-3.67-1.345-8.708.167c-.833.25-3.625.833-5.667 2.083C.981 10.649.494 16.793.584 17.792 1.083 23.375 5 24.375 7.5 24.958c.583 1.583 2.729 4.5 6.583 3.417 4.75-.833 6.75-2.25 7.917-2.25s4.417 1.25 7.75 1.5z';
+  var BT = { tx: 62, ty: -51.9, sx: 29.2, sy: 23.5176 };
+  var NODE_TXT = {
+    'n-session': ['对话会话', '你 + Agent · 一切记忆的源头', '', ''],
+    'n-staging': ['情景暂存池', '记忆的排队区 · 不会自动带进对话', 'yellow', '积压 1'],
+    'n-consolidation': ['巩固引擎', '空闲 · 等待下次巩固', '', ''],
+    'n-curated': ['策展核心', '长期记忆库 · 注入对话有字数预算', 'green', '0 条'],
+    'n-usermd': ['用户画像 · USER.md', '全局资产 · 跟着你走', 'purple', '205 / 4K'],
+    'n-intents': ['主动提醒', '「以后每当…就提醒我」· 防骚扰限频', 'purple', ''],
+    'n-approval': ['审批队列', '把握不足的改动 · 等你把关', 'yellow', ''],
+    'n-recycle': ['回收站', '改写前的备份 · 可回滚', '', '']
+  };
+  var BEFORE = {
+    nodes: { 'n-session':[90,610,195,66], 'n-staging':[385,415,205,64], 'n-consolidation':[630,300,185,78], 'n-curated':[780,162,260,72], 'n-usermd':[400,168,220,76], 'n-intents':[395,268,195,64], 'n-approval':[630,420,185,66], 'n-recycle':[855,478,180,64] },
+    edges: [
+      ['n',[[285,643],[360,643],[360,447],[385,447]]], ['n',[[246,610],[246,566]]], ['n',[[246,532],[246,206],[400,206]]],
+      ['n',[[263,549],[820,549],[820,234]]], ['n',[[488,415],[488,339],[630,339]]], ['g',[[815,339],[910,339],[910,234]]],
+      ['y',[[722,378],[722,420]]], ['g',[[815,453],[1000,453],[1000,234]]], ['n',[[1020,234],[1020,478]],1],
+      ['b',[[910,162],[910,32],[142,32],[142,610]]], ['b',[[510,168],[510,32]]], ['p',[[395,300],[194,300],[194,610]]]
+    ]
+  };
+  var AFTER = {
+    nodes: { 'n-session':[90,610,195,66], 'n-staging':[385,415,205,64], 'n-consolidation':[630,300,185,78], 'n-curated':[650,178,250,70], 'n-usermd':[400,168,220,76], 'n-intents':[375,268,235,64], 'n-approval':[630,420,185,66], 'n-recycle':[860,466,150,62] },
+    edges: [
+      ['n',[[285,643],[360,643],[360,447],[385,447]]], ['n',[[246,610],[246,566]]], ['n',[[246,532],[246,206],[400,206]]],
+      ['n',[[263,549],[840,549],[840,248]]], ['n',[[488,415],[488,339],[630,339]]], ['g',[[760,300],[760,248]]],
+      ['y',[[722,378],[722,420]]], ['g',[[815,440],[880,440],[880,248]]], ['n',[[900,213],[945,213],[945,466]],1],
+      ['b',[[860,178],[860,32],[142,32],[142,610]]], ['b',[[510,168],[510,32]]], ['p',[[375,300],[194,300],[194,610]]]
+    ]
+  };
+  function rounded(pts){ var R=16, d='M '+pts[0][0]+' '+pts[0][1];
+    for (var i=1;i<pts.length-1;i++){ var p=pts[i],a=pts[i-1],b=pts[i+1];
+      var l1=Math.hypot(p[0]-a[0],p[1]-a[1])||1, l2=Math.hypot(b[0]-p[0],b[1]-p[1])||1, r=Math.min(R,l1/2,l2/2);
+      d+=' L '+(p[0]-(p[0]-a[0])/l1*r)+' '+(p[1]-(p[1]-a[1])/l1*r)+' Q '+p[0]+' '+p[1]+' '+(p[0]+(b[0]-p[0])/l2*r)+' '+(p[1]+(b[1]-p[1])/l2*r); }
+    var e=pts[pts.length-1]; return d+' L '+e[0]+' '+e[1]; }
+  var TONE = { n:'', g:' is-green', y:' is-yellow', b:' is-blue', p:' is-purple' };
+  var MK = { n:'mN', g:'mG', y:'mY', b:'mB', p:'mP' };
+  function drawOverview(){
+    var cfg = view==='a' ? AFTER : BEFORE, s = document.getElementById('ovSvg');
+    var h = '<defs><linearGradient id="brainGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(237,237,238,0.08)"/><stop offset="0.55" stop-color="rgba(237,237,238,0.03)"/><stop offset="1" stop-color="transparent"/></linearGradient>';
+    [['mN','rgba(158,158,158,0.55)'],['mG','#45d0a0'],['mY','#e8c65a'],['mB','#6cc2ff'],['mP','#a88fff']].forEach(function(m){ h+='<marker id="'+m[0]+'" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="'+m[1]+'"/></marker>'; });
+    h += '</defs><g transform="translate('+BT.tx+' '+BT.ty+') scale('+BT.sx+' '+BT.sy+')"><path id="brainP" class="mflow-brain" d="'+BRAIN_D+'"/></g>';
+    cfg.edges.forEach(function(e){ var d=rounded(e[1]); h+='<path class="mflow-edge'+TONE[e[0]]+'" d="'+d+'" marker-end="url(#'+MK[e[0]]+')"'+(e[2]?' marker-start="url(#'+MK[e[0]]+')"':'')+'/>'; });
+    h += '<text class="mflow-elabel is-blue" x="526" y="24" text-anchor="middle">带进对话 · 开场注入 · 检索 · 触发词</text>';
+    h += '<text class="mflow-elabel" x="228" y="549" text-anchor="end">直写门</text>';
+    h += '<g><rect class="gate-d" x="234" y="537" width="24" height="24" transform="rotate(45 246 549)"/><circle class="gate-c" cx="246" cy="549" r="3"/></g>';
+    Object.keys(cfg.nodes).forEach(function(id){ var r=cfg.nodes[id], t=NODE_TXT[id];
+      if (view==='a' && id==='n-usermd') t = ['用户画像', 'USER.md · 全局资产，跟着你走', 'purple', '205 / 4K'];
+      h += '<foreignObject x="'+r[0]+'" y="'+r[1]+'" width="'+r[2]+'" height="'+r[3]+'"><div xmlns="http://www.w3.org/1999/xhtml" class="mflow-node" data-id="'+id+'"><div class="mflow-head"><span class="mflow-dot'+(t[2]?' is-'+t[2]:'')+'"></span><span class="mflow-title">'+t[0]+'</span>'+(t[3]?'<span class="mflow-badge'+(t[2]?' is-'+t[2]:'')+'">'+t[3]+'</span>':'')+'</div><div class="mflow-sub'+(view==='a'&&id==='n-intents'?' is-clip':'')+'">'+t[1]+'</div></div></foreignObject>';
+    });
+    s.innerHTML = h;
+    checkInside(cfg);
+  }
+  function checkInside(cfg){
+    var p = document.getElementById('brainP'), bad = [], M = 10;
+    if (!p.isPointInFill) return;
+    var svg = document.getElementById('ovSvg');
+    Object.keys(cfg.nodes).forEach(function(id){ if (id==='n-session') return; var r=cfg.nodes[id];
+      var pts=[[r[0]-M,r[1]-M],[r[0]+r[2]+M,r[1]-M],[r[0]-M,r[1]+r[3]+M],[r[0]+r[2]+M,r[1]+r[3]+M],[r[0]+r[2]+M,r[1]+r[3]/2],[r[0]+r[2]/2,r[1]-M],[r[0]+r[2]/2,r[1]+r[3]+M]];
+      var out = pts.some(function(q){ var pt=svg.createSVGPoint(); pt.x=(q[0]-BT.tx)/BT.sx; pt.y=(q[1]-BT.ty)/BT.sy; return !p.isPointInFill(pt); });
+      if (out){ bad.push(NODE_TXT[id][0]); var el=svg.querySelector('[data-id="'+id+'"]'); if (el) el.classList.add('is-out'); }
+    });
+    document.getElementById('chk').innerHTML = page!=='ov' ? '' : (bad.length ? '轮廓检查（卡片外扩 10 单位）：<span class="bad">压线 / 出界 → '+bad.join('、')+'</span>' : '轮廓检查（卡片外扩 10 单位）：<span class="ok">7 张脑内卡片全部在轮廓里 ✓</span>');
+  }
+
+  // ===== 条目 3：条目总览 =====
+  var st = { ns: '', never: false, retired: false, sort: 'time', tag: '' };
+  var ENTRIES = [
+    ['打包前先跑 npm run rebuild', 'Worker 共享', ['构建'], 3], ['Windows 下丢弃输出用 /dev/null', 'Worker 共享', ['规约'], 0],
+    ['调度简报只给路径不给全文', '调度专用', ['规约'], 5], ['E2E 用 mock-llm 起 app', 'Worker 共享', ['测试'], 1], ['用户偏好中文回复', '调度专用', [], 0]
+  ];
+  function chip(label, on, act, extra){ return '<button class="memory-chip'+(on?' is-active':'')+(extra||'')+'" data-act="'+act+'">'+label+'</button>'; }
+  function drawEntries(){
+    var el = document.getElementById('entInner'), empty = data==='empty', h = '';
+    var tags = empty ? [] : ['构建','规约','测试'];
+    if (view==='b'){
+      h += '<div class="memory-toolbar"><input class="ui-input search-in" placeholder="搜索记忆…"><div class="chipline">'
+        + chip('全部', st.ns==='', 'ns:') + chip('Worker 共享', st.ns==='worker', 'ns:worker') + chip('调度专用', st.ns==='scheduler', 'ns:scheduler')
+        + chip('从未被召回', st.never, 'never') + chip(empty?'已取代':'已取代（2）', st.retired, 'retired', ' is-add') + '</div>'
+        + '<div class="push"><button class="ui-btn">＋ 新增记忆</button><span class="chipline">' + chip('按时间', st.sort==='time','sort:time') + chip('按召回', st.sort==='recall','sort:recall') + chip('按标签', st.sort==='tag','sort:tag') + '</span></div></div>';
+      h += '<div class="memory-toolbar">' + chip('全部标签', st.tag==='', 'tag:') + tags.map(function(t){ return chip(t, st.tag===t, 'tag:'+t); }).join('') + '</div>';
+    } else {
+      h += '<div class="memory-toolbar"><input class="ui-input row-grow" placeholder="搜索记忆内容、标签…"'+(empty?' disabled':'')+'>'
+        + (empty ? '' : '<span class="memory-meta-dim">排序</span><span class="seg">' + ['time:按时间','recall:按召回','tag:按标签'].map(function(s){ var k=s.split(':'); return '<button data-act="sort:'+k[0]+'" class="'+(st.sort===k[0]?'is-active':'')+'">'+k[1]+'</button>'; }).join('') + '</span>')
+        + '<button class="ui-btn primary nowrap" data-act="new">＋ 新增记忆</button></div>';
+      if (!empty){
+        h += '<div class="memory-toolbar"><span class="memory-meta-dim">范围</span><span class="seg">'
+          + [':全部','worker:Worker 共享','scheduler:调度专用'].map(function(s){ var k=s.split(':'); return '<button data-act="ns:'+k[0]+'" class="'+(st.ns===k[0]?'is-active':'')+'">'+k[1]+'</button>'; }).join('') + '</span>'
+          + '<span class="sep"></span><button class="memory-chip toggle-chip'+(st.never?' is-active':'')+'" data-act="never"><span class="box">'+(st.never?'✓':'')+'</span>只看从未被召回</button>'
+          + (tags.length ? '<span class="sep"></span><span class="memory-meta-dim">标签</span>' + tags.map(function(t){ return chip('#'+t, st.tag===t, 'tag:'+t); }).join('') : '')
+          + '<span class="push"><button class="ghost-link'+(st.retired?' is-active':'')+'" data-act="retired">'+(st.retired?'← 回到现役记忆':'已取代的旧条目（2）→')+'</button></span></div>';
+      }
+    }
+    if (empty){
+      h += '<div class="ui-empty"><p class="ui-empty-title">还没有记忆——它们会随着干活慢慢长出来</p><div class="steps"><span><i>1</i>你派活时强调的决策、踩过的坑，会被 Worker 沉淀到这里</span><span><i>2</i>你说「记住…」的句子会立刻入库（唯一不等巩固的通道）</span><span><i>3</i>先有一条：点下面手动写一条试试，看它怎么被注入对话</span></div><div class="empty-actions"><button class="ui-btn primary">＋ 手动写第一条</button><button class="ui-btn">去总览看原理</button></div></div>';
+    } else if (st.retired){
+      h += '<div class="list"><div class="entry"><span class="memory-tag is-dim">已取代</span><b>打包前先跑 rebuild</b> → 被「打包前先跑 npm run rebuild」取代</div><div class="entry"><span class="memory-tag is-dim">已取代</span><b>回复用中文</b> → 被「用户偏好中文回复」取代</div></div>';
+    } else {
+      var list = ENTRIES.filter(function(e){ return (!st.ns || (st.ns==='worker')===(e[1]==='Worker 共享')) && (!st.never || e[3]===0) && (!st.tag || e[2].indexOf(st.tag)>=0); });
+      if (st.sort==='recall') list = list.slice().sort(function(a,b){ return b[3]-a[3]; });
+      h += '<div class="list">' + (list.length ? list.map(function(e){ return '<div class="entry"><b>'+e[0]+'</b><span class="memory-meta-dim">'+e[1]+'</span>'+e[2].map(function(t){return '<span class="memory-tag is-dim">#'+t+'</span>';}).join('')+'<span class="memory-meta-dim" style="margin-left:auto">召回 '+e[3]+' 次</span></div>'; }).join('') : '<div class="lab-empty">没有匹配的记忆</div>') + '</div>';
+    }
+    el.innerHTML = h;
+  }
+  document.getElementById('entInner').addEventListener('click', function(ev){
+    var b = ev.target.closest('[data-act]'); if (!b) return; var a = b.getAttribute('data-act'), k = a.split(':');
+    if (k[0]==='ns') st.ns = (view==='b' && st.ns===k[1]) ? '' : k[1];
+    else if (k[0]==='never') st.never = !st.never;
+    else if (k[0]==='retired') st.retired = !st.retired;
+    else if (k[0]==='sort') st.sort = k[1];
+    else if (k[0]==='tag') st.tag = st.tag===k[1] ? '' : k[1];
+    else if (k[0]==='new') { toast('打开新增编辑器'); return; }
+    drawEntries();
+  });
+
+  // ===== 条目 4：页头 / 说明条 / 空态 =====
+  var shTab = 'review';
+  var SH = {
+    overview: ['总览', '记忆如何形成、巩固、并流回会话', '', null],
+    entries: ['条目总览', '5 条 Worker 共享 · 0 条调度专用', '所有长期记忆都在这里：Worker 共享与调度专用两个库，可搜索、可编辑，每条记忆还能看它最近有没有被用上。', null],
+    profile: ['用户画像', 'USER.md · 205 / 4000 · 终审免审', '你本人的偏好与习惯（USER.md），对所有工作区的所有 Agent 生效；改动即时生效。', null],
+    review: ['晋升审阅', '5 条 Worker 共享 · 0 条调度专用', '记忆怎么被筛选入库：Agent 的新记忆先排队（暂存池），巩固引擎按「有没有被真用到」决定谁转正——这里能看到每一轮筛掉了什么、留下了什么。', ['还没有巩固记录', '巩固引擎在空闲时自动检查新记忆：被真用到的转正入库，没被用到的过期清掉。每完成一轮就在这里留一条时间线。', '', '看排队中的新记忆']],
+    approvals: ['审批队列', '5 条 Worker 共享 · 0 条调度专用', '需要你把关的记忆改动在这里等你点头：批准才写入，驳回就退场——大多数记忆不经过这里，自动入库。', ['没有需要你把关的改动', '这不是坏事：大多数记忆由巩固引擎自动入库；只有「把握不足」或「要改写旧记忆」的操作才会来这等你点头。', '看自动入库了什么', '看自动入库了什么']],
+    intent: ['意图管理', '5 条 Worker 共享 · 0 条调度专用', '你交代过的「以后每当…就提醒我」：什么时候触发、触发过几次、怎么取消，都在这里。', ['还没有主动提醒', '对调度说「以后每当…就提醒我」，它就会登记一条：消息里出现关键词或任务事件发生时提醒你，冷却与次数上限防骚扰。', '', '看一个例子']]
+  };
+  var ORDER = ['overview','entries','profile','review','approvals','intent','index','recycle'];
+  var NAMES = { overview:'总览', entries:'条目总览', profile:'用户画像', review:'晋升审阅', approvals:'审批队列', intent:'意图管理', index:'索引状态', recycle:'回收站' };
+  function drawShell(){
+    var a = view==='a', cur = SH[shTab], h = '<div class="sh-kicker">实用功能</div><div class="sh-title">记忆中心</div>';
+    h += '<div class="sh-meta">' + (a ? '5 条长期记忆 · 画像 205 / 4000 字 · 0 条待你把关' : cur[1]) + '</div><div class="sh-tabs">';
+    ORDER.forEach(function(k){ var nm = (a && k==='intent') ? '主动提醒' : NAMES[k]; var clickable = !!SH[k];
+      h += '<button data-sh="'+k+'" class="'+(k===shTab?'is-active':'')+'"'+(clickable?'':' disabled style="opacity:.45"')+'>'+nm+'</button>'; });
+    h += '</div>';
+    var introName = (a && shTab==='intent') ? '主动提醒' : cur[0];
+    var intro = cur[2] ? '<div class="intro"><b>'+introName+'</b>'+cur[2]+'</div>' : '';
+    if (!a) h += intro;
+    h += '<div class="narrow">' + (a ? intro : '');
+    var em = cur[3];
+    if (em) {
+      h += '<div class="ui-empty" style="padding:50px 0 20px"><p class="ui-empty-title">'+em[0]+'</p><p class="ui-empty-desc">'+em[1]+'</p>';
+      var btn = a ? em[3] : em[2];
+      if (btn) h += '<div class="empty-actions"><button class="ui-btn" onclick="toast(\''+btn+'\')">'+btn+'</button></div>';
+      h += '</div>';
+    } else {
+      h += '<div class="list" style="margin-top:14px"><div class="entry"><b>（此页内容略）</b>切到「晋升审阅 / 审批队列 / 意图管理」看空态对比</div></div>';
+    }
+    h += '</div>';
+    document.getElementById('shell').innerHTML = h;
+  }
+  document.getElementById('shell').addEventListener('click', function(ev){ var b = ev.target.closest('[data-sh]'); if (!b || b.disabled) return; shTab = b.getAttribute('data-sh'); drawShell(); });
+
+  function render(){
+    document.querySelectorAll('[data-page]').forEach(function(p){ p.classList.toggle('is-show', p.getAttribute('data-page')===page); });
+    document.querySelectorAll('[data-when]').forEach(function(x){ x.style.display = x.getAttribute('data-when')===view ? '' : 'none'; });
+    if (page==='ov') drawOverview(); else document.getElementById('chk').innerHTML='';
+    if (page==='ent') drawEntries();
+    if (page==='glb') drawShell();
+  }
+  function seg(id, attr, set){ document.getElementById(id).addEventListener('click', function(ev){ var b=ev.target.closest('button'); if(!b) return;
+    this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('is-active', x===b); }); set(b.getAttribute(attr)); render(); }); }
+  seg('pageSeg','data-p',function(v){ page=v; });
+  seg('viewSeg','data-v',function(v){ view=v; st={ns:'',never:false,retired:false,sort:'time',tag:''}; });
+  seg('dataSeg','data-d',function(v){ data=v; });
+  render();
+</script>
+</body>
+</html>

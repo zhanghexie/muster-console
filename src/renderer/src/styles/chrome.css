@@ -1,0 +1,430 @@
+/* chrome.css — 由 styles.css 拆分（域：chrome）。规范见 /design.md。修改请守住 token。 */
+
+/* 框面与内容面都消费 ResolvedAppearance，不在局部重写主题种子。 */
+/* 菜单项统一实现：ui-menu-item / 顶栏下拉 / runtime 菜单 / 右键菜单同款
+ * design.md §5 菜单项 = --font-control；§9 浮层项高 28、radius-control */
+.ui-menu-item,
+.runtime-menu-item,
+.ctx-item {
+  display: block;
+  width: 100%;
+  height: 28px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+  font-size: var(--font-control);
+  padding: 0 12px;
+  line-height: 28px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-menu-item:hover:not(:disabled):not([aria-disabled='true']),
+.ui-menu-item.is-active:not(:disabled):not([aria-disabled='true']),
+.runtime-menu-item:hover:not(:disabled):not([aria-disabled='true']),
+.ctx-item:hover:not(:disabled):not([aria-disabled='true']),
+.ctx-item.is-active:not(:disabled):not([aria-disabled='true']) {
+  background: var(--interaction-hover);
+}
+
+:is(.ui-menu-item, .runtime-menu-item, .ctx-item):is(:disabled, [aria-disabled='true']) {
+  color: var(--fg-disabled);
+  background: transparent;
+  cursor: default;
+}
+
+/* 与系统最小化/最大化/关闭同一行（titleBarOverlay height=36）
+ * 顶栏直接画在框上（透明底，透出 .app-shell 框色与工作区染色），与下方页之间不画线 */
+.chrome-bar {
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: stretch;
+  background: transparent;
+  color: var(--frame-fg-primary);
+  /* 右侧留给 Windows overlay 按钮 */
+  padding-right: 140px;
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+/* macOS hiddenInset：左上红绿灯叠在顶栏上，菜单左移让位（Windows overlay 在右，不冲突） */
+.is-mac .chrome-bar {
+  padding-left: 84px;
+  padding-right: 8px;
+}
+
+/* 原生全屏：系统红绿灯随全屏隐藏，顶栏让位同步收回（悬停顶部时菜单栏由系统层叠加，不占应用栏） */
+.is-mac.is-native-fullscreen .chrome-bar {
+  padding-left: 0;
+}
+
+.chrome-menus {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* 左缘与下方左栏内容对齐（--left-pad-x = 底部框距两倍，2026-10-10） */
+  padding-left: var(--left-pad-x);
+  -webkit-app-region: no-drag;
+}
+
+/* 品牌图标（环轨）：顶栏最左侧，纯展示 */
+.chrome-logo {
+  display: flex;
+  align-items: center;
+  margin-right: 4px;
+}
+
+.chrome-menu-btn {
+  border: none;
+  background: transparent;
+  color: var(--frame-fg-muted);
+  font-size: var(--font-ui);
+  font-family: inherit;
+  padding: 0 8px;
+  min-height: 24px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.chrome-menu-btn:hover,
+.chrome-settings:hover {
+  background: var(--frame-interaction-hover);
+  color: var(--frame-fg-primary);
+}
+
+.chrome-icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 面板历史 ‹ ›（设置左侧）：样式对齐右栏 .right-icon（26 方形小钮、radius-small、
+ * 禁用换 disabled 色不降透明度）；走 frame 色域（顶栏画在框上） */
+.chrome-history {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  margin-right: 4px;
+}
+
+.chrome-history-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--frame-fg-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chrome-history-btn:hover:not(:disabled) {
+  color: var(--frame-fg-primary);
+  background: var(--frame-interaction-hover);
+}
+
+.chrome-history-btn:disabled {
+  color: var(--fg-disabled);
+  cursor: default;
+}
+
+.chrome-history-forward {
+  transform: rotate(180deg);
+}
+
+/* 菜单分组线：design.md §3 白名单 3（列表分组之间）——菜单紧凑浮层无法用 16px 间距分组 */
+.chrome-dropdown-sep {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--border-control);
+}
+
+.chrome-drag {
+  flex: 1;
+  min-width: 24px;
+}
+
+/* 左上角品牌 logo 即会话栏开关（与专注解耦，见 sessions-dock.md）：
+   静息=品牌图标本体；悬停=面板+状态箭头（展开显 ‹ 折叠、折叠显 › 展开）。
+   右上角 .chrome-right-toggle 为右栏开合的同款镜像（分隔线在右、箭头向右），
+   紧贴窗口控制按钮左侧 */
+.chrome-sessions-toggle,
+.chrome-right-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  flex-shrink: 0;
+}
+
+.chrome-sessions-toggle {
+  color: inherit;
+}
+
+.chrome-sessions-toggle .chrome-sessions-toggle-action {
+  display: none;
+}
+
+.chrome-sessions-toggle:hover .chrome-sessions-toggle-rest {
+  display: none;
+}
+
+.chrome-sessions-toggle:hover .chrome-sessions-toggle-action {
+  display: inline-flex;
+}
+
+.chrome-right-toggle {
+  width: 30px;
+  margin-right: 8px;
+  color: var(--frame-fg-muted);
+}
+
+.chrome-right-toggle:hover {
+  color: var(--frame-fg-primary);
+  background: var(--frame-interaction-hover);
+}
+
+.chrome-right-toggle.is-open {
+  color: var(--frame-fg-secondary);
+}
+
+/* 窄屏两个开关都不显示：会话栏/右栏归抽屉管（顶栏已有抽屉唤出按钮） */
+html.is-narrow .chrome-sessions-toggle,
+html.is-narrow .chrome-right-toggle {
+  display: none;
+}
+
+.chrome-sessions-toggle-action {
+  display: none;
+}
+
+.chrome-sessions-toggle:hover .chrome-sessions-toggle-rest {
+  display: none;
+}
+
+.chrome-sessions-toggle:hover .chrome-sessions-toggle-action {
+  display: inline-flex;
+}
+
+/* 窄屏两个开关都不显示：会话栏/右栏归抽屉管（顶栏已有抽屉唤出按钮） */
+html.is-narrow .chrome-sessions-toggle,
+html.is-narrow .chrome-right-toggle {
+  display: none;
+}
+
+/* 全局看板入口：设置旁图标钮（2026-10-07 报单①a，原工作区胶囊右侧文字钮改来）。
+ * 布局走 chrome-menus 内的 chrome-icon-btn，这里只管 toggle 语义高亮 */
+.chrome-gboard-btn[aria-pressed='true'] {
+  background: var(--frame-interaction-hover);
+  color: var(--frame-fg-primary);
+}
+
+/* 状态胶囊规范（design.md §9）：pill + 状态色 soft 底 + 同色圆点。
+ * 徽章本身即菜单入口（保存基准/重置/打开目录，2026-10-10 由工作区菜单挪入） */
+.chrome-sandbox {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.chrome-sandbox-badge {
+  display: inline-flex;
+  align-self: center;
+  height: 24px;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  font: inherit;
+  font-size: var(--font-caption);
+  font-weight: 500;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-micro) var(--ease-hover);
+}
+
+.chrome-sandbox-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--status-warning-fg);
+  flex-shrink: 0;
+}
+
+.chrome-sandbox-badge:hover,
+.chrome-sandbox-badge[aria-expanded='true'] {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+}
+
+.chrome-sandbox-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: var(--z-menu);
+  min-width: 200px;
+}
+
+.chrome-sandbox-action {
+  color: var(--status-warning-fg);
+}
+
+/* ========== 扩展系统（顶栏快捷动作 / HTML 面板 / 扩展管理） ========== */
+
+/* 顶栏：工作区切换器之后、拖拽区之前的快捷动作行 */
+.chrome-ext-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  -webkit-app-region: no-drag;
+}
+
+/* 扩展动作按钮：顶栏只显示名字；彩色图标保留在菜单内 */
+.chrome-ext-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--frame-fg-secondary);
+  font: inherit;
+  font-size: var(--font-ui);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chrome-ext-btn:hover {
+  background: var(--interaction-hover);
+  color: var(--frame-fg-primary);
+}
+
+.chrome-ext-name {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chrome-ext-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.chrome-ext-submenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: calc(var(--z-menu) + 1);
+  min-width: 180px;
+}
+
+.chrome-ext-submenu.is-flyout {
+  top: 0;
+  left: calc(100% + 4px);
+}
+
+.chrome-ext-menu-row {
+  position: relative;
+}
+
+.chrome-ext-menu-caret {
+  margin-left: auto;
+  font-size: var(--font-caption);
+
+  color: var(--fg-muted);
+}
+
+.chrome-ext-icon {
+  font-size: var(--font-control);
+  line-height: 1;
+  object-fit: contain;
+}
+
+.chrome-ext-overflow {
+  position: relative;
+  display: inline-flex;
+}
+
+.chrome-ext-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-menu);
+  min-width: 200px;
+}
+
+.chrome-ext-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chrome-ext-menu-item .chrome-ext-icon {
+  width: 16px;
+  text-align: center;
+}
+
+.chrome-ext-menu-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 启动降级横幅（X7-F01）：bootWait 15s 兜底超时半挂载期间的顶部提示 ──
+ * 固定浮在顶栏（36px）下方居中，纯提示不挡操作；就绪后退场（进出场走
+ * usePresence + mp-panel-top 骨架，时长/曲线全部走 token）。手机表面无顶栏，贴顶。 */
+.boot-status-banner {
+  position: fixed;
+  top: 44px;
+  left: 0;
+  right: 0;
+  margin: 0 auto;
+  width: max-content;
+  max-width: min(640px, calc(100vw - 48px));
+  z-index: var(--z-overlay);
+  padding: 6px 16px;
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-control);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-fg);
+  font: var(--font-caption)/1.5 var(--font-sans);
+  text-align: center;
+  box-shadow: var(--shadow-pop);
+  pointer-events: none; /* 纯提示横幅：不遮挡下方操作 */
+}
+
+.is-mobile .boot-status-banner {
+  top: 8px;
+}
+
+/* 启动链最终失败（超时后才 resolve ok:false）：切危险色并改为告警语义 */
