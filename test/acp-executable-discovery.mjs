@@ -90,7 +90,13 @@ try {
   fs.writeFileSync(byPath, 'fixture', { mode: 0o755 });
   fs.writeFileSync(legacy, 'fixture', { mode: 0o755 });
   process.env.PATH = agyBin;
-  assert.deepEqual(resolveAcpLaunch('antigravity'), { command: byPath, executable: byPath, args: ['acp'] });
+  const pathLaunch = resolveAcpLaunch('antigravity');
+  const expectedPath = fs.realpathSync.native(byPath);
+  assert.deepEqual({
+    ...pathLaunch,
+    command: fs.realpathSync.native(pathLaunch.command),
+    executable: fs.realpathSync.native(pathLaunch.executable)
+  }, { command: expectedPath, executable: expectedPath, args: ['acp'] });
 
   fs.mkdirSync(path.dirname(installed), { recursive: true });
   fs.renameSync(byPath, installed);

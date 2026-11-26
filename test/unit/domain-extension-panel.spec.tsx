@@ -117,7 +117,7 @@ it('reopens the browser panel on a new connection and closes only its current to
     const close = currentApiMock().mockOf('extensionSurface.closeExtension');
     const { unmount } = render(<DomainExtensionPanel workspaceId="ws" extensionId="bookshelf" placement="window" onClose={vi.fn()} />);
     expect((await screen.findByLabelText('扩展面板 书架')).getAttribute('src')).toContain('/media/extension/web-view-1/view/');
-    expect(currentApiMock().mockOf('workbench.panelPlacement')).toHaveBeenCalledWith({ token: 'web-view-1', placement: 'center' });
+    await waitFor(() => expect(currentApiMock().mockOf('workbench.panelPlacement')).toHaveBeenCalledWith({ token: 'web-view-1', placement: 'center' }));
 
     act(() => setGatewayStatus(false, ''));
     expect(screen.queryByLabelText('扩展面板 书架')).toBeNull();
