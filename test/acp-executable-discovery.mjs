@@ -90,21 +90,23 @@ try {
   fs.writeFileSync(byPath, 'fixture', { mode: 0o755 });
   fs.writeFileSync(legacy, 'fixture', { mode: 0o755 });
   process.env.PATH = agyBin;
-  const pathLaunch = resolveAcpLaunch('antigravity');
-  const expectedPath = fs.realpathSync.native(byPath);
-  assert.deepEqual({
-    ...pathLaunch,
-    command: fs.realpathSync.native(pathLaunch.command),
-    executable: fs.realpathSync.native(pathLaunch.executable)
-  }, { command: expectedPath, executable: expectedPath, args: ['acp'] });
+  const assertAgyLaunch = (launch, file, args, message) => {
+    const expectedPath = fs.realpathSync.native(file);
+    assert.deepEqual({
+      ...launch,
+      command: fs.realpathSync.native(launch.command),
+      executable: fs.realpathSync.native(launch.executable)
+    }, { command: expectedPath, executable: expectedPath, args }, message);
+  };
+  assertAgyLaunch(resolveAcpLaunch('antigravity'), byPath, ['acp']);
 
   fs.mkdirSync(path.dirname(installed), { recursive: true });
   fs.renameSync(byPath, installed);
-  assert.deepEqual(resolveAcpLaunch('antigravity'), { command: installed, executable: installed, args: ['acp'] },
+  assertAgyLaunch(resolveAcpLaunch('antigravity'), installed, ['acp'],
     'Antigravity 官方目录在旧 PATH 下仍使用新版 CLI');
-  assert.deepEqual(resolveAcpLaunch('antigravity', { command: legacy }), { command: legacy, executable: legacy, args: [] });
+  assertAgyLaunch(resolveAcpLaunch('antigravity', { command: legacy }), legacy, []);
   fs.unlinkSync(installed);
-  assert.deepEqual(resolveAcpLaunch('antigravity'), { command: legacy, executable: legacy, args: [] },
+  assertAgyLaunch(resolveAcpLaunch('antigravity'), legacy, [],
     '独立 ACP 服务保持原有参数');
   fs.unlinkSync(legacy);
   assert.match(resolveAcpLaunch('antigravity').error, /Cannot find Antigravity executable \(agy\//);
