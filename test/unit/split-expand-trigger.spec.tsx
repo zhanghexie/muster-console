@@ -345,6 +345,29 @@ describe('把手长按菜单落点', () => {
     expect(events.resizeEnds.at(-1)).toBe(false);
   });
 
+  it('指针越过分割线的调宽限位再折返时，仍使用同一次拖动的起点', () => {
+    buttonRect = new DOMRect(346, 284, 28, 32);
+    const events = renderHarness();
+    reveal();
+    const button = btn()!;
+    enterPick(button);
+    const move = (x: number): void => {
+      fireEvent.pointerMove(button, { clientX: x, clientY: 300, buttons: 1, pointerId: 1 });
+      flushFrame();
+    };
+
+    move(430);
+    // 容器把分割线限制在 x=400，指针仍可越过分割线后折返。
+    buttonRect = new DOMRect(386, 284, 28, 32);
+    move(480);
+    move(390);
+    fireEvent.pointerUp(button, { clientX: 390, clientY: 300, pointerId: 1 });
+
+    expect(events.resizeStarts).toBe(1);
+    expect(events.resizeMoves).toEqual([430, 480, 390]);
+    expect(events.resizeEnds).toEqual([false]);
+  });
+
   it('水平拖锁定调大小轴后，拖回起点或转纵向切屏落点都不回弹（换轴须松手重开）', () => {
     renderHarness();
     fireEvent.pointerEnter(hit(), { clientX: 14, clientY: 300, pointerId: 1 });

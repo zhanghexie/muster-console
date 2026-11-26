@@ -306,7 +306,7 @@ try {
   await app.evaluate(({ BrowserWindow, screen }) => { const win = BrowserWindow.getAllWindows()[0], area = screen.getDisplayMatching(win.getBounds()).workArea; win.webContents.setBackgroundThrottling(false); win.setBounds({ x: area.x + 20, y: area.y + 20, width: Math.min(1440, area.width - 40), height: Math.min(900, area.height - 40) }); win.showInactive(); });
   await page.locator('.app-shell').waitFor({ timeout: 30_000 });
   assert.equal(path.resolve(await app.evaluate(({ app }) => app.getPath('userData'))), path.resolve(userData), 'Actual application data must be isolated');
-  await page.evaluate(({ workspaceId }) => window.api.workspaceFile.patch({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: .55, hGitRatio: .45, focusMode: false, leftColumnWidth: 240 }, workspaceId), { workspaceId });
+  await page.evaluate(({ workspaceId }) => window.api.workspaceFile.patch({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: .5, hGitRatio: .5, focusMode: false, leftColumnWidth: 240 }, workspaceId), { workspaceId });
   await page.reload(); await page.locator('.app-shell').waitFor();
   await page.evaluate(() => document.fonts.ready.then(() => undefined));
   const ids = await page.evaluate(async ({ cwd, workspaceId }) => {

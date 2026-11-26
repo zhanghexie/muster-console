@@ -26,17 +26,23 @@ const backdropRootRule = materialRules.find(([, selector]) => selector.trim() ==
 assert.ok(backdropRootRule, 'Vibrancy needs a renderer backdrop root while a glass scrim is mounted');
 assert.match(backdropRootRule[2], /^\s*will-change:\s*opacity;\s*$/);
 
-const vibrancyScrimSelectors = new Set([
+const vibrancyResizeBackdropRoot = "html[data-native-material='vibrancy'] .main-view.h-vs-on.is-reshaping .work-area";
+const resizeBackdropRule = materialRules.find(([, selector]) => selector.trim() === vibrancyResizeBackdropRoot);
+assert.ok(resizeBackdropRule, 'Vibrancy needs a work-area backdrop root while the virtual screen is resizing');
+assert.match(resizeBackdropRule[2], /^\s*will-change:\s*opacity;\s*$/);
+
+const vibrancyBackdropSelectors = new Set([
   vibrancyBackdropRoot,
   `${vibrancyBackdropRoot}::before`,
-  `${vibrancyBody}:has(${glassScrim}[data-mp-stage='in'])::before`
+  `${vibrancyBody}:has(${glassScrim}[data-mp-stage='in'])::before`,
+  vibrancyResizeBackdropRoot
 ]);
 // Frame transparency is shared by Mica and Vibrancy. The temporary glass
 // backdrop root and underlay apply only over Vibrancy.
 const nativeRules = materialRules.filter(([, selector]) => selector.includes('data-native-material'));
 assert.ok(nativeRules.length >= 8, 'native material rules must exist');
 for (const [, selector] of nativeRules) {
-  if (vibrancyScrimSelectors.has(selector.trim())) continue;
+  if (vibrancyBackdropSelectors.has(selector.trim())) continue;
   assert.ok(
     selector.includes("[data-native-material='mica']") && selector.includes("[data-native-material='vibrancy']"),
     `native selector must pair mica with vibrancy: ${selector.trim().slice(0, 80)}`

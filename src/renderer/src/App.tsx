@@ -223,7 +223,7 @@ const TERM_RATIO_DEFAULT = 7 / 8;
 const TERM_RATIO_MIN = 0.5;
 const TERM_RATIO_MAX = 0.95;
 const GIT_RATIO_DEFAULT = 2 / 3;
-const GIT_RATIO_MIN = 0.4;
+const GIT_RATIO_MIN = 0.5;
 const GIT_RATIO_MAX = 0.95;
 /** 专注模式会话侧占比（中段把手长按拖跟手调节，两侧之和恒为全宽） */
 const FOCUS_RATIO_DEFAULT = 0.5;
