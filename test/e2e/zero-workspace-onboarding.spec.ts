@@ -324,7 +324,6 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
     await expect(float).toBeHidden();
 
     const tools = win.locator('.utility-library-toggle');
-    await win.evaluate(() => window.api.extensionCatalog.trust({ scope: 'global', extensionId: 'daily-report', mode: 'trusted-persistent' }));
     if ((await tools.getAttribute('aria-expanded')) !== 'true') await tools.click();
     await win.getByRole('treeitem', { name: '工作日报' }).click();
     const frame = win.frameLocator('.ext-panel iframe');

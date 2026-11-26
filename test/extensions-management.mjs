@@ -10,6 +10,8 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'extension-management-'));
 try {
   const compile = createSharedCompiler(repo, path.join(temp, 'compiled'));
   const { ExtensionManagementService } = await import(pathToFileURL(compile('main/extensions/extensionManagement.ts')));
+  const { ExtensionDevelopmentTrustStore } = await import(pathToFileURL(compile('main/extensions/extensionDevelopmentTrust.ts')));
+  const { ExtensionWorkspaceActivationStore } = await import(pathToFileURL(compile('main/extensions/extensionWorkspaceActivation.ts')));
   const workspace = { id: 'a', name: 'A', path: 'C:/A', controlRoot: 'C:/A', rootsRevision: 1, defaultRootId: 'p1', openedAt: 0,
     roots: [{ id: 'p1', path: 'C:/A', label: 'First' }, { id: 'p2', path: 'C:/B', label: 'Second' }] };
   const changes = [], enabled = [];
@@ -28,6 +30,20 @@ try {
 
   const fingerprint = `package-extension:${'a'.repeat(64)}`;
   const directory = path.join(temp, 'global', 'dev');
+  const localPackage = { extensionId: 'dev', scope: 'global', directory, fingerprint, enabled: true };
+  const activation = new ExtensionWorkspaceActivationStore(path.join(temp, 'activation.json'));
+  const authorization = new ExtensionDevelopmentTrustStore(temp);
+  const management = new ExtensionManagementService({ get: () => localPackage }, () => [workspace, { ...workspace, id: 'b' }], () => {}, undefined, undefined, activation, authorization);
+  assert.equal(management.isRunnable('a', 'global', 'dev'), false, 'registry discovery does not grant runtime access');
+  await management.setEnabled('a', 'p1', 'global', 'dev', true, 0);
+  assert.equal(management.isRunnable('a', 'global', 'dev'), true);
+  assert.equal(management.isRunnable('b', 'global', 'dev'), false);
+  await management.setEnabledAll('a', 'dev', true);
+  assert.equal(management.isRunnable('b', 'global', 'dev'), true);
+  await management.setEnabled('a', 'p1', 'global', 'dev', false, 0);
+  assert.equal(management.isRunnable('a', 'global', 'dev'), false);
+  assert.equal(management.isRunnable('b', 'global', 'dev'), true);
+
   let active = true;
   const events = [];
   const removal = new ExtensionManagementService({

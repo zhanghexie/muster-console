@@ -27,6 +27,20 @@ restored.revoke(subject);
 assert.equal(restored.isTrusted(subject), false);
 assert.throws(() => restored.trust({ ...subject, fingerprint: 'package-extension:bad' }, 'trusted-persistent'), /fingerprint/);
 assert.throws(() => restored.trust({ ...subject, directory: 'relative' }, 'trusted-persistent'), /absolute/);
+
+const changed = { ...subject, fingerprint: `package-extension:${'b'.repeat(64)}` };
+assert.equal(restored.canRun(subject, 'workspace'), false);
+restored.authorizeActivation(subject, ['workspace']);
+const activated = new ExtensionDevelopmentTrustStore(tmp);
+assert.equal(activated.canRun(subject, 'workspace'), true, 'explicit activation survives a restart');
+assert.equal(activated.canRun(subject, 'other-workspace'), false, 'activation applies to the selected workspace');
+assert.equal(activated.canRun(changed, 'workspace'), false, 'a replacement package needs activation');
+assert.equal(activated.isTrusted(subject), false, 'activation does not grant MCP consent');
+assert.deepEqual(JSON.parse(fs.readFileSync(activated.filePath(), 'utf8')).entries, [], 'older hosts only read the legacy consent entries');
+const development = new ExtensionDevelopmentTrustStore(tmp, undefined, true);
+assert.equal(development.canRun(changed, 'workspace'), true, 'an explicitly enabled development directory supports source edits');
+assert.equal(development.canRun({ ...changed, directory: path.join(tmp, 'other') }, 'workspace'), false);
+assert.equal(development.isTrusted(changed), false);
 console.log('extensions-development-trust: ok');
 
 

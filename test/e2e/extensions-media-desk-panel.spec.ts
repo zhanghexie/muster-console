@@ -12,8 +12,6 @@ test('media desk retains the original five views and studio in the real extensio
   const more = win.getByRole('button', { name: '展开更多工具' });
   if (await more.isVisible().catch(() => false)) await more.click();
   await win.locator('[role="treeitem"][aria-label="媒体创作台"]').click();
-  const trust = win.getByRole('button', { name: '信任开发目录' });
-  if (await trust.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) await trust.click();
   const frameSelector = 'iframe[aria-label="扩展面板 媒体创作台"]';
   const frame = win.frameLocator(frameSelector);
   const panel = win.locator('.ext-panel').filter({ has: win.locator(frameSelector) });

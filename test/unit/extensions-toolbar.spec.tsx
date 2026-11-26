@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { currentApiMock } from './helpers/api-mock';
 
@@ -56,93 +56,19 @@ it('passes the toolbar scope through the shared chrome action', async () => {
   await waitFor(() => expect(run).toHaveBeenCalledWith({ workspaceId: 'a', sourceRootId: 'one', selectionRevision: 0, extensionId: 'quick-note', scope: 'global' }));
 });
 
-const trustRequired = {
-  status: 'development-trust-required',
-  error: 'Error: extension development trust is required before running this package'
-} as const;
-const runInput = { workspaceId: 'a', sourceRootId: 'one', selectionRevision: 3, extensionId: 'build-package' };
-const dialogName = '允许运行「一键打包」？';
-
-async function clickBuildAction(scope: 'project' | 'global' = 'project'): Promise<HTMLElement> {
-  const { workspaceId, sourceRootId, selectionRevision, extensionId } = runInput;
-  currentApiMock().override('extensions.toolbar', async () => ({
-    workspaceId, sourceRootId, selectionRevision, items: [{ id: extensionId, name: '一键打包', scope }]
+it('reports an unavailable extension without opening a dialog or retrying the command', async () => {
+  const error = new Error('请在扩展管理中启用此扩展');
+  const api = currentApiMock();
+  api.override('extensions.toolbar', async () => ({
+    workspaceId: 'a', sourceRootId: 'one', selectionRevision: 3,
+    items: [{ id: 'build-package', name: '一键打包', scope: 'project' }]
   }));
+  const run = api.mockOf('extensions.runToolbar').mockRejectedValueOnce(error);
   render(<ExtensionChromeActions />);
   const button = await screen.findByRole('button', { name: '一键打包' });
-  await act(async () => { fireEvent.click(button); });
-  return button;
-}
-
-it.each(['project', 'global'] as const)('grants persistent development trust and retries the original %s action once', async scope => {
-  const api = currentApiMock();
-  const run = api.mockOf('extensions.runToolbar').mockResolvedValueOnce(trustRequired).mockResolvedValueOnce({ status: 'completed', result: undefined });
-  const trust = api.mockOf('extensionCatalog.trust');
-  let grant!: (result: { trusted: boolean }) => void;
-  trust.mockReturnValue(new Promise<{ trusted: boolean }>(resolve => { grant = resolve; }));
-  const button = await clickBuildAction(scope);
-  const dialog = within(await screen.findByRole('dialog', { name: dialogName }));
-  expect(document.activeElement).toBe(dialog.getByRole('button', { name: '取消' }));
-  expect(trust).not.toHaveBeenCalled();
-  await act(async () => { fireEvent.click(dialog.getByRole('button', { name: '信任并运行' })); });
-  expect(trust).toHaveBeenCalledExactlyOnceWith({
-    scope, extensionId: runInput.extensionId, mode: 'trusted-persistent',
-    ...(scope === 'project' ? { workspaceId: runInput.workspaceId, sourceRootId: runInput.sourceRootId } : {})
-  });
-  expect(run).toHaveBeenCalledOnce();
-  await act(async () => { grant({ trusted: true }); });
-  expect(button.hasAttribute('disabled')).toBe(false);
-  expect(run.mock.calls).toEqual([[{ ...runInput, scope }], [{ ...runInput, scope }]]);
-  expect(state.flash).not.toHaveBeenCalled();
-});
-
-it('cancels the trust prompt without granting trust or retrying', async () => {
-  const api = currentApiMock();
-  const run = api.mockOf('extensions.runToolbar').mockResolvedValueOnce(trustRequired);
-  await clickBuildAction();
-  const dialog = within(await screen.findByRole('dialog', { name: dialogName }));
-  await act(async () => { fireEvent.click(dialog.getByRole('button', { name: '取消' })); });
-  expect(state.flash).toHaveBeenCalledExactlyOnceWith('已取消授权');
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull());
-  expect(api.mockOf('extensionCatalog.trust')).not.toHaveBeenCalled();
-  expect(run).toHaveBeenCalledOnce();
-});
-
-it('keeps the existing toast for ordinary errors, even with the same text as the trust gate', async () => {
-  const api = currentApiMock();
-  api.mockOf('extensions.runToolbar').mockRejectedValueOnce(new Error(trustRequired.error.slice('Error: '.length)));
-  await clickBuildAction();
-  await waitFor(() => expect(state.flash).toHaveBeenCalledExactlyOnceWith(`一键打包：${trustRequired.error}`));
+  fireEvent.click(button);
+  await waitFor(() => expect(state.flash).toHaveBeenCalledExactlyOnceWith(`一键打包：${error}`));
   expect(screen.queryByRole('dialog')).toBeNull();
-  expect(api.mockOf('extensionCatalog.trust')).not.toHaveBeenCalled();
-});
-
-it.each([
-  ['an action error', new Error('绑定项目缺少打包脚本')],
-  ['another trust requirement', trustRequired]
-] as const)('reports %s on retry without reopening the trust prompt', async (_label, failure) => {
-  const api = currentApiMock();
-  const run = api.mockOf('extensions.runToolbar').mockResolvedValueOnce(trustRequired);
-  if (failure instanceof Error) run.mockRejectedValueOnce(failure);
-  else run.mockResolvedValueOnce(failure);
-  const trust = api.mockOf('extensionCatalog.trust').mockResolvedValue({ trusted: true });
-  await clickBuildAction();
-  const dialog = within(await screen.findByRole('dialog', { name: dialogName }));
-  await act(async () => { fireEvent.click(dialog.getByRole('button', { name: '信任并运行' })); });
-  const error = failure instanceof Error ? String(failure) : failure.error;
-  expect(state.flash).toHaveBeenCalledExactlyOnceWith(`一键打包：${error}`);
-  await waitFor(() => expect(screen.queryByRole('dialog', { name: dialogName })).toBeNull());
-  expect(trust).toHaveBeenCalledOnce();
-  expect(run).toHaveBeenCalledTimes(2);
-});
-
-it('reports a failed trust write and leaves the command blocked', async () => {
-  const api = currentApiMock();
-  const run = api.mockOf('extensions.runToolbar').mockResolvedValueOnce(trustRequired);
-  api.mockOf('extensionCatalog.trust').mockRejectedValueOnce(new Error('Could not save trust settings'));
-  await clickBuildAction();
-  const dialog = within(await screen.findByRole('dialog', { name: dialogName }));
-  await act(async () => { fireEvent.click(dialog.getByRole('button', { name: '信任并运行' })); });
-  expect(state.flash).toHaveBeenCalledExactlyOnceWith('一键打包：Error: Could not save trust settings');
   expect(run).toHaveBeenCalledOnce();
+  expect(button.hasAttribute('disabled')).toBe(false);
 });

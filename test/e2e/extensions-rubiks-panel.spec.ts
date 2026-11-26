@@ -21,14 +21,10 @@ test('rubiks-cube 面板与 AI 链路', async ({ appCtx, mockLlm }) => {
     });
   }, `http://127.0.0.1:${mockLlm.port}/v1`);
 
-  // 1) 左侧导航打开魔方面板；开发态包需要显式信任（开发信任门，每次冷启动重新确认）
+  // 1) 启用以后从左侧导航直接打开魔方面板。
   const expandExtensions = win.getByRole('button', { name: '展开更多工具' });
   if (await expandExtensions.isVisible().catch(() => false)) await expandExtensions.click();
   await win.locator('[role="treeitem"][aria-label="魔方"]').click();
-  const trustButton = win.getByRole('button', { name: '信任开发目录' });
-  if (await trustButton.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true).catch(() => false)) {
-    await trustButton.click();
-  }
   const frame = win.frameLocator('iframe[aria-label="扩展面板 魔方"]');
   await frame.locator('canvas').waitFor({ state: 'visible', timeout: 20_000 });
   await expect(frame.locator('canvas')).toHaveCount(1);

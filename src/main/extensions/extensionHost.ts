@@ -396,7 +396,7 @@ export class ExtensionHost {
     if (source.fingerprint !== pkg.fingerprint || !pkg.manifest.permissions.includes('project.tasks') ||
         !this.catalog.get(source.scope, source.extensionId, controlRoot)?.enabled || (this.developmentTrust && !this.developmentTrust.canRun({
           scope: source.scope, extensionId: source.extensionId, directory: pkg.descriptor.directory, fingerprint: pkg.fingerprint
-        }))) throw new Error('扩展已更新、停用或需要重新信任，请重新打开制作入口');
+        }, workspaceId))) throw new Error('扩展已更新或停用，请重新打开制作入口');
     return { extensionTask: pkg.manifest.id, extensionScope: source.scope, extensionFingerprint: pkg.fingerprint,
       extensionSurface: source.surfaceId, extensionSkillNames: JSON.stringify(extensionSkillNames(pkg.manifest)),
       ...(source.sourceRootId ? { extensionSourceRoot: source.sourceRootId } : {}) };
@@ -413,7 +413,7 @@ export class ExtensionHost {
       await this.assertProjectBinding(pkg.manifest, workspaceId, task.sourceRoot!.rootId);
       const subject = { extensionId, scope, directory: pkg.descriptor.directory, fingerprint: pkg.fingerprint } as const;
       if ((!this.developmentTrust && pkg.fingerprint !== meta.extensionFingerprint) || !this.catalog.get(scope, extensionId, controlRoot)?.enabled || (this.workspaceActivation && !this.workspaceActivation({ workspaceId, extensionId, scope, ...(controlRoot ? { controlRoot } : {}) })) ||
-          !pkg.manifest.permissions.includes('project.tasks') || (this.developmentTrust && !await this.developmentTrust.ensureCanRun(subject))) throw new Error('任务绑定的扩展已变更、停用或需要重新信任');
+          !pkg.manifest.permissions.includes('project.tasks') || (this.developmentTrust && !await this.developmentTrust.ensureCanRun(subject, workspaceId))) throw new Error('任务绑定的扩展已变更或停用');
       if (!pkg.manifest.agent) return undefined;
       const surfaceId = meta.extensionSurface;
       const identity = { extensionId, workspaceId, surfaceId, extensionInstanceId: `${workspaceId}:${extensionId}:${surfaceId}`, packageFingerprint: pkg.fingerprint, sourceRootId: meta.extensionSourceRoot };

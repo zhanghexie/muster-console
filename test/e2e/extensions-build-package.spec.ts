@@ -5,7 +5,7 @@ import { expect, repoRoot, test } from './fixtures/electron';
 
 test.use({ isolatedSandbox: true });
 
-test('一键打包从项目顶栏授权，并在绑定项目的终端运行 npm', async ({ appCtx }, info) => {
+test('启用一键打包后可直接从项目顶栏启动，并在绑定项目的终端运行 npm', async ({ appCtx }, info) => {
   const platform = {
     darwin: { label: 'macOS', script: 'build:mac', shellProfileId: 'zsh' },
     win32: { label: 'Windows', script: 'build:win', shellProfileId: 'powershell' },
@@ -31,20 +31,21 @@ test('一键打包从项目顶栏授权，并在绑定项目的终端运行 npm'
   const installed = path.join(project, '.muster', 'extensions', 'build-package');
   await mkdir(path.dirname(installed), { recursive: true });
   await cp(directory, installed, { recursive: true });
-  const trustInput = await win.evaluate(async projectRoot => {
+  const { enabledBefore, enabledAfter } = await win.evaluate(async projectRoot => {
     const { ok, activeWorkspaceId: workspaceId, message } = await window.api.workspaces.open(projectRoot);
     if (!ok || !workspaceId) throw new Error(message || '未能打开打包测试项目');
     const { sourceRootId, selectionRevision, listing } = await window.api.extensions.snapshot(workspaceId);
     const extension = listing.project.find(item => item.id === 'build-package');
     if (!extension) throw new Error('未发现项目版一键打包');
     const input = { scope: 'project' as const, workspaceId, sourceRootId, extensionId: extension.id };
-    await window.api.extensions.setEnabled({ ...input, selectionRevision, enabled: true });
-    return input;
+    const enabled = await window.api.extensions.setEnabled({ ...input, selectionRevision, enabled: true });
+    return { enabledBefore: extension.enabled, enabledAfter: enabled.listing.project.find(item => item.id === extension.id)?.enabled };
   }, project);
+  expect(enabledBefore).toBe(false);
+  expect(enabledAfter).toBe(true);
 
   const toolbar = win.getByRole('button', { name: '一键打包', exact: true });
   const trustDialog = win.getByRole('dialog', { name: '允许运行「一键打包」？' });
-  const isTrusted = () => win.evaluate(async input => (await window.api.extensionCatalog.trustStatus(input)).trusted, trustInput);
   const dialog = win.getByRole('dialog', { name: '一键打包 · Agent 提问' });
   const next = dialog.getByRole('button', { name: '确定', exact: true });
   const openPlatform = async (): Promise<void> => {
@@ -60,24 +61,9 @@ test('一键打包从项目顶栏授权，并在绑定项目的终端运行 npm'
   await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
   const before = await win.evaluate(() => window.api.sessions.list());
   await toolbar.click();
-  const cancelTrust = trustDialog.getByRole('button', { name: '取消', exact: true });
-  await expect(cancelTrust).toBeFocused();
-  await win.screenshot({ path: info.outputPath('toolbar-development-trust-dark.png'), animations: 'disabled' });
-  await win.keyboard.press('Escape');
-  await expect(trustDialog).toBeHidden();
-  await expect(dialog).toBeHidden();
-  expect(await isTrusted()).toBe(false);
-
-  await win.evaluate(() => window.api.themes.activate('light'));
-  await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1100, 720));
-  await toolbar.click();
-  const confirmTrust = trustDialog.getByRole('button', { name: '信任并运行', exact: true });
-  await expect(confirmTrust).toBeVisible();
-  await win.screenshot({ path: info.outputPath('toolbar-development-trust-light.png'), animations: 'disabled' });
-  await confirmTrust.click();
+  await expect(trustDialog).toHaveCount(0);
   await openPlatform();
-  expect(await isTrusted()).toBe(true);
+  await win.screenshot({ path: info.outputPath('toolbar-build-dark.png'), animations: 'disabled' });
   await dialog.getByRole('button', { name: '取消', exact: true }).click();
   await expect(toolbar).toBeEnabled();
   await expect(win.getByText(/Question was aborted before the user answered/)).toHaveCount(0);
@@ -85,8 +71,13 @@ test('一键打包从项目顶栏授权，并在绑定项目的终端运行 npm'
     .toEqual(before.sessions.map(session => session.id));
   expect(JSON.parse(await readFile(packagePath, 'utf8')).version).toBe('1.2.3');
 
+  await win.evaluate(() => window.api.themes.activate('light'));
+  await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.setSize(1100, 720));
   await toolbar.click();
   await openPlatform();
+  await expect(trustDialog).toHaveCount(0);
+  await win.screenshot({ path: info.outputPath('toolbar-build-light.png'), animations: 'disabled' });
   await expect(dialog.getByRole('radio').first()).toHaveText(`${platform.label}当前平台（默认）`);
   await dialog.getByRole('radio').first().click();
   await next.click();

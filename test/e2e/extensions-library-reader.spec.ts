@@ -31,8 +31,6 @@ test('imports a real EPUB through the host and restores its paragraph after retu
     const expand = win.getByRole('button', { name: '展开更多工具' });
     if (await expand.isVisible().catch(() => false)) await expand.click();
     await win.locator('[role="treeitem"][aria-label="图书馆"]').click();
-    const trust = win.getByRole('button', { name: '信任开发目录' });
-    if (await trust.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false)) await trust.click();
     const frame = win.frameLocator('iframe[aria-label="扩展面板 图书馆"]');
     await frame.getByRole('button', { name: /导入书籍/ }).waitFor({ timeout: 20000 });
     const closeAI = win.getByRole('button', { name: '关闭 AI', exact: true });

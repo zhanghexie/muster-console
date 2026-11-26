@@ -14,13 +14,6 @@ https://github.com/user-attachments/assets/2af0a294-d4b0-46a4-91ca-97a42506f1a0
 
 *片中从三个工作区的调度对话开始，跟随 Codex 和 Claude Code 接任务、分屏协作、互相寄信。画面录自 Muster 工作台，使用演示项目和预设的 Agent 回复。*
 
-<details>
-<summary>观看仅含操作音效的版本</summary>
-
-https://github.com/user-attachments/assets/c77eccfe-b0ec-4e58-9687-5d0352cb55f7
-
-</details>
-
 [音频署名](docs/media/readme/audio-credits.md) · [视频封面](docs/media/readme/zh/muster-overview-v5.jpg)
 
 ## 多种 Agent 引擎（Harness）接入

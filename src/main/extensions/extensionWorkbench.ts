@@ -24,16 +24,16 @@ export class ExtensionWorkbench {
     const projectPath = this.projectPath(workspaceId, sourceRootId);
     this.catalog.queueProjectSync(projectPath);
     return [
-      ...this.catalog.list('global').filter(item => item.surfaceKind === 'sidebar' && this.management.isEnabled(workspaceId, 'global', item.extensionId)).map(item => ({ extensionId: item.extensionId, title: item.name, ...(item.icon ? { icon: item.icon } : {}), scope: 'global' as const })),
-      ...this.catalog.list('project').filter(item => item.surfaceKind === 'sidebar' && item.controlRoot && (process.platform === 'win32' ? item.controlRoot.toLowerCase() === projectPath.toLowerCase() : item.controlRoot === projectPath) && this.management.isEnabled(workspaceId, 'project', item.extensionId, item.controlRoot)).map(item => ({ extensionId: item.extensionId, title: item.name, ...(item.icon ? { icon: item.icon } : {}), scope: 'project' as const, sourceRootId }))
+      ...this.catalog.list('global').filter(item => item.surfaceKind === 'sidebar' && this.management.isRunnable(workspaceId, 'global', item.extensionId)).map(item => ({ extensionId: item.extensionId, title: item.name, ...(item.icon ? { icon: item.icon } : {}), scope: 'global' as const })),
+      ...this.catalog.list('project').filter(item => item.surfaceKind === 'sidebar' && item.controlRoot && (process.platform === 'win32' ? item.controlRoot.toLowerCase() === projectPath.toLowerCase() : item.controlRoot === projectPath) && this.management.isRunnable(workspaceId, 'project', item.extensionId, item.controlRoot)).map(item => ({ extensionId: item.extensionId, title: item.name, ...(item.icon ? { icon: item.icon } : {}), scope: 'project' as const, sourceRootId }))
     ];
   }
   private catalogToolbarEntries(workspaceId: string, sourceRootId: string): Array<{ id: string; name: string; scope: 'global' | 'project'; menu?: Array<{ id: string; label: string }> }> {
     const projectPath = this.projectPath(workspaceId, sourceRootId);
     this.catalog.queueProjectSync(projectPath);
     const records = [
-      ...this.catalog.list('global').filter(item => item.surfaceKind === 'toolbar' && this.management.isEnabled(workspaceId, 'global', item.extensionId)),
-      ...this.catalog.list('project').filter(item => item.surfaceKind === 'toolbar' && item.controlRoot && (process.platform === 'win32' ? item.controlRoot.toLowerCase() === projectPath.toLowerCase() : item.controlRoot === projectPath) && this.management.isEnabled(workspaceId, 'project', item.extensionId, item.controlRoot))
+      ...this.catalog.list('global').filter(item => item.surfaceKind === 'toolbar' && this.management.isRunnable(workspaceId, 'global', item.extensionId)),
+      ...this.catalog.list('project').filter(item => item.surfaceKind === 'toolbar' && item.controlRoot && (process.platform === 'win32' ? item.controlRoot.toLowerCase() === projectPath.toLowerCase() : item.controlRoot === projectPath) && this.management.isRunnable(workspaceId, 'project', item.extensionId, item.controlRoot))
     ];
     return records.map(record => ({ id: record.extensionId, name: record.name, scope: record.scope, ...(record.menu?.length ? { menu: record.menu } : {}) }));
   }

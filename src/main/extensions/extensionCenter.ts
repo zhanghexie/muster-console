@@ -14,6 +14,7 @@ export type { ExtensionCenterCatalog, ExtensionCenterCatalogRelease, ExtensionCe
 
 interface ExtensionCenterServiceOptions {
   catalogUrl?: string | null;
+  bundledRoot?: string;
   communityCatalogUrl?: string;
   token?: string;
   hostVersion?: string;
@@ -51,6 +52,8 @@ export class ExtensionCenterService {
   private readonly fetchImpl: typeof fetch;
   private readonly catalogTtlMs: number;
   private readonly now: () => number;
+  private readonly bundledRoot?: string;
+  private readonly bundledFingerprints = new Map<string, string>();
   private community?: ExtensionCenterService;
   private remoteCache?: { catalog: ExtensionCenterCatalog; loadedAt: number };
   private remoteFlight?: Promise<ExtensionCenterCatalog>;
@@ -61,6 +64,7 @@ export class ExtensionCenterService {
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.catalogTtlMs = Number.isFinite(options.catalogTtlMs) ? Math.max(0, options.catalogTtlMs!) : DEFAULT_CATALOG_TTL_MS;
     this.now = options.now ?? Date.now;
+    this.bundledRoot = options.bundledRoot;
     this.setCommunityCatalogUrl(options.communityCatalogUrl);
   }
   setCommunityCatalogUrl(url?: string): void {
@@ -75,15 +79,25 @@ export class ExtensionCenterService {
   isVerifiedRelease(subject: ExtensionDevelopmentTrustSubject): boolean {
     if (subject.scope !== 'global') return false;
     const installed = this.catalog.get('global', subject.extensionId);
-    return !!installed?.officialRelease && installed.directory === subject.directory && installed.fingerprint === subject.fingerprint
-      && this.supportsHost(installed.officialRelease.minHostVersion);
+    if (installed?.directory !== subject.directory || installed.fingerprint !== subject.fingerprint) return false;
+    return this.bundledFingerprints.get(subject.extensionId) === subject.fingerprint
+      || !!installed.officialRelease && this.supportsHost(installed.officialRelease.minHostVersion);
   }
 
-  /** Recognize packages installed before release provenance was persisted. */
+  /** Verify the app's bundled bytes or recover official download provenance. */
   async verifyInstalledRelease(subject: ExtensionDevelopmentTrustSubject): Promise<boolean> {
-    if (this.catalogUrl !== DEFAULT_EXTENSION_CENTER_URL || subject.scope !== 'global' || SAMPLE_IDS.some(id => id === subject.extensionId)) return false;
+    if (subject.scope !== 'global') return false;
     const installed = this.catalog.get('global', subject.extensionId);
     if (installed?.directory !== subject.directory || installed.fingerprint !== subject.fingerprint) return false;
+    if (SAMPLE_IDS.some(id => id === subject.extensionId)) {
+      if (!this.bundledRoot) return false;
+      const layout = new ExtensionSourceLayout({ userData: this.userData, globalRoot: this.bundledRoot });
+      const bundled = await layout.discover({ scope: 'global', extensionId: subject.extensionId }).catch(() => undefined);
+      if (bundled?.fingerprint !== subject.fingerprint) return false;
+      this.bundledFingerprints.set(subject.extensionId, bundled.fingerprint);
+      return this.isVerifiedRelease(subject);
+    }
+    if (this.catalogUrl !== DEFAULT_EXTENSION_CENTER_URL) return false;
     let index: ExtensionCenterCatalog;
     try { index = await this.readRemoteCatalogSingleFlight(false); }
     catch { return false; }
@@ -167,7 +181,7 @@ export class ExtensionCenterService {
     return { packageKey, extensionId: release.extensionId, uninstalled: true, skipped: false };
   }
   private async listBundled(): Promise<ExtensionCenterRelease[]> {
-    const sourceRoot = bundledSampleRoot();
+    const sourceRoot = this.bundledRoot ?? bundledSampleRoot();
     if (!sourceRoot) return [];
     const sourceLayout = new ExtensionSourceLayout({ userData: this.userData, globalRoot: sourceRoot });
     const releases: ExtensionCenterRelease[] = [];
@@ -181,7 +195,7 @@ export class ExtensionCenterService {
     return releases;
   }
   private async installBundled(release: ExtensionCenterRelease, update: boolean): Promise<ExtensionCenterInstallResult> {
-    const sourceRoot = bundledSampleRoot();
+    const sourceRoot = this.bundledRoot ?? bundledSampleRoot();
     if (!sourceRoot) throw new Error('Local extension center catalog is unavailable');
     const result = await installBundledSamples(this.userData, this.globalRoot, sourceRoot, [release.extensionId], { overwriteExisting: update });
     const error = result.errors.find(item => item.extensionId === release.extensionId);

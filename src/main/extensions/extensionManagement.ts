@@ -2,6 +2,7 @@ import { defaultRootFor, requireSourceRoot, sourceRootsFor, workspaceRootLabel }
 import type { WorkspaceInfo } from '../../shared/types';
 import type { ExtensionManagementSnapshot } from '../../shared/extension';
 import type { ExtensionPackageCatalog } from './extensionPackageCatalog';
+import type { ExtensionDevelopmentTrustStore } from './extensionDevelopmentTrust';
 import type { ExtensionSourceLayout, ExtensionSourceScope } from './extensionSourceLayout';
 import type { ExtensionWorkspaceActivationStore } from './extensionWorkspaceActivation';
 import { SAMPLE_IDS } from './extensionSampleInstaller';
@@ -12,7 +13,7 @@ export class ExtensionManagementService {
   private defaultSeen = new Map<string, { id: string; path: string }>();
   private revisions = new Map<string, number>();
   private removing = new Set<string>();
-  constructor(private catalog: ExtensionPackageCatalog, private workspaces: () => readonly WorkspaceInfo[], private changed: (workspaceId: string) => void, private navigationWarning: () => string | null = () => null, private builtinWarning: () => string | null = () => null, private activation?: ExtensionWorkspaceActivationStore) {}
+  constructor(private catalog: ExtensionPackageCatalog, private workspaces: () => readonly WorkspaceInfo[], private changed: (workspaceId: string) => void, private navigationWarning: () => string | null = () => null, private builtinWarning: () => string | null = () => null, private activation?: ExtensionWorkspaceActivationStore, private runtimeAuthorization?: ExtensionDevelopmentTrustStore) {}
   private workspace(id: string): WorkspaceInfo {
     const workspace = this.workspaces().find(item => item.id === id);
     if (!workspace) throw new Error('Workspace is not registered');
@@ -47,24 +48,31 @@ export class ExtensionManagementService {
     const record = this.catalog.get(scope, extensionId, controlRoot);
     return this.activation?.isEnabled({ workspaceId, scope, extensionId, ...(controlRoot ? { controlRoot } : {}) }, record?.enabled ?? true) ?? (record?.enabled ?? true);
   }
+  isRunnable(workspaceId: string, scope: ExtensionSourceScope, extensionId: string, controlRoot?: string): boolean {
+    const record = this.catalog.get(scope, extensionId, controlRoot);
+    return !!record?.enabled && this.isEnabled(workspaceId, scope, extensionId, controlRoot)
+      && (this.runtimeAuthorization?.canRun(record, workspaceId) ?? true);
+  }
   isGlobalEnabledAnywhere(extensionId: string): boolean {
-    return this.workspaces().some(workspace => this.isEnabled(workspace.id, 'global', extensionId));
+    return this.workspaces().some(workspace => this.isRunnable(workspace.id, 'global', extensionId));
   }
   snapshot(workspaceId: string): ExtensionManagementSnapshot {
     const workspace = this.workspace(workspaceId), sourceRootId = this.rootId(workspaceId);
     const issues = [this.navigationWarning(), this.builtinWarning()].filter((value): value is string => !!value);
     return { workspaceId, sourceRootId, selectionRevision: this.revisions.get(workspaceId) ?? 0, projects: sourceRootsFor(workspace).map(root => ({ id: root.id, label: workspaceRootLabel(root) })), listing: { global: [], project: [], problems: [], issues, transactions: [] } };
   }
-  setEnabled(workspaceId: string, sourceRootId: string, scope: 'global' | 'project', extensionId: string, enabled: boolean, selectionRevision: number): Promise<ExtensionManagementSnapshot> {
-    if (this.rootId(workspaceId) !== sourceRootId || this.selectionRevision(workspaceId) !== selectionRevision) return Promise.reject(new Error('The selected project changed; refresh before changing an extension'));
-    if (scope === 'global' && this.removing.has(extensionId)) return Promise.reject(new Error('扩展正在卸载，请稍后再试'));
+  async setEnabled(workspaceId: string, sourceRootId: string, scope: 'global' | 'project', extensionId: string, enabled: boolean, selectionRevision: number): Promise<ExtensionManagementSnapshot> {
+    if (this.rootId(workspaceId) !== sourceRootId || this.selectionRevision(workspaceId) !== selectionRevision) throw new Error('The selected project changed; refresh before changing an extension');
+    if (scope === 'global' && this.removing.has(extensionId)) throw new Error('扩展正在卸载，请稍后再试');
     const controlRoot = scope === 'project' ? this.rootPath(workspaceId, sourceRootId) : undefined;
     if (this.activation) {
       const record = this.catalog.get(scope, extensionId, controlRoot);
-      if (!record) return Promise.reject(new Error('extension package is not registered'));
-      return this.activation.set({ workspaceId, scope, extensionId, ...(controlRoot ? { controlRoot } : {}) }, enabled).then(() => { this.changed(workspaceId); return this.snapshot(workspaceId); });
-    }
-    return this.catalog.setEnabled({ scope, extensionId, ...(controlRoot ? { controlRoot } : {}), enabled }).then(() => { this.changed(workspaceId); return this.snapshot(workspaceId); });
+      if (!record) throw new Error('extension package is not registered');
+      if (enabled) this.runtimeAuthorization?.authorizeActivation(record, [workspaceId]);
+      await this.activation.set({ workspaceId, scope, extensionId, ...(controlRoot ? { controlRoot } : {}) }, enabled);
+    } else await this.catalog.setEnabled({ scope, extensionId, ...(controlRoot ? { controlRoot } : {}), enabled });
+    this.changed(workspaceId);
+    return this.snapshot(workspaceId);
   }
   async setEnabledAll(workspaceId: string, extensionId: string, enabled: boolean): Promise<void> {
     this.workspace(workspaceId);
@@ -72,6 +80,7 @@ export class ExtensionManagementService {
     const record = this.catalog.get('global', extensionId);
     if (!record) throw new Error('extension package is not registered');
     const workspaces = this.workspaces();
+    if (enabled) this.runtimeAuthorization?.authorizeActivation(record, workspaces.map(item => item.id));
     if (this.activation) await this.activation.setAll(workspaces.map(item => item.id), { scope: 'global', extensionId }, enabled);
     else await this.catalog.setEnabled({ scope: 'global', extensionId, enabled });
     for (const workspace of workspaces) this.changed(workspace.id);

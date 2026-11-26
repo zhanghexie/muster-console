@@ -46,14 +46,16 @@ export function createExtensionAppSystem(ctx: AppContext) {
   const userData = adapter.userDataDirectory;
   const sourceLayout = new ExtensionSourceLayout({ userData });
   const catalog = new ExtensionPackageCatalog({ layout: sourceLayout });
-  const extensionCenter = new ExtensionCenterService(userData, sourceLayout.globalRoot, catalog, { hostVersion: app.getVersion(), communityCatalogUrl: approvedCommunityCatalogUrl() });
+  const development = !app.isPackaged && process.env.NODE_ENV_ELECTRON_VITE === 'development';
+  const bundledRoot = app.isPackaged ? path.join(process.resourcesPath, 'extensions') : path.join(app.getAppPath(), 'resources', 'extensions');
+  const extensionCenter = new ExtensionCenterService(userData, sourceLayout.globalRoot, catalog, { hostVersion: app.getVersion(), bundledRoot, communityCatalogUrl: approvedCommunityCatalogUrl() });
   ensureExtensionStorageRoot(userData);
   const activation = new ExtensionWorkspaceActivationStore(extensionWorkspaceActivationPath(userData));
   const isWorkspaceActivated = (input: { workspaceId: string; extensionId: string; scope: 'global' | 'project'; controlRoot?: string; }): boolean => {
     const record = catalog.get(input.scope, input.extensionId, input.controlRoot);
     return activation.isEnabled(input, record?.enabled ?? true);
   };
-  const developmentTrust = new ExtensionDevelopmentTrustStore(userData, extensionCenter);
+  const developmentTrust = new ExtensionDevelopmentTrustStore(userData, extensionCenter, development);
   const mediaStore = new ExtensionMediaStore(userData);
   const exportService = new ExtensionExportService(mediaStore);
   const modelGateway = new ExtensionModelGateway(ctx.config, mediaStore, safeStorage);
@@ -91,32 +93,35 @@ export function createExtensionAppSystem(ctx: AppContext) {
       await activation.ensure(inputs, record.enabled);
     }
   };
-  const management = new ExtensionManagementService(catalog, () => ctx.config.get().workspaces, publish, () => workbench?.navigation.recoveryWarning ?? null, () => null, activation);
+  const management = new ExtensionManagementService(catalog, () => ctx.config.get().workspaces, publish, () => workbench?.navigation.recoveryWarning ?? null, () => null, activation, developmentTrust);
   workbench = new ExtensionWorkbench(ctx, management, catalog, extensionHost);
-  const authoringServices = new ExtensionAuthoringServices({ userData, catalog, sourceLayout, workspaces: () => ctx.config.get().workspaces, review: createExtensionSafetyReviewer(ctx), changed: publish, enabled: input => activation.isEnabled({ workspaceId: input.workspaceId, scope: input.scope, extensionId: input.extensionId, ...(input.controlRoot ? { controlRoot: input.controlRoot } : {}) }, input.fallback), enabledInAnyWorkspace: id => management.isGlobalEnabledAnywhere(id) });
+  const authoringServices = new ExtensionAuthoringServices({ userData, catalog, sourceLayout, workspaces: () => ctx.config.get().workspaces, review: createExtensionSafetyReviewer(ctx), changed: publish, enabled: input => management.isRunnable(input.workspaceId, input.scope, input.extensionId, input.controlRoot), enabledInAnyWorkspace: id => management.isGlobalEnabledAnywhere(id) });
   const authoring = new ExtensionAuthoringService(authoringServices, () => ctx.config.get().workspaces);
   const developmentSamples = new Map<string, string>();
-  const development = process.env.NODE_ENV_ELECTRON_VITE === 'development';
   if (development) extensionHost.setReloadPreparation(async (id, installed) => {
     const baseline = developmentSamples.get(id);
     if (baseline) {
-      developmentSamples.set(id, await refreshDevelopmentSample(userData, installed, id, baseline));
+      developmentSamples.set(id, await refreshDevelopmentSample(userData, installed, id, baseline, bundledRoot));
       return;
     }
     // Local authoring packages are installed into the profile, so a normal
     // iframe reload would otherwise keep serving the stale installed copy.
     // In development, sync the conventional repository package before the
     // host verifies its fresh fingerprint.
-    const candidates = [path.join(process.cwd(), 'extensions', id), path.join(process.cwd(), 'resources', 'extensions', id)];
+    const candidates = [path.join(app.getAppPath(), 'extensions', id), path.join(bundledRoot, id)];
     const source = candidates.find(candidate => fs.existsSync(path.join(candidate, 'extension.json')));
     if (source) await refreshDevelopmentPackage(installed, source, id);
   });
   const installSamples = async () => {
-    const result = await installBundledSamples(userData, sourceLayout.globalRoot, undefined, undefined, {
+    const result = await installBundledSamples(userData, sourceLayout.globalRoot, bundledRoot, undefined, {
       overwriteExisting: development,
       installedFingerprint: (id, fingerprint) => developmentSamples.set(id, fingerprint)
     });
     await syncCatalog();
+    for (const id of [...result.installed, ...result.skipped]) {
+      const record = catalog.get('global', id);
+      if (record) await extensionCenter.verifyInstalledRelease(record);
+    }
     return result;
   };
   const installLocal = async (directory: string): Promise<{ extensionId: string }> => {
@@ -130,6 +135,8 @@ export function createExtensionAppSystem(ctx: AppContext) {
     const result = await extensionCenter.install(packageKey);
     if (result.installed) {
       await syncCatalog();
+      const record = catalog.get('global', result.extensionId);
+      if (record && SAMPLE_IDS.some(id => id === record.extensionId)) await extensionCenter.verifyInstalledRelease(record);
       await activation.ensure(ctx.config.get().workspaces.map(workspace => ({ workspaceId: workspace.id, scope: 'global' as const, extensionId: result.extensionId })), false);
       publish();
     }
@@ -154,14 +161,15 @@ export function createExtensionAppSystem(ctx: AppContext) {
     });
   const storagePackages = () => {
     const { workspaces, closedWorkspaces } = ctx.config.get();
-    const activations = activation.list().filter(row => row.scope === 'global');
+    const workspaceIds = new Set([
+      ...workspaces.map(workspace => workspace.id),
+      ...(closedWorkspaces ?? []).map(workspace => workspace.id),
+      ...activation.list().filter(row => row.scope === 'global').map(row => row.workspaceId)
+    ]);
     return catalog.list('global').map(record => {
-      const enabled = new Set(activations.filter(row => row.extensionId === record.extensionId && row.enabled).map(row => row.workspaceId));
-      for (const { id } of [...workspaces, ...(closedWorkspaces ?? [])]) {
-        if (management.isEnabled(id, 'global', record.extensionId)) enabled.add(id);
-      }
+      const enabledWorkspaceIds = [...workspaceIds].filter(id => management.isRunnable(id, 'global', record.extensionId));
       return { id: record.extensionId, name: record.name, directory: record.directory, fingerprint: record.fingerprint,
-        builtin: SAMPLE_IDS.some(id => id === record.extensionId), enabledWorkspaceIds: [...enabled] };
+        builtin: SAMPLE_IDS.some(id => id === record.extensionId), enabledWorkspaceIds };
     });
   };
   const verifyStoragePackage = async (id: string, fingerprint: string): Promise<void> => {
@@ -213,7 +221,11 @@ export function createExtensionAppSystem(ctx: AppContext) {
         } catch (error) { console.error('[extension] built-in sample install failed:', error); }
         if (stopped) return;
         const trial = extensionTrialTarget(), trialWorkspace = ctx.config.get().activeWorkspaceId;
-        if (trial && trialWorkspace && catalog.get('global', trial)) await activation.set({ workspaceId: trialWorkspace, scope: 'global', extensionId: trial }, true);
+        const trialPackage = trial ? catalog.get('global', trial) : undefined;
+        if (trialWorkspace && trialPackage) {
+          developmentTrust.authorizeActivation(trialPackage, [trialWorkspace]);
+          await activation.set({ workspaceId: trialWorkspace, scope: 'global', extensionId: trialPackage.extensionId }, true);
+        }
         // The bundled extension package is installed after the first catalog scan. Push
         // a fresh navigation snapshot so a newly started app can open it without
         // requiring a second refresh through the manager.

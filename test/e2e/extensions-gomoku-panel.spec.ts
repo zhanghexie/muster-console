@@ -18,8 +18,6 @@ test('gomoku 面板与 DomainRuntime 落子链路', async ({ appCtx, mockLlm }, 
   const expandExtensions = win.getByRole('button', { name: '展开更多工具' });
   if (await expandExtensions.isVisible().catch(() => false)) await expandExtensions.click();
   await win.locator('[role="treeitem"][aria-label="五子棋"]').click();
-  const trustButton = win.getByRole('button', { name: '信任开发目录' });
-  if (await trustButton.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true).catch(() => false)) await trustButton.click();
   const frameSelector = 'iframe[aria-label="扩展面板 五子棋"]';
   const frame = win.frameLocator(frameSelector);
   await frame.locator('#board').waitFor({ state: 'visible', timeout: 20_000 }).catch(async error => {
@@ -40,8 +38,6 @@ test('gomoku 面板与 DomainRuntime 落子链路', async ({ appCtx, mockLlm }, 
   await expect(frame.locator('#moves')).not.toHaveText('0 手', { timeout: 15_000 });
   await expect(frame.locator('.board-stage')).toBeVisible();
   await frame.locator('.app').screenshot({ path: testInfo.outputPath('gomoku.png') });
-  // This scenario exercises a developer editing the package in place.
-  await win.evaluate(() => window.api.extensionCatalog.trust({ scope: 'global', extensionId: 'gomoku', mode: 'trusted-persistent' }));
   // Edit only the sandbox's installed package. Keep the manifest version, filenames
   // and session unchanged so a reused document or cached worker fails here.
   const profile = await appCtx.app.evaluate(({ app }) => {
@@ -60,6 +56,12 @@ test('gomoku 面板与 DomainRuntime 落子链路', async ({ appCtx, mockLlm }, 
     const manifest = JSON.parse(originals[3]);
     manifest.permissions.push('hostTools');
     await fs.writeFile(paths[3], JSON.stringify(manifest));
+    await win.evaluate(async () => {
+      const { activeWorkspaceId: workspaceId } = await window.api.config.get();
+      if (!workspaceId) throw new Error('Expected an active workspace');
+      const { sourceRootId, selectionRevision } = await window.api.extensions.snapshot(workspaceId);
+      await window.api.extensions.setEnabled({ workspaceId, sourceRootId, selectionRevision, scope: 'global', extensionId: 'gomoku', enabled: true });
+    });
     await win.getByRole('button', { name: '重载', exact: true }).click();
     await expect(marker).toHaveText('HTML v2 / JS v2 / Domain v2', { timeout: 20_000 });
     const runtimes = await marker.evaluate(() => (window as unknown as { ma: { tool(name: string, args: unknown): Promise<unknown> } }).ma.tool('host.runtimes.run', { action: 'list', params: {} }));

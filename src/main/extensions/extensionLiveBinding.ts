@@ -1,5 +1,6 @@
 import type { ExtensionManifest } from '../../shared/extensionManifest';
 import { defaultRootFor, requireSourceRoot } from '../../shared/workspaceRoots';
+import { t } from '../../shared/i18n';
 import type { WorkspaceInfo, WorkspaceRoot } from '../../shared/types';
 import type { ExtensionSourcePackage, ExtensionSourceScope } from './extensionSourceLayout';
 import type { ExtensionCatalogRecord, ExtensionPackageCatalog } from './extensionPackageCatalog';
@@ -34,12 +35,6 @@ export interface ExtensionLiveBinding {
   trustSubject: ExtensionDevelopmentTrustSubject;
   trusted: boolean;
   assertCurrent(signal?: AbortSignal): void;
-}
-
-export class ExtensionDevelopmentTrustRequiredError extends Error {
-  constructor() {
-    super('extension development trust is required before running this package');
-  }
 }
 
 /**
@@ -81,8 +76,8 @@ export async function resolveLiveExtensionBinding(
     fingerprint: pkg.fingerprint
   };
   const trust = dependencies.developmentTrust;
-  const requiresVerification = trust && !trust.canRun(trustSubject);
-  if (requiresVerification && !await trust.ensureCanRun(trustSubject)) throw new ExtensionDevelopmentTrustRequiredError();
+  const requiresVerification = trust && !trust.canRun(trustSubject, input.workspaceId);
+  if (requiresVerification && !await trust.ensureCanRun(trustSubject, input.workspaceId)) throw new Error(t('请在扩展管理中启用此扩展'));
   const rootPath = sourceRoot?.path;
   const rootsRevision = workspace?.rootsRevision ?? 0;
   const assertCurrent = (signal?: AbortSignal): void => {
@@ -97,7 +92,7 @@ export async function resolveLiveExtensionBinding(
     const currentCatalog = dependencies.catalog.get(input.scope, input.extensionId, controlRoot);
     if (!currentCatalog || !currentCatalog.enabled || currentCatalog.fingerprint !== pkg.fingerprint) throw new Error('Extension live binding changed');
     if (dependencies.isWorkspaceActivated && !dependencies.isWorkspaceActivated({ workspaceId: input.workspaceId, extensionId: input.extensionId, scope: input.scope, ...(controlRoot ? { controlRoot } : {}) })) throw new Error('Extension live binding changed');
-    if (trust && !trust.canRun(trustSubject)) throw new Error('Extension live binding changed');
+    if (trust && !trust.canRun(trustSubject, input.workspaceId)) throw new Error('Extension live binding changed');
   };
   if (requiresVerification) assertCurrent();
   return { ...(workspace ? { workspace } : {}), ...(sourceRoot ? { sourceRoot } : {}), ...(controlRoot ? { controlRoot } : {}), ...(workspace ? { rootsRevision } : {}), packageInfo: pkg, catalog, trustSubject, trusted: true, assertCurrent };

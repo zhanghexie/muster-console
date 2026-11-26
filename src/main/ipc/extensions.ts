@@ -3,7 +3,6 @@ import { app, dialog, type IpcMainInvokeEvent } from 'electron';
 import type { AppContext } from '../context';
 import type { ExtensionAppSystem } from '../extensions/extensionAppSystem';
 import type { ExtensionManagementSnapshot, ExtensionNavigationSnapshot, ExtensionToolbarRunResult } from '../../shared/extension';
-import { ExtensionDevelopmentTrustRequiredError } from '../extensions/extensionLiveBinding';
 import { isExtensionPanelMethod, type ExtensionBridgeCall } from '../../shared/extensions';
 import type { PanelPlacement } from '../extensions/panelViews';
 import type { ExtensionPanelEventEmitter } from '../extensions/extensionHost';
@@ -134,13 +133,8 @@ export function registerExtensionsExtensionIpc(ctx: AppContext, system: Extensio
     const input = record(value);
     if (!Number.isSafeInteger(input.selectionRevision) || Number(input.selectionRevision) < 0) throw new Error('Invalid project revision');
     if (input.scope !== undefined && input.scope !== 'global' && input.scope !== 'project') throw new Error('Invalid toolbar scope');
-    try {
-      const result = await system.workbench.runToolbar({ workspaceId: active(input.workspaceId), sourceRootId: text(input.sourceRootId, 'project'), selectionRevision: Number(input.selectionRevision), extensionId: text(input.extensionId, 'extension'), ...(input.menuId === undefined ? {} : { menuId: text(input.menuId, 'menu item') }), ...(input.scope === undefined ? {} : { scope: input.scope }) });
-      return { status: 'completed', result };
-    } catch (error) {
-      if (error instanceof ExtensionDevelopmentTrustRequiredError) return { status: 'development-trust-required', error: String(error) };
-      throw error;
-    }
+    const result = await system.workbench.runToolbar({ workspaceId: active(input.workspaceId), sourceRootId: text(input.sourceRootId, 'project'), selectionRevision: Number(input.selectionRevision), extensionId: text(input.extensionId, 'extension'), ...(input.menuId === undefined ? {} : { menuId: text(input.menuId, 'menu item') }), ...(input.scope === undefined ? {} : { scope: input.scope }) });
+    return { status: 'completed', result };
   });
   handle('workbench:navigation', () => system.workbench.sync());
   handle('workbench:saveNavigation', (_event, value: unknown) => {
@@ -207,26 +201,6 @@ export function registerExtensionsExtensionIpc(ctx: AppContext, system: Extensio
     const input = record(value);
     return system.uninstallCenterRelease(text(input.packageKey, 'package key'));
   });
-  const extensionTrustInput = (value: unknown, mode?: boolean): { scope: 'global' | 'project'; extensionId: string; controlRoot?: string; mode?: 'trusted-once' | 'trusted-persistent' } => {
-    const input = record(value);
-    if (input.scope !== 'global' && input.scope !== 'project') throw new Error('Invalid development trust scope');
-    let controlRoot = input.controlRoot === undefined ? undefined : text(input.controlRoot, 'control root');
-    if (input.scope === 'project' && !controlRoot) {
-      const workspaceId = text(input.workspaceId, 'workspace');
-      const sourceRootId = input.sourceRootId === undefined ? undefined : text(input.sourceRootId, 'project');
-      controlRoot = system.workbench.projectPath(active(workspaceId), sourceRootId);
-    }
-    const result = { scope: input.scope as 'global' | 'project', extensionId: text(input.extensionId, 'extension'), ...(controlRoot ? { controlRoot } : {}) } as { scope: 'global' | 'project'; extensionId: string; controlRoot?: string; mode?: 'trusted-once' | 'trusted-persistent' };
-    if (mode) {
-      if (input.mode !== 'trusted-once' && input.mode !== 'trusted-persistent') throw new Error('Invalid development trust mode');
-      result.mode = input.mode;
-    }
-    return result;
-  };
-  handle('extensionCatalog:trustStatus', (_event, value: unknown) => system.extensionHost.developmentTrustStatus(extensionTrustInput(value)));
-  handle('extensionCatalog:trust', (_event, value: unknown) => system.extensionHost.trustDevelopment(extensionTrustInput(value, true) as { scope: 'global' | 'project'; extensionId: string; mode: 'trusted-once' | 'trusted-persistent'; controlRoot?: string }));
-  handle('extensionCatalog:revokeTrust', (_event, value: unknown) => system.extensionHost.revokeDevelopment(extensionTrustInput(value)));
-  handle('extensionCatalog:listTrust', () => system.extensionHost.listDevelopmentTrust());
   handle('extensionSurface:open', (event, value: unknown) => {
     const input = record(value);
     if (input.mcpTrust !== undefined && input.mcpTrust !== 'trusted-once' && input.mcpTrust !== 'trusted-persistent') throw new Error('Invalid MCP trust');

@@ -26,7 +26,6 @@ test('中国象棋安装后可以键盘落子、重载续弈并悔棋', async ({
   const expand = win.getByRole('button', { name: '展开更多工具' });
   if (await expand.isVisible()) await expand.click();
   await win.getByRole('treeitem', { name: '中国象棋', exact: true }).click();
-  await win.getByRole('button', { name: '信任开发目录' }).click();
   const selector = 'iframe[aria-label="扩展面板 中国象棋"]';
   const frame = win.frameLocator(selector);
   const turn = frame.locator('#turn');

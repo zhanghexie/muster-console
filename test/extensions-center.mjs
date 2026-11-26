@@ -18,7 +18,8 @@ try {
   const globalRoot = path.join(userData, 'extensions', 'global');
   const layout = new ExtensionSourceLayout({ userData, globalRoot });
   const catalog = new ExtensionPackageCatalog({ layout });
-  const center = new ExtensionCenterService(userData, globalRoot, catalog, { catalogUrl: null });
+  const bundledRoot = path.join(repo, 'resources', 'extensions');
+  const center = new ExtensionCenterService(userData, globalRoot, catalog, { catalogUrl: null, bundledRoot });
   const previousCenterUrl = process.env.MUSTER_EXTENSION_CENTER_URL;
   const previousCenterLocal = process.env.MUSTER_EXTENSION_CENTER_LOCAL;
   delete process.env.MUSTER_EXTENSION_CENTER_URL;
@@ -55,6 +56,18 @@ try {
   const after = (await center.list()).find(release => release.packageKey === target.packageKey);
   assert.equal(after?.installed, true);
   assert.equal(fs.existsSync(layout.global(target.extensionId).directory), true);
+  const shipped = catalog.get('global', target.extensionId);
+  const runtime = new ExtensionDevelopmentTrustStore(userData, center);
+  assert.equal(await runtime.ensureCanRun(shipped), true, 'a matching shipped copy can run offline on a fresh profile');
+  assert.equal(runtime.canRun(shipped), true);
+  assert.equal(runtime.isTrusted(shipped), false, 'bundled provenance does not grant MCP consent');
+  assert.equal(runtime.canRun({ ...shipped, directory: path.join(temp, 'other') }), false);
+  const localEdit = path.join(shipped.directory, 'local-edit.txt');
+  await fs.promises.writeFile(localEdit, 'Local edit');
+  await catalog.syncGlobal();
+  assert.equal(await runtime.ensureCanRun(catalog.get('global', shipped.extensionId)), false, 'the built-in ID does not authorize changed package bytes');
+  await fs.promises.rm(localEdit);
+  await catalog.syncGlobal();
   const uninstalled = await center.uninstall(target.packageKey);
   assert.equal(uninstalled.uninstalled, true);
   assert.equal(fs.existsSync(layout.global(target.extensionId).directory), false);

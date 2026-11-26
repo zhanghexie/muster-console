@@ -5,10 +5,9 @@ test('daily-report 面板与 DomainRuntime 写入链路', async ({ appCtx }, tes
   const expandExtensions = win.getByRole('button', { name: '展开更多工具' });
   if (await expandExtensions.isVisible().catch(() => false)) await expandExtensions.click();
   await win.locator('[role="treeitem"][aria-label="工作日报"]').click();
-  const trustButton = win.getByRole('button', { name: '信任开发目录' });
-  if (await trustButton.waitFor({ state: 'visible', timeout: 8_000 }).then(() => true).catch(() => false)) await trustButton.click();
   const frame = win.frameLocator('iframe.ext-panel-frame[aria-label="扩展面板 工作日报"]');
   await frame.locator('#todoText').waitFor({ state: 'visible', timeout: 20_000 });
+  await expect(win.getByRole('button', { name: '信任开发目录' })).toHaveCount(0);
   await expect(frame.locator('#genStatus')).toContainText('当前工作区');
   const title = `E2E 日报 ${Date.now()}`;
   await frame.locator('#todoText').fill(title);

@@ -1,7 +1,6 @@
 import { expect, it, vi } from 'vitest';
 import type { AppContext } from '../../src/main/context';
 import type { ExtensionAppSystem } from '../../src/main/extensions/extensionAppSystem';
-import { ExtensionDevelopmentTrustRequiredError } from '../../src/main/extensions/extensionLiveBinding';
 
 vi.mock('electron', () => ({ app: { isPackaged: true } }));
 
@@ -16,10 +15,7 @@ it('exposes current catalog, surface and popup controls', async () => {
   const panelViews = { ownsSender: vi.fn(() => true), init: vi.fn(), call: vi.fn(), appearance: vi.fn(), place: vi.fn() };
   const extensionHost = {
     ownsView: vi.fn(() => true), panelViews,
-    developmentTrustStatus: vi.fn(() => ({ trusted: false, subject: { extensionId: 'dev', scope: 'global', directory: 'C:\\dev', fingerprint: `package-extension:${'a'.repeat(64)}` } })),
-    trustDevelopment: vi.fn(() => ({ trusted: true, subject: {} })),
-    revokeDevelopment: vi.fn(() => ({ trusted: false, subject: {} })),
-    listDevelopmentTrust: vi.fn(() => []), open: vi.fn(), call: vi.fn(), reload: vi.fn(), close: vi.fn(), place: vi.fn()
+    open: vi.fn(), call: vi.fn(), reload: vi.fn(), close: vi.fn(), place: vi.fn()
   };
   const projectPath = vi.fn((_workspaceId: string, sourceRootId?: string) => `E:/project/${sourceRootId ?? 'default'}`);
   const catalog = { list: vi.fn(() => []), syncGlobal: vi.fn(() => ({ errors: [] })), setEnabled: vi.fn() };
@@ -53,15 +49,14 @@ it('exposes current catalog, surface and popup controls', async () => {
   expect(catalog.syncGlobal).toHaveBeenCalledOnce();
 });
 
-it('classifies only the host development trust gate at the toolbar IPC boundary', async () => {
+it('returns toolbar results and propagates failures through IPC', async () => {
   const ctx = { config: { get: () => ({ activeWorkspaceId: 'a' }) } } as AppContext;
-  const error = new ExtensionDevelopmentTrustRequiredError();
-  const blocked = { status: 'development-trust-required', error: String(error) };
-  const runToolbar = vi.fn().mockRejectedValueOnce(error).mockRejectedValueOnce(new Error(error.message)).mockResolvedValueOnce(blocked);
+  const error = new Error('请在扩展管理中启用此扩展');
+  const runToolbar = vi.fn().mockRejectedValueOnce(error).mockResolvedValueOnce('result');
   const system = { catalog: { layout: {} }, workbench: { runToolbar } } as unknown as ExtensionAppSystem;
   registerExtensionsExtensionIpc(ctx, system);
   const invoke = () => handlers.get('extensions:runToolbar')!({}, { workspaceId: 'a', sourceRootId: 'one', selectionRevision: 0, extensionId: 'dev', scope: 'project' });
-  await expect(invoke()).resolves.toEqual(blocked);
   await expect(invoke()).rejects.toThrow(error.message);
-  await expect(invoke()).resolves.toEqual({ status: 'completed', result: blocked });
+  await expect(invoke()).resolves.toEqual({ status: 'completed', result: 'result' });
+  expect(handlers.has('extensionCatalog:trust')).toBe(false);
 });

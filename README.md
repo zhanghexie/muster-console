@@ -14,13 +14,6 @@ https://github.com/user-attachments/assets/154d3066-d57d-4552-9b4d-2044b2c100e9
 
 *Meet the dispatchers for three workspaces, then follow Codex and Claude Code as they take assignments, work in split view, and exchange mail. Recorded in the Muster workbench with a demo project and scripted agent replies.*
 
-<details>
-<summary>Watch with sound effects only</summary>
-
-https://github.com/user-attachments/assets/69dede3e-be9a-4895-87de-1680820d5049
-
-</details>
-
 [Audio credits](docs/media/readme/audio-credits.md) · [Cover image](docs/media/readme/en/muster-overview-v5.jpg)
 
 ## Coding agent harnesses

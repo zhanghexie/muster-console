@@ -77,9 +77,6 @@ test('uploads Chinese chess from the installed card and plays the exact reviewed
     browser = await chromium.connectOverCDP(debugOrigin);
     const trialContext = browser.contexts()[0];
     const trial = trialContext.pages().find(page => page.url().includes('index.html')) ?? await trialContext.waitForEvent('page');
-    const trust = trial.getByRole('button', { name: '信任开发目录' });
-    await expect(trust).toBeVisible({ timeout: 25_000 });
-    await trust.click();
     const board = trial.frameLocator('iframe[aria-label="扩展面板 中国象棋"]');
     await expect(board.locator('#turn')).toHaveText('轮到你走棋', { timeout: 20_000 });
     await board.locator('[data-square="58"]').click();

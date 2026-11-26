@@ -54,7 +54,7 @@ const agent = {
 };
 const host = new ExtensionHost(catalog, agent, trust, async () => { confirmations += 1; return true; }, undefined, undefined, undefined, workerFile, undefined, undefined, undefined, undefined, undefined, undefined, activationCheck);
 assert.equal((await host.developmentTrustStatus({ scope: 'global', extensionId: 'bookshelf' })).trusted, false);
-await assert.rejects(() => host.open({ workspaceId: 'ws', extensionId: 'bookshelf' }), /development trust is required/);
+await assert.rejects(() => host.open({ workspaceId: 'ws', extensionId: 'bookshelf' }), /请在扩展管理中启用此扩展/);
 assert.equal((await host.trustDevelopment({ scope: 'global', extensionId: 'bookshelf', mode: 'trusted-once' })).trusted, true);
 assert.equal((await host.trustDevelopment({ scope: 'global', extensionId: 'quick-note', mode: 'trusted-once' })).trusted, true);
 let finishPreparation;
@@ -238,7 +238,7 @@ fs.appendFileSync(path.join(pkg, 'ui', 'panel.html'), '<!-- changed -->');
 await new Promise(resolve => setTimeout(resolve, 100));
 assert.equal((await host.resource(new Request(`muster-app://${view.token}/ui/panel.html`))).status, 409);
 await assert.rejects(() => host.call(view.token, 'domain.snapshot'), /package changed/);
-await assert.rejects(() => taskResources.tools[0].execute({}, {}), /信任/);
+await assert.rejects(() => taskResources.tools[0].execute({}, {}), /扩展已变更或停用/);
 assert.equal((await host.trustDevelopment({ scope: 'global', extensionId: 'bookshelf', mode: 'trusted-persistent' })).trusted, true);
 await assert.rejects(() => host.taskLaunchMeta(seed.source, 'ws', 'root', 'pi'), /更新/);
 assert.equal(await taskResources.tools[0].execute({}, {}), 'task-1', 'explicitly trusted updated package can continue earlier work');

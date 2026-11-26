@@ -84,9 +84,7 @@ export interface ExtensionToolbarItem {
   menu?: Array<{ id: string; label: string }>;
 }
 
-export type ExtensionToolbarRunResult =
-  | { status: 'completed'; result: unknown }
-  | { status: 'development-trust-required'; error: string };
+export type ExtensionToolbarRunResult = { status: 'completed'; result: unknown };
 
 export function isPortableProjectPath(value: unknown): value is string {
   if (typeof value !== 'string' || !value || value.length > 1024 || value.startsWith('/') || value.includes('\\') || value.includes('\0')) return false;

@@ -96,10 +96,8 @@ export function DomainExtensionPanel({ workspaceId, extensionId, scope = 'global
   const pendingConfirmation = useRef<((value: boolean) => void) | null>(null);
   const finishConfirmation = (value: boolean): void => { const resolve = pendingConfirmation.current; pendingConfirmation.current = null; setConfirmation(null); resolve?.(value); };
   const [error, setError] = useState('');
-  const [retryNonce, setRetryNonce] = useState(0);
   const [frameRevision, setFrameRevision] = useState(0);
   const reloading = useRef<string | null>(null);
-  const [trusting, setTrusting] = useState(false);
   const [agentVisible, setAgentVisible] = useState(true);
   const [layoutMode, setLayoutMode] = useState<AgentLayoutMode>(initialLayoutMode);
   const [floatSize, setFloatSize] = useState<AgentFloatSize>(initialFloatSize);
@@ -134,7 +132,7 @@ export function DomainExtensionPanel({ workspaceId, extensionId, scope = 'global
       alive = false;
       if (openedToken) closeView(openedToken);
     };
-  }, [workspaceId, extensionId, scope, sourceRootId, retryNonce, connected]);
+  }, [workspaceId, extensionId, scope, sourceRootId, connected]);
   useLayoutEffect(() => {
     if (!view || !connected) return;
     let alive = true;
@@ -309,8 +307,7 @@ export function DomainExtensionPanel({ workspaceId, extensionId, scope = 'global
     });
   }, []);
   if (error && connected) {
-    const canTrust = error.includes('development trust is required');
-    return <section className="ext-panel"><div className="ui-empty" role="alert"><p>{error}</p><div className="ui-row"><button className="ui-btn" onClick={onClose}>{t('关闭面板')}</button>{canTrust && <button className="ui-btn primary" disabled={trusting} onClick={() => { setTrusting(true); void window.api.extensionCatalog.trust({ scope, extensionId, ...(scope === 'project' && sourceRootId ? { workspaceId, sourceRootId } : {}), mode: 'trusted-persistent' }).then(() => { setError(''); setRetryNonce(value => value + 1); }).catch(value => setError(String(value))).finally(() => setTrusting(false)); }}>{t('信任开发目录')}</button>}</div></div></section>;
+    return <section className="ext-panel"><div className="ui-empty" role="alert"><p>{error}</p><div className="ui-row"><button className="ui-btn" onClick={onClose}>{t('关闭面板')}</button></div></div></section>;
   }
   if (!view || !connected) return <section className="ext-panel"><p className="ui-empty" role="status"><BrandLoading>{connected ? t('正在核验扩展…') : t('等待重新连接…')}</BrandLoading></p></section>;
   const inTab = placement === 'tab' && !!surfaceKey && !detachedWindow;

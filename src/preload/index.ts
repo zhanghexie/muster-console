@@ -1144,11 +1144,7 @@ const api = {
   extensionCatalog: {
     catalog: (): Promise<{ packages: Array<{ extensionId: string; name: string; surfaceKind: 'toolbar' | 'sidebar'; directory: string; fingerprint: string; version?: string; enabled: boolean }>; scan: Array<{ extensionId: string; error: string }> }> => ipcRenderer.invoke('extensionCatalog:catalog'),
     setEnabled: (input: { scope: 'global' | 'project'; extensionId: string; enabled: boolean; workspaceId?: string; sourceRootId?: string }): Promise<{ scope: 'global' | 'project'; extensionId: string; enabled: boolean }> => ipcRenderer.invoke('extensionCatalog:setEnabled', input),
-    installLocal: (): Promise<{ canceled: true } | { extensionId: string }> => ipcRenderer.invoke('extensionCatalog:installLocal'),
-    trustStatus: (input: { scope: 'global' | 'project'; extensionId: string; controlRoot?: string; workspaceId?: string; sourceRootId?: string }): Promise<{ trusted: boolean; subject: unknown }> => ipcRenderer.invoke('extensionCatalog:trustStatus', input),
-    trust: (input: { scope: 'global' | 'project'; extensionId: string; controlRoot?: string; workspaceId?: string; sourceRootId?: string; mode: 'trusted-once' | 'trusted-persistent' }): Promise<{ trusted: boolean; subject: unknown }> => ipcRenderer.invoke('extensionCatalog:trust', input),
-    revokeTrust: (input: { scope: 'global' | 'project'; extensionId: string; controlRoot?: string; workspaceId?: string; sourceRootId?: string }): Promise<{ trusted: boolean; subject: unknown }> => ipcRenderer.invoke('extensionCatalog:revokeTrust', input),
-    listTrust: (): Promise<unknown[]> => ipcRenderer.invoke('extensionCatalog:listTrust')
+    installLocal: (): Promise<{ canceled: true } | { extensionId: string }> => ipcRenderer.invoke('extensionCatalog:installLocal')
   },
   extensionPublishing: {
     connection: () => ipcRenderer.invoke('extensionPublishing:connection'),

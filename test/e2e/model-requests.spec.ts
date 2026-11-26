@@ -280,7 +280,6 @@ test('Core requests window shows each actual HTTP request independently of Harne
     await expect(scheduler).toHaveCount(0);
     await expect.poll(() => win.evaluate(id => window.api.agentSession.modelRequests(`scheduler:${id}`).then(rows => rows.length), workspaceId)).toBe(1);
 
-    await win.evaluate(() => window.api.extensionCatalog.trust({ scope: 'global', extensionId: 'daily-report', mode: 'trusted-persistent' }));
     const tools = win.getByRole('button', { name: '展开更多工具' });
     if (await tools.isVisible()) await tools.click();
     await win.getByRole('treeitem', { name: '工作日报' }).click();

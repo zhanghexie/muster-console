@@ -144,36 +144,15 @@ it('forwards domain events to the active extension iframe', async () => {
   expect(postMessage).toHaveBeenCalledWith(expect.objectContaining({ __ma: true, type: 'event', topic: 'state.changed' }), '*');
 });
 
-it('offers one-time trust when a global development package is gated', async () => {
-  let attempts = 0;
-  currentApiMock().override('extensionSurface.openExtension', async () => {
-    attempts += 1;
-    if (attempts === 1) throw new Error('current development trust is required before running this package');
-    return { token: 'current-token', entry: 'ui/panel.html', sessionId: 'current-agent', manifest: { name: '书架', surface: { entry: 'ui/panel.html' } } };
-  });
-  currentApiMock().override('extensionCatalog.trust', async () => ({ trusted: true, subject: {} }));
-  const { container } = render(<DomainExtensionPanel workspaceId="ws" extensionId="bookshelf" onClose={vi.fn()} />);
-  const trust = await screen.findByRole('button', { name: '信任开发目录' });
-  fireEvent.click(trust);
-  expect(await screen.findByTestId('current-agent-current-agent')).toBeTruthy();
-  expect(attempts).toBe(2);
-  expect(currentApiMock().mockOf('extensionCatalog.trust')).toHaveBeenCalledWith({ scope: 'global', extensionId: 'bookshelf', mode: 'trusted-persistent' });
-  expect(container.querySelector('iframe')).toBeTruthy();
-});
-
-it('passes project identity when trusting a gated project package', async () => {
-  let attempts = 0;
-  currentApiMock().override('extensionSurface.openExtension', async () => {
-    attempts += 1;
-    if (attempts === 1) throw new Error('current development trust is required before running this package');
-    return { token: 'current-project-token', entry: 'ui/panel.html', sessionId: 'current-project-agent', manifest: { name: '项目书架', surface: { entry: 'ui/panel.html' } } };
-  });
-  currentApiMock().override('extensionCatalog.trust', async () => ({ trusted: true, subject: {} }));
-  render(<DomainExtensionPanel workspaceId="ws-project" extensionId="bookshelf" scope="project" sourceRootId="project-root" onClose={vi.fn()} />);
-  const trust = await screen.findByRole('button', { name: '信任开发目录' });
-  fireEvent.click(trust);
-  expect(await screen.findByTestId('current-agent-current-project-agent')).toBeTruthy();
-  expect(currentApiMock().mockOf('extensionCatalog.trust')).toHaveBeenCalledWith({ scope: 'project', extensionId: 'bookshelf', workspaceId: 'ws-project', sourceRootId: 'project-root', mode: 'trusted-persistent' });
+it.each(['global', 'project'] as const)('shows the %s panel error with only a close action', async scope => {
+  const open = currentApiMock().mockOf('extensionSurface.openExtension').mockRejectedValueOnce(new Error('请在扩展管理中启用此扩展'));
+  const onClose = vi.fn();
+  render(<DomainExtensionPanel workspaceId="ws" extensionId="bookshelf" scope={scope} onClose={onClose} />);
+  expect((await screen.findByRole('alert')).textContent).toContain('请在扩展管理中启用此扩展');
+  expect(screen.getAllByRole('button')).toEqual([screen.getByRole('button', { name: '关闭面板' })]);
+  fireEvent.click(screen.getByRole('button', { name: '关闭面板' }));
+  expect(open).toHaveBeenCalledOnce();
+  expect(onClose).toHaveBeenCalledOnce();
 });
 
 it('forwards host appearance changes to the current iframe', async () => {

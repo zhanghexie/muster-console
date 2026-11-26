@@ -114,7 +114,7 @@ test('opens a verified download without trusting a development directory', async
       const { activeWorkspaceId } = await window.api.config.get();
       if (!activeWorkspaceId) throw new Error('Expected an active test workspace');
       return window.api.extensionSurface.openExtension({ workspaceId: activeWorkspaceId, scope: 'global', extensionId: 'gomoku' });
-    })).rejects.toThrow(/development trust is required/);
+    })).rejects.toThrow(/请在扩展管理中启用此扩展/);
   } finally {
     await fs.writeFile(panelFile, original);
   }

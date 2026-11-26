@@ -6,15 +6,6 @@ import { useOverlayDismiss } from '../keybindings/KeybindingHost';
 import { MOTION, usePresence } from './motion';
 import { IconMore } from './icons';
 import { ExtensionIcon } from '../extensionIcons';
-import { AppConfirmDialog } from './AppConfirmDialog';
-
-interface ToolbarTrustPrompt {
-  name: string;
-  workspaceId: string;
-  sourceRootId: string;
-  selectionRevision: number;
-  answer(confirmed: boolean): void;
-}
 
 function Action({ item, open, inMenu, busy, toggle, run }: { item: ExtensionToolbarItem; open: boolean; inMenu: boolean; busy: boolean; toggle: () => void; run: (menuId?: string) => void }): React.JSX.Element {
   const presence = usePresence(open, MOTION.menuMs), menu = item.menu ?? [];
@@ -39,7 +30,6 @@ export function ExtensionChromeActions(): React.JSX.Element | null {
   const { t } = useTranslation(), { activeWorkspaceId } = useWorkspaceStore(), { flashTip } = useUiStore();
   const [toolbar, setToolbar] = useState<{ workspaceId: string; sourceRootId: string; selectionRevision: number; items: ExtensionToolbarItem[] } | null>(null);
   const [overflowOpen, setOverflowOpen] = useState(false), [openId, setOpenId] = useState<string | null>(null), [busy, setBusy] = useState<string[]>([]);
-  const [trustPrompts, setTrustPrompts] = useState<ToolbarTrustPrompt[]>([]);
   const root = useRef<HTMLDivElement>(null), generation = useRef(0), currentWorkspace = useRef(activeWorkspaceId), flashRef = useRef(flashTip);
   currentWorkspace.current = activeWorkspaceId;
   flashRef.current = flashTip;
@@ -66,12 +56,6 @@ export function ExtensionChromeActions(): React.JSX.Element | null {
   useOverlayDismiss(overflowOpen || !!openId, () => { setOverflowOpen(false); setOpenId(null); });
 
   const current = toolbar?.workspaceId === activeWorkspaceId ? toolbar : null;
-  const [nextPrompt] = trustPrompts;
-  const trustPrompt = nextPrompt && nextPrompt.workspaceId === activeWorkspaceId &&
-    (!current || (nextPrompt.sourceRootId === current.sourceRootId && nextPrompt.selectionRevision === current.selectionRevision)) ? nextPrompt : null;
-  useEffect(() => {
-    if (nextPrompt && !trustPrompt) nextPrompt.answer(false);
-  }, [nextPrompt, trustPrompt]);
 
   const busyKey = (item: ExtensionToolbarItem): string => JSON.stringify([current?.workspaceId, current?.sourceRootId, current?.selectionRevision, item.scope, item.id]);
   const run = async (item: ExtensionToolbarItem, menuId?: string): Promise<void> => {
@@ -81,34 +65,10 @@ export function ExtensionChromeActions(): React.JSX.Element | null {
     const input = { workspaceId, sourceRootId, selectionRevision, extensionId, scope, ...(menuId ? { menuId } : {}) };
     const key = busyKey(item);
     setOverflowOpen(false); setOpenId(null); setBusy(values => [...values, key]);
-    const showError = (error: unknown): void => flashRef.current(t('{{name}}：{{error}}', { name, error: String(error) }));
     try {
-      const result = await window.api.extensions.runToolbar(input);
-      if (result.status !== 'development-trust-required') return;
-
-      const confirmed = await new Promise<boolean>(resolve => {
-        const prompt: ToolbarTrustPrompt = {
-          name, workspaceId, sourceRootId, selectionRevision,
-          answer: accepted => {
-            setTrustPrompts(prompts => prompts.filter(candidate => candidate !== prompt));
-            resolve(accepted);
-          }
-        };
-        setTrustPrompts(prompts => [...prompts, prompt]);
-      });
-      if (!confirmed) {
-        flashRef.current(t('已取消授权'));
-        return;
-      }
-      const { trusted } = await window.api.extensionCatalog.trust({
-        scope, extensionId, mode: 'trusted-persistent', ...(scope === 'project' ? { workspaceId, sourceRootId } : {})
-      });
-      if (!trusted) throw new Error(t('未能授予开发信任'));
-
-      const retry = await window.api.extensions.runToolbar(input);
-      if (retry.status === 'development-trust-required') showError(retry.error);
+      await window.api.extensions.runToolbar(input);
     } catch (error) {
-      showError(error);
+      flashRef.current(t('{{name}}：{{error}}', { name, error: String(error) }));
     } finally {
       setBusy(values => values.filter(value => value !== key));
     }
@@ -118,21 +78,10 @@ export function ExtensionChromeActions(): React.JSX.Element | null {
     return <Action key={id} item={item} inMenu={inMenu} open={openId === id} busy={busy.includes(busyKey(item))} toggle={() => { if (!inMenu) setOverflowOpen(false); setOpenId(value => value === id ? null : id); }} run={menuId => void run(item, menuId)}/>;
   };
   const visible = current?.items.slice(0, 5) ?? [], overflow = current?.items.slice(5) ?? [];
-  return <>
-    {visible.length > 0 && <div className="chrome-ext-actions extension-chrome-ext-actions" ref={root}>
+  return visible.length > 0 ? <div className="chrome-ext-actions extension-chrome-ext-actions" ref={root}>
       {visible.map(item => action(item))}
       {overflow.length > 0 && <div className="chrome-ext-overflow"><button type="button" className="chrome-ext-btn" title={t('还有 {{n}} 个扩展动作', { n: overflow.length })} aria-haspopup="menu" aria-expanded={overflowOpen} onClick={() => { setOpenId(null); setOverflowOpen(value => !value); }}><IconMore/></button>
         {presence.mounted && <div className="chrome-ext-menu ui-menu mp-pop" data-mp-stage={presence.stage} role="menu" aria-hidden={!overflowOpen} {...(!overflowOpen ? { inert: '' as unknown as boolean } : {})}>{overflow.map(item => action(item, true))}</div>}
       </div>}
-    </div>}
-    <AppConfirmDialog
-      open={!!trustPrompt}
-      title={trustPrompt ? t('允许运行「{{name}}」？', { name: trustPrompt.name }) : ''}
-      detail={t('本地安装的扩展需要授权后才能由宿主执行代码。授权对该开发目录长期有效。')}
-      confirmLabel={t('信任并运行')}
-      focusCancel
-      onConfirm={() => trustPrompt?.answer(true)}
-      onCancel={() => trustPrompt?.answer(false)}
-    />
-  </>;
+  </div> : null;
 }

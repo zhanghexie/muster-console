@@ -7,8 +7,6 @@ test('an extension can play its HTML export in the right browser with keyboard a
   const more = win.getByRole('button', { name: '展开更多工具' });
   if (await more.isVisible()) await more.click();
   await win.getByRole('treeitem', { name: '媒体创作台' }).click();
-  const trust = win.getByRole('button', { name: '信任开发目录' });
-  if (await trust.waitFor({ timeout: 8000 }).then(() => true).catch(() => false)) await trust.click();
   const panel = win.frameLocator('iframe.ext-panel-frame').locator('.md-root');
   await expect(panel).toBeVisible({ timeout: 30000 });
   const exported = await panel.evaluate(async () => {

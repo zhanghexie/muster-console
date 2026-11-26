@@ -24,7 +24,7 @@ doc_type: feature
 
 ## 顶栏命令与宿主工具
 
-`ExtensionWorkbench` 校验顶栏选择的项目后调用 `ExtensionHost.runToolbar()`。宿主解析当前项目、包指纹、启用和开发信任状态，按工作区、源根和包版本复用命令 worker。worker 以 `packageRoot` 为 cwd，在每次命令的 `context` 中提供宿主解析的项目绝对路径 `sourceRoot` 和可用的 `rootsRevision`。
+`ExtensionWorkbench` 校验顶栏选择的项目后调用 `ExtensionHost.runToolbar()`。宿主解析当前项目、包指纹和[扩展激活状态](extension-development-trust.md)，按工作区、源根和包版本复用命令 worker。worker 以 `packageRoot` 为 cwd，在每次命令的 `context` 中提供宿主解析的项目绝对路径 `sourceRoot` 和可用的 `rootsRevision`。
 
 命令在执行期间用 `broker('tool', [name, args], context)` 调用宿主。宿主用活动请求关联最初的项目绑定，并在工具执行边界复查绑定。扩展身份和权限取自宿主持有的实例和清单。顶栏与 DomainRuntime 一起进入 `ExtensionHost.hostTool` 和 `executeExtensionHostTool`，共用 `hostTools` 声明、工具白名单及工作区、项目和会话检查。要求扩展自己的 Agent 身份的工具由 sidebar 实例调用。
 

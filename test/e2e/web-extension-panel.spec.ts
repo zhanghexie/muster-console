@@ -42,7 +42,6 @@ test('网页工作日报可交互、重载，关闭或断线只释放本连接�
       name: '远程工作日报', roots: [{ id: 'fixture', path: root }], defaultRootId: 'fixture', controlRootId: 'fixture'
     }), workspace);
     expect(opened.ok, opened.message).toBe(true);
-    await desktop.evaluate(() => window.api.extensionCatalog.trust({ scope: 'global', extensionId: 'daily-report', mode: 'trusted-persistent' }));
     const status = await desktop.evaluate(() => window.api.webAccess.status());
     expect(status.running, status.disabledReason).toBe(true);
 

@@ -139,7 +139,7 @@
 | [features/extension-domain-runtime.md](features/extension-domain-runtime.md) | **扩展 DomainRuntime 注册层**：实例级 runtime 注册、查询、命令和事件订阅 |
 | [features/extension-runtime.md](features/extension-runtime.md) | **扩展 实例运行时编排**：DomainRuntime 与 Agent 资源绑定、共享身份和实例关闭 |
 | [features/extension-host.md](features/extension-host.md) | **扩展 Host 与面板实例**：package catalog 到 Pi Agent Session、DomainRuntime 和面板调用的主进程接线 |
-| [features/extension-development-trust.md](features/extension-development-trust.md) | **扩展 开发态信任**：一次性/持久信任记录、目录与包指纹绑定和撤销 |
+| [features/extension-development-trust.md](features/extension-development-trust.md) | **扩展激活与运行校验**：内置包来源、启用本地包、开发重载和旧记录兼容 |
 | [features/center-split.md](features/center-split.md) | **中央区分屏与 Snap**：默认隐藏 ⋯、真实内容浮起、Windows 式顶部五预设最多三格；所有分屏内容支持网页式整屏显示与恢复；逻辑引用与物理顺序分离、保留所有现有引用、单目标 frost 预览/松手提交、空格 Assist、窄屏槽位切换；原生来源与方向菜单兼容、异步主选中/iframe 保活及工作区比例偏好 |
 | [features/extension-authoring.md](features/extension-authoring.md) | **扩展创作接口**：作用范围、源码与数据位置、草稿/审核、项目重绑定及 SDK |
 | [features/dynamic-tools.md](features/dynamic-tools.md) | **动态工具 ext.*（已退役）**：dynamicTools 域与旧清单 tools 声明已移除，替代路径索引 |

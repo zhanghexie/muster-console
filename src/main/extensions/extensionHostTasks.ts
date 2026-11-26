@@ -61,7 +61,7 @@ export async function handleExtensionTaskBridge(context: ExtensionTaskBridgeCont
   if (!ctx || !management || !win || win.isDestroyed() || ctx.config.get().activeWorkspaceId !== workspaceId) throw new Error('请先打开扩展所属工作区');
   assertTaskCurrent(context);
   if (!context.catalog.get(view.binding.scope, view.manifest.id, view.binding.controlRoot)?.enabled ||
-      (context.developmentTrust && !context.developmentTrust.canRun(view.developmentTrust.subject))) throw new Error('扩展已停用或需要重新信任');
+      (context.developmentTrust && !context.developmentTrust.canRun(view.developmentTrust.subject, workspaceId))) throw new Error('扩展已变更或停用');
   const rootId = view.identity.sourceRootId ?? management.rootId(workspaceId);
   if (method === 'tasks.create') {
     const [title, draft] = args;
