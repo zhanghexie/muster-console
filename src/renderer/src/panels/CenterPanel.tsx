@@ -410,7 +410,6 @@ function CenterPanelInner({
   onOpenSettings,
   onSelectUtilityPanel,
   settingsPrepared = false,
-  emptyGuide,
   backgroundViews = [],
   retainedFiles = [],
   onSettingsHost,
@@ -422,7 +421,6 @@ function CenterPanelInner({
   onOpenSettings?: (tab?: 'memory' | 'worker') => void;
   onSelectUtilityPanel?: (selection: UtilitySelection) => void;
   settingsPrepared?: boolean;
-  emptyGuide?: React.ReactNode;
   backgroundViews?: ReadonlyArray<BackgroundViewTab & { target: SplitPaneRef }>;
   retainedFiles?: ReadonlyArray<{ workspaceId: string; tabId: string; label: string; centerOnly: boolean }>;
   onSettingsHost?: (host: HTMLDivElement | null) => void;
@@ -1077,15 +1075,13 @@ function CenterPanelInner({
       )}
       {!utilityOpen && !split.open && !active && (
         <div className="center-placeholder ui-empty">
-          {emptyGuide ?? <>
-            <div className="empty-logo" aria-hidden>
-              <AppLogo size={64} />
-            </div>
-            <p className="ui-empty-desc">{t('还没有选中会话')}</p>
-            <p className="hint-muted">
-              {t('在左侧点一项，或对调度 Agent 说「开一个 Claude / Cursor / OpenCode 工作面板」')}
-            </p>
-          </>}
+          <div className="empty-logo" aria-hidden>
+            <AppLogo size={64} />
+          </div>
+          <p className="ui-empty-desc">{t('还没有选中会话')}</p>
+          <p className="hint-muted">
+            {t('在左侧点一项，或对调度 Agent 说「开一个 Claude / Cursor / OpenCode 工作面板」')}
+          </p>
         </div>
       )}
       {dragDecor.presence.mounted && dragDecor.value && <div className="center-drag-scrim"

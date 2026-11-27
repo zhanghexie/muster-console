@@ -1,6 +1,6 @@
 import { dismissTip, getTipSnapshot } from '../../src/renderer/src/tips';
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProviderModelCatalogPicker } from '../../src/renderer/src/components/settings/ProviderModelCatalogPicker';
 import { currentApiMock } from './helpers/api-mock';
@@ -28,6 +28,8 @@ describe('provider model catalog', () => {
     expect((screen.getByRole('button', { name: '读取中…' }) as HTMLButtonElement).disabled).toBe(true);
     expect(api.mockOf('config.providerModelCatalog')).toHaveBeenLastCalledWith(provider, true);
     pending.resolve({ ok: true, snapshot });
+    await waitFor(() => expect((screen.getByRole('button', { name: '刷新目录' }) as HTMLButtonElement).disabled).toBe(false));
+    await user.click(screen.getByRole('button', { name: '从目录添加（1）' }));
     await screen.findByRole('button', { name: /new/ });
     expect(screen.queryByRole('button', { name: /old/ })).toBeNull();
     expect(models).toEqual([{ id: 'configured' }]); expect(add).not.toHaveBeenCalled();
@@ -52,6 +54,7 @@ describe('provider model catalog', () => {
     await user.click(await screen.findByRole('button', { name: '从目录添加（1）' }));
     await user.click(screen.getByRole('button', { name: '刷新目录' }));
     await waitFor(() => expect(getTipSnapshot()).toMatchObject({ text: error, tone: 'error' }));
+    await user.click(screen.getByRole('button', { name: '从目录添加（1）' }));
     expect(screen.getByRole('button', { name: /old/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /new/ })).toBeNull();
     expect(screen.getByRole('status').textContent).toContain('回退到内置目录');
@@ -94,21 +97,49 @@ describe('provider model catalog', () => {
     expect(screen.queryByRole('button', { name: /new/ })).toBeNull();
   });
 
-  it('keeps builtin metadata without pinning it when adding a known model; toggles presence and focusability', async () => {
+  it('opens a searchable dialog linked to its trigger and closes with restored focus after adding', async () => {
     const add = vi.fn();
     currentApiMock().override('config.providerModelCatalog', async () => ({ ok: true, snapshot: { ...snapshot, models: [{ id: 'old' }] } }));
     render(<ProviderModelCatalogPicker provider={provider} builtin={builtin} models={models} onAdd={add}/>);
     const user = userEvent.setup();
     const toggle = await screen.findByRole('button', { name: '从目录添加（1）' });
     await user.click(toggle);
-    const panel = document.querySelector('.llm-catalog-picker')!;
-    expect(panel.classList.contains('mp-panel')).toBe(true);
+    const panel = screen.getByRole('dialog', { name: '从目录添加' });
+    expect(panel.classList.contains('llm-catalog-popup')).toBe(true);
+    expect(panel.classList.contains('mp-pop')).toBe(true);
+    expect(toggle.getAttribute('aria-controls')).toBe(panel.id);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    const search = within(panel).getByRole('searchbox', { name: '搜索模型' });
+    await waitFor(() => expect(document.activeElement).toBe(search));
+    await user.type(search, 'does-not-exist');
+    expect(within(panel).queryByRole('button', { name: /old/ })).toBeNull();
+    await user.clear(search);
     await user.click(screen.getByRole('button', { name: /old/ }));
     expect(add).toHaveBeenCalledWith({ id: 'old', name: 'Old model' });
-    await user.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    expect(panel.getAttribute('aria-hidden')).toBe('true');
+    expect(screen.queryByRole('dialog', { name: '从目录添加' })).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(toggle));
     await user.click(toggle);
     expect(screen.getByRole('button', { name: /old/ })).toBeTruthy();
+  });
+
+  it('dismisses on Escape with trigger focus, and outside pointer keeps focus on the clicked control', async () => {
+    currentApiMock().override('config.providerModelCatalog', async () => ({ ok: true, snapshot: null }));
+    const changed = vi.fn();
+    render(<><ProviderModelCatalogPicker provider={provider} builtin={builtin} models={models} onAdd={vi.fn()} onOpenChange={changed}/><button>Outside action</button></>);
+    const user = userEvent.setup();
+    const toggle = screen.getByRole('button', { name: '从目录添加（1）' });
+    await user.click(toggle);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog', { name: '从目录添加' })).toBeNull();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    await waitFor(() => expect(document.activeElement).toBe(toggle));
+    await user.click(toggle);
+    expect(screen.getByRole('dialog', { name: '从目录添加' })).toBeTruthy();
+    const outside = screen.getByRole('button', { name: 'Outside action' });
+    await user.click(outside);
+    expect(screen.queryByRole('dialog', { name: '从目录添加' })).toBeNull();
+    expect(document.activeElement).toBe(outside);
+    expect(changed).toHaveBeenLastCalledWith(false);
   });
 });

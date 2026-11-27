@@ -18,7 +18,7 @@ import {
   type KeybindingOverrides,
   type KeybindingSearchRow
 } from '../../../shared/keybindings';
-import { closeTopOverlay, overlayDepth, popOverlay, pushOverlay } from './overlayStack';
+import { closeTopOverlay, getSetupInteractionLock, overlayDepth, popOverlay, pushOverlay } from './overlayStack';
 import { t } from '../../../shared/i18n';
 import { resolveCtrlFSurface } from './findSurface';
 
@@ -209,9 +209,11 @@ export function KeybindingProvider({ children }: { children: React.ReactNode }):
       if (!chord) return;
       const serialized = serializeChord(chord);
       const ov = overridesRef.current;
+      const setupLock = getSetupInteractionLock();
 
       const overlayChord = resolveBinding('overlay.close', ov);
       if (overlayChord === serialized) {
+        if (setupLock) return;
         // The UA must consume Escape in a customizable picker before our parent
         // overlay. Preventing its default here would leave the picker open.
         if (typeof CSS !== 'undefined' && CSS.supports('appearance', 'base-select')
@@ -234,6 +236,7 @@ export function KeybindingProvider({ children }: { children: React.ReactNode }):
         if (!shouldFire(action.when, ev.target, !!handler)) continue;
         ev.preventDefault();
         ev.stopPropagation();
+        if (setupLock && (row.id !== 'globalBoard.toggle' || setupLock.dataset.setupAllowBoard !== 'true')) return;
         handler!();
         return;
       }

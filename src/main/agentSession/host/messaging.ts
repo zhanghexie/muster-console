@@ -40,6 +40,7 @@ import { cancelTurnRetry, splitSteeredTurn, startTurn, stopBeforeDispatch } from
 import { retirePendingConnection } from './retirement';
 import { cancelWorkerHandoff } from './workerRoute';
 import { hasWorkerModelMentions } from '../../../shared/workerModelMention';
+import { prepareWorkerModelMentions } from '../../tasks/workerRouting';
 
 function forkContextError(entry: SessionEntry): string | undefined {
   return entry.forkPendingError ?? (entry.forkDeliveryState === 'unknown'
@@ -219,7 +220,6 @@ async function sendInner(
       const context = entry.turnWorkspaceContext;
       if (!context) return { ok: false, error: 'Worker model reference: the active turn has no bound workspace source.' };
       try {
-        const { prepareWorkerModelMentions } = await import('../../tasks/workerRouting');
         const source = host.ctx.sessions.get(sessionId)?.sourceRoot;
         engineText = await prepareWorkerModelMentions(host.ctx, { workspaceId: context.workspaceId, rootId: context.sourceRootId,
           rootsRevision: context.rootsRevision, cwd: source?.cwd ?? context.cwd, capturedSource: source }, trimmed);

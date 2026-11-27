@@ -32,7 +32,8 @@ import { WebNoteEntryHost } from './components/WebNoteEntryHost';
 import { TooltipHost } from './components/Tooltip';
 import { TextToolResultCard } from './components/TextToolResultCard';
 import { ErrorTip } from './components/ErrorTip';
-import { WorkbenchSetupGuide, type WorkbenchSetup } from './onboarding/WorkbenchSetupGuide';
+import { SetupCompletion, WorkbenchSetupGuide } from './onboarding/WorkbenchSetupGuide';
+import type { DesktopSetup } from './onboarding/setupProgress';
 import {
   loadHSwitchMode,
   saveHSwitchMode,
@@ -62,6 +63,7 @@ import { workspaceAccent, workspaceAccentEnabled } from '../../shared/workspaceA
 import { getTheme } from './theme';
 import { getTerminalCapture } from './terminalRegistry';
 import { releaseTerminalFocus } from './keybindings/KeybindingHost';
+import { getSetupInteractionLock } from './keybindings/overlayStack';
 import { useAppKeybindings } from './hooks/useAppKeybindings';
 import {
   getChatFindShared,
@@ -71,7 +73,7 @@ import {
   resolveChatFindTarget
 } from './chatSurface/chatFindRegistry';
 import { setPreferredFindSurface } from './keybindings/findSurface';
-import { usePresence, usePresenceValue, prefersReducedMotion } from './components/motion';
+import { usePresence, prefersReducedMotion } from './components/motion';
 import {
   createWorkspaceTransit,
   WorkspaceTransitContext,
@@ -163,6 +165,7 @@ const loadSettingsModal = (): Promise<SettingsModalModule> =>
 const SettingsModalLazy = React.lazy(() =>
   loadSettingsModal().then((m) => ({ default: m.SettingsModal }))
 );
+const FirstRun = React.lazy(() => import('./onboarding/FirstRun').then(module => ({ default: module.FirstRun })));
 type SettingsModalComponent = React.ComponentType<React.ComponentProps<typeof SettingsModalLazy>>;
 if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
   // 守卫让模块级副作用在无 rIC / 无 window 的环境（jsdom、node）天然 no-op，
@@ -344,7 +347,7 @@ function AgentPanelFlag({ onOpenChange }: { onOpenChange: (open: boolean) => voi
 
 export function App({ onWorkspaceClosePendingChange, setup }: {
   onWorkspaceClosePendingChange?: (pending: boolean) => void;
-  setup?: WorkbenchSetup;
+  setup?: DesktopSetup;
 } = {}): React.JSX.Element {
   const {
     confirms,
@@ -397,6 +400,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
       setSplitPrefsError({ workspaceId: activeWorkspaceId, message: message === t('分屏偏好保存失败') ? message : t('分屏偏好保存失败：{{error}}', { error: message }) });
     });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [setupSettings, setSetupSettings] = useState<'model' | 'theme' | null>(null);
   const [appShell, setAppShell] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     const pending = new Map<string, { workspaceId: string; cancelled: boolean; sent: boolean; transaction?: WorkspaceFileCloseTransaction; hadInert: boolean }>();
@@ -514,6 +518,22 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     setSettingsFocus(focusId);
     setSettingsOpen(true);
   }, []);
+  const openSetupSettings = (kind: 'model' | 'theme'): void => {
+    setSetupSettings(kind);
+    if (kind === 'model') openSettings('agent', setup?.modelSettingsItem ?? 'agent-provider');
+    else openSettings('appearance');
+  };
+  const checkSetupModel = useRef(setup?.onModelReturn);
+  checkSetupModel.current = setup?.onModelReturn;
+  useEffect(() => {
+    if (!setupSettings || settingsOpen || settingsPresence.mounted) return;
+    if (setupSettings === 'theme') { setSetupSettings(null); return; }
+    let cancelled = false;
+    void Promise.resolve(checkSetupModel.current?.()).finally(() => {
+      if (!cancelled) setSetupSettings(null);
+    });
+    return () => { cancelled = true; };
+  }, [setupSettings, settingsOpen, settingsPresence.mounted]);
   const closeUtilityPanel = useCallback((): void => setUtilityPanel(null), []);
   const toggleGlobalBoard = useCallback((): void => {
     setProcessMonitorOpen(false);
@@ -557,11 +577,9 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   /** 会话栏显隐（全局偏好 localStorage）：展开=文档流占位；折叠=不占布局，
    *  可经右上角开关或左缘热区速览唤回。与专注模式完全解耦 */
   const [sessionsOpen, setSessionsOpen] = useState(() => loadSessionsOpen());
-  const setupStep = setup?.step;
-  const { value: guideSetup, presence: guidePresence } = usePresenceValue(setup);
-  useEffect(() => {
-    if (setupStep === 'workspace' || setupStep === 'session') setSessionsOpen(true);
-  }, [setupStep]);
+  const activeSetup = setup?.paused ? undefined : setup;
+  const setupStep = activeSetup?.step;
+  const focusAfterSetup = useRef(false);
   /** 工作区栈槽位（LeftPanel 底部）：AgentFloat 的胶囊栈 portal 挂进来，
    *  栈随侧边栏同生共死（速览悬停胶囊=悬停面板、显隐不再靠绑定类豁免）。
    *  展开列与速览浮层二选一挂载，槽位元素切换即 portal 容器切换 */
@@ -993,27 +1011,28 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     if (hVs && (hDock !== 'terminal' || hDockIntent.current !== 'terminal')) showTerminal();
   }, [hVs, hDock, showTerminal]);
 
-  useLayoutEffect(() => {
-    if (!setupStep || setupStep === 'done' || settingsOpen || (setupStep === 'session' && narrow && !leftDrawerOpen)) return;
-    appShell?.querySelector<HTMLButtonElement>(`[data-setup-target="${setupStep}"]`)?.focus({ preventScroll: true });
-  }, [appShell, leftDrawerOpen, narrow, sessionsOpen, settingsOpen, setupStep, wsSlotEl]);
-
   /** 鼠标中键：任意位置开关全局看板；preventDefault 顺带禁掉中键自动滚动。
    *  iframe（扩展面板/HTML 预览）内容区的中键进不了宿主文档，由 guest 侧
    *  中继脚本（panelRelay.ts，协议层/srcDoc 注入）postMessage 回来补触发。 */
   useEffect(() => {
+    const canToggleBoard = (): boolean => {
+      const lock = getSetupInteractionLock();
+      return !lock || lock.dataset.setupAllowBoard === 'true';
+    };
     const onDown = (e: MouseEvent): void => {
       if (e.button !== 1) return;
       e.preventDefault();
-      setGlobalBoardOpen((v) => !v);
+      if (canToggleBoard()) setGlobalBoardOpen((v) => !v);
     };
     const onRelay = (e: MessageEvent): void => {
       const d = e.data as { __ma?: boolean; type?: string } | null;
       if (!d || typeof d !== 'object' || d.__ma !== true || d.type !== 'middleClick') return;
-      setGlobalBoardOpen((v) => !v);
+      if (canToggleBoard()) setGlobalBoardOpen((v) => !v);
     };
     window.addEventListener('message', onRelay);
-    const stopNativeRelay = window.api.on('workbench:middleClick', () => setGlobalBoardOpen(value => !value));
+    const stopNativeRelay = window.api.on('workbench:middleClick', () => {
+      if (canToggleBoard()) setGlobalBoardOpen(value => !value);
+    });
     document.addEventListener('mousedown', onDown);
     return () => {
       window.removeEventListener('message', onRelay);
@@ -2104,14 +2123,19 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   const hOffset =
     !hVs || hDock === 'terminal' ? 0 : -(workspacePageW - workspacePeekOnGit);
   const agentOnGitPage = !narrow && hVs && hDock === 'git';
-  const guideSidebarHidden = narrow ? guideSetup?.step === 'session' && !leftDrawerOpen : !sessionsInFlow || agentOnGitPage;
-  const guide = guidePresence.mounted && guideSetup ? <WorkbenchSetupGuide key={guideSetup.step} setup={guideSetup}
-    presence={guidePresence} onOpenSettings={openSettings}
-    onRevealSidebar={guideSidebarHidden ? () => {
-      ensureWorkspaceVisible();
-      if (narrow) { setRightDrawerOpen(false); setLeftDrawerOpen(true); }
-      else setSessionsOpen(true);
-    } : undefined} /> : undefined;
+  const guideSidebarHidden = narrow ? setupStep === 'session' && !leftDrawerOpen : !sessionsInFlow || agentOnGitPage;
+  const settingsCoverGuide = settingsOpen || settingsPresence.mounted || !!setupSettings;
+  const virtualScreenOpen = hasPeekPage;
+  const guideStep = setupStep !== 'tools' && setupStep !== 'model' && setupStep !== 'finish' ? setupStep : undefined;
+  const focusCompletedSetup = (): void => {
+    if (!focusAfterSetup.current) return;
+    focusAfterSetup.current = false;
+    requestAnimationFrame(() => {
+      const input = Array.from(appShell?.querySelectorAll<HTMLElement>('.terminal-page .agent-composer [role="textbox"]') ?? [])
+        .find(element => !element.closest('[inert], [aria-hidden="true"]') && element.checkVisibility({ visibilityProperty: true }));
+      (input ?? keySinkRef.current)?.focus({ preventScroll: true });
+    });
+  };
 
   // clip/visible prevents programmatic ancestor scrolling. Keep the event-only
   // fallback without flushing the just-committed switch layout to read offsets.
@@ -2178,6 +2202,14 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
           className="h-page workspace-page"
           data-h-page="terminal"
           data-h-peek={hasPeekPage && hDock === 'git' ? '' : undefined}
+          data-setup-target={activeSetup && virtualScreenOpen && hDock === 'git' ? 'virtual-screen' : undefined}
+          tabIndex={activeSetup && virtualScreenOpen && hDock === 'git' ? 0 : undefined}
+          aria-label={activeSetup && virtualScreenOpen && hDock === 'git' ? t('切到会话页') : undefined}
+          onKeyDown={event => {
+            if (event.target !== event.currentTarget || event.currentTarget.tabIndex !== 0 || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            showTerminal();
+          }}
           style={{ width: workspacePageW }}
         >
           {/* 会话栏：展开时挂工作页文档流（窄屏由 responsive.css 转为抽屉）；
@@ -2226,7 +2258,6 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
               onCloseUtilityPanel={closeUtilityPanel}
               onOpenSettings={openSettings}
               settingsPrepared={settingsPrepared}
-              emptyGuide={guide}
               retainedFiles={backgroundCenterViews.flatMap(item => item.file ? [{ workspaceId: item.workspaceId, tabId: item.file.tabId,
                 label: centerFileLabel(item.file), centerOnly: item.file.centerOnly }] : [])}
               backgroundViews={[...(settingsBackgroundWorkspace && settingsBackgroundWorkspace === activeWorkspaceId && settingsPrepared && !settingsDocked && !settingsPresence.mounted ? [{
@@ -2278,6 +2309,14 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
           className={`h-page git-page${narrow && rightDrawerOpen ? ' is-drawer-open' : ''}`}
           data-h-page="git"
           data-h-peek={hasPeekPage && hDock === 'terminal' ? '' : undefined}
+          data-setup-target={activeSetup && virtualScreenOpen && hDock === 'terminal' ? 'virtual-screen' : undefined}
+          tabIndex={activeSetup && virtualScreenOpen && hDock === 'terminal' ? 0 : undefined}
+          aria-label={activeSetup && virtualScreenOpen && hDock === 'terminal' ? t('切到工具页') : undefined}
+          onKeyDown={event => {
+            if (event.target !== event.currentTarget || event.currentTarget.tabIndex !== 0 || !['Enter', ' '].includes(event.key)) return;
+            event.preventDefault();
+            showGit();
+          }}
           style={{ width: Math.max(gitPageW, hVs ? 1 : 0) }}
         >
           <SideToolsPanel
@@ -2349,7 +2388,11 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
       <LeftNavigationRecorder {...leftNavigationOptions} navigationRef={leftNavigationRef}/>
       <div ref={keySinkRef} className="app-key-sink" tabIndex={-1} aria-hidden="true" />
       <ChromeBar
-        onOpenSettings={openSettings}
+        onOpenSettings={setupStep === 'theme' ? (tab, item) => {
+          if (!tab) openSetupSettings('theme');
+          else openSettings(tab, item);
+        } : openSettings}
+        onResumeSetup={setup?.paused ? setup.onResume : undefined}
         globalBoardOpen={globalBoardOpen}
         onToggleGlobalBoard={toggleGlobalBoard}
         processMonitorOpen={processMonitorOpen}
@@ -2491,6 +2534,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
             stage={settingsPresence.mounted ? settingsPresence.stage : 'in'}
             presentation={settingsPresence.mounted ? 'modal' : 'embedded'}
             active={settingsPresence.mounted || settingsVisible || settingsRightShown}
+            setupGuide={settingsPresence.mounted ? setupSettings ?? undefined : undefined}
             modalShell={settingsPresence.mounted ? appShell : undefined}
             onReady={setSettingsReady}
             onDirtyChange={setSettingsDirty}
@@ -2507,6 +2551,26 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
         </React.Suspense>
         </SettingsSurfacePortal>
       ) : null}
+      {!settingsCoverGuide && activeSetup && (setupStep === 'tools' || setupStep === 'model') && <React.Suspense fallback={null}>
+        <FirstRun step={setupStep} modelReady={activeSetup.configuredModel} notice={activeSetup.notice}
+          onAdvanceTools={skipped => activeSetup.move('model', { step: 'tools', skipped })}
+          onBack={() => activeSetup.move('tools')}
+          onSkipModel={() => activeSetup.move('workspace', { step: 'model', skipped: !activeSetup.configuredModel })}
+          onOpenModelSettings={() => openSetupSettings('model')} onDismiss={activeSetup.onPause} />
+      </React.Suspense>}
+      {!settingsCoverGuide && activeSetup && guideStep && (!globalBoardOpen || guideStep === 'board') && <WorkbenchSetupGuide key={guideStep} setup={activeSetup} step={guideStep}
+        narrow={narrow} sidebarHidden={guideSidebarHidden} onGitPage={agentOnGitPage}
+        virtualScreenOpen={virtualScreenOpen} rightPanelOpen={rightPanelOpen}
+        boardOpen={globalBoardOpen} onCloseBoard={() => setGlobalBoardOpen(false)} />}
+      <SetupCompletion setup={!settingsCoverGuide && setupStep === 'finish' ? activeSetup : undefined}
+        onOpenSettings={(tab, item) => tab === 'agent' ? openSetupSettings('model') : openSettings(tab, item)}
+        onReleased={focusCompletedSetup} onFinish={() => {
+          ensureWorkspaceVisible();
+          setLeftDrawerOpen(false);
+          setRightDrawerOpen(false);
+          focusAfterSetup.current = true;
+          activeSetup?.move('done');
+        }} />
       <ConfirmDialog request={confirms[0] ?? null} />
       <ExtensionUiDialogLazy request={dialogs[0] ?? null} onRespond={respondDialog} />
       {/* 全局划词菜单唯一宿主（浮条 + 爆炸浮层，portal 渲染） */}

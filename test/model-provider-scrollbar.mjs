@@ -1,4 +1,4 @@
-/** The provider detail hides its scrollbar but remains scrollable by wheel and keyboard. No screenshots. */
+/** Provider header geometry and hidden-scrollbar wheel/keyboard access. No screenshots. */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,6 +22,35 @@ try {
   await page.addScriptTag({ content: bundle.outputFiles[0].text });
   const detail = page.locator('.llm-provider-list > .settings-split-main');
   await detail.waitFor();
+  async function assertEnabledGeometry(layout) {
+    const enabled = detail.locator('.llm-provider-enabled');
+    await enabled.scrollIntoViewIfNeeded();
+    const geometry = await enabled.evaluate(label => {
+      const input = label.querySelector('input[type="checkbox"]');
+      const text = label.querySelector(':scope > span');
+      const rect = node => {
+        const box = node.getBoundingClientRect();
+        return { left: box.left, right: box.right, centerY: box.top + box.height / 2, width: box.width, height: box.height };
+      };
+      const badge = label.parentElement.querySelector('.llm-badge-default-active');
+      const box = input.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return { text: rect(text), control: rect(input), badge: rect(badge), inputReachable: hit === input };
+    });
+    const gap = Math.max(geometry.control.left - geometry.text.right, geometry.text.left - geometry.control.right);
+    assert.ok(gap >= 6 - 0.25, `${layout}: enable text and switch need at least 6px clear space`);
+    assert.ok(Math.abs(geometry.text.centerY - geometry.control.centerY) <= 1, `${layout}: switch must center vertically with enable label`);
+    assert.ok(Math.abs(geometry.badge.centerY - geometry.control.centerY) <= 1, `${layout}: switch must center vertically with default badge`);
+    assert.ok(geometry.control.width > 0 && geometry.control.height > 0 && geometry.inputReachable, `${layout}: checkbox must retain a reachable hit target`);
+    const checkbox = enabled.getByRole('checkbox', { name: '启用 示例供应商' });
+    const checked = await checkbox.isChecked();
+    await enabled.locator(':scope > span').click();
+    assert.equal(await checkbox.isChecked(), !checked, `${layout}: clicking the label must toggle the real checkbox`);
+    await checkbox.focus();
+    await page.keyboard.press('Space');
+    assert.equal(await checkbox.isChecked(), checked, `${layout}: keyboard must toggle the real checkbox`);
+  }
+  await assertEnabledGeometry('wide');
   await detail.hover();
   const state = await detail.evaluate(node => ({
     scrollbarWidth: getComputedStyle(node).scrollbarWidth,
@@ -41,6 +70,7 @@ try {
   await page.waitForFunction(() => document.querySelector('.llm-provider-list > .settings-split-main').scrollTop > 0);
   assert.notEqual(await page.locator('.settings-split-list').evaluate(node => getComputedStyle(node).scrollbarWidth), 'none', 'provider list scrollbar must not be affected');
   await page.setViewportSize({ width: 800, height: 800 });
+  await assertEnabledGeometry('narrow');
   const outer = page.locator('.settings-page > main');
   assert.equal(await detail.evaluate(node => getComputedStyle(node).overflowY), 'visible', 'narrow layout should continue to use the outer scroller');
   await detail.hover({ position: { x: 100, y: 100 } });

@@ -99,7 +99,7 @@
 | 侧栏四组折叠（实用工具 / 工作会话 / 终端 / 工作区） | `muster.sidebarCollapsed.v1:<编码后的 workspaceId>:<section>`，按工作区隔离 |
 | 左侧栏宽度 | `muster.leftColumnWidth.v1`，全局共享 |
 | 调度面板拖拽尺寸 | AgentFloat `PANEL_SIZE_KEY` |
-| 虚拟屏切页模式（悬停/点击） | `localStorage` `hSwitchMode` |
+| 虚拟屏切页模式 | `localStorage` `muster.hSwitchMode`，默认点击，优先恢复用户选择 |
 | 右栏收起后恢复专注 | `muster.rightPanelRestoreFocus.v1` |
 | 新建任务上次 runtime | `NewTaskDialog` `LAST_RUNTIME_KEY` |
 | PR 评论已读水位 | `muster.prSeen.v1:<repoPath>` |

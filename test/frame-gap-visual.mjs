@@ -47,9 +47,9 @@ try {
     { name: 'dark-mac-folded', theme: 'dark', mode: 'off', mac: true },
     { name: 'light-mac-folded-vs', theme: 'light', mode: 'terminal', gap: 6, mac: true },
     { name: 'light-mac-fullscreen', theme: 'light', mode: 'off', mac: true, fullscreen: true },
-    { name: 'dark-mica', theme: 'dark', mode: 'focus', mica: true },
+    { name: 'dark-mica', theme: 'dark', mode: 'focus', mica: true, sidebar: 240 },
     { name: 'dark-mica-git', theme: 'dark', mode: 'git', mica: true },
-    { name: 'light-mica', theme: 'light', mode: 'focus', mica: true },
+    { name: 'light-mica', theme: 'light', mode: 'focus', gap: 6, mica: true },
     ...['dark', 'light'].map(theme => ({ name: `${theme}-tinted`, theme, mode: 'focus', accent: '#90a8d8' })),
     { name: 'dark-narrow', theme: 'dark', mode: 'terminal', gap: 12, narrow: true },
     { name: 'light-narrow-focus', theme: 'light', mode: 'focus', gap: 12, mac: true, narrow: true }
@@ -146,9 +146,19 @@ try {
       const css = getComputedStyle(document.documentElement);
       return ['--radius-modal', '--corner-shape'].map(token => css.getPropertyValue(token).trim());
     });
-    const pageRadius = vibrancy || scenario.mica ? `${Math.max(0, (vibrancy ? 17 : 8) - gap)}px` : defaultRadius;
-    const pageShape = vibrancy ? 'superellipse(1.2)' : scenario.mica ? 'round' : defaultShape;
+    const pageRadius = vibrancy ? `${Math.max(0, 17 - gap)}px` : scenario.mica ? '8px' : defaultRadius;
+    const pageShape = vibrancy ? 'superellipse(1.2)' : defaultShape;
     assert.deepEqual(actual.center.radii, Array(4).fill(pageRadius), `${label}: all session panel corners use the shared page radius`);
+    if (scenario.sidebar) {
+      for (const [selector, pseudo] of [['.session-item[data-session-row]'], ['.agent-notify-bubble', '::before']]) {
+        const row = await page.locator(selector).evaluate((el, pseudo) => {
+          const css = getComputedStyle(el, pseudo);
+          return [css.borderBottomRightRadius, css.getPropertyValue('corner-bottom-right-shape')];
+        }, pseudo);
+        assert.equal(row[0], pageRadius, `${label}: ${selector} painted corner matches the page radius`);
+        if (row[1]) assert.equal(row[1] === 'superellipse(1)' ? 'round' : row[1], pageShape, `${label}: ${selector} painted corner matches the page shape`);
+      }
+    }
     if (await page.evaluate(() => CSS.supports('corner-bottom-left-shape', 'superellipse(1.2)'))) {
       const cards = scenario.narrow ? ['.center-panel'] : ['.center-panel', '.side-tools-panel'];
       for (const selector of cards) {
@@ -218,8 +228,10 @@ try {
     assert.equal(splitX, (actual.center.right + actual.side.left) / 2, `${label}: divider stays centered in gap`);
     for (let x = actual.center.right; x < actual.side.left; x++) assert.deepEqual(pixel(plain, x, 120), frame, `${label}: gap pixel ${x} exposes frame under decoration`);
     assert.equal(actual.line.background, 'rgba(0, 0, 0, 0)', `${label}: idle divider adds no line over paper shadows`);
-    // Sample the outermost card pixel on both sides, outside the rounded arc.
-    for (const [x, y] of [[actual.center.right - 1, actual.center.top], [actual.center.right - 1, actual.center.bottom - 1], [actual.side.left, actual.side.top], [actual.side.left, actual.side.bottom - 1]]) assert.deepEqual(pixel(plain, x, y), frame, `${label}: inner rounded corner exposes frame`);
+    // Sample the outermost card pixel on both sides, outside the curved edge.
+    for (const [x, y] of [[actual.center.right - 1, actual.center.top], [actual.center.right - 1, actual.center.bottom - 1], [actual.side.left, actual.side.top], [actual.side.left, actual.side.bottom - 1]]) {
+      assert.deepEqual(pixel(plain, x, y), frame, `${label}: inner rounded corner exposes frame`);
+    }
     const halfGap = innerGap / 2;
     const hit = await page.evaluate(({ splitX, halfGap }) => [halfGap - 1, -(halfGap + 1)].map(dx => !!document.elementFromPoint(splitX + dx, 80)?.closest('.pane-split-hit')), { splitX, halfGap });
     assert.deepEqual(hit, [true, false], `${label}: gap interior is hit-testable; detector no longer covers page scrollbars outside the gap`);
@@ -323,7 +335,10 @@ function fixture(scenario, width) {
     <main class="main-view ${classes}"><div class="ws-stage"><div class="ws-rail ws-rail-idle"><div class="ws-pane ws-pane-live">
       <div class="work-area" style="width:${width}px"><div class="h-strip${vs ? ' vs-axis' : ''}" style="width:${Math.max(workspace + git, width)}px;transform:translate3d(${offset}px,0,0)">
         <div class="h-page workspace-page" style="width:${workspace}px">
-          ${sidebar ? `<div class="sessions-column" style="width:${sidebar}px"></div><div class="left-col-resizer resize-divider" style="left:${sidebar}px"></div>` : ''}
+          ${sidebar ? `<div class="sessions-column" style="width:${sidebar}px">
+            <div class="session-item active is-pane-open" data-session-row>Session</div>
+            <div class="left-ws-slot"><div class="agent-ws-stack"><div class="agent-ws-stack-item is-active"><button class="agent-notify-bubble">Workspace</button></div></div></div>
+          </div><div class="left-col-resizer resize-divider" style="left:${sidebar}px"></div>` : ''}
           <div class="terminal-page" style="width:${workspace - sidebar}px"><div class="center-panel${scenario.split ? ' is-split' : ''}"><div style="position:absolute;inset:0;background:var(--surface-canvas)"></div>${scenario.split ? '<div class="center-split-root"><div class="center-split-pane" style="left:0;top:0;width:50%;height:100%"></div><div class="center-split-pane" style="left:50%;top:0;width:50%;height:100%"></div><div class="center-split-divider" aria-orientation="vertical" style="left:calc(50% - 4px);top:0;width:8px;height:100%"><span class="resize-divider-line"></span></div></div>' : ''}</div></div>
         </div>
         <div class="h-page git-page${scenario.narrow ? ' is-drawer-open' : ''}" style="width:${git}px"><div class="side-tools-panel right-workspace"><div style="position:absolute;inset:0;background:var(--surface-canvas)"></div></div></div>

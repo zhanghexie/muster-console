@@ -1,3 +1,4 @@
+import { SetupCoachmark } from '../../onboarding/SetupCoachmark';
 import { ErrorTip } from '../ErrorTip';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -25,8 +26,9 @@ import { AppConfirmDialog } from '../AppConfirmDialog';
  * 色盘编辑（取色器 + 透明度 + 文本），编辑当前主题时实时预览（不落盘），
  * 「保存」才写文件（恒为 2 空格格式化 JSON）并广播刷新。全部操作即时生效。
  */
-export function ThemePane(): React.JSX.Element {
+export function ThemePane({ setupGuide = false }: { setupGuide?: boolean }): React.JSX.Element {
   const { t } = useTranslation();
+  const [guideDismissed, setGuideDismissed] = useState(false);
   const [view, setView] = useState<ThemeListView | null>(null);
   const [selectedId, setSelectedId] = useState('');
   const [theme, setTheme] = useState<WorkbenchTheme | null>(null);
@@ -329,6 +331,9 @@ export function ThemePane(): React.JSX.Element {
 
   return (
     <div className="settings-section theme-pane">
+      {setupGuide && !guideDismissed && !deleteTarget && !creating && !draft && <SetupCoachmark target=".theme-grid" title={t('选择喜欢的主题')} onDismiss={() => setGuideDismissed(true)}>
+        {t('点击主题卡片即可预览并应用，深浅主题都可以试试。选好后点击左上角「返回引导」。')}
+      </SetupCoachmark>}
       <AppConfirmDialog open={!!deleteTarget} title={t('确认删除主题「{{name}}」？', { name: deleteTarget ? t(deleteTarget.name) : '' })}
         detail={t('删除主题文件；引用它的界面会自动回落（全局回退深色，工作区回到跟随全局）')}
         confirmLabel={t('确认删除')} danger onCancel={() => setDeleteTarget(null)}

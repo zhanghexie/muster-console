@@ -76,6 +76,7 @@ async function sendInner(
       return;
     }
     o.clearHistory(wsId);
+    opts?.onAccepted?.();
     return;
   }
 
@@ -98,6 +99,7 @@ async function sendInner(
       updateKey: `orch-compact:${wsId}`,
       toast: true
     });
+    if (result.ok) opts?.onAccepted?.();
     return;
   }
 

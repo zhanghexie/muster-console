@@ -4,45 +4,11 @@ import type { HarnessPickerChoice } from '../../../shared/harnessPicker';
 import { AppLogo } from '../components/AppLogo';
 import { BrandLoading } from '../components/BrandLoader';
 import { HarnessIcon } from '../components/HarnessIcon';
-import { IconChat, IconFolderPlus, IconPhone, IconSearch, IconSparkle, IconTerminal } from '../components/icons';
-import { MOTION, usePresence } from '../components/motion';
-import { ConnectModel } from './ConnectModel';
-import { ConnectRemote } from './ConnectRemote';
-import { ResumeSetupLinks } from './ResumeSetupLinks';
+import { IconClose, IconSearch } from '../components/icons';
+import { usePresence } from '../components/motion';
 import { SetupActions, SetupNext, useSetupAction } from './SetupParts';
 import { WorkspaceSetup } from './WorkspaceSetup';
-import { SETUP_STEPS, type DeferredSetupStep, type MoveSetup, type SetupStep } from './setupProgress';
 import '../styles/onboarding.css';
-
-function StepPanel({ step, active, title, description, icon, children }: {
-  step: SetupStep;
-  active: boolean;
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}): React.JSX.Element | null {
-  const presence = usePresence(active, MOTION.microMs);
-  const visited = useRef(active);
-  const heading = useRef<HTMLHeadingElement>(null);
-  const headingId = useId();
-  if (active) visited.current = true;
-  useLayoutEffect(() => {
-    if (active && presence.mounted) heading.current?.focus({ preventScroll: true });
-  }, [active, presence.mounted]);
-
-  if (!visited.current) return null;
-  return <section className={`setup-step xfade${active ? ' is-shown' : ''}`} data-setup-step={step}
-    hidden={!presence.mounted} aria-hidden={!active || undefined} aria-labelledby={headingId}
-    ref={node => { if (node) node.inert = !active; }}>
-    <header className="setup-step-header">
-      <span className="setup-step-icon" aria-hidden="true">{icon}</span>
-      <h1 id={headingId} ref={heading} tabIndex={-1}>{title}</h1>
-      <p>{description}</p>
-    </header>
-    {children}
-  </section>;
-}
 
 function ToolScan({ next, onSkip }: { next: () => void; onSkip: () => void }): React.JSX.Element {
   const { t } = useTranslation();
@@ -86,59 +52,83 @@ function ToolScan({ next, onSkip }: { next: () => void; onSkip: () => void }): R
   </>;
 }
 
-export function FirstRun({ progress, deferred, onProgress }: {
-  progress: 'tools' | 'model' | 'remote' | 'done';
-  deferred: readonly DeferredSetupStep[];
-  onProgress: MoveSetup;
+export function FirstRun({ step, onAdvanceTools, onBack, onSkipModel, onOpenModelSettings, onDismiss, notice, modelReady = false }: {
+  step: 'tools' | 'model';
+  onAdvanceTools: (skipped: boolean) => void;
+  onBack: () => void;
+  onSkipModel: () => void;
+  onOpenModelSettings: () => void;
+  onDismiss: () => void;
+  notice?: string;
+  modelReady?: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation();
-  const recovering = progress === 'done';
-  const step: SetupStep = recovering ? 'workspace' : progress;
-  const index = SETUP_STEPS.indexOf(step);
-  const scroll = useRef<HTMLDivElement>(null);
-  const presence = usePresence(true);
-  useLayoutEffect(() => { if (scroll.current) scroll.current.scrollTop = 0; }, [step]);
-
-  const back = (): void => onProgress(SETUP_STEPS[index - 1]);
-  const advance = (skipped: boolean): void => {
-    if (progress !== 'done') onProgress(SETUP_STEPS[index + 1], { step: progress, skipped });
+  const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
+  const noticeId = useId();
+  const [closing, setClosing] = useState(false);
+  const pending = useRef<(() => void) | null>(null);
+  const presence = usePresence(!closing);
+  const leave = (action: () => void): void => {
+    if (pending.current) return;
+    pending.current = action;
+    setClosing(true);
   };
-  const next = (): void => advance(false);
-  const skip = (): void => advance(true);
-  const resume = deferred.filter(item => item !== step);
-  const panels = [
-    { label: t('本机工具'), title: t('检测本机 AI 工具'), description: t('查找 Codex、Claude Code 等已经安装的工具。'), Icon: IconTerminal,
-      content: <ToolScan next={next} onSkip={skip} /> },
-    { label: t('连接模型'), title: t('让 Muster Core 使用你的模型'), description: t('选择供应商并填入 API Key。只使用已经登录的本机工具时，可以跳过。'), Icon: IconSparkle,
-      content: <ConnectModel back={back} next={next} onSkip={skip} /> },
-    { label: t('远程访问'), title: t('在手机或另一台电脑上继续'), description: t('可以现在查看连接方式，也可以稍后在「设置 → 远程访问」中打开。'), Icon: IconPhone,
-      content: <ConnectRemote back={back} next={next} onSkip={skip} /> },
-    { label: t('工作区'), title: t('为会话选一个工作目录'), description: t('工作区把项目文件、会话和配置放在一起。创建后，你可以再添加其他文件夹。'), Icon: IconFolderPlus,
-      content: <WorkspaceSetup /> }
-  ];
-  const navigation = [...panels, { label: t('第一条会话'), Icon: IconChat }];
-
-  return <div className="app-shell setup-shell">
-    <div className="chrome-bar" aria-hidden="true" />
-    <div className="setup-scroll" ref={scroll}>
-      <main className={`setup-layout mp-panel${recovering ? ' is-recovery' : ''}`} {...presence.spread}>
-        <aside className="setup-rail">
-          <div className="setup-brand"><AppLogo size={44} /><span><strong>Muster</strong>{!recovering && <small>{t('首次设置')}</small>}</span></div>
-          {!recovering && <nav aria-label={t('初始化进度')}>
-            <ol>{navigation.map(({ label, Icon }, position) => <li key={SETUP_STEPS[position]}
-              aria-current={position === index ? 'step' : undefined} className={position < index ? 'is-visited' : undefined}>
-              <Icon size={17} /><span>{label}</span>
-            </li>)}</ol>
-          </nav>}
-        </aside>
-        <div className="setup-step-stack xfade-stack">
-          {panels.map(({ title, description, Icon, content }, position) => <StepPanel key={SETUP_STEPS[position]} step={SETUP_STEPS[position]}
-            active={position === index} title={title} description={description} icon={<Icon size={24} />}>
-            {!recovering && <ResumeSetupLinks deferred={resume} />}
-            {content}
-          </StepPanel>)}
+  useLayoutEffect(() => {
+    const node = dialog.current;
+    if (node && !node.open) node.showModal();
+    return () => { if (node?.open) node.close(); };
+  }, []);
+  useLayoutEffect(() => { heading.current?.focus({ preventScroll: true }); }, [step]);
+  useLayoutEffect(() => {
+    if (!presence.mounted && closing) {
+      dialog.current?.close();
+      const action = pending.current;
+      pending.current = null;
+      action?.();
+    }
+  }, [presence.mounted, closing]);
+  return <dialog ref={dialog} className="setup-dialog" aria-labelledby={titleId}
+    data-mp-stage={presence.stage} onCancel={event => { event.preventDefault(); leave(onDismiss); }}>
+    <main className="setup-layout setup-modal-layout mp-panel" {...presence.spread}
+      ref={node => { if (node) node.inert = closing; }}>
+      <button type="button" className="icon-btn setup-close" aria-label={t('稍后继续')} onClick={() => leave(onDismiss)}><IconClose /></button>
+      <aside className="setup-rail">
+        <div className="setup-brand"><AppLogo size={36} /><span><strong>Muster</strong><small>{t('开始使用')}</small></span></div>
+        <nav aria-label={t('初始化进度')}><ol>
+          {[t('本机工具'), t('连接模型')].map((label, index) => <li key={label} aria-current={(step === 'tools' ? 0 : 1) === index ? 'step' : undefined}>{index + 1}. {label}</li>)}
+        </ol></nav>
+      </aside>
+      <section className="setup-step">
+        <header className="setup-step-header">
+          <h1 id={titleId} ref={heading} tabIndex={-1} aria-describedby={notice ? noticeId : undefined}>{step === 'tools' ? t('检测本机 AI 工具') : t('让 Muster Core 使用你的模型')}</h1>
+          <p>{step === 'tools' ? t('查找 Codex、Claude Code 等已经安装的工具。登录状态由工具管理。') : t('在模型设置中添加供应商、填写 API Key，再添加并选择默认模型。只使用本机工具时，可以跳过。')}</p>
+        </header>
+        {notice && <p id={noticeId} className="setup-error" role="alert">{notice}</p>}
+        <div hidden={step !== 'tools'} ref={node => { if (node) node.inert = step !== 'tools'; }}>
+          <ToolScan next={() => onAdvanceTools(false)} onSkip={() => onAdvanceTools(true)} />
         </div>
-      </main>
-    </div>
-  </div>;
+        {step === 'model' && <>
+          <div className="setup-card setup-row"><HarnessIcon harnessId="muster-core" size={32} />
+            <div className="setup-row-text"><strong>{t('模型与输入')}</strong><span>{modelReady ? t('已配置模型，可随时继续调整。') : t('选择供应商 → 填写 API Key → 添加模型 → 设为默认并保存')}</span></div>
+          </div>
+          <SetupActions back={onBack}>
+            <button type="button" className="btn ghost" onClick={onSkipModel}>{modelReady ? t('继续') : t('稍后配置')}</button>
+            <button type="button" className="btn primary" onClick={() => leave(onOpenModelSettings)}>{t('去模型设置')}</button>
+          </SetupActions>
+        </>}
+      </section>
+    </main>
+  </dialog>;
+}
+
+export function WorkspaceRecovery(): React.JSX.Element {
+  const { t } = useTranslation();
+  return <div className="app-shell setup-shell"><div className="chrome-bar" aria-hidden="true" />
+    <div className="setup-scroll"><main className="setup-layout is-recovery">
+      <aside className="setup-rail"><div className="setup-brand"><AppLogo size={44} /><strong>Muster</strong></div></aside>
+      <section className="setup-step"><header className="setup-step-header"><h1>{t('为会话选一个工作目录')}</h1>
+        <p>{t('工作区把项目文件、会话和配置放在一起。创建后，你可以再添加其他文件夹。')}</p></header><WorkspaceSetup /></section>
+    </main></div></div>;
 }

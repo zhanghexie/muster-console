@@ -12,7 +12,7 @@
 - **工具入口**：[宿主工具面：常驻直调+域级 run](features/tool-discovery.md)（常驻清单与域级技能文档） · [GitHub Agent 工具](features/pr-loop.md#agent-调用) · [桌面控制基础设施（开发中）](features/desktop-control.md) · [反馈收集与逐条审核](features/feedback.md)
 - **会话通信**：[邮箱与宿主唤醒](features/session-mailbox.md)（持久寄信、批量正文、游标续收、打断读信与已读回执） · [会话续接与抢占投递](features/resume-wait.md)（一次性条件、回合边界、抢占与至少一次重投）
 - **子代理**：[职业角色与头像](features/subagent-characters.md)（24 个内置头像、宿主轮选、汇报身份）
-- **首次使用与工作区**：[首次设置](features/first-run.md)（本机工具、模型、浏览器远程访问、首个工作区和会话） · [工作区管理](features/workspaces.md)（推荐目录、关闭到零工作区、多文件夹） · [分类图标](features/workspace-icons.md)（36 个软件/游戏透明预设）
+- **首次使用与工作区**：[首次设置](features/first-run.md)（本机工具、模型、首个工作区和会话、工作台导览） · [工作区管理](features/workspaces.md)（推荐目录、关闭到零工作区、多文件夹） · [分类图标](features/workspace-icons.md)（36 个软件/游戏透明预设）
 
 - **布局与工作台**：[虚拟屏](features/virtual-screen.md) · [专注模式](features/focus-mode.md) · [中央区分屏](features/center-split.md)（Windows 式 Snap、最多三格、网页式整屏显示、扩展 iframe） · [会话栏折叠](features/sessions-dock.md) · [面板栈](features/panel-history.md) · [UI 状态持久化](features/ui-state-persistence.md) · [命令面板](features/command-palette.md) · [统一搜索条](features/search-bar.md) · [快捷键](features/keybindings.md) · [菜单与悬浮提示](features/menus-and-tooltips.md) · [系统托盘](features/tray.md)
 - **会话与状态**：[会话模型](features/session-model.md) · [按线索找会话](features/session-search.md) · [通知系统](features/notification-system.md) · [全局看板](features/global-board.md) · [看板自由视图](features/board-free-view.md) · [连线建会话](features/free-canvas-create.md) · [看板状态](features/board-status.md) · [调度面板条目](features/scheduler-panel-entry.md) · [运行时状态流](features/runtime-status.md)（含自定义事件审核） · [证据归集器](features/evidence.md)
@@ -38,7 +38,7 @@
 |------|------|
 | [features/gui-harness-integration.md](features/gui-harness-integration.md) | **GUI Harness 目录与接入**：内置和外部 Pi、ACP/MiMo Code/MSP/ZCode、预检、模型、工具网关、进程回收及待验收边界 |
 | [features/surface-elevation.md](features/surface-elevation.md) | 表面层级、统一轮廓与投影、裁剪边界及验证范围 |
-| [features/first-run.md](features/first-run.md) | **首次设置**：桌面连接设置、跳过后直达入口、在真实工作台建工作区和会话、零工作区恢复 |
+| [features/first-run.md](features/first-run.md) | **首次设置**：真实工作台背景、正式模型设置、实际控件导览、暂停续办、完成页与零工作区恢复 |
 | [features/workspaces.md](features/workspaces.md) | **工作区管理**：源根模型/迁移、默认 cwd/固定管理根、路径身份/版本、创建/编辑/激活/关闭、推荐目录与零工作区恢复 |
 | [features/demo-mode.md](features/demo-mode.md) | 本地演示场景的搭建、运行副本、序列化回放、删除和项目文件保护 |
 | [features/session-replay.md](features/session-replay.md) | 用真实 GUI 会话或本地 JSON 在聊天面板重播流式文字与工具卡，同一素材可反复拍摄 |
@@ -160,7 +160,7 @@
 | [features/cli.md](features/cli.md) | **外部 Agent CLI**：安装器注册命令、本机身份／任务闭环、GUI 与终端派活、显式结果、帮助／Schema 与 Skill |
 | [features/text-tools.md](features/text-tools.md) | **文本工具**：划词浮条的自定义 AI 功能（内置翻译 + 提示词自定义）；每功能选模型、功能组默认模型、AI 帮写提示词；`textTools:run` IPC |
 | [features/usage-stats.md](features/usage-stats.md) | **使用统计**：全局日期范围；新建/活跃会话、能力调用与扩展 LLM 四卡手动下钻；活跃范围跨日去重；能力失败原因与取消详情；计数永久、失败及 LLM 明细各30天/1000条 |
-| [features/settings.md](features/settings.md) | **设置页（整窗）**：框上分组导航（常用 / AI / 连接 / 其他）+ 内容页；行式原语（分区卡片 / 开关 / 分段 / 高级折叠）；页内搜索 Ctrl K 跳转闪烁；底部未保存条（撤销 / 保存 Ctrl S，即时生效键不计入）、离开前确认 |
+| [features/settings.md](features/settings.md) | **设置页（整窗）**：框上分组导航（常用 / AI / 连接 / 其他）+ 内容页；行式原语（分区卡片 / 开关 / 分段 / 高级折叠）；页内搜索 Ctrl K 跳转与定位标记；底部未保存条（撤销 / 保存 Ctrl S，即时生效键不计入）、离开前确认 |
 | [features/local-storage.md](features/local-storage.md) | **本机存储**：有界统计、依赖清理和可选建议。其他数据支持按组确认并在启动时清理缓存、统计、采集和提醒等受管资源 |
 | [features/theme-system.md](features/theme-system.md) | **主题系统 v2**：色彩主题（内置深/浅 + 自定义），色盘编辑实时预览（JSON 底座）+ 调度 Agent 主题工具 |
 | [features/frame-backdrop.md](features/frame-backdrop.md) | **原生框 Mica/Vibrancy 与干净主题色**：Windows 11 22H2+ 整圈框呈现 Mica、macOS 呈现原生 Vibrancy 毛玻璃，关闭主题色时无覆盖、开启时单次叠加 28% 纯工作区色；阅读卡保持实底，所有正式表面无噪点贴图，其余平台回退均匀实色框，旧模板/壁纸保留兼容 |

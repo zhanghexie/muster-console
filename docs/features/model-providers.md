@@ -13,13 +13,15 @@
   数字草稿允许暂时清空后重新输入，避免默认值回填拼接；转换工具路径复用共享路径控件。
   默认服务商与连通测试分开，测试及结果放在地址/Key 所属区域。
   服务商区域复用 `settings-split`：左侧列表展示名称、默认与启停状态，右侧配置当前项，
-  列表栏统一 224px，共用资源行在名称下显示启停与默认状态，提供本地供应商搜索（不改变详情选中或草稿）；详情内距 24px，标题/状态复用 SettingsDetailHeader，基本信息/连接配置/模型列表使用 SettingsDetailSection，标题无下划线且整组内容共用圆角边框；两栏独立滚动，详情隐藏滚动条但保留滚轮及键盘滚动；默认选中全局默认服务商，点击当前项不会收起详情。
+  列表栏统一 224px，共用资源行在名称下显示启停与默认状态，并提供本地供应商搜索。详情头部用 SettingsDetailHeader 展示可编辑名称、启用开关与默认状态或设置入口。启用开关和文字复用设置页的行内标签样式，两者垂直居中且均可点击切换。模型操作位于「模型列表」标题动作区，有目录时先显示「从目录添加」，随后是「＋ 添加模型」和「刷新目录」。模型行继续显示默认状态，不再单独展示「★ = 默认模型」图例。设置里搜索「添加模型」定位到这组操作。连接配置和模型列表各自使用 SettingsDetailSection。两栏独立滚动，详情支持滚轮和键盘滚动。已有服务商时默认选中全局默认服务商，点击当前项保持详情展开；空列表先显示添加服务商入口。
   切换不修改全局默认项、不丢弃草稿，新增后选中新项，删除后回到剩余项；右侧可编辑名称。删除先打开共用 AppConfirmDialog，取消不改草稿，确认才移除，不再在原按钮上二次点击确认。
+  首次设置使用「添加供应商 → 连接配置 → 添加模型 → 默认与保存」四步。新增供应商后自动进入连接配置，直接指向真实 API Key 输入框；自定义端点尚无地址时同时提示 Base URL，填写后点「下一步」。添加模型优先指向有可选候选的「从目录添加」，否则指向「＋ 添加模型」；实际添加后自动推进到默认与保存步骤。进入步骤将目标滚入可见区域，目录加载、刷新及切换服务商后按当前候选定位；编辑草稿不反复抢滚动。目录或模型编辑弹窗打开期间隐藏引导，切换服务商关闭上一家的目录。返回模型介绍时按已保存配置明确显示缺项，再次打开设置定位当前待补步骤。
   新建内置或自定义服务商时模型列表为空；目录中的模型只是候选，不会整批写入。用户通过「从目录添加」或「＋ 添加模型」显式选择后才进入服务商配置。
   内容宽度不超过 620px 时改为上方有界滚动列表、下方详情，避免字段横向溢出。
   详情使用 `usePresence` + `mp-panel` 入场，供应商之间即时切换；
   组件回归见 `test/unit/model-provider-catalog.spec.tsx`，详情隐藏滚动条及滚动操作的浏览器断言见 `test/model-provider-scrollbar.mjs`。
   文件处理仍使用全局字段，模型编辑只包含原生能力；设置搜索支持预览/抽帧预算和转换工具定位。
+- 全新配置的服务商列表为空，默认服务商与模型标识、旧 OpenAI 地址/Key/模型字段均留空，不预装 DeepSeek 或其他模型。DeepSeek 继续作为可选目录候选；用户显式添加和保存后才进入配置。已有用户配置及旧版明确保存的模型配置继续保留，不因默认值调整被清除。
 - 配置类型：`LlmConfig` / `LlmProviderConfig`（`src/shared/types.ts`，含 `thinking` 三字段）。
 - 落盘：`app.getPath('userData')/config.json`（`ConfigManager`，原子写）。
 
@@ -27,13 +29,13 @@
 
 ### 服务商模型目录刷新
 
-模型列表底部的「刷新目录」读取当前草稿的地址、协议和 API Key，向对应服务商发起只读模型列表请求；未保存的地址/Key 也可以测试，不先写配置。初次进入只读本机缓存，不联网。内置目录提供初始候选和已知模型的能力/价格；成功刷新后，候选 ID 完全以服务商本次完整结果为准，新模型出现、已移除模型不再作为候选，成功空列表也会替换旧目录。刷新不自动添加模型，不移除已配置模型，也不更改默认模型；从目录选择后仍走设置草稿与保存流程。
+「模型列表」标题动作区的「刷新目录」读取当前草稿的地址、协议和 API Key，向对应服务商发起只读模型列表请求；未保存的地址/Key 也可以测试，不先写配置。初次进入只读本机缓存，不联网。内置目录提供初始候选和已知模型的能力/价格；成功刷新后，候选 ID 完全以服务商本次完整结果为准，新模型出现、已移除模型不再作为候选，成功空列表也会替换旧目录。刷新不自动添加模型，不移除已配置模型，也不更改默认模型；从目录选择后仍走设置草稿与保存流程。
 
 - 入口：`ProviderModelCatalogPicker.tsx` → preload `config.providerModelCatalog(provider, refresh)` → `config:providerModelCatalog` → `agent/providerModelCatalog.ts`。`refresh` 缺省为 false，只读缓存；true 发起请求。目录供应商的原生协议来自 `piConfigSync` 提取的内置模型 `api`，自定义端点使用所选协议，不按厂商名称猜测。
 - OpenAI Chat/Responses 与 Mistral 使用归一化地址的 `GET /models` 和 Bearer Key；DeepSeek 官方例外使用根路径 `GET https://api.deepseek.com/models`（[官方模型列表接口](https://api-docs.deepseek.com/api/list-models/)，推理请求仍使用 `/v1`），并读取 `context_window`、`max_output_tokens`、`input_modalities` 和 `effort.supported_levels`；Anthropic 使用 `GET /v1/models`、`x-api-key` 与 `anthropic-version`；Gemini 使用 `GET /v1beta/models` 和 `x-goog-api-key`，仅保留支持 `generateContent` 的模型并去掉 `models/` 前缀。分页消费 Anthropic `has_more/last_id` 和 Gemini `nextPageToken`，同一请求总计 12 秒、最多 100 页/20,000 个模型；循环游标、无效结果或任一页失败均不发布部分清单。
 - 凭据只发给配置的端点，拒绝重定向，不自动改用其他厂商服务器。HTTP 401/403 等错误直接展示；404/405/501 提示服务商没有列表接口并允许手动添加。Azure deployment、Bedrock、Vertex 等不同模型发现协议暂不支持此刷新入口，明确提示手动添加，保持已有聊天协议支持范围。Token/Coding Plan 网关也必须实际提供模型列表接口，不能保证兼容聊天就支持列举。
 - 按服务商 ID、端点、协议、凭据的 SHA-256 身份缓存至当前实例 `userData/provider-model-catalogs.json`，路径由 `userDataStorage(...).file('provider-model-catalogs')` 解析；保留最近 64 份完整快照。缓存不保存 Key 明文，刷新成功原子写入，重开设置及重启可复用。不同 Key 的权限结果不互用；相同身份的在途请求去重。缓存读写失败用窗口 tip 提示，目录保留上次快照。
-- 目录开合使用 `usePresence` + `mp-panel`；关闭时立即 inert/aria-hidden。刷新期间禁用按钮、显示品牌加载；更改端点/Key/协议、切换服务商或卸载后，旧异步结果不进入当前页面。已知模型继续使用内置能力。远端候选可携带实际返回的名称、上下文、输出上限、输入类型及 `reasoning` 标记。刷新失败时，内置服务商回退到 Pi 内置目录；自定义服务商回退到该端点上次成功的远端目录。只有明确返回成功的空列表才会显示为空，已添加和默认模型照常保留。
+- 目录候选在「从目录添加」按钮旁的非模态 dialog 锚定浮层中显示，不插入详情正文或撑高模型列表。打开后自动聚焦「搜索模型」输入框，单击候选即添加并关闭；Esc 关闭后将焦点还给触发按钮，点击外部关闭时保留点击目标的焦点。开合使用 `usePresence` + `mp-pop`，关闭时立即 inert/aria-hidden。刷新期间禁用按钮、显示品牌加载；更改端点/Key/协议、切换服务商或卸载后，旧异步结果不进入当前页面。已知模型继续使用内置能力。远端候选可携带实际返回的名称、上下文、输出上限、输入类型及 `reasoning` 标记。刷新失败时，内置服务商回退到 Pi 内置目录；自定义服务商回退到该端点上次成功的远端目录。只有明确返回成功的空列表才会显示为空，已添加和默认模型照常保留。
 - 列表接口的 `effort.supported_levels` 用于识别 `reasoning: true`。Core 按[端点思考档位目录](#core-官方端点思考档位目录)显示选项，供应商列表刷新负责查找可添加的模型。目录未覆盖的自定义供应商可以在模型编辑器声明「深度思考模型」，再用「高级 · 思考强度映射」配置档位。
 - 回归：`test/provider-model-catalog.mjs`（当前 pi-ai 内置目录中全部可刷新协议的服务商逐一走本地 HTTP、原生目录协议提取、认证、分页/超时、失败保留、空列表替换、缓存隔离与重开）、`test/unit/provider-model-catalog.spec.tsx`（交互、内置目录失败回退、自定义目录失败保留、状态、旧请求隔离、开合及新增模型）、`test/unit/model-provider-catalog.spec.tsx`（父页原生协议接线）、`test/e2e/provider-model-catalog.spec.ts`（隔离 Electron + 真实 preload/IPC + 本地 HTTP）。生产组件夹具已检查深/浅主题、1000px/390px 的刷新与失败保留状态，长模型 ID 在窄容器换行。服务商官方协议参考：[OpenAI](https://developers.openai.com/api/reference/resources/models/methods/list)、[Anthropic](https://platform.claude.com/docs/en/api/models/list)、[Gemini](https://aistudio.google.com/api-reference/models/list-models)。当前验证在 Windows 完成，代码共用 Node fetch/存储解析，无平台专有分支；macOS/Linux 真机与用户实际服务商在线请求尚未验收。
 
@@ -54,7 +56,7 @@ UI updateLlm（本地草稿）
 `reasoningEffortField` 仅认 true、`thinkingFormat` 走 `LLM_THINKING_FORMATS` 枚举）。
 回归测试：`test/llm-thinking-config.mjs`。
 
-GUI Core、调度和设置保存共用 `userData/muster-core`，模型和凭据从工作台配置生成。旧 Pi 目录里的数据由各自的使用方管理，工作台不读取或迁入。测试使用临时 userData，验证配置重新生成到新路径，并校验外部 Pi 文件的哈希。
+GUI Core、调度和设置保存共用 `userData/muster-core`，模型和凭据从工作台配置生成。Pi 同步尊重显式空服务商列表，空旧连接字段不转成 DeepSeek，缺少端点或模型的条目不注册合成模型；明确保存的旧连接仍按其端点和模型同步。同步合并保留已有运行时配置，空列表不会清理既存的 models/auth 条目，删除最后一家后的注册表清理不属于此默认值变更。旧 Pi 目录里的数据由各自的使用方管理，工作台不读取或迁入。测试使用临时 userData，验证配置重新生成到新路径，并校验外部 Pi 文件的哈希。
 
 Pi GUI 与调度连接通过 `agent/llmConnectionIdentity.ts` 对选中服务商的协议、地址、凭据、思考映射、兼容能力以及选中模型配置生成摘要，再决定是否复用连接。显示名称、其他服务商或未选中模型的变化不会触发重建；密钥只参与摘要，不写入连接标识。设置保存和 `llm.upsertProvider` 都在下一轮使用新配置，进行中的回合不会因修改模型配置被主动中断，重建后沿原会话文件或 resume token 续聊。
 
@@ -81,7 +83,7 @@ pi 目录分支按「id 命中目录 **且** baseUrl 与目录官方端点一致
 
 模型编辑草稿保留上下文和图片开关的显式值。自动字段读取当前目录，目录刷新时保留已输入的修改。只打开再保存仍会跟随目录。最大输出及推理标记按打开时的预填差异保存。新写入的图片开关标记显式意图。旧版手动添加时保存的 `false` 若没有显式标记或其他模型覆盖，并且该端点经核验支持图片，会按自动值解析。
 
-设置页、[首次设置](first-run.md)与 `llm.testConnection` 共用 `agent/openaiClient.ts` 的连通性探针。
+[首次设置](first-run.md)直达模型服务商设置，在同一页面添加多个模型、测试与保存。设置页与 `llm.testConnection` 共用 `agent/openaiClient.ts` 的连通性探针。
 `anthropic-messages` 请求 `{base}/v1/messages`，归一化时保留网关前缀并将尾部 `/v1` 合并成一段，发送 `x-api-key` 与
 `anthropic-version:2023-06-01`，载荷为 `model/messages/max_tokens:1`；
 `openai-responses` 请求 `{base}/responses`，其余 completions 系协议请求

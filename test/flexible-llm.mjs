@@ -91,6 +91,38 @@ const sha256Of = (p) => {
 };
 const realConfigSnapshot = new Map(GUARD_FILES.map((name) => [name, sha256Of(path.join(piAgentDir, name))]));
 
+// Fresh and explicitly empty configs must not recreate a default provider/model.
+for (const [label, input] of [
+  ['empty LlmConfig', { providers: [], activeProviderId: '', activeModelId: '' }],
+  ['empty AppConfig overrides legacy', { llm: { providers: [], activeProviderId: '', activeModelId: '' }, openai: { baseUrl: 'https://api.deepseek.com', apiKey: 'fixture', model: 'saved-legacy' } }],
+  ['blank legacy', { baseUrl: '', apiKey: '', model: '' }],
+  ['legacy without model', { baseUrl: 'https://example.com/v1', apiKey: 'fixture', model: '' }],
+  ['legacy without endpoint', { baseUrl: '', apiKey: 'fixture', model: 'saved-model' }],
+  ['provider without models', { providers: [{ id: 'empty', baseUrl: 'https://example.com', apiKey: 'fixture', models: [] }], activeProviderId: 'empty', activeModelId: '' }]
+]) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fllm-empty-'));
+  try {
+    const result = syncPiConfigFromApp(input, dir);
+    assert.deepEqual(result.providers, [], label);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'models.json'), 'utf8')), { providers: {} }, label);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'auth.json'), 'utf8')), {}, label);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+{
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fllm-legacy-'));
+  try {
+    const legacy = { baseUrl: 'https://api.deepseek.com', apiKey: 'fixture', model: 'user-saved-model' };
+    const result = syncPiConfigFromApp(legacy, dir);
+    assert.equal(result.providerId, 'deepseek');
+    assert.equal(result.modelId, 'user-saved-model');
+    const models = JSON.parse(fs.readFileSync(path.join(dir, 'models.json'), 'utf8'));
+    assert.equal(models.providers.deepseek.models[0].id, 'user-saved-model');
+    // Empty app config preserves unrelated/pre-existing runtime registry entries.
+    syncPiConfigFromApp({ providers: [], activeProviderId: '', activeModelId: '' }, dir);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, 'models.json'), 'utf8')), models);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
 // 测试 1: normalizePiBaseUrl
 assert.equal(normalizePiBaseUrl('https://api.deepseek.com'), 'https://api.deepseek.com/v1');
 assert.equal(normalizePiBaseUrl('https://api.openai.com/v1'), 'https://api.openai.com/v1');

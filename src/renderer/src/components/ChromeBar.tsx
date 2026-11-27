@@ -16,6 +16,7 @@ type MenuKey = 'sandbox' | null;
 
 interface Props {
   onOpenSettings: (tab?: SettingsTab, focusItem?: string) => void;
+  onResumeSetup?: () => void;
   globalBoardOpen: boolean;
   onToggleGlobalBoard: () => void;
   processMonitorOpen?: boolean;
@@ -36,6 +37,7 @@ interface Props {
 
 function ChromeBarInner({
   onOpenSettings,
+  onResumeSetup,
   globalBoardOpen,
   onToggleGlobalBoard,
   processMonitorOpen = false,
@@ -94,6 +96,7 @@ function ChromeBarInner({
         <button
           type="button"
           className={`chrome-logo chrome-sessions-toggle${sessionsOpen ? ' is-open' : ''}`}
+          data-setup-target="left-sidebar"
           aria-pressed={sessionsOpen}
           title={sessionsOpen ? t('折叠会话栏') : t('展开会话栏')}
           onClick={onToggleSessions}
@@ -168,6 +171,7 @@ function ChromeBarInner({
         <button
           type="button"
           className="chrome-menu-btn chrome-settings chrome-icon-btn"
+          data-setup-target="theme"
           title={settingsChord ? t('设置（{{chord}}）', { chord: settingsChord }) : t('设置')}
           aria-label={t('设置')}
           onClick={() => {
@@ -195,6 +199,7 @@ function ChromeBarInner({
         <button
           type="button"
           className="chrome-menu-btn chrome-settings chrome-icon-btn chrome-gboard-btn"
+          data-setup-target="global-board"
           aria-pressed={globalBoardOpen}
           title={
             globalBoardChord
@@ -227,6 +232,7 @@ function ChromeBarInner({
         <button
           type="button"
           className="chrome-menu-btn chrome-drawer-btn"
+          data-setup-target="left-sidebar"
           title={t('唤出会话栏')}
           onClick={onToggleLeftDrawer}
         >
@@ -235,6 +241,7 @@ function ChromeBarInner({
         <button
           type="button"
           className="chrome-menu-btn chrome-drawer-btn"
+          data-setup-target="right-sidebar"
           title={t('唤出文件与 Git 面板')}
           onClick={onToggleRightDrawer}
         >
@@ -326,6 +333,8 @@ function ChromeBarInner({
 
       <ExtensionChromeActions />
 
+      {onResumeSetup && <button type="button" className="chrome-menu-btn" onClick={onResumeSetup}>{t('继续新手引导')}</button>}
+
       <div className="chrome-drag" />
 
       {/* 右侧栏（文件/Git/浏览器页）开合：窗口控制左侧，分隔线在右的镜像面板图标——
@@ -333,6 +342,7 @@ function ChromeBarInner({
       <button
         type="button"
         className={`chrome-right-toggle${rightPanelOpen ? ' is-open' : ''}`}
+        data-setup-target="right-sidebar"
         aria-pressed={rightPanelOpen}
         title={rightPanelOpen ? t('折叠右侧栏') : t('展开右侧栏')}
         onClick={onToggleRightPanel}

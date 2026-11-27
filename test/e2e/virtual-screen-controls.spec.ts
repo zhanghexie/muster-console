@@ -50,8 +50,7 @@ test('virtual-screen grip lets a mode preview turn into a resize and keeps the c
 
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1250, 760));
     await page.locator('.app-shell').waitFor();
-    await page.evaluate(() => localStorage.setItem('muster.hSwitchMode', 'click'));
-    await page.reload();
+    expect(await page.evaluate(() => localStorage.getItem('muster.hSwitchMode'))).toBeNull();
     await page.getByRole('button', { name: '展开右侧栏', exact: true }).click();
     await expect(main).toHaveClass(/\bh-git\b/);
     await settle();

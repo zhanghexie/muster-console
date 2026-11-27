@@ -13,6 +13,10 @@ vi.mock('../../src/renderer/src/App', () => ({ App: () => {
   return <div>主界面已就绪</div>;
 } }));
 vi.mock('../../src/renderer/src/useWorkspaceAppearance', () => ({ useWorkspaceAppearance: () => {} }));
+vi.mock('../../src/renderer/src/store', () => ({
+  useWorkspaceStore: () => ({ workspaces: [{ id: 'existing-workspace' }], activeWorkspaceId: 'existing-workspace' }),
+  useSessionStore: () => ({ visibleSessions: [] })
+}));
 vi.mock('../../src/renderer/src/mobile/useMobileSurface', () => ({ useMobileSurface: () => false }));
 vi.mock('../../src/renderer/src/panelHistory', () => ({ PanelHistoryProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('../../src/renderer/src/keybindings/KeybindingHost', () => ({ KeybindingProvider: ({ children }: { children: React.ReactNode }) => children }));
@@ -24,7 +28,7 @@ function installBoot() {
   document.body.appendChild(overlay);
   return overlay;
 }
-afterEach(() => { finishBoot(); vi.restoreAllMocks(); });
+afterEach(() => { finishBoot(); localStorage.clear(); vi.restoreAllMocks(); });
 
 it('HTML→React→懒分包：始终保留同一动画节点，真实页面提交才移除', async () => {
   const overlay = installBoot();

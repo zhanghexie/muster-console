@@ -4,6 +4,8 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { FileSessionManager } from '../../src/main/runtimeKernel/sessionManager';
 import { send } from '../../src/main/agent/orchestrator/sendPipeline';
+import { sendNow } from '../../src/main/agent/orchestrator/queueOps';
+import { MAX_AGENT_QUEUE } from '../../src/main/agent/orchestrator/types';
 import type { TurnGateQueueItem } from '../../src/shared/turnGate';
 import type { OrchestratorHost } from '../../src/main/agent/orchestrator/internal';
 vi.mock('electron', () => ({ app: { getPath: () => '/unused-semantic-root' } }));
@@ -14,17 +16,49 @@ const fixtures: Array<{ dir: string; manager: FileSessionManager; end: () => voi
 function fixture() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'muster-scheduler-admit-'));
   const manager = new FileSessionManager(dir);
-  const bucket = { display: [] as Array<{ id: string }>, queue: [], busy: false };
+  const bucket = { display: [] as Array<{ id: string }>, queue: [] as Array<{ id: string }>, busy: false };
   let finish = (): void => {};
   const host = { ctx: { sessionLogs: manager, config: { get: () => ({}) }, notify: { push: vi.fn() } },
     checkSendImages: () => ({ ok: true }), ensureBucket: () => bucket, maybeIdleMicrocompact: async () => {},
     turnGate: { release: vi.fn() }, emit: vi.fn(), persistBucket: vi.fn(),
     startTurn: vi.fn(() => { bucket.busy = true; return new Promise<void>(resolve => { finish = resolve; }); }) } as unknown as OrchestratorHost;
+  host.send = (text, wsId = 'ws', images, opts) => send(host, text, wsId, images, opts);
   const events = () => fs.readdirSync(dir).filter(name => name.endsWith('.ndjson')).flatMap(name => fs.readFileSync(path.join(dir, name), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)));
   fixtures.push({ dir, manager, end: () => finish() });
   return { dir, manager, bucket, host, events, end: () => finish() };
 }
 afterEach(async () => { for (const f of fixtures.splice(0)) { f.end(); await f.manager.dispose(); fs.rmSync(f.dir, { recursive: true, force: true }); } vi.restoreAllMocks(); });
+
+describe('scheduler sendNow receipt', () => {
+  it('acknowledges an idle send while its model turn is still running', async () => {
+    const f = fixture();
+    const received = vi.fn();
+    const sending = sendNow(f.host, 'manually confirmed', 'ws').then(received);
+    await vi.waitFor(() => expect(received).toHaveBeenCalledWith('sent'));
+    expect(f.host.startTurn).toHaveBeenCalledOnce();
+    expect(f.bucket.display).toHaveLength(1);
+    expect(f.bucket.busy).toBe(true);
+    f.end();
+    await sending;
+  });
+
+  it('reports the actual queue disposition if the scheduler becomes busy before admission', async () => {
+    const f = fixture();
+    f.host.maybeIdleMicrocompact = async () => { f.bucket.busy = true; };
+    await expect(sendNow(f.host, 'manually confirmed', 'ws')).resolves.toBe('queued');
+    expect(f.bucket.queue).toHaveLength(1);
+    expect(f.host.startTurn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a full fallback queue so the original row can be retried', async () => {
+    const f = fixture();
+    f.bucket.busy = true;
+    f.bucket.queue = Array.from({ length: MAX_AGENT_QUEUE }, (_, index) => ({ id: `existing-${index}` }));
+    await expect(sendNow(f.host, 'manually confirmed', 'ws')).resolves.toBe('failed');
+    expect(f.bucket.queue).toHaveLength(MAX_AGENT_QUEUE);
+    expect(f.bucket.display).toHaveLength(0);
+  });
+});
 
 describe('scheduler semantic admission', () => {
   it('commits admission before the turn completes and never dispatches a duplicate stable ID', async () => {

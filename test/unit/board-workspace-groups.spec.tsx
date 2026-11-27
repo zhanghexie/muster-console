@@ -18,6 +18,23 @@ function session(id: string, name: string, workspaceId: string | undefined, extr
 }
 beforeEach(() => { setFilterActiveWorkspace(false); setBoardFilterWorkspaceIds(null); setBoardFilterPanelIds(null); setFreeViewMode('status'); });
 
+it('空看板使用内容自适应空态，不继承侧栏固定高度的会话行', async () => {
+  const mock = currentApiMock();
+  mock.override('workspaces.list', () => Promise.resolve({ workspaces, activeWorkspaceId: 'a' }));
+  mock.override('sessions.list', () => Promise.resolve({ activeId: null, sessions: [] }));
+  const view = render(<StoreProvider><BoardPanel /></StoreProvider>);
+  const description = await screen.findByText('所有工作区都还没有工作会话');
+  const empty = description.closest('.board-empty')!;
+  expect(empty.classList.contains('ui-empty')).toBe(true);
+  // .session-empty is the left sidebar's 38px row. Reusing it collapses the
+  // multi-line board placeholder and clips its 56px brand mark.
+  expect(empty.classList.contains('session-empty')).toBe(false);
+  const logo = empty.querySelector('svg')!;
+  expect(logo.getAttribute('height')).toBe('56');
+  expect(empty.querySelectorAll('p')).toHaveLength(2);
+  expect(view.container.querySelector('[data-zone="working"]')?.contains(empty)).toBe(true);
+});
+
 it('按列和工作区分组，折叠独立且切换过滤后保留；单区仍显示文件夹', async () => {
   const user = userEvent.setup();
   const mock = currentApiMock();

@@ -133,29 +133,16 @@ export function ensureDefaultWorkspaceRoot(
 }
 
 export const DEFAULT_LLM_CONFIG: LlmConfig = {
-  providers: [
-    {
-      id: 'deepseek',
-      name: 'DeepSeek',
-      baseUrl: 'https://api.deepseek.com',
-      apiKey: '',
-      // 模型对齐 pi 目录当前 id（不落显式能力：价格/窗口/思考档由目录继承）
-      models: [
-        { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' },
-        { id: 'deepseek-flash', name: 'DeepSeek Flash' }
-      ],
-      enabled: true
-    }
-  ],
-  activeProviderId: 'deepseek',
-  activeModelId: 'deepseek-v4-pro'
+  providers: [],
+  activeProviderId: '',
+  activeModelId: ''
 };
 
 const DEFAULT_CONFIG: AppConfig = {
   openai: {
-    baseUrl: 'https://api.deepseek.com',
+    baseUrl: '',
     apiKey: '',
-    model: 'deepseek-v4-pro'
+    model: ''
   },
   llm: structuredClone(DEFAULT_LLM_CONFIG),
   // 首启不自动创建工作区。桌面用空工作区快照进入首次设置或建区页。
@@ -523,6 +510,8 @@ function normalizeLlm(
   if (parsedLlm && typeof parsedLlm === 'object') {
     const raw = parsedLlm as Record<string, unknown>;
     if (Array.isArray(raw.providers)) {
+      // An explicitly empty list is also a persisted configuration.
+      if (raw.providers.length === 0) return structuredClone(DEFAULT_LLM_CONFIG);
       providers = raw.providers.map(normalizeProvider).filter((p): p is LlmProviderConfig => !!p);
     }
     if (typeof raw.activeProviderId === 'string') {
@@ -540,9 +529,10 @@ function normalizeLlm(
       activeProviderId = fallbackLlm.activeProviderId;
       activeModelId = fallbackLlm.activeModelId;
     } else {
-      const baseUrl = parsedOpenai?.baseUrl?.trim() || DEFAULT_CONFIG.openai.baseUrl;
+      const baseUrl = parsedOpenai?.baseUrl?.trim() || '';
       const apiKey = parsedOpenai?.apiKey?.trim() || '';
-      const model = parsedOpenai?.model?.trim() || DEFAULT_CONFIG.openai.model;
+      const model = parsedOpenai?.model?.trim() || '';
+      if (!baseUrl && !apiKey && !model) return structuredClone(DEFAULT_LLM_CONFIG);
       const isDeepSeek = /deepseek/i.test(baseUrl);
       const isAi = /openai\.com/i.test(baseUrl);
       const provId = isDeepSeek ? 'deepseek' : isAi ? 'openai' : 'custom';
@@ -553,7 +543,7 @@ function normalizeLlm(
           name: provName,
           baseUrl,
           apiKey,
-          models: [{ id: model, name: model }],
+          models: model ? [{ id: model, name: model }] : [],
           enabled: true
         }
       ];
@@ -569,7 +559,7 @@ function normalizeLlm(
   }
 
   if (!activeProvider.models.some((m) => m.id === activeModelId)) {
-    activeModelId = activeProvider.models[0]?.id || 'default';
+    activeModelId = activeProvider.models[0]?.id || '';
   }
 
   return {
@@ -589,9 +579,12 @@ export function resolveLlmConfigWithReload(
 ): { fullConfig: AppConfig; resolved: ReturnType<typeof resolveLlmConfig> } {
   let fullConfig = config.get();
   let resolved = resolveLlmConfig(fullConfig, target);
-  if (!resolved.provider.apiKey?.trim()) {
+  if (!resolved.provider.apiKey?.trim() || !resolved.model.id) {
     fullConfig = config.reloadFromDisk();
     resolved = resolveLlmConfig(fullConfig, target);
+  }
+  if (!resolved.provider.id || !resolved.model.id) {
+    throw new Error(t('请先在模型设置中配置可用的文本模型'));
   }
   if (!resolved.provider.apiKey?.trim()) {
     throw new Error(
@@ -606,19 +599,23 @@ export function resolveLlmConfig(
   target?: { providerId?: string; modelId?: string }
 ): { provider: LlmProviderConfig; model: LlmModelConfig; openai: OpenAIConfig;
   catalogInput?: Pick<LlmModelConfig, 'contextWindow' | 'multimodal'> } {
-  const llm = config.llm || DEFAULT_LLM_CONFIG;
+  const llm = config.llm ?? normalizeLlm(undefined, config.openai);
   const targetProviderId = target?.providerId?.trim() || llm.activeProviderId;
   let provider = llm.providers.find((p) => p.id === targetProviderId);
   if (!provider) {
     provider = llm.providers.find((p) => p.id === llm.activeProviderId) || llm.providers[0];
   }
+  if (!provider) {
+    return {
+      provider: { id: '', name: '', baseUrl: '', apiKey: '', models: [], enabled: false },
+      model: { id: '', name: '' },
+      openai: { ...DEFAULT_CONFIG.openai }
+    };
+  }
   const targetModelId =
     target?.modelId?.trim() ||
-    (provider.id === llm.activeProviderId ? llm.activeModelId : provider.models[0]?.id || 'default');
-  let model = provider.models.find((m) => m.id === targetModelId);
-  if (!model) {
-    model = provider.models[0] || { id: targetModelId, name: targetModelId };
-  }
+    (provider.id === llm.activeProviderId ? llm.activeModelId : provider.models[0]?.id);
+  const model = provider.models.find((m) => m.id === targetModelId) || provider.models[0] || { id: '', name: '' };
   const inferred = getConfiguredModelSyncDefaults(provider, model);
   const resolvedModel: LlmModelConfig = {
     ...model,
@@ -707,13 +704,11 @@ function normalizeConfig(parsed: Partial<AppConfig>, fallbackLlm?: LlmConfig): A
   catch (error) { console.error('[config] invalid model parameter profiles', error); modelParameterProfiles = []; }
   const activeProv = llm.providers.find((p) => p.id === llm.activeProviderId) || llm.providers[0];
   const activeModel =
-    activeProv.models.find((m) => m.id === llm.activeModelId) || activeProv.models[0];
+    activeProv?.models.find((m) => m.id === llm.activeModelId) || activeProv?.models[0];
   const openai: OpenAIConfig = {
-    baseUrl: activeProv.baseUrl,
-    apiKey: activeProv.apiKey,
-    // Empty provider model lists are valid while the user is choosing candidates;
-    // keep the legacy mirror safe with the same fallback used by DEFAULT_CONFIG.
-    model: activeModel?.id || 'deepseek-v4-pro'
+    baseUrl: activeProv?.baseUrl ?? '',
+    apiKey: activeProv?.apiKey ?? '',
+    model: activeModel?.id ?? ''
   };
 
   return {
@@ -968,7 +963,7 @@ export class ConfigManager {
           }
         }
       }
-      patchLlm = curLlm;
+      patchLlm = activeP ? curLlm : normalizeLlm(undefined, { ...this.config.openai, ...patch.openai });
     }
 
     const normalized = normalizeConfig(

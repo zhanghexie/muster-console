@@ -190,3 +190,16 @@ describe('真实设置页保存完成反馈', () => {
     expect(transition).not.toMatch(/transition:[^;]*(?:width|height|padding|margin|all)/);
   });
 });
+
+
+describe('设置引导返回', () => {
+  it('返回引导沿用未保存确认，不会直接丢弃草稿', async () => {
+    const onClose = vi.fn();
+    render(<KeybindingProvider><SettingsModal onClose={onClose} setupGuide="model" /></KeybindingProvider>);
+    fireEvent.click(await screen.findByRole('checkbox', { name: '任务运行时阻止休眠' }));
+    fireEvent.click(screen.getByRole('button', { name: /返回引导/ }));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /返回引导/ }));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+});

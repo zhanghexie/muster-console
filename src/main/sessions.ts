@@ -865,7 +865,7 @@ export class SessionsService {
     });
     if (!cheap.ok) return;
     const openai = resolveLlmConfig(this.config.get()).openai;
-    if (!openai.apiKey?.trim() || !openai.baseUrl?.trim()) return;
+    if (!openai.model || !openai.apiKey?.trim() || !openai.baseUrl?.trim()) return;
     const buf = this.ptyMgr.getBufferTail(s.id, LIFECYCLE_BUFFER_TAIL_CHARS);
     if (buf === undefined) return;
     const { text } = plainTextFromPtyBuffer(buf);

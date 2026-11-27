@@ -1209,13 +1209,27 @@ input.s-switch:disabled::before { background: var(--fg-disabled); }
   overflow: visible;
 }
 
-[data-settings-item].is-settings-flash {
-  --fg-primary: var(--fg-selected-primary);
-  --fg-secondary: var(--fg-selected-secondary);
-  --fg-muted: var(--fg-selected-muted);
+[data-settings-item].is-settings-flash:not(:is(.s-sec, .settings-subgroup)) {
+  outline: 1px solid var(--border-focus);
+  outline-offset: -1px;
+}
 
+.s-sec.is-settings-flash > .s-sec-h > .s-sec-heading > h2,
+.settings-subgroup.is-settings-flash > .settings-subgroup-heading > h3 {
+  position: relative;
+}
+
+.s-sec.is-settings-flash > .s-sec-h > .s-sec-heading > h2::before,
+.settings-subgroup.is-settings-flash > .settings-subgroup-heading > h3::before {
+  content: '';
+  position: absolute;
+  inset-block-start: .25em;
+  inset-inline-start: -8px;
+  inline-size: 2px;
+  block-size: .9em;
   border-radius: var(--radius-control);
-  background: var(--interaction-selected); color: var(--fg-selected-primary);
+  background: var(--border-focus);
+  pointer-events: none;
 }
 
 /* 可折叠 subsection（<details> 版）：头行整行可点，箭头展开时旋转 90°。
@@ -2304,18 +2318,14 @@ input.s-switch:disabled::before { background: var(--fg-disabled); }
   cursor: default;
 }
 
-/* Catalog presence uses the shared panel skeleton. */
 .llm-catalog-picker {
-  width: 100%;
-  margin-top: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 240px;
   overflow-y: auto;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  padding: 6px;
+  overscroll-behavior: contain;
 }
 
 .llm-catalog-picker-item {
@@ -2336,6 +2346,19 @@ input.s-switch:disabled::before { background: var(--fg-disabled); }
 .llm-catalog-feedback { flex-basis: 100%; margin: 4px 0; color: var(--fg-secondary); font-size: var(--font-caption); overflow-wrap: anywhere; }
 .llm-catalog-feedback span { display: block; }
 .llm-catalog-feedback.is-fallback { color: var(--fg-secondary); }
+
+.llm-add-menu-panel.llm-catalog-popup {
+  position: fixed;
+  z-index: var(--z-menu);
+  box-sizing: border-box;
+  width: min(400px, calc(100vw - 16px));
+  max-height: min(420px, calc(100vh - 16px));
+  min-height: 0;
+  margin: 0;
+  right: auto;
+  overflow: hidden;
+}
+.llm-catalog-popup .llm-catalog-search { flex: none; width: 100%; min-width: 0; box-sizing: border-box; }
 
 .llm-catalog-picker-item:hover {
   background: var(--interaction-hover);
@@ -4746,6 +4769,38 @@ textarea:is(.s-input) {
 .llm-provider-choice { min-height: 64px; flex-shrink: 0; }
 .llm-provider-choice-copy { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .llm-provider-choice-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.llm-provider-summary { min-width: 0; margin-bottom: 24px; }
+.settings-page .settings-resource-detail .llm-provider-summary .settings-detail-header { margin-bottom: 0; }
+.llm-provider-summary .settings-detail-top { align-items: center; gap: 8px 12px; }
+.llm-provider-summary .settings-detail-identity { flex-basis: 180px; }
+.llm-provider-summary .settings-detail-identity h2 { flex: 1; }
+.settings-page .llm-provider-name {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--fg-primary);
+  font: inherit;
+}
+.settings-page .llm-provider-name:hover { border-color: var(--border-subtle); }
+.settings-page .llm-provider-name:focus-visible { outline: 1px solid var(--border-focus); outline-offset: 1px; }
+.llm-provider-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.llm-provider-controls > .llm-provider-enabled {
+  min-height: 32px;
+  color: var(--fg-secondary);
+  font-size: var(--font-control);
+  line-height: 1.25;
+  white-space: nowrap;
+  cursor: pointer;
+}
+[data-settings-item='agent-models'] > .settings-detail-section-head { flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+[data-settings-item='agent-models'] > .settings-detail-section-head > div:first-child { flex: 1 1 90px; }
+[data-settings-item='agent-models'] .settings-detail-section-actions { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+[data-settings-item='agent-models'] .llm-add-model-row { min-width: 0; padding: 0; gap: 4px 8px; }
 .llm-provider-heading { flex-wrap: wrap; justify-content: flex-start; }
 .llm-provider-list .llm-provider-body { padding: 0 16px 16px; }
 .llm-provider-list .s-row { flex-wrap: wrap; }

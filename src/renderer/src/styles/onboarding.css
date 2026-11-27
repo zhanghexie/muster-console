@@ -370,3 +370,41 @@
 @media (max-width: 460px) {
   .setup-fields-grid, .setup-tool-list { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* The native modal owns focus containment and workbench inertness. */
+.setup-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--raised-fg-primary);
+  inline-size: min(840px, calc(100vw - 40px));
+  block-size: fit-content;
+  max-inline-size: none;
+  max-block-size: calc(100dvh - 48px);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.setup-dialog::backdrop {
+  background: color-mix(in srgb, var(--surface-canvas) 40%, transparent);
+  backdrop-filter: blur(4px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+  opacity: 1;
+  transition: opacity var(--dur-panel) var(--ease-standard);
+}
+.setup-dialog[data-mp-stage='enter']::backdrop,
+.setup-dialog[data-mp-stage='out']::backdrop { opacity: 0; }
+.setup-dialog[data-mp-stage='out']::backdrop { transition-duration: var(--dur-exit); }
+.setup-modal-layout { position: relative; margin: 0; min-block-size: 320px; }
+.setup-close { position: absolute; inset-block-start: 12px; inset-inline-end: 12px; z-index: 1; }
+.setup-modal-layout .setup-step-header { padding-inline-end: 20px; }
+@media (max-width: 720px) {
+  .setup-dialog { inline-size: calc(100vw - 24px); max-block-size: calc(100dvh - 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .setup-dialog::backdrop { transition: none; }
+}
+:root[data-ui-motion='reduced'] .setup-dialog::backdrop { transition: none; }

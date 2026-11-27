@@ -37,6 +37,7 @@ import type { HostNotificationDelivery } from '../../../shared/hostNotification'
 import { HOST_NOTIFICATION_TRIGGER } from '../../../shared/hostNotification';
 import { schedulerIsClosing, trackSchedulerWork } from './lifecycle';
 import { hasWorkerModelMentions } from '../../../shared/workerModelMention';
+import { prepareWorkerModelMentions } from '../../tasks/workerRouting';
 import type { SchedulerWorkbenchRemoteTurn } from './internal';
 
 /** 建 assistant 占位并执行回合（send / 排队续发共用） */
@@ -263,7 +264,6 @@ async function runTurnOwned(
     if (assistant.aborted || schedulerIsClosing(o)) return;
     let checkedText = engineText;
     if (!host && !notification && !workbenchRemote && hasWorkerModelMentions(engineText)) {
-      const { prepareWorkerModelMentions } = await import('../../tasks/workerRouting');
       checkedText = await prepareWorkerModelMentions(o.ctx, { workspaceId: wsId, rootId: workspaceContext.sourceRootId,
         rootsRevision: workspaceContext.rootsRevision, cwd: workspaceContext.cwd }, engineText);
     }

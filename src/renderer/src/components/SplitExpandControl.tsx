@@ -23,7 +23,7 @@ export function loadHSwitchMode(): HSwitchMode {
   } catch {
     /* ignore */
   }
-  return 'hover';
+  return 'click';
 }
 
 export function saveHSwitchMode(mode: HSwitchMode): void {

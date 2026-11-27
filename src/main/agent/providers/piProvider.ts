@@ -53,6 +53,7 @@ import { createModeExtensionFactory, ensureModeController } from './modeExtensio
 import { CORE_CONTEXT_TOOL, createCoreContextExtension } from '../coreContext';
 import { createSchedulerDirectoryExtension } from './directoryExtension';
 import { createSchedulerWorkerRoutingExtension } from './workerRoutingExtension';
+import { summarizeWorkerRoutingTiers } from '../../tasks/workerRouting';
 import { writeSchedulerForkFile } from './forkSessionFile';
 import { beginSchedulerWorkspaceContext, bindSchedulerSessionContext, captureSchedulerWorkspaceContext,
   getSchedulerConnectionContext, rememberSchedulerConnectionContext } from '../schedulerWorkspaceContext';
@@ -654,7 +655,6 @@ async function createPiSession(
   // 的共享中转 hub（mcpHub 仍是唯一出口），调度/GUI/PTY/ACP 全角色一个形态。
 
   try {
-    const { summarizeWorkerRoutingTiers } = await import('../../tasks/workerRouting');
     extensionFactories.push(createSchedulerWorkerRoutingExtension(workspaceContext.workspaceId,
       () => summarizeWorkerRoutingTiers(ctx.config.get(), workspaceContext.workspaceId)));
     const resourceLoader = createSkillSourceLoader(pi, {

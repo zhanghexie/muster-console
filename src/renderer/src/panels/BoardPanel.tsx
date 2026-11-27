@@ -667,7 +667,7 @@ const renderCard = (item: CardItem): React.JSX.Element => {
   // 视图主体：空态块与列网格（状态视图）——与自由画布 xfade 叠放互切。
   // 空态判定只看工作会话；调度入口位于左栏工作区回复气泡。
   const emptyBlock = (
-    <div className="ui-empty session-empty board-empty">
+    <div className="ui-empty board-empty">
       <div className="empty-logo" aria-hidden>
         <AppLogo size={56} />
       </div>
@@ -728,6 +728,7 @@ const renderCard = (item: CardItem): React.JSX.Element => {
         </div>
         <div
           className="board-view-switch"
+          data-setup-target="global-board-views"
           role="tablist"
           aria-label={t('看板视图')}
           title={t('左右方向键切换视图')}

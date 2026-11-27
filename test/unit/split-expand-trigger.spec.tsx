@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { SplitExpandControl } from '../../src/renderer/src/components/SplitExpandControl';
+import { loadHSwitchMode, saveHSwitchMode, SplitExpandControl } from '../../src/renderer/src/components/SplitExpandControl';
 
 class StubPointerEvent extends MouseEvent {
   readonly pointerId: number;
@@ -122,6 +122,26 @@ function flushFrame(): void {
     vi.advanceTimersByTime(20);
   });
 }
+
+describe('虚拟屏切屏偏好', () => {
+  const key = 'muster.hSwitchMode';
+  afterEach(() => localStorage.removeItem(key));
+
+  it('尚未选择切屏方式时，菜单默认选中鼠标点击切屏', () => {
+    localStorage.removeItem(key);
+    renderHarness(true, loadHSwitchMode());
+    const button = screen.getByRole('button', { name: '虚拟屏操作' });
+    fireEvent.click(button, { detail: 0 });
+    expect(screen.getByRole('menuitemradio', { name: '鼠标点击切屏' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('恢复显式选择的悬浮设置，无法识别的值回退到点击', () => {
+    saveHSwitchMode('hover');
+    expect(loadHSwitchMode()).toBe('hover');
+    localStorage.setItem(key, 'unknown');
+    expect(loadHSwitchMode()).toBe('click');
+  });
+});
 
 describe('虚拟屏分割条触发区', () => {
   it('右侧虚拟屏收起时不挂载悬浮热区和把手', () => {

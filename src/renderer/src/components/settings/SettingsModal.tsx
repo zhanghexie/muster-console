@@ -133,9 +133,11 @@ export function SettingsModal({
   searchFocusRequest = 0,
   modalShell,
   onReady,
-  onDirtyChange
+  onDirtyChange,
+  setupGuide
 }: {
   onClose: () => void;
+  setupGuide?: 'model' | 'theme';
   initialTab?: SettingsTab;
   focusItem?: string;
   /** presence 进出场阶段（App 侧 usePresence 驱动；缺省 in 兼容直接挂载） */
@@ -268,11 +270,13 @@ export function SettingsModal({
     if (focusItem) setFocus((f) => ({ id: focusItem, n: (f?.n ?? 0) + 1 }));
   }, [focusItem]);
 
-  // 跳转高亮：等首次访问页与 cfg/异步数据挂载后滚到视口中央并闪一下
+  const draftReady = cfg !== null;
+  // 等到目标挂载后定位一次，草稿编辑不重启定位标记。
   useEffect(() => {
     if (!focus) return;
     let cancelled = false;
     let timer = 0;
+    let highlighted: HTMLElement | undefined;
     const deadline = Date.now() + 3000;
     const tick = (): void => {
       if (cancelled) return;
@@ -282,7 +286,12 @@ export function SettingsModal({
         const details = el.closest('details');
         if (details) details.open = true;
         if (el instanceof HTMLDetailsElement) el.open = true;
-        el.scrollIntoView({ block: 'center' });
+        const heading = el.querySelector(':scope > :is(.s-sec-h, .settings-subgroup-heading)');
+        (heading ?? el).scrollIntoView({ block: 'center', behavior: 'instant' });
+        if (setupGuide === 'model' && focus.id === 'agent-provider-enabled') {
+          el.querySelector<HTMLInputElement>('input[type="checkbox"]')?.focus({ preventScroll: true });
+        }
+        highlighted = el;
         el.classList.add('is-settings-flash');
         timer = window.setTimeout(() => {
           if (!cancelled) el.classList.remove('is-settings-flash');
@@ -295,8 +304,9 @@ export function SettingsModal({
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      highlighted?.classList.remove('is-settings-flash');
     };
-  }, [focus, tab, cfg]);
+  }, [focus, tab, draftReady, setupGuide]);
 
   const configChangeCount = useMemo(() => {
     if (!cfg || !baseline) return 0;
@@ -474,9 +484,11 @@ export function SettingsModal({
       case 'general':
         return <GeneralPane key={formEpoch} cfg={cfg} set={set} />;
       case 'appearance':
-        return <ThemePane />;
+        return <ThemePane setupGuide={setupGuide === 'theme' && active && stage !== 'out' && tab === 'appearance'} />;
       case 'agent':
-        return <ModelProviderPane key={formEpoch} cfg={cfg} set={set} />;
+        return <ModelProviderPane key={formEpoch} cfg={cfg} set={set} setupGuide={setupGuide === 'model' && active && stage !== 'out' && tab === 'agent'}
+          guideFocus={setupGuide === 'model' ? focusItem : undefined}
+          active={active && stage !== 'out' && tab === 'agent'} />;
       case 'worker':
         return <WorkerPane key={formEpoch} cfg={cfg} set={set} focusItem={focus?.id} active={active && stage !== 'out' && tab === 'worker'}
           onRoutingDraftChange={setRoutingDraft} onNavigate={next => { setFocus(null); setTab(next); }} />;
@@ -547,7 +559,7 @@ export function SettingsModal({
       <aside className="settings-nav">
         <button type="button" className="settings-back" onClick={requestClose}>
           <IconChevronLeft size={14} />
-          <span>{t('返回工作台')}</span>
+          <span>{setupGuide ? t('返回引导') : t('返回工作台')}</span>
           <kbd className="settings-kbd">Esc</kbd>
         </button>
 

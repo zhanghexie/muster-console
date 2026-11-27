@@ -10,7 +10,7 @@ import { GitHubPrError } from './githubHttp';
 
 export async function generateGitHubPrReview(ctx: AppContext, evidence: string): Promise<{ body: string; partial: boolean }> {
   const { provider, model } = resolveLlmConfig(ctx.config.get());
-  if (provider.enabled === false || !provider.baseUrl?.trim() || !provider.apiKey?.trim() ||
+  if (!model.id || provider.enabled === false || !provider.baseUrl?.trim() || !provider.apiKey?.trim() ||
       !(model.modalities ?? provider.modalities ?? ['text']).includes('text')) {
     throw new GitHubPrError('configuration', t('请先在模型设置中配置可用的文本模型'));
   }

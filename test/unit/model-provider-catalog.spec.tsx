@@ -193,7 +193,7 @@ describe('模型服务商 · pi 目录驱动', () => {
       }} /></KeybindingProvider>;
     }
     const { container } = render(<Fixture />);
-    await screen.findByText('pi 目录');
+    await waitFor(() => expect(container.querySelector('[data-provider-id="azure"]')?.getAttribute('data-catalog')).toBe('true'));
     const input = screen.getByRole('textbox', { name: 'Base URL' });
     expect(input.getAttribute('placeholder')).toBe('https://{resource}.openai.azure.com/openai/v1');
     await userEvent.setup().type(input, 'https://fixture.openai.azure.com');
@@ -256,8 +256,9 @@ describe('模型服务商 · pi 目录驱动', () => {
     expect(browser.querySelector('.settings-resource-detail')).toBeTruthy();
     const nav = screen.getByRole('navigation', { name: '供应商' });
     expect(within(nav).getByRole('button', { name: /My Relay/ }).classList.contains('settings-resource-item')).toBe(true);
-    const detail = screen.getByRole('region', { name: '基本信息' });
+    const detail = document.querySelector('.settings-resource-detail .settings-detail-header') as HTMLElement;
     expect(within(detail).getByLabelText('供应商名称')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: '基本信息' })).toBeNull();
     expect(screen.getByRole('region', { name: '连接配置' })).toBeTruthy();
     await user.type(screen.getByRole('searchbox', { name: '搜索供应商' }), 'Relay');
     expect(within(nav).queryByRole('button', { name: /DeepSeek/ })).toBeNull();
@@ -266,6 +267,63 @@ describe('模型服务商 · pi 目录驱动', () => {
     expect(within(nav).getByRole('button', { name: /DeepSeek/ }).getAttribute('aria-pressed')).toBe('true');
     expect(patches).toHaveLength(0);
   });
+  it('供应商页头合并名称与操作，模型入口归属模型列表且切换后不重复', async () => {
+    currentApiMock().override('config.piCatalog', async () => CATALOG);
+    currentApiMock().override('config.providerModelCatalog', async () => ({ ok: true, snapshot: {
+      fetchedAt: Date.now(), models: [{ id: 'available-model' }]
+    } }));
+    const { cfg, patches } = makeCfg();
+    function Fixture() {
+      const [value, setValue] = React.useState(cfg);
+      return <KeybindingProvider><ModelProviderPane cfg={value} set={patch => {
+        patches.push(patch); setValue(previous => ({ ...previous, ...patch }));
+      }} /></KeybindingProvider>;
+    }
+    render(<Fixture />);
+    const user = userEvent.setup();
+    const nav = screen.getByRole('navigation', { name: '供应商' });
+    await screen.findByRole('button', { name: '从目录添加（1）' });
+    await screen.findByRole('button', { name: '刷新目录' });
+    function assertCompactDetail() {
+      const detail = document.querySelector('.settings-resource-detail') as HTMLElement;
+      const header = detail.querySelector('.settings-detail-header') as HTMLElement;
+      expect(within(header).getByRole('textbox', { name: '供应商名称' })).toBeTruthy();
+      expect(within(header).getByRole('checkbox', { name: /^启用 / })).toBeTruthy();
+      expect(within(detail).queryByText('pi 目录')).toBeNull();
+      expect(within(detail).queryByRole('region', { name: '基本信息' })).toBeNull();
+      const connection = within(detail).getByRole('region', { name: '连接配置' });
+      const models = within(detail).getByRole('region', { name: '模型列表' });
+      const cards = models.querySelector('.llm-model-card-list')!;
+      for (const name of [/^从目录添加/, '刷新目录', '＋ 添加模型']) {
+        const buttons = within(detail).getAllByRole('button', { name });
+        expect(buttons).toHaveLength(1);
+        expect(models.contains(buttons[0]!)).toBe(true);
+        expect(header.contains(buttons[0]!)).toBe(false);
+        expect(connection.contains(buttons[0]!)).toBe(false);
+        expect(buttons[0]!.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      }
+      return header;
+    }
+    assertCompactDetail();
+    await user.click(within(nav).getByRole('button', { name: /My Relay/ }));
+    await screen.findByRole('button', { name: '从目录添加（1）' });
+    let header = assertCompactDetail();
+    await user.clear(within(header).getByRole('textbox', { name: '供应商名称' }));
+    await user.type(within(header).getByRole('textbox', { name: '供应商名称' }), 'Relay edited');
+    expect(patches.at(-1)!.llm!.providers[1]!.name).toBe('Relay edited');
+    await user.click(within(header).getByRole('checkbox', { name: '启用 Relay edited' }));
+    expect(patches.at(-1)!.llm!.providers[1]!.enabled).toBe(false);
+    await user.click(within(header).getByRole('checkbox', { name: '启用 Relay edited' }));
+    expect(patches.at(-1)!.llm!.providers[1]!.enabled).toBe(true);
+    await user.click(within(header).getByRole('button', { name: '设为默认' }));
+    expect(patches.at(-1)!.llm!.activeProviderId).toBe('my-relay');
+    expect(patches.at(-1)!.llm!.activeModelId).toBe('relay-model');
+    await user.click(within(nav).getByRole('button', { name: /DeepSeek/ }));
+    await screen.findByRole('button', { name: '刷新目录' });
+    header = assertCompactDetail();
+    expect((within(header).getByRole('textbox', { name: '供应商名称' }) as HTMLInputElement).value).toBe('DeepSeek');
+  });
+
   it('左右分栏切换保持草稿和默认项，重复选择不收起；新增和删除自动定位', async () => {
     currentApiMock().override('config.piCatalog', () => Promise.resolve(CATALOG));
     const { cfg } = makeCfg();
@@ -413,7 +471,7 @@ describe('模型服务商 · pi 目录驱动', () => {
     await waitFor(() => expect(getTipSnapshot()?.text).toContain('HTTP 401'));
     expect(within(provider).getByRole('status').textContent).toContain('回退到内置目录');
     await user.click(within(provider).getByRole('button', { name: '从目录添加（1）' }));
-    expect(within(provider).getByRole('button', { name: /deepseek-flash/ })).toBeTruthy();
+    expect(within(screen.getByRole('dialog', { name: '从目录添加' })).getByRole('button', { name: /deepseek-flash/ })).toBeTruthy();
   });
 
   it('目录供应商收成填 Key 即用：无 API 格式/思考面板、URL 只读；自定义供应商保留全部调节', async () => {
@@ -426,7 +484,7 @@ describe('模型服务商 · pi 目录驱动', () => {
       expect(el).toBeTruthy();
       return el as HTMLElement;
     });
-    expect(within(ds).getByText('pi 目录')).toBeTruthy();
+    expect(within(ds).queryByText('pi 目录')).toBeNull();
     expect(within(ds).getByText('https://api.deepseek.com')).toBeTruthy(); // URL 只读展示
     expect(within(ds).queryByText('API 格式')).toBeNull();
     expect(within(ds).queryByText('高级 · 思考强度映射')).toBeNull();
@@ -646,4 +704,66 @@ it('模型服务商与文件输入作为纵向分区同时显示并保留草稿�
   expect((screen.getByLabelText('供应商名称') as HTMLInputElement).value).toBe('Draft provider');
   rerender(<Harness/>);
   expect((within(screen.getByRole('region', { name: '文件与输入' })).getByLabelText('视频最多抽帧数') as HTMLInputElement).value).toBe('3');
+});
+
+
+describe('empty model configuration', () => {
+  it.each([true, false])('does not synthesize a provider when llm is present: %s', async present => {
+    currentApiMock().override('config.piCatalog', () => Promise.resolve(CATALOG));
+    const { cfg, patches } = makeCfg({ providers: [], activeProviderId: '', activeModelId: '' });
+    if (!present) delete cfg.llm;
+    renderPane(cfg, patches);
+    expect(screen.getByText('尚未添加供应商，请点击「＋ 添加供应商」开始配置。')).toBeTruthy();
+    expect(screen.queryByLabelText('供应商名称')).toBeNull();
+    const menu = await openAddMenu();
+    await userEvent.setup().click(within(menu).getByText('添加自定义供应商'));
+    const next = patches.at(-1)!;
+    expect(next.llm!.providers).toHaveLength(1);
+    expect(next.llm!.activeProviderId).toBe('custom');
+    expect(next.llm!.activeModelId).toBe('');
+    expect(next.openai!.model).toBe('');
+  });
+
+  it('preserves genuine legacy endpoint and model without a DeepSeek fallback', () => {
+    const { cfg, patches } = makeCfg();
+    delete cfg.llm;
+    cfg.openai = { baseUrl: 'https://legacy.example/v1', apiKey: 'old-key', model: 'old-model' };
+    renderPane(cfg, patches);
+    expect((screen.getByLabelText('供应商名称') as HTMLInputElement).value).toBe('自定义服务商');
+    expect(screen.getByText('old-model')).toBeTruthy();
+    expect(screen.queryByText('deepseek-v4-pro')).toBeNull();
+  });
+
+  it('allows deleting the final provider and clears default and legacy mirrors', async () => {
+    currentApiMock().override('config.piCatalog', () => Promise.resolve(CATALOG));
+    const { cfg } = makeCfg();
+    cfg.llm!.providers = [cfg.llm!.providers[0]!];
+    let draft = cfg;
+    function Harness() {
+      const [value, setValue] = React.useState(cfg);
+      draft = value;
+      return <KeybindingProvider><ModelProviderPane cfg={value} set={patch => setValue(previous => ({ ...previous, ...patch }))}/></KeybindingProvider>;
+    }
+    render(<Harness/>);
+    const user = userEvent.setup();
+    await user.click(screen.getByTitle('删除此供应商'));
+    const dialog = await screen.findByRole('dialog', { name: '删除此供应商' });
+    await user.click(within(dialog).getByRole('button', { name: '确认删除' }));
+    expect(draft.llm).toEqual({ providers: [], activeProviderId: '', activeModelId: '' });
+    expect(draft.openai).toEqual({ baseUrl: '', apiKey: '', model: '' });
+    expect(screen.getByText('尚未添加供应商，请点击「＋ 添加供应商」开始配置。')).toBeTruthy();
+  });
+});
+
+
+it('removes the final configured model without inventing a default model ID', async () => {
+  currentApiMock().override('config.piCatalog', () => Promise.resolve(CATALOG));
+  const { cfg, patches } = makeCfg();
+  renderPane(cfg, patches);
+  await userEvent.setup().click(screen.getByTitle('移除模型'));
+  const next = patches.at(-1)!;
+  expect(next.llm!.providers[0]!.models).toEqual([]);
+  expect(next.llm!.activeProviderId).toBe('deepseek');
+  expect(next.llm!.activeModelId).toBe('');
+  expect(next.openai!.model).toBe('');
 });
