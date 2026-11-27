@@ -94,7 +94,7 @@ Expand the workbench input box in a CLI session to compose a multiline prompt. W
 
 [Get Muster Console on GitHub](https://github.com/zhanghexie/muster-console)
 
-Install Git, npm, and Node.js 22.22.2 or a later 22.x release. Then clone the repository and start the workbench.
+Install Git, npm, and Node.js 24 LTS. Then clone the repository and start the workbench.
 
 ```bash
 git clone https://github.com/zhanghexie/muster-console.git

@@ -405,6 +405,27 @@ assert.ok((config.asarUnpack ?? []).includes('out/main/extensions/sdk/extension-
   assert.match(workflow, /Upload packaged smoke diagnostics/, 'packaged smoke must upload failure diagnostics');
   assert.match(workflow, /MUSTER_PACKAGED_KEEP_PROFILE: '1'/, 'packaged smoke workflow must preserve failed userData');
   const definition = YAML.parse(workflow);
+  const reviewWorkflow = YAML.parse(fs.readFileSync(path.join(root, '.github', 'workflows', 'github-pr-review-draft.yml'), 'utf8'));
+  const node24ActionMajors = new Map([
+    ['actions/checkout', 5],
+    ['actions/setup-node', 5],
+    ['actions/upload-artifact', 6],
+    ['actions/download-artifact', 7],
+  ]);
+  for (const workflowDefinition of [definition, reviewWorkflow]) {
+    for (const job of Object.values(workflowDefinition.jobs)) {
+      const setupNode = job.steps.find(step => step.uses?.startsWith('actions/setup-node@'));
+      assert.equal(setupNode?.with?.['node-version'], 24, `${workflowDefinition.name}: CI scripts must run on Node.js 24`);
+      for (const step of job.steps) {
+        const [action, version] = step.uses?.split('@') ?? [];
+        const minimumMajor = node24ActionMajors.get(action);
+        if (minimumMajor !== undefined) {
+          const major = Number(version?.match(/^v(\d+)(?:\.|$)/)?.[1]);
+          assert.ok(major >= minimumMajor, `${step.uses}: use an Action version that declares Node.js 24 support`);
+        }
+      }
+    }
+  }
   assert.deepEqual(definition.on.push?.branches, ['main'], 'PRs provide quality checks for work branches');
   assert.ok(Object.hasOwn(definition.on, 'pull_request'), 'PRs must trigger the quality matrix');
   assert.deepEqual(definition.on.workflow_dispatch?.inputs?.quality_only, {
