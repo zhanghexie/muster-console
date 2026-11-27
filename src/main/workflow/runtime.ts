@@ -41,6 +41,7 @@ import {
   WORKFLOW_TOOL_WHITELIST,
   WorkflowMemoCounter,
   type WorkflowOverview,
+  type WorkflowDelegateRequest,
   type WorkflowRunRecord,
   type WorkflowRunTrigger,
   type WorkflowTriggerEntry,
@@ -97,7 +98,7 @@ export interface WorkflowRuntimeDeps {
   /** 派活：排队时须等到真正拉起再 resolve；失败 reject。ctl 供 run 取消时撤销排队项 */
   delegate: (
     workspaceId: string,
-    input: Record<string, unknown>,
+    input: WorkflowDelegateRequest,
     ctl?: WorkflowDelegateControl
   ) => Promise<WorkflowDelegateResult>;
   executeTool: (workspaceId: string, name: string, args: Record<string, unknown>, signal?: AbortSignal) => Promise<{ ok: boolean; result?: unknown; error?: string }>;
@@ -1338,10 +1339,22 @@ export class WorkflowRuntime {
       throw new WorkflowError('wf.delegate 需要 {task: "任务说明", isolate: true|false, runtime?, name?}');
     }
     if (typeof raw.isolate !== 'boolean') throw new WorkflowError('wf.delegate 必须显式选择 isolate: true 或 false，无 auto 或默认值。');
-    const input: Record<string, unknown> = { task: raw.task };
-    for (const k of ['runtime', 'name', 'isolate', 'model', 'thinking', 'guiMode'] as const) {
+    for (const field of ['tier', 'targetRef'] as const) {
+      if (raw[field] !== undefined && (typeof raw[field] !== 'string' || !raw[field].trim())) {
+        throw new WorkflowError(`wf.delegate 的 ${field} 必须是非空字符串。`);
+      }
+    }
+    if (raw.tier !== undefined && raw.targetRef !== undefined) throw new WorkflowError('wf.delegate 的 tier 和 targetRef 互斥。');
+    if (raw.model !== undefined && raw.tier !== undefined) throw new WorkflowError('wf.delegate 的 tier 和 model 互斥。');
+    if (raw.model !== undefined && raw.targetRef !== undefined) throw new WorkflowError('wf.delegate 的 targetRef 和 model 互斥。');
+    const input: Pick<WorkflowDelegateRequest, 'task' | 'isolate' | 'tier' | 'targetRef'> & Record<string, unknown> = {
+      task: raw.task, isolate: raw.isolate
+    };
+    for (const k of ['runtime', 'name', 'model', 'thinking', 'guiMode'] as const) {
       if (raw[k] !== undefined) input[k] = raw[k];
     }
+    if (typeof raw.tier === 'string') input.tier = raw.tier.trim();
+    if (typeof raw.targetRef === 'string') input.targetRef = raw.targetRef.trim();
     const key = live.memo.next('delegate', { ...input, key: raw.key });
     const prior = live.rec.memo[key];
     const pending = isObj(prior) && prior[WORKFLOW_MEMO_PENDING] === true;

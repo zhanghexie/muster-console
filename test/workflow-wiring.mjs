@@ -19,7 +19,11 @@ Module._load = function(name, parent) {
   };
   if (parent?.filename === path.join(root, 'src/main/workflow/wiring.ts')) {
     if (name === '../tasks/delegate') return { delegateTask: async (_ctx, input) => {
-      if (state.realDelegate) return oldLoad.call(this, path.join(root,'src/main/tasks/delegate.ts'), parent).delegateTask(_ctx,input);
+      state.delegateInputs.push(input);
+      if (state.realDelegate) {
+        try { return await oldLoad.call(this, path.join(root,'src/main/tasks/delegate.ts'), parent).delegateTask(_ctx,input); }
+        catch (error) { state.delegateError = error; throw error; }
+      }
       const session = { id: `session-${state.sessions.length}`, name: input.name || 'Worker', type: 'terminal',
         runtime:'pi',cwd:dir,workspaceId: 'ws', archived: false, meta: { creationKey: input.creationKey } };
       state.sessions.push(session);
@@ -55,7 +59,7 @@ fs.writeFileSync(path.join(wfDir, 'WORKFLOW.md'), '---\nname: probe\ndescription
 fs.writeFileSync(path.join(wfDir, 'run.mjs'), 'export default async wf => { wf.state.worker = await wf.delegate({task:"work",isolate:false}); await wf.ask("hold"); };\n');
 const active = [];
 function setup() {
-  state = { sessions: [], calls: [], reviews: [], confirms: 0 };
+  state = { sessions: [], calls: [], reviews: [], confirms: 0, delegateInputs: [] };
   const config = { workspaces: [{ id: 'ws', path: dir }], extensionTrust: {} };
   const ctx = { config: { get: () => config, update: patch => Object.assign(config, patch) }, sessions: {
     listByWorkspace: () => state.sessions, get: id => state.sessions.find(s => s.id === id),
@@ -113,6 +117,62 @@ try {
     assert.deepEqual(saved.memo,{},'invalid workflow cannot leave a pending memo');
     active.pop().dispose();
   }
+  const writeDelegate = (name, input, catchError = false) => {
+    const workflowDir = path.join(dir, '.muster/workflows', name);
+    fs.mkdirSync(workflowDir, { recursive: true });
+    fs.writeFileSync(path.join(workflowDir, 'WORKFLOW.md'), `---\nname: ${name}\ndescription: routing contract\n---\n`);
+    const call = `await wf.delegate(${JSON.stringify(input)})`;
+    fs.writeFileSync(path.join(workflowDir, 'run.mjs'), catchError
+      ? `export default async wf => { try { ${call}; } catch (e) { return e.message; } };\n`
+      : `export default async wf => ${call};\n`);
+  };
+  for (const [name, selection, target] of [
+    ['tier-route', { tier: 'tier-alpha', runtime: 'runtime-a' }, { tierId: 'tier-alpha' }],
+    ['ref-route', { targetRef: 'ref-alpha' }, { targetRef: 'ref-alpha' }],
+    ['trim-route', { tier: '  tier-alpha  ' }, { tierId: 'tier-alpha' }],
+    ['model-route', { model: { providerId: 'p', modelId: 'm' } }, undefined]
+  ]) {
+    writeDelegate(name, { task: 'work', isolate: false, ...selection });
+    const runtime = setup(), run = await runtime.startRun('ws', name, {});
+    await until(() => runtime.get('ws', run.runId).status === 'completed', `${name} completed`);
+    assert.deepEqual(state.delegateInputs[0].target, target, 'workflow wiring sends the selected Worker target');
+    if (selection.runtime) assert.equal(state.delegateInputs[0].runtime, selection.runtime);
+    if (selection.model) assert.deepEqual(state.delegateInputs[0].model, selection.model);
+    active.pop().dispose();
+  }
+  const invalidRoutes = [
+    ...[null, '', '  ', 123, {}, []].map(tier => ({ input: { tier }, error: /wf\.delegate.*tier.*非空字符串/ })),
+    ...[null, '', '  ', 123].map(targetRef => ({ input: { targetRef }, error: /wf\.delegate.*targetRef.*非空字符串/ })),
+    { input: { tier: 'tier-alpha', model: { providerId: 'p', modelId: 'm' } }, error: /wf\.delegate.*tier.*model.*互斥/ },
+    { input: { tier: 'tier-alpha', model: null }, error: /wf\.delegate.*tier.*model.*互斥/ },
+    { input: { targetRef: 'ref-alpha', model: { providerId: 'p', modelId: 'm' } }, error: /wf\.delegate.*targetRef.*model.*互斥/ },
+    { input: { tier: 'tier-alpha', targetRef: 'ref-alpha' }, error: /wf\.delegate.*tier.*targetRef.*互斥/ }
+  ];
+  for (const [index, { input, error }] of invalidRoutes.entries()) {
+    const name = `invalid-route-${index}`;
+    writeDelegate(name, { task: 'work', isolate: false, ...input });
+    const runtime = setup(), run = await runtime.startRun('ws', name, {});
+    await until(() => runtime.get('ws', run.runId).status === 'failed', `${name} rejected`);
+    const saved = readRunRecord(dir, run.runId);
+    assert.match(saved.error, error);
+    assert.equal(state.delegateInputs.length, 0, 'invalid route cannot reach delegation');
+    assert.equal(saved.delegates, 0, 'invalid route cannot consume delegation budget');
+    assert.deepEqual(saved.memo, {}, 'invalid route cannot leave a pending memo');
+    active.pop().dispose();
+  }
+  writeDelegate('unknown-tier', { task: 'work', isolate: false, tier: 'not-configured' }, true);
+  const unknown = setup(); state.realDelegate = true;
+  const unknownRun = await unknown.startRun('ws', 'unknown-tier', {});
+  await until(() => unknown.get('ws', unknownRun.runId).status === 'completed', 'unknown tier surfaced to script');
+  const { WorkerOptionError } = require(path.join(root, 'src/main/tasks/workerRoutingCatalog.ts'));
+  assert.ok(state.delegateError instanceof WorkerOptionError, 'unknown tier comes from the real Worker route');
+  assert.match(state.delegateError.message, /Worker tier is not configured/);
+  assert.equal(readRunRecord(dir, unknownRun.runId).result, state.delegateError.message, 'script receives the original host error message');
+  assert.equal(readRunRecord(dir, unknownRun.runId).delegates, 0, 'failed route restores the delegation budget');
+  assert.deepEqual(readRunRecord(dir, unknownRun.runId).memo, {}, 'failed route clears its pending memo');
+  assert.equal(state.sessions.length, 0);
+  active.pop().dispose();
+
   const rt = setup(), rec = await rt.startRun('ws', 'probe', {});
   await until(() => rt.get('ws', rec.runId).pendingAsk, 'delegate result');
   const saved = readRunRecord(dir, rec.runId), worker = state.sessions[0];

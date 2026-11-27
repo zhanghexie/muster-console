@@ -22,7 +22,7 @@
 | 文件 | 职责 |
 |---|---|
 | `src/shared/workflowCommand.ts` | 路径常量 + 两个命令的解析/展开（renderer-safe，零依赖；输入框与 runTurn 共用） |
-| `src/shared/workflow.ts` | 纯函数：WORKFLOW.md / args / 触发（`parseWorkflowSchedule` / `parseWorkflowOn`）解析校验、run 记录解析与日志、memo 键（`stableStringify` + `fnv1a` + 出现序号）、预算（扣除等人时间）、`wf.waitFor` 匹配与任务/会话相位快照判定、确定性派活任务 id `workflowDelegateTaskId`、保留策略 `selectWorkflowRunsToPrune`、触发状态解析、面板视图 `workflowRunView` 与类型、上限常量 `WORKFLOW_LIMITS`、`wf.tool` 白名单 |
+| `src/shared/workflow.ts` | 纯函数：WORKFLOW.md / args / 触发（`parseWorkflowSchedule` / `parseWorkflowOn`）解析校验、run 记录解析与日志、memo 键（`stableStringify` + `fnv1a` + 出现序号）、预算（扣除等人时间）、`wf.waitFor` 匹配与任务/会话相位快照判定、确定性派活任务 id `workflowDelegateTaskId`、保留策略 `selectWorkflowRunsToPrune`、触发状态解析、面板视图 `workflowRunView`、`wf.delegate` 参数类型、上限常量 `WORKFLOW_LIMITS`、`wf.tool` 白名单 |
 | `src/main/workflow/store.ts` | 工作流目录扫描、指纹、run 记录原子读写/删除（`.muster/scheduler/workflow-runs/<runId>.json`）、触发状态（`.muster/scheduler/workflow-triggers.json`），均已被 gitignore |
 | `src/main/workflow/kernel.ts` | 每个 run 一个 `worker_threads`（同 node_repl 的 eval 源）：把已核对指纹的脚本字节写入同目录短期快照后 import（保留相对导入），结束时清理快照（崩溃/terminate 残留的 `.exec-*.mjs` 由 `.muster/.gitignore` 的 `workflows/**/.exec-*.mjs` 忽略，不污染 git status），`wf.*` 经 postMessage RPC 回主线程，每次调用携带 `wf.state` 快照；取消/超限直接 `terminate` |
 | `src/main/workflow/runtime.ts` | `WorkflowRuntime`：run 生命周期、`wf.*` 实现、memo 续跑、派活防重复、护栏、子工作流、等待注册、人侧问题、定时/事件触发、保留清理、取消收尾、面板概览、重启恢复；外部依赖全部经 deps 注入（测试可替换） |
@@ -54,6 +54,12 @@
 | `workflow.cancel` | 取消 run 及其子 run；`closeSessions: true` 时先归档本 run 与子 run 派出的会话，确认成功后调用 `sessions.delete`；归档或删除失败逐个报出并保留未删会话；取消期间的在途派活先试撤销（`revokedDelegates`），撤不掉的登记为迟到补偿（`lateDelegates`，创建完成后按选项补关并写进 run 日志） |
 
 触发任务（prompt-tasks）回合隐藏 `workflow.start / reply / askHuman / cancel`（`turnVisibility.ts`）。
+
+## wf API
+
+| API | 说明 |
+|---|---|
+| `wf.delegate({task, isolate, runtime?, name?, tier?, targetRef?, model?, thinking?, guiMode?, key?})` | `tier` 是设置中的 Worker 档位 ID，`targetRef` 是精确配置引用；二者均须为非空字符串，且与 `model` 三选一。`isolate` 必须显式为布尔值。指定目标时走 `sessions.create` 的 Worker 路由：`tier` 按候选、冷却与后继档选择，`targetRef` 绑定工作区和来源且可能过期。候选决定实际 Harness、模型和思考参数；`runtime` 可省略，传入也不会覆盖候选。未知目标的宿主错误消息原样返回脚本；跨线程桥保留消息，不保留原错误类型。排队时等真正拉起才返回 `{sessionId, sessionName, taskId}`。其他 wf API 见 `~/.muster/skills/workflow/SKILL.md`。 |
 
 ## 数据流
 
