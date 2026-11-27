@@ -228,7 +228,6 @@ export function createSafetyPiReviewer(options: {
               id: configured.id,
               name: configured.name || configured.id,
               ...inferModelSyncDefaults(configured.id, configured),
-              maxTokens: 2048,
               cost: {
                 input: 0,
                 output: 0,
