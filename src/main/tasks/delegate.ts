@@ -42,6 +42,8 @@ import { captureWorkspaceExecutionContext } from '../workspaceExecutionContext';
 import { captureWorktreeSelectionSources, assertWorktreeSelectionSources } from '../git/worktreeSelectionSources';
 import { waitForSessionLaunch } from './delegateLaunch';
 import { app } from 'electron';
+import { prepareGuiInput } from '../attachments/guiInput';
+import { clearAttachments, prepareAttachments } from '../attachments/service';
 import { existingHandoverDirectory } from '../handover/paths';
 import type { WorkerRouteAttempt, WorkerRoutePlan, WorkerRouteState, WorkerTargetSelection } from '../../shared/workerRouting';
 import { WORKER_ROUTING_SETTINGS_LOCATION } from '../../shared/workerRouting';
@@ -366,7 +368,6 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
   const buildCliBrief = async (sessionId?: string) => {
     let text = task;
     if (input.attachments?.length && sessionId) {
-      const { prepareAttachments } = await import('../attachments/service');
       const prepared = await prepareAttachments({ userData: app.getPath('userData'), scope: 'cli:' + sessionId,
         text, attachments: input.attachments, supportsImages: false, tools: cfg.attachmentTools,
         processing: cfg.attachmentProcessing, workerFile: path.join(app.getAppPath(), 'out/main/attachments/worker.mjs') });
@@ -435,7 +436,6 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
         return { session: await create(resolved.runtime, nativeConfig ? { ...resolved.inheritMeta, nativeConfig } : resolved.inheritMeta, cliOptions), isolate };
       } catch (error) {
         if (routeSessionId && input.attachments?.length && !ctx.sessions.isChatRuntime(resolved.runtime) && !ctx.sessions.get(routeSessionId)) {
-          const { clearAttachments } = await import('../attachments/service');
           clearAttachments(app.getPath('userData'), 'cli:' + routeSessionId);
         }
         throw error;
@@ -559,7 +559,7 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
         const callerId = currentAgentSessionId();
         const caller = callerId ? ctx.sessions.get(callerId) : parent;
         const prepared = input.attachments?.length
-          ? await (await import('../attachments/guiInput')).prepareGuiInput(ctx, session, task, input.attachments)
+          ? await prepareGuiInput(ctx, session, task, input.attachments)
           : { text: task, images: undefined };
         const sent = await host.send(session.id, prepared.text, prepared.images, {
           messageId, steerOnBusy: false,
