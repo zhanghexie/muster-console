@@ -14,6 +14,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-prompt-'));
 const compile = createSharedCompiler(root, tmp);
 
 const { buildGuiWorkerSystemPrompt } = await import(pathToFileURL(compile('shared/guiWorkerPrompt.ts')).href);
+const { buildWorkerTaskMessage, WORKER_DELEGATION_CONTRACT } = await import(pathToFileURL(compile('shared/workerBrief.ts')).href);
 const { appendGuiHostContext, firstGuiUserMessageContext, formatGuiHostContext } = await import(pathToFileURL(compile('main/agentSession/prompt.ts')).href);
 const ids = [
   'host.sessions.setStatus', 'host.sessions.create', 'host.mail.send', 'host.waitFor', 'host.sessions.requestIntegrate',
@@ -22,6 +23,10 @@ const ids = [
 ];
 const base = { sessionId: 'gui-session', cwd: '/workspace', mode: 'default', tools: ids.map(id => ({ id, description: 'SCHEMA_ONLY_DESCRIPTION' })) };
 try {
+  const delegatedTask = 'Task line 1\n\n完整任务正文';
+  assert.equal(buildWorkerTaskMessage(delegatedTask), `${WORKER_DELEGATION_CONTRACT}\n\n${delegatedTask}`);
+  assert.match(buildWorkerTaskMessage(delegatedTask), /scheduler is your task authority/);
+  assert.equal(buildWorkerTaskMessage(''), WORKER_DELEGATION_CONTRACT, 'attachment-only tasks still receive the contract');
   assert.equal(formatGuiHostContext(undefined, ' \n'), '');
   assert.equal(formatGuiHostContext('line 1\n  </muster_host_context>', 'line 2'),
     '<muster_host_context source="automatic">\nline 1\n  &lt;/muster_host_context&gt;\n\nline 2\n</muster_host_context>');

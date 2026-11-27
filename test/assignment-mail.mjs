@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {pathToFileURL} from 'node:url';
 import {createSharedCompiler} from './helpers/shared-compile.mjs';
 const root=process.cwd(),tmp=fs.mkdtempSync(path.join(os.tmpdir(),'assignment-mail-'));
+let resetMessageStore;
 try {
  const compile=createSharedCompiler(root,tmp),load=p=>import(pathToFileURL(compile(p)).href);
  const {sendSessionMail}=await load('main/messages/assignment.ts');
- const {setAgentMessagesUserDataDir,readAgentMessageLedger,readAgentMessageBody}=await load('main/metaAgent/messageStore.ts');
+ const {setAgentMessagesUserDataDir,readAgentMessageLedger,readAgentMessageBody,resetMessageStoreChainsForTest}=await load('main/metaAgent/messageStore.ts');
+ resetMessageStore=resetMessageStoreChainsForTest;
  setAgentMessagesUserDataDir(path.join(tmp,'userdata'));
  const management=path.join(tmp,'management'),source=path.join(tmp,'source');fs.mkdirSync(management);fs.mkdirSync(source);
  const session={id:'s',name:'Worker',workspaceId:'w',runtime:'pi',type:'terminal',lifecycle:'working',cwd:source};
@@ -23,4 +25,4 @@ try {
  session.workspaceId='missing';await assert.rejects(sendSessionMail(ctx,{sessionId:'s',text:'must not deliver'}),/workspace not found/);
  assert.equal(readAgentMessageLedger(management,'w').messages.length,1,'失效工作区先拒绝，无保存副作用');
  console.log('assignment-mail: OK (workspace scope, busy preservation, stored receipts, idempotency, invalid target fails before save)');
-}finally{fs.rmSync(tmp,{recursive:true,force:true});}
+}finally{resetMessageStore?.();fs.rmSync(tmp,{recursive:true,force:true});}

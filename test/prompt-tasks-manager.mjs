@@ -16,6 +16,7 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'ptm-'));
 const compile = createSharedCompiler(root, tmp);
 const managerOut = compile('main/tasks/manager.ts');
 const { PromptTasksManager } = await import(pathToFileURL(managerOut).href);
+const { WORKER_DELEGATION_CONTRACT } = await import(pathToFileURL(compile('shared/workerBrief.ts')).href);
 const usageStatsOut = compile('shared/usageStats.ts');
 const { usageDayKey } = await import(pathToFileURL(usageStatsOut).href);
 
@@ -393,12 +394,12 @@ mgr.disable(h1.id);
 console.log('ok: 新建默认 terminal');
 
 // ---------- GUI（chat surface）runtime：terminal 模式经宿主 send 注入任务 ----------
-// 回归：createTerminal 对 chat runtime 忽略 initialPrompt，任务原文必须经 AgentSessionHost.send
+// 回归：createTerminal 对 chat runtime 忽略 initialPrompt，契约与完整任务必须经 AgentSessionHost.send
 runtimes.entries['gui-test'] = { id: 'gui-test', enabled: true };
 const guiSends = [];
 mgr.bindGuiHost({
-  send: async (sessionId, text) => {
-    guiSends.push({ sessionId, text });
+  send: async (sessionId, text, images, opts) => {
+    guiSends.push({ sessionId, text, images, opts });
     return { ok: true };
   }
 });
@@ -416,7 +417,9 @@ await mgr.runNow(g1.id);
 assert.equal(g1.lastResult, 'ok');
 assert.equal(guiSends.length, 1, 'GUI runtime 任务经宿主 send 注入');
 assert.equal(guiSends[0].sessionId, 'sess-test');
-assert.equal(guiSends[0].text, 'gui task body');
+assert.equal(guiSends[0].text, `${WORKER_DELEGATION_CONTRACT}\n\ngui task body`);
+assert.equal(guiSends[0].images, undefined);
+assert.deepEqual(guiSends[0].opts, { fromInject: true });
 assert.equal(mgr.listRuns(g1.id)[0].status, 'ok');
 mgr.disable(g1.id);
 console.log('ok: GUI runtime 任务经 AgentSessionHost.send 注入');
