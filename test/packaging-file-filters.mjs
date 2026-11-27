@@ -409,11 +409,22 @@ assert.ok((config.asarUnpack ?? []).includes('out/main/extensions/sdk/extension-
     description: 'Build signed release artifacts (main only)', type: 'boolean', default: false
   });
   const jobs = definition.jobs;
-  assert.equal(jobs.quality.steps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.['fetch-depth'], 0);
-  assert.equal(jobs.quality.steps.find(step => step.run === 'npm test')?.env?.MUSTER_CI_TEST_BASE,
+  const qualitySteps = jobs.quality.steps;
+  const dependenciesIndex = qualitySteps.findIndex(step => step.run === 'npm ci');
+  const testIndex = qualitySteps.findIndex(step => step.run === 'npm test');
+  assert.ok(dependenciesIndex >= 0 && dependenciesIndex < testIndex, 'quality must install npm dependencies before testing');
+  assert.equal(qualitySteps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.['fetch-depth'], 0);
+  assert.equal(qualitySteps[testIndex]?.env?.MUSTER_CI_TEST_BASE,
     '${{ github.event.pull_request.base.sha || github.event.before }}');
-  assert.equal(jobs.quality.steps.find(step => step.name === 'Validate signed release branch')?.if, 'inputs.signed_release');
-  const typecheck = jobs.quality.steps.find(step => step.run === 'npm run typecheck');
+  const browserSetup = qualitySteps.slice(dependenciesIndex + 1, testIndex)
+    .filter(step => step.run?.startsWith('npx playwright install'))
+    .map(step => ({ if: step.if, run: step.run }));
+  assert.deepEqual(browserSetup, [
+    { if: "runner.os == 'Linux'", run: 'npx playwright install --with-deps --only-shell chromium' },
+    { if: "runner.os != 'Linux'", run: 'npx playwright install --only-shell chromium' },
+  ], 'quality must provision Chromium after npm ci and before visual tests can run');
+  assert.equal(qualitySteps.find(step => step.name === 'Validate signed release branch')?.if, 'inputs.signed_release');
+  const typecheck = qualitySteps.find(step => step.run === 'npm run typecheck');
   assert.equal(typecheck?.env?.NODE_OPTIONS, '--max-old-space-size=4096', 'cold CI typecheck needs more than the runner default heap');
   const packageJob = jobs.package;
   assert.equal(packageJob.if,
