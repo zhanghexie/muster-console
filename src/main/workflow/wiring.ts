@@ -58,6 +58,7 @@ export function createWorkflowRuntime(ctx: AppContext, pump: OrchestratorEventPu
             ...(typeof input.runtime === 'string' ? { runtime: input.runtime } : {}),
             ...(typeof input.name === 'string' ? { name: input.name } : {}),
             isolate: parseIsolate(input.isolate),
+            ...(input.tier !== undefined ? { target: { tierId: input.tier } } : input.targetRef !== undefined ? { target: { targetRef: input.targetRef } } : {}),
             ...(input.model && typeof input.model === 'object' ? { model: input.model as { providerId: string; modelId: string } } : {}),
             ...(typeof input.thinking === 'string' ? { thinking: input.thinking as 'off' | 'low' | 'medium' | 'high' | 'max' } : {}),
             ...(typeof input.guiMode === 'string' ? { guiMode: input.guiMode as 'default' | 'ask' | 'plan' | 'auto' } : {}),

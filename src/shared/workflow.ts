@@ -8,7 +8,8 @@
  */
 import { matchPolicyRule, parsePolicyMatch, type PolicyEventView, type PolicyMatch } from './subscriptionPolicy';
 import type { CursorAskQuestionMapped } from './cursorAskQuestion';
-import type { TaskSchedule } from './types';
+import type { GuiWorkerMode, TaskSchedule } from './types';
+import type { GuiThinkingLevel } from './thinkingLevels';
 import { WORKFLOW_DOC_FILE } from './workflowCommand';
 
 export { WORKFLOWS_DIR, WORKFLOW_DOC_FILE, WORKFLOW_SCRIPT_FILE } from './workflowCommand';
@@ -52,6 +53,25 @@ export const WORKFLOW_LIMITS = {
 } as const;
 
 export const WORKFLOW_NAME_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
+
+/** 工作流脚本的派活参数：档位、精确引用和内联模型只能选一种。 */
+export type WorkflowDelegateOptions = {
+  task: string;
+  isolate: boolean;
+  runtime?: string;
+  name?: string;
+  thinking?: GuiThinkingLevel;
+  guiMode?: GuiWorkerMode;
+  key?: string;
+} & (
+  | { tier: string; targetRef?: never; model?: never }
+  | { tier?: never; targetRef: string; model?: never }
+  | { tier?: never; targetRef?: never; model?: { providerId: string; modelId: string } }
+);
+
+/** Runtime 只预校验目标选择；旧参数继续由 wiring 收窄。 */
+export type WorkflowDelegateRequest = Pick<WorkflowDelegateOptions, 'task' | 'isolate' | 'tier' | 'targetRef'> &
+  Record<string, unknown> & { creationKey: string };
 
 /** wf.tool 可调的宿主工具（派活走 wf.delegate，问人走 wf.ask，均不在此列） */
 export const WORKFLOW_TOOL_WHITELIST: readonly string[] = [
