@@ -22,7 +22,10 @@
 | 文件 | 职责 |
 |---|---|
 | `src/shared/workflowCommand.ts` | 路径常量 + 两个命令的解析/展开（renderer-safe，零依赖；输入框与 runTurn 共用） |
-| `src/shared/workflow.ts` | 纯函数：WORKFLOW.md / args / 触发（`parseWorkflowSchedule` / `parseWorkflowOn`）解析校验、run 记录解析与日志、memo 键（`stableStringify` + `fnv1a` + 出现序号）、预算（扣除等人时间）、`wf.waitFor` 匹配与任务/会话相位快照判定、确定性派活任务 id `workflowDelegateTaskId`、保留策略 `selectWorkflowRunsToPrune`、触发状态解析、面板视图 `workflowRunView`、`wf.delegate` 参数类型、上限常量 `WORKFLOW_LIMITS`、`wf.tool` 白名单 |
+<<<<<<< HEAD
+| `src/shared/workflow.ts` | 纯函数：WORKFLOW.md / args / 触发（`parseWorkflowSchedule` / `parseWorkflowOn`）解析校验、run 记录解析与日志、memo 键（`stableStringify` + `fnv1a` + 出现序号）、预算（扣除等人时间）、`wf.waitFor` 匹配与任务/会话相位快照判定、确定性派活任务 id `workflowDelegateTaskId`、保留策略 `selectWorkflowRunsToPrune`、触发状态解析、面板视图 `workflowRunView`、`wf.delegate` 参数类型、上限常量 `WORKFLOW_LIMITS`、`wf.tool` 启动入口拒绝名单（别名/前缀归一化） |
+=======
+>>>>>>> ao/a4048db9
 | `src/main/workflow/store.ts` | 工作流目录扫描、指纹、run 记录原子读写/删除（`.muster/scheduler/workflow-runs/<runId>.json`）、触发状态（`.muster/scheduler/workflow-triggers.json`），均已被 gitignore |
 | `src/main/workflow/kernel.ts` | 每个 run 一个 `worker_threads`（同 node_repl 的 eval 源）：把已核对指纹的脚本字节写入同目录短期快照后 import（保留相对导入），结束时清理快照（崩溃/terminate 残留的 `.exec-*.mjs` 由 `.muster/.gitignore` 的 `workflows/**/.exec-*.mjs` 忽略，不污染 git status），`wf.*` 经 postMessage RPC 回主线程，每次调用携带 `wf.state` 快照；取消/超限直接 `terminate` |
 | `src/main/workflow/runtime.ts` | `WorkflowRuntime`：run 生命周期、`wf.*` 实现、memo 续跑、派活防重复、护栏、子工作流、等待注册、人侧问题、定时/事件触发、保留清理、取消收尾、面板概览、重启恢复；外部依赖全部经 deps 注入（测试可替换） |
@@ -96,7 +99,9 @@ frontmatter（解析失败或不满足约束时该项不生效并出警告，工
 - **保存失败**：首次记录、派活占位、问答、事件结果、终态等关键记录写入失败时立即停止内核与子流程，撤销在途派活，阻断下一步副作用并发失败事件。故障记录写入独立的 `.muster/scheduler/workflow-failures/<runId>.json`，读取优先于旧运行记录，重启不再续跑该失败实例；清理历史时先删旧运行记录再删故障记录。内存故障记录也参加面板概览，即使首次写入失败仍可见。巡检与关机重试故障记录。
 - 每工作流 `maxDelegates` 默认 10 / 天花板 30，`maxHours` 默认 24 / 天花板 72（等人与停机不计）；60s 一次预算巡检，超限即失败。
 - `wf.read` / `wf.glob` 限工作区内，拒绝 `.muster/local/`、`.muster/runtime.json`、`.git/`；读取超 256KB 截断。
-- `wf.tool` 只放行 `WORKFLOW_TOOL_WHITELIST`（shared/workflow.ts）。
+- `wf.tool` 接受非空工具名；只有「启动工作流」入口会在归一化（`_`→`.`、折叠重复点、小写，取末两段）后被拒绝（任意前缀如 `host.`、`mcp__muster__` 都会命中）：`workflow.run`、`workflow.start` 及其下划线/大小写别名。其余工具交给宿主执行器，未知工具由执行器报错。受控子工作流使用 `wf.call`（嵌套 ≤3 层）；`workflow.list/get/reply/cancel` 等非启动入口仍可用。
+- `wf.tool` 仍走宿主安全审核；需人工确认的工具会等待确认，若无人处理弹窗，run 会一直等待，且同一工作流的定时触发在上一次触发的 run 未结束时跳过。工具结果不记账，resume 从头重跑时会重新执行，脚本必须保证调用幂等。
+- `wf.tool` 使用调度身份和工作区作用域，不携带 Worker 会话身份。依赖 Worker 身份或活动回合的工具在缺少所需上下文时会报错；不能假定所有会话相关工具都会报错：`waitFor` 可为调度会话注册等待，`ui.render` 可使用调度会话身份，`turnChanges.trackFiles` 在存在调度活动审查回合时可能使用该回合。调用前须考虑对调度会话的影响。
 - `wf.run` 默认超时 10 分钟、最长 60 分钟；Windows 下整行命令走 `shell: true`。run 日志只记程序名与参数段数（`workflowRunCommandLog`）：日志持久化且经 `workflow.get` 回传调度模型，参数里可能有密钥。
 - 问用户不接受空答：面板与调度代弹的问题卡都禁止空提交；卡片侧即便收到空选（含多选）也按未作答处理，问题保持挂起。
 - **保留**：已结束的顶层 run 保留最近 50 条且结束不超过 30 天；子 run 跟随父 run（父仍活跃的不删）。在 `resumeAll` 与顶层 run 结束时清理。

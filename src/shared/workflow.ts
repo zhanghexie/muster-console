@@ -73,17 +73,15 @@ export type WorkflowDelegateOptions = {
 export type WorkflowDelegateRequest = Pick<WorkflowDelegateOptions, 'task' | 'isolate' | 'tier' | 'targetRef'> &
   Record<string, unknown> & { creationKey: string };
 
-/** wf.tool 可调的宿主工具（派活走 wf.delegate，问人走 wf.ask，均不在此列） */
-export const WORKFLOW_TOOL_WHITELIST: readonly string[] = [
-  'sessions.message',
-  'sessions.observe',
-  'sessions.review',
-  'sessions.delete',
-  'memory.search',
-  'memory.note',
-  'web.fetch',
-  'ui.notify'
-];
+/** wf.tool 禁止通过工作流入口启动新 run；子工作流应使用 wf.call。 */
+export const WORKFLOW_TOOL_DENYLIST: readonly string[] = ['workflow.run', 'workflow.start'];
+
+/** 归一化工具名后判断是否为「启动工作流」入口：覆盖下划线/大小写别名与任意宿主/MCP 前缀。 */
+export function isBlockedWorkflowTool(rawName: string): boolean {
+  const normalized = rawName.trim().toLowerCase().replace(/_/g, '.').replace(/\.+/g, '.');
+  const tail = normalized.split('.').slice(-2).join('.');
+  return WORKFLOW_TOOL_DENYLIST.includes(tail);
+}
 
 // ---------------------------------------------------------------------------
 // WORKFLOW.md
