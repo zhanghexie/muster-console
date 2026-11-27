@@ -154,7 +154,9 @@ npm run hooks:uninstall           # 仅卸载指向 scripts/githooks 的本地�
 
 `.github/workflows/release-quality.yml` 在 Windows、Ubuntu 和 macOS hosted runners 上执行日常测试、类型检查和构建。打包阶段按目标准备并校验固定版本 Cua 驱动。Windows 打包使用搭载 Visual Studio 2022 的 `windows-2022`，供固定版本的 node-gyp 重建 node-pty；macOS x64 使用 `macos-15-intel`，arm64 使用 `macos-15`。打包生成 Windows NSIS、macOS x64/arm64 DMG、Linux AppImage/deb。CI 将安装器和解包应用一起封装为 tar artifact，保留可执行位和符号链接；冒烟和发布清单阶段先解包再读取对应产物。Linux smoke 分别通过 Xvfb 覆盖 X11，并通过 headless Weston 覆盖 Wayland。`npm run test:packaged-smoke` 使用 Playwright Electron 启动实际产物，检查窗口、IPC、boot failure 和优雅关闭。
 
-PR 和分支推送运行质量检查。私有维护仓的 `main` 推送和手动运行在质量检查通过后继续打包和冒烟，默认生成 `packaged-verification-*` 和 `verification-manifest`。公开仓只在手动运行时打包，登录 GitHub 的读者可下载公开仓工件。完成安装包分发范围及许可证验收后，在 `main` 的 Actions → `release-quality` → Run workflow 勾选 `Build signed release artifacts (main only)` 进入正式发布验证。该模式从 Actions secrets 检查 Windows 签名和 macOS Developer ID、公证凭据，强制签名并校验 macOS 公证票据，冒烟通过后生成 `release-manifest`。两种模式均通过 Actions artifacts 交付，electron-builder 使用 `--publish never`。 [GitHub 工件访问规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
+PR 和 `main` 推送自动运行质量检查。工作分支通过 PR 触发质量检查，也可以在 Actions → `release-quality` → Run workflow 选中目标分支并勾选 `Run quality checks only`。公开仓的安装包通过手动运行验证。私有维护仓的 `main` 推送在质量检查通过后也会继续打包和冒烟。
+
+手动运行默认打包、冒烟并生成 `packaged-verification-*` 和 `verification-manifest`。完成安装包分发范围及许可证验收后，可在 `main` 上勾选 `Build signed release artifacts (main only)` 进入正式发布验证。签名模式要求关闭 `Run quality checks only`，从 Actions secrets 检查 Windows 签名和 macOS Developer ID、公证凭据，强制签名并校验 macOS 公证票据，冒烟通过后生成 `release-manifest`。两种打包模式均通过 Actions artifacts 交付，electron-builder 使用 `--publish never`。 [GitHub 工件访问规则](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)
 
 Actions 结果用于确认对应 runner 已执行，GPU、真实用户桌面、硬件驱动和系统输入法仍需在发布记录中单独标记。
 
