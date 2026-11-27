@@ -6,7 +6,7 @@ import { ResumeWaitStore, type ResumeWait, type WaitCondition } from './store';
 export interface ResumeWaitEnvironment {
   isBusy(owner: string): boolean;
   deliver(wait: ResumeWait, content: string, deliveryId: string, batch: readonly ResumeWait[]): Promise<DeliveryOutcome>;
-  alert(wait: ResumeWait, reason: string): void | Promise<void>;
+  alert(wait: ResumeWait, reason: string, kind?: 'queued'): void | Promise<void>;
   now(): number;
   /** Host-derived current desktop authorization; never read from waitFor arguments. */
   desktopEpoch?(owner: string): { epoch: string; generation: number } | null;
@@ -209,7 +209,7 @@ export class ResumeWaitService {
         else if (outcome.status !== 'submitted') {
           this.store.defer(deliveryId, outcome.reason, outcome.status !== 'queued', this.env.now());
           if (outcome.status === 'unsupported' || (outcome.status === 'queued' && wait.priority === 'preempt'))
-            await this.env.alert(wait, outcome.reason);
+            await this.env.alert(wait, outcome.reason, outcome.status === 'queued' ? 'queued' : undefined);
           else if (outcome.status === 'deferred' && wait.failures >= 2 && this.env.now() - wait.createdAt >= 30000)
             await this.env.alert(wait, `续接多次投递失败：${outcome.reason}`);
         }
