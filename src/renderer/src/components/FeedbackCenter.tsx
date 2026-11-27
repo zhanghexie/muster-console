@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import type { FeedbackEntry, FeedbackReview, FeedbackSnapshot, ManualFeedbackInput } from '../../../shared/feedback';
 import { feedbackEditableText, feedbackEditorSections, joinFeedbackSections, type FeedbackEditorSection } from '../../../shared/feedbackFormatting';
 import { isWebGateway } from '../webGatewayEnvironment';
+import { showTip } from '../tips';
 import { useOverlayDismiss } from '../keybindings/KeybindingHost';
 import { IconClipboard } from './icons';
 import { usePresence } from './motion';
@@ -142,6 +143,14 @@ export function FeedbackCenter({ open, onClose, snapshot, onSnapshot, onRefresh,
     catch (err) { reportError(err); await onRefresh(); }
     finally { setBusy(false); }
   };
+  const copyIssueBody = async (item: FeedbackEntry): Promise<void> => {
+    try {
+      await window.api.feedback.copyIssueBody(item.id, item.revision);
+      showTip(t('Issue 正文已复制。请在 GitHub 的 Write 页签粘贴。'));
+    } catch (err) {
+      showTip(err instanceof Error ? err.message : String(err), { tone: 'error' });
+    }
+  };
   const remove = async (): Promise<void> => {
     const target = deleteTarget;
     if (!target || deleting.current) return;
@@ -204,10 +213,10 @@ export function FeedbackCenter({ open, onClose, snapshot, onSnapshot, onRefresh,
                 <div className="feedback-detail-heading"><strong>{draft.title || entry.title}</strong><span className="feedback-status">{t(STATUS[entry.status])}</span></div>
                 {entry.error && <ErrorTipDetails message={t(entry.error)} />}
                 {entry.status === 'pending' && entry.aiChecked !== true && <p role="status" className="feedback-source">{t('等待 AI 查重')}</p>}
-                {entry.status === 'opened' && <p role="status" className="feedback-source">{t('请在 GitHub 页面提交，再回来核对。')}</p>}
+                {entry.status === 'opened' && <p role="status" className="feedback-source">{t('如果 GitHub 正文为空，请复制 Issue 正文并在 Write 页签粘贴。提交后回来核对。')}</p>}
                 <section ref={editorRef} className="feedback-editor" aria-label={review ? t('提交前核对') : t('反馈编辑')}>
                   {review && <p className="feedback-source">{t('提交后，标题和正文将在 GitHub 上公开。')}
-                    {review.copyBody && <> {t('正文较长。打开 GitHub 时会复制正文，请在网页中粘贴。')}</>}
+                    {review.copyBody && <> {t('正文较长，GitHub 只会预填标题。完整正文会复制到剪贴板，请在网页的 Write 页签粘贴后提交。')}</>}
                   </p>}
                   {review?.matches.some(m => m.exact) && <p role="alert">{t('发现相同反馈，已停止提交')}</p>}
                   {entry.status === 'pending' && !review && <label>{fieldCaption('标题', true)}
@@ -230,10 +239,14 @@ export function FeedbackCenter({ open, onClose, snapshot, onSnapshot, onRefresh,
                   {entry.status === 'pending' && review && <>
                     <button type="button" className="btn" disabled={busy} onClick={() => setReview(null)}>{t('返回修改')}</button>
                     <button type="button" className="btn primary" disabled={busy || review.matches.some(m => m.exact)}
-                      onClick={() => void run(() => window.api.feedback.submit(entry.id, entry.revision, review.reviewId, false))}>{t('在 GitHub 提交')}</button>
+                      onClick={() => void run(() => window.api.feedback.submit(entry.id, entry.revision, review.reviewId, false))}>
+                      {review.copyBody ? t('复制正文并打开 GitHub') : t('在 GitHub 提交')}</button>
                   </>}
                   {(entry.status === 'rejected' || entry.status === 'duplicate') && <button type="button" className="btn" disabled={busy} onClick={() => void run(() => window.api.feedback.restore(entry.id, entry.revision))}>{t('恢复待审核')}</button>}
-                  {entry.status === 'opened' && <button type="button" className="btn" disabled={busy} onClick={() => void run(() => window.api.feedback.reconcile(entry.id, entry.revision, true))}>{t('已关闭网页，恢复草稿')}</button>}
+                  {entry.status === 'opened' && <>
+                    <button type="button" className="btn" disabled={busy} onClick={() => void copyIssueBody(entry)}>{t('复制 Issue 正文')}</button>
+                    <button type="button" className="btn" disabled={busy} onClick={() => void run(() => window.api.feedback.reconcile(entry.id, entry.revision, true))}>{t('已关闭网页，恢复草稿')}</button>
+                  </>}
                   {(entry.status === 'opened' || entry.status === 'uncertain') && <button type="button" className="btn" disabled={busy} onClick={() => void run(() => window.api.feedback.reconcile(entry.id, entry.revision))}>{t('核对是否已提交')}</button>}
                 </div>
               </> : <p>{t(entries.length ? '选择一条反馈进行审核' : '暂无反馈')}</p>}

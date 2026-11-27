@@ -49,6 +49,23 @@ it('reads the selected workspace journal and writes manually generated reports i
   await waitFor(() => expect(ma.journal.read.mock.calls.some(([readDay]) => readDay !== day)).toBe(true));
 });
 
+it('resizes from the calendar seam without adding the pointer offset to the saved width', async () => {
+  const { page, ma, files } = mount();
+  await waitFor(() => expect(page.document.querySelector('#genBtn')).not.toBeNull());
+  const pane = page.document.querySelector<HTMLElement>('.cal-pane')!;
+  const handle = page.document.querySelector<HTMLElement>('#resizer')!;
+  vi.spyOn(pane, 'getBoundingClientRect').mockReturnValue(new page.DOMRect(0, 0, 312, 400));
+
+  handle.dispatchEvent(new page.MouseEvent('mousedown', { clientX: 316, bubbles: true }));
+  expect(handle.classList.contains('active')).toBe(true);
+  page.dispatchEvent(new page.MouseEvent('mousemove', { clientX: 346 }));
+  expect(pane.style.width).toBe('342px');
+  expect(ma.data.write).not.toHaveBeenCalled();
+  page.dispatchEvent(new page.MouseEvent('mouseup'));
+  expect(handle.classList.contains('active')).toBe(false);
+  await waitFor(() => expect(JSON.parse(files.get('ui.json')!).calWidth).toBe(342));
+});
+
 it('creates a todo and dispatches it through the declared extension command', async () => {
   const { page, ma, files } = mount();
   await waitFor(() => expect(page.document.querySelector('#todoAdd')).not.toBeNull());

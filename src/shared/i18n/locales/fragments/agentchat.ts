@@ -209,4 +209,9 @@ export const frag: Record<string, string> = {
   '专注': 'Focus',
   '注入详情暂不可用': 'Injection details are unavailable',
   '正在读取注入详情…': 'Loading injection details…',
+  '收信已取消，未写入已读回执': 'Reading was cancelled. No read receipt was recorded.',
+  '正文索引不存在': 'The message body index is missing.',
+  '邮箱不存在': 'The mailbox does not exist.',
+  '信件已保存，语义索引待修复：{{detail}}': 'Message saved. The semantic index needs repair: {{detail}}',
+  '信件 {{id}} 正文文件已存在但内容不同': 'Message {{id}} already has a body file with different content.',
 };

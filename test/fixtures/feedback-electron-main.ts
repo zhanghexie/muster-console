@@ -18,7 +18,8 @@ app.commandLine.appendSwitch('disable-gpu');
 void app.whenReady().then(async () => {
   let win: BrowserWindow;
   const issues: RemoteIssue[] = [];
-  const opened: Array<{ url: string; clipboardBody?: string }> = [];
+  const opened: string[] = [];
+  let clipboardText = '';
   const ctx = {
     getWindow: () => win,
     sessions: { get: (id: string) => ({ workspaceId: 'ws', name: id === 'worker-a' ? 'Worker A' : 'Worker B' }) },
@@ -38,7 +39,10 @@ void app.whenReady().then(async () => {
   };
   ctx.feedback = new FeedbackService({ file: path.join(profile, 'feedback.json'), appVersion: 'test',
     remote: createDirectFeedbackRemote(fetchIssues, target),
-    openIssue: async (url, clipboardBody) => { opened.push({ url, clipboardBody }); }, changed
+    issuePage: {
+      open: async url => { opened.push(url); },
+      copyBody: body => { clipboardText = body; }
+    }, changed
   });
   registerFeedbackIpc(ctx);
   ipcMain.handle('fixture:propose', async () => {
@@ -57,11 +61,12 @@ void app.whenReady().then(async () => {
   });
   ipcMain.handle('fixture:issues', () => issues);
   ipcMain.handle('fixture:opened', () => opened);
-  ipcMain.handle('fixture:submitOnGitHub', () => {
-    const last = opened.at(-1)!;
-    const url = new URL(last.url);
+  ipcMain.handle('fixture:clipboardText', () => clipboardText);
+  ipcMain.handle('fixture:replaceClipboard', (_event, text: string) => { clipboardText = text; });
+  ipcMain.handle('fixture:submitOnGitHub', (_event, pastedBody?: string) => {
+    const url = new URL(opened.at(-1)!);
     const id = String(issues.length + 1);
-    issues.push({ id, title: url.searchParams.get('title')!, body: last.clipboardBody ?? url.searchParams.get('body')!,
+    issues.push({ id, title: url.searchParams.get('title')!, body: pastedBody ?? url.searchParams.get('body') ?? '',
       state: 'open', url: `${target.repository}/issues/${id}` });
   });
   win = new BrowserWindow({ show: false, width: 1000, height: 850, webPreferences: { preload, contextIsolation: true, sandbox: false, nodeIntegration: false } });

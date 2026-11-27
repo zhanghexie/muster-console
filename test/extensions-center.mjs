@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { mock } from 'node:test';
+import { setImmediate } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createSharedCompiler } from './helpers/shared-compile.mjs';
 
@@ -45,6 +47,7 @@ try {
   const { source: bundledSource, releases } = await center.listCatalog();
   assert.equal(bundledSource, 'bundled');
   assert.equal(releases[0].category, 'productivity');
+  assert.equal(releases[0].icon, 'builtin-extension:daily-report');
   assert.deepEqual(releases.map(release => release.extensionId), ['daily-report']);
   assert.ok(releases.every(release => release.sourceKind === 'center'));
   const target = releases.find(release => !release.installed);
@@ -110,17 +113,87 @@ try {
   fs.writeFileSync(fileCatalog, JSON.stringify({ schemaVersion: 1, releases: [] }));
   const fileCenter = new ExtensionCenterService(remoteRoot, remoteLayout.globalRoot, remoteCatalog, { catalogUrl: pathToFileURL(fileCatalog).href });
   assert.deepEqual(await fileCenter.listCatalog(), { source: 'file', releases: [] });
-  const remote = new ExtensionCenterService(remoteRoot, remoteLayout.globalRoot, remoteCatalog, { catalogUrl: 'https://gitlab.example.test/catalog.json', fetchImpl: async url => new Response(url.endsWith('catalog.json') ? remoteCatalogJson : artifact, { status: 200, headers: { 'content-type': 'application/json' } }) });
+  let packageDownload = Promise.withResolvers();
+  let compressed = true;
+  const remote = new ExtensionCenterService(remoteRoot, remoteLayout.globalRoot, remoteCatalog, {
+    catalogUrl: 'https://gitlab.example.test/catalog.json',
+    fetchImpl: async (url, { signal }) => {
+      if (url.endsWith('catalog.json')) return new Response(remoteCatalogJson);
+      const headers = compressed ? { 'content-encoding': 'br', 'content-length': '64' } : { 'content-length': String(artifact.length) };
+      return new Response(new ReadableStream({
+        start(body) {
+          signal.addEventListener('abort', () => body.error(signal.reason), { once: true });
+          packageDownload.resolve({ body, signal });
+        },
+      }), { headers });
+    },
+  });
   const remoteRelease = await remote.list();
   assert.equal(remoteRelease[0].packageUrl, 'https://gitlab.example.test/packages/daily-report.json');
   assert.equal(remoteRelease[0].publisherName, 'Muster');
   assert.equal(remoteRelease[0].releaseNotes, '修复日报同步。');
   assert.deepEqual(remoteRelease[0].screenshots, ['https://gitlab.example.test/assets/daily-report.png']);
-  const remoteInstalled = await remote.install('muster/daily-report');
+  // Advance the request and stream clocks together, including the former absolute timeout.
+  mock.timers.enable({ apis: ['setTimeout'] });
+  const timeout = mock.method(AbortSignal, 'timeout', ms => {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(new DOMException('Timed out', 'TimeoutError')), ms);
+    return controller.signal;
+  });
+  let remoteInstalled;
+  try {
+    const middle = Math.floor(artifact.length / 2);
+    const stalledProgress = [];
+    const stalled = remote.install('muster/daily-report', next => stalledProgress.push(next));
+    stalled.catch(() => {});
+    const stalledDownload = await packageDownload.promise;
+    await setImmediate();
+    mock.timers.tick(20_000);
+    stalledDownload.body.enqueue(artifact.subarray(0, middle));
+    await setImmediate();
+    assert.equal(stalledProgress.at(-1).receivedBytes, middle);
+    assert.equal(stalledProgress.at(-1).totalBytes, undefined, 'compressed Content-Length is not the size of the decoded stream');
+    mock.timers.tick(29_999);
+    assert.equal(stalledDownload.signal.aborted, false, 'receiving a chunk resets the idle window');
+    mock.timers.tick(1);
+    assert.equal(stalledDownload.signal.aborted, true, 'an idle body aborts the request');
+    await assert.rejects(stalled, /扩展安装包下载超时/);
+    assert.equal(fs.existsSync(remoteLayout.global('daily-report').directory), false, 'an incomplete download is not installed');
+
+    compressed = false;
+    packageDownload = Promise.withResolvers();
+    const progress = [];
+    const installing = remote.install('muster/daily-report', next => progress.push(next));
+    installing.catch(() => {});
+    const { body, signal } = await packageDownload.promise;
+    await setImmediate();
+    mock.timers.tick(20_000);
+    body.enqueue(artifact.subarray(0, middle));
+    await setImmediate();
+    mock.timers.tick(20_000);
+    assert.equal(signal.aborted, false, 'an active transfer can exceed the old total deadline');
+    body.enqueue(artifact.subarray(middle));
+    body.close();
+    remoteInstalled = await installing;
+    assert.deepEqual(progress.slice(0, 3), [
+      { phase: 'downloading', receivedBytes: 0 },
+      { phase: 'downloading', receivedBytes: 0, totalBytes: artifact.length },
+      { phase: 'downloading', receivedBytes: middle, totalBytes: artifact.length },
+    ]);
+    assert.deepEqual(progress.slice(-3), [
+      { phase: 'downloading', receivedBytes: artifact.length, totalBytes: artifact.length },
+      { phase: 'verifying' },
+      { phase: 'installing' },
+    ]);
+  } finally {
+    timeout.mock.restore();
+    mock.timers.reset();
+  }
   assert.equal(remoteInstalled.installed, true);
   assert.equal(remoteInstalled.updated, false);
   assert.equal(remoteCatalog.get('global', 'daily-report').downloaded, true);
   assert.equal(remoteCatalog.get('global', 'daily-report').officialRelease, undefined, 'download provenance does not grant runtime trust');
+  assert.equal((await remote.list())[0].icon, 'builtin-extension:daily-report', 'old catalog entries inherit the installed manifest icon');
   assert.equal(fs.existsSync(remoteLayout.global('daily-report').directory), true);
   await remoteCatalog.syncGlobal();
   const updateFiles = snapshot.files.map(file => file.path === 'extension.json' ? { ...file, bytes: Buffer.from(file.bytes.toString('utf8').replace(/("version"\s*:\s*)"[^"]+"/, '$1"99.0.0"')) } : { ...file });
@@ -148,6 +221,21 @@ try {
       return url === DEFAULT_EXTENSION_CENTER_URL ? Response.json({ schemaVersion: 1, releases: [item] }) : new Response(updateArtifact);
     },
   });
+  const guizang = {
+    packageKey: 'muster/guizang-design', publisherId: 'muster', extensionId: 'guizang-design', name: '歸藏设计', version: '0.1.1',
+    packageUrl: 'https://api.github.com/repos/zhanghexie/muster-extension-guizang-design/contents/releases/0.1.1.json?ref=53d8bc8e1663257b14f10c69005707a163991811',
+    fingerprint: 'package-extension:913c419939de04554f40e13f3acc8691b989be545f07de4d1d6dfdb069149da4',
+    sha256: 'e0ce876ff099675c1aef711de773786965e2ed5ed1da64d1968862cb8b12e59f',
+  };
+  const [legacyIcon] = await githubCenter(guizang).list();
+  assert.equal(legacyIcon.installed, false);
+  assert.equal(legacyIcon.icon, 'builtin-extension:design-tools');
+  const futureRelease = { ...guizang, version: '0.1.2', fingerprint: `package-extension:${'b'.repeat(64)}`,
+    packageUrl: guizang.packageUrl.replace('/0.1.1.json', '/0.1.2.json'), sha256: 'b'.repeat(64) };
+  assert.equal((await githubCenter(futureRelease).list())[0].icon, undefined, 'a different release uses its own icon metadata');
+  assert.equal((await githubCenter({ ...futureRelease, icon: '🎨' }).list())[0].icon, '🎨');
+  assert.equal((await githubCenter({ ...futureRelease, icon: 'https://example.test/custom.svg' }).list())[0].icon, undefined, 'an unsupported icon leaves the release visible');
+  assert.equal((await githubCenter({ ...updateItem, icon: '🎨' }).list())[0].icon, 'builtin-extension:daily-report', 'the installed icon describes the current local copy');
   const unavailable = new ExtensionCenterService(remoteRoot, remoteLayout.globalRoot, remoteCatalog, {
     catalogUrl: DEFAULT_EXTENSION_CENTER_URL,
     fetchImpl: async () => new Response(null, { status: 404 }),

@@ -259,15 +259,16 @@
 
 /* 左缘拖宽把手（悬停高亮，与左栏把手同语义） */
 .browser-tabbar-resizer {
+  position: relative;
   width: 5px;
   flex-shrink: 0;
   cursor: col-resize;
-  background: transparent;
-  transition: background var(--dur-micro) var(--ease-hover);
+  touch-action: none;
 }
 
-.browser-tabbar-resizer:hover {
-  background: var(--interaction-hover);
+.browser-tabbar-resizer:hover::before,
+.browser-tabbar-resizer[data-resizing]::before {
+  background: var(--divider-active);
 }
 
 .browser-tabbar-list {

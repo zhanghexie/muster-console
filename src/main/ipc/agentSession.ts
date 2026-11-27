@@ -611,7 +611,7 @@ export function registerAgentSessionIpc(ctx: AppContext): void {
     ctx.agentSessions?.metadataTimeline(String(sessionId??''),kind,before??undefined,limit??120)??{ok:false,error:t('GUI 会话宿主未就绪')});
   handle('agentSession:replayMaterial', (_e, sessionId: string, beforeMessageIds?: readonly string[]) => {
     const session = typeof sessionId === 'string' && ctx.sessions.get(sessionId);
-    if (!session || !isChatRuntimeId(session.runtime ?? '') || !ctx.agentSessions) throw new Error('请选择一个 GUI 聊天会话');
+    if (!session || !isChatRuntimeId(session.runtime ?? '') || !ctx.agentSessions) throw new Error(t('请选择一个 GUI 聊天会话'));
     return ctx.agentSessions.store.replayMaterial(session.id, beforeMessageIds);
   });
   handle('agentSession:getHistoryRange', (_e, sessionId: string, before?: number, limit?: number, targetMessageId?: string) =>

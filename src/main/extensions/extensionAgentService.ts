@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { randomUUID } from 'node:crypto';
 import type { AppContext } from '../context';
 import type { GuiHostTool } from '../agentSession/types';
@@ -278,8 +279,8 @@ export class ExtensionAgentService {
       if (typeof options.providerId === 'string' && options.providerId) {
         const provider = configured.llm?.providers.find(item => item.id === options.providerId && item.enabled !== false);
         const model = provider?.models.find(item => item.id === options.modelId);
-        if (!provider || !model) throw new Error('所选模型不存在或已禁用');
-        if (provider.api && provider.api !== 'openai-completions') throw new Error('扩展流式调用目前需要 OpenAI 兼容模型');
+        if (!provider || !model) throw new Error(t('所选模型不存在或已禁用'));
+        if (provider.api && provider.api !== 'openai-completions') throw new Error(t('扩展流式调用目前需要 OpenAI 兼容模型'));
         llmContext = { ...this.ctx, config: { ...this.ctx.config, get: () => ({ ...configured, openai: { ...configured.openai, baseUrl: provider.baseUrl, apiKey: provider.apiKey, model: model.id } }) } } as AppContext;
       }
       return llmChatStream(llmContext, identity.extensionId, args[0], options, onDelta ?? (() => {}), `${identity.workspaceId}:${identity.extensionInstanceId}`, context.signal);

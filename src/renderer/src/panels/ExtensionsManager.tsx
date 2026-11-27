@@ -1,8 +1,8 @@
 import { ErrorTip, ErrorTipDetails } from '../components/ErrorTip';
-import React, { useId, useRef, useState } from 'react';
+import React, { useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExtensionDiscoveredExtension, ExtensionListing, ExtensionTransactionProblem } from '../../../shared/extension';
-import { EXTENSION_CENTER_CATEGORIES, type ExtensionCenterListing, type ExtensionCenterRelease } from '../../../shared/extensionCenter';
+import { EXTENSION_CENTER_CATEGORIES, type ExtensionCenterInstallSnapshot, type ExtensionCenterListing, type ExtensionCenterRelease } from '../../../shared/extensionCenter';
 import { AppConfirmDialog } from '../components/AppConfirmDialog';
 import { usePresence, usePresenceValue } from '../components/motion';
 import { CustomSelect } from '../components/CustomSelect';
@@ -11,6 +11,7 @@ import { ExtensionIcon } from '../extensionIcons';
 import type { ExtensionPublishingApi, ExtensionSubmission } from '../../../shared/extensionPublishing';
 import { ExtensionPublishingAdminDialog, ExtensionSubmissionDialog, SubmissionStatus, useExtensionPublishing } from './ExtensionPublishing';
 import { showTip } from '../tips';
+import { ExtensionCenterInstallStatus } from './ExtensionCenterInstallStatus';
 
 type Scope = 'global' | 'project';
 const MANAGEMENT_TABS = ['global', 'project', 'center'] as const;
@@ -34,6 +35,7 @@ interface Props {
   centerCatalog?: ExtensionCenterListing | null;
   centerLoading?: boolean;
   centerError?: string;
+  centerInstallProgress?: ExtensionCenterInstallSnapshot;
   installCenter?: (packageKey: string) => Promise<void>;
   uninstallCenter?: (packageKey: string) => Promise<void>;
   onCenterOpen?: () => void;
@@ -130,32 +132,34 @@ function ExtensionRow({ entry, scope, setEnabled, setEnabledAll, uninstallGlobal
   </article>;
 }
 
-function CenterReleaseDetail({ release, sourceLabel, onBack, actionLabel, canInstall, canUninstall, busy, onInstall, onUninstall }: {
+function CenterReleaseIcon({ release, size }: { release: ExtensionCenterRelease; size: number }): React.JSX.Element {
+  return <span className="ext-manager-icon"><ExtensionIcon value={release.icon} size={size} fallback={[...release.name][0]} /></span>;
+}
+
+function CenterReleaseDetail({ release, sourceLabel, onBack, status, actions, installInProgress }: {
   release: ExtensionCenterRelease;
   sourceLabel: string;
   onBack: () => void;
-  actionLabel: string;
-  canInstall: boolean;
-  canUninstall: boolean;
-  busy: boolean;
-  onInstall: () => void;
-  onUninstall: () => void;
+  status: React.ReactNode;
+  actions: React.ReactNode;
+  installInProgress: boolean;
 }): React.JSX.Element {
   const { t } = useTranslation();
   const hasUpdate = release.installed && Boolean(release.installedVersion) && release.installedVersion !== release.version;
   return <article className="ext-extension-center-detail" aria-label={release.name}>
     <div className="ext-extension-center-detail-toolbar"><button type="button" className="ui-btn ghost tiny" onClick={onBack}>{t('返回扩展中心')}</button></div>
     <div className="ext-extension-center-detail-header">
-      <ExtensionIcon className="ext-manager-icon" value={undefined} size={38} fallback={release.name.slice(0, 1)} />
+      <CenterReleaseIcon release={release} size={26} />
       <div className="ext-extension-center-detail-title"><h2>{release.name}</h2><p>{release.publisherId}/{release.extensionId}</p></div>
-      <span className={`ext-status ${hasUpdate ? 'warning' : release.installed ? 'on' : 'off'}`}>{hasUpdate ? t('有更新') : release.installed ? t('已安装') : t('可安装')}</span>
     </div>
     {release.description && <p className="ext-extension-center-detail-description">{release.description}</p>}
+    <div className="ext-extension-center-detail-actions">{actions}</div>
+    {status}
     <dl className="ext-extension-center-detail-meta">
       <div><dt>{t('发布者')}</dt><dd>{release.publisherId}</dd></div>
       {release.publisherName && <div><dt>{t('发布者名称')}</dt><dd>{release.publisherName}</dd></div>}
       <div><dt>{t('发布版本')}</dt><dd>v{release.version}</dd></div>
-      <div><dt>{t('安装状态')}</dt><dd>{release.installed ? (release.installedVersion ? `v${release.installedVersion}` : t('已安装')) : t('未安装')}</dd></div>
+      <div hidden={installInProgress && !release.installed}><dt>{t('安装状态')}</dt><dd><span role="status">{release.installed ? (release.installedVersion ? `v${release.installedVersion}` : t('已安装')) : t('未安装')}{hasUpdate ? ` · ${t('有更新')}` : ''}</span></dd></div>
       {release.updatedAt && <div><dt>{t('更新时间')}</dt><dd>{release.updatedAt}</dd></div>}
       {release.license && <div><dt>{t('许可证')}</dt><dd>{release.license}</dd></div>}
       <div><dt>{t('版本指纹')}</dt><dd><code>{release.fingerprint}</code></dd></div>
@@ -165,12 +169,13 @@ function CenterReleaseDetail({ release, sourceLabel, onBack, actionLabel, canIns
     {release.releaseNotes && <section className="ext-extension-center-detail-section"><h3>{t('发布说明')}</h3><p>{release.releaseNotes}</p></section>}
     <section className="ext-extension-center-detail-section"><h3>README</h3><div className="ext-extension-center-detail-readme">{release.readme || release.description || t('暂无 README')}</div></section>
     {release.repositoryUrl && <p className="ext-extension-center-detail-link"><a href={release.repositoryUrl} target="_blank" rel="noreferrer">{t('查看仓库')}</a></p>}
-    <div className="ext-extension-center-detail-actions"><button type="button" className="ui-btn tiny" disabled={!canInstall || busy} onClick={onInstall}>{actionLabel}</button>{canUninstall && <button type="button" className="ui-btn ghost tiny" disabled={busy} onClick={onUninstall}>{busy ? t('卸载中…') : t('卸载')}</button>}</div>
   </article>;
 }
 
+type CenterAction = { kind: 'install' | 'uninstall' } | { kind: 'failed'; error: string };
+
 /** Presentation-only component; host adapters supply the current project and actual statuses. */
-export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, projects, onProjectChange, selectedTab, onTabChange, listing, setEnabled, setEnabledAll, preserveTransaction, uninstallGlobal, installLocal, onRefresh, centerCatalog, centerLoading, centerError, installCenter, uninstallCenter, onCenterOpen, onCenterRefresh, publishingApi }: Props): React.JSX.Element {
+export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, projects, onProjectChange, selectedTab, onTabChange, listing, setEnabled, setEnabledAll, preserveTransaction, uninstallGlobal, installLocal, onRefresh, centerCatalog, centerLoading, centerError, centerInstallProgress, installCenter, uninstallCenter, onCenterOpen, onCenterRefresh, publishingApi }: Props): React.JSX.Element {
   const { t } = useTranslation();
   const publishing = useExtensionPublishing(publishingApi);
   const [publication, setPublication] = useState<ExtensionDiscoveredExtension>();
@@ -179,7 +184,9 @@ export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, pro
   const refreshPublishing = () => { void publishing.refresh().catch(cause => showTip(String(cause), { tone: 'error' })); };
   const [localTab, setLocalTab] = useState<ExtensionManagementTab>('global');
   const [localBusy, setLocalBusy] = useState(false), [localError, setLocalError] = useState('');
-  const [centerBusy, setCenterBusy] = useState(''), [centerInstallError, setCenterInstallError] = useState('');
+  const [centerActions, setCenterActions] = useState(() => new Map<string, CenterAction>());
+  const [centerUninstallError, setCenterUninstallError] = useState('');
+  const activeInstalls = useMemo(() => new Map(centerInstallProgress?.active.map(item => [item.packageKey, item.progress])), [centerInstallProgress]);
   const [selectedCenterPackageKey, setSelectedCenterPackageKey] = useState<string | null>(null);
   const centerReleases = centerCatalog?.releases;
   const selectedCenterRelease = centerReleases?.find(release => release.packageKey === selectedCenterPackageKey) ?? null;
@@ -260,19 +267,61 @@ export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, pro
     } catch (cause) { setLocalError(String(cause)); }
     finally { setLocalBusy(false); }
   };
-  const installCenterRelease = async (packageKey: string): Promise<void> => {
-    if (!installCenter) return;
-    setCenterBusy(packageKey); setCenterInstallError('');
-    try { await installCenter(packageKey); }
-    catch (cause) { setCenterInstallError(String(cause)); }
-    finally { setCenterBusy(''); }
+  const markCenterAction = (packageKey: string, action?: CenterAction): void => {
+    setCenterActions(current => {
+      const next = new Map(current);
+      if (action) next.set(packageKey, action);
+      else next.delete(packageKey);
+      return next;
+    });
   };
-  const uninstallCenterRelease = async (packageKey: string): Promise<void> => {
-    if (!uninstallCenter) return;
-    setCenterBusy(packageKey); setCenterInstallError('');
-    try { await uninstallCenter(packageKey); }
-    catch (cause) { setCenterInstallError(String(cause)); }
-    finally { setCenterBusy(''); }
+  const runCenterAction = async (packageKey: string, kind: 'install' | 'uninstall'): Promise<void> => {
+    const run = kind === 'install' ? installCenter : uninstallCenter;
+    const current = centerActions.get(packageKey);
+    if (!run || activeInstalls.has(packageKey) || (current && current.kind !== 'failed')) return;
+    markCenterAction(packageKey, { kind });
+    setCenterUninstallError('');
+    try {
+      await run(packageKey);
+      markCenterAction(packageKey);
+    } catch (cause) {
+      if (kind === 'uninstall') {
+        setCenterUninstallError(String(cause));
+        markCenterAction(packageKey);
+      } else {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        const error = message.replace(/^Error invoking remote method 'extensionCenter:install': (?:Error: )?/, '');
+        markCenterAction(packageKey, { kind: 'failed', error: localizeExtensionReason(error) });
+      }
+    }
+  };
+  const centerReleaseControls = (release: ExtensionCenterRelease) => {
+    const { packageKey, installed, version, installedVersion } = release;
+    const hasUpdate = installed && Boolean(installedVersion) && installedVersion !== version;
+    const canInstall = Boolean(installCenter) && (!installed || hasUpdate);
+    const action = centerActions.get(packageKey);
+    const progress = activeInstalls.get(packageKey);
+    const pending = action?.kind === 'install';
+    const uninstalling = action?.kind === 'uninstall';
+    const installInProgress = Boolean(progress || pending);
+    const busy = installInProgress || uninstalling;
+    const error = !busy && canInstall && action?.kind === 'failed' ? action.error : undefined;
+    return {
+      hasUpdate,
+      installInProgress,
+      badge: <span role="status" className={installInProgress || error ? undefined : `ext-status ${hasUpdate ? 'warning' : installed ? 'on' : 'off'}`}>
+        {installInProgress || error ? null : hasUpdate ? t('有更新') : installed ? t('已安装') : t('可安装')}
+      </span>,
+      status: <ExtensionCenterInstallStatus progress={progress} pending={pending} error={error} />,
+      actions: <>
+        <button type="button" className="ui-btn tiny" disabled={!canInstall || busy} onClick={() => void runCenterAction(packageKey, 'install')}>
+          {error ? t('重试') : hasUpdate ? t('更新') : installed ? t('已安装') : t('安装')}
+        </button>
+        {installed && !hasUpdate && uninstallCenter && <button type="button" className="ui-btn ghost tiny" disabled={busy} onClick={() => void runCenterAction(packageKey, 'uninstall')}>
+          {uninstalling ? t('卸载中…') : t('卸载')}
+        </button>}
+      </>,
+    };
   };
   return <main className="prompt-task-panel ext-manager-panel ext-extension-manager">
     <header className="prompt-task-toolbar"><div><h1>{t('扩展管理')}</h1></div></header>
@@ -328,10 +377,10 @@ export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, pro
             setConnecting(true);
             void publishingApi.signIn().then(refreshPublishing, cause => showTip(String(cause), { tone: 'error' })).finally(() => setConnecting(false));
           }}>{t('登录 GitHub')}</button>}
-          {onCenterRefresh && <button type="button" className="ui-btn tiny" onClick={onCenterRefresh}>{t('刷新')}</button>}</div>
+          {onCenterRefresh && <button type="button" className="ui-btn tiny" disabled={centerLoading} onClick={onCenterRefresh}>{t('刷新')}</button>}</div>
         {centerError && <ErrorTip message={centerError} />}
-        {centerInstallError && <ErrorTip message={centerInstallError} />}
-        {centerLoading ? <div className="ui-empty" role="status"><p>{t('加载中…')}</p></div> : !centerReleases?.length ? <div className="ui-empty"><p className="ui-empty-title">{t('扩展中心暂无可用扩展')}</p></div> : <div className="xfade-stack ext-extension-center-views">
+        {centerUninstallError && <ErrorTip message={centerUninstallError} />}
+        {centerLoading && !centerCatalog ? <div className="ui-empty" role="status"><p>{t('加载中…')}</p></div> : !centerReleases?.length ? <div className="ui-empty"><p className="ui-empty-title">{t('扩展中心暂无可用扩展')}</p></div> : <div className="xfade-stack ext-extension-center-views">
           <div className={`xfade ext-extension-center-list-view${selectedCenterRelease ? '' : ' is-shown'}`} aria-hidden={Boolean(selectedCenterRelease)} {...(selectedCenterRelease ? { inert: '' as unknown as boolean } : {})}>
             <div className="ext-extension-center-list">{[...EXTENSION_CENTER_CATEGORIES, 'other' as const].map(category => {
               const releases = centerReleases.filter(release => (release.category ?? 'other') === category);
@@ -339,14 +388,13 @@ export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, pro
               return <section className="ext-extension-group" key={category}>
                 <h2>{categoryLabels[category]}</h2>
                 {releases.map(release => {
-                  const hasUpdate = release.installed && Boolean(release.installedVersion) && release.installedVersion !== release.version;
-                  const actionLabel = centerBusy === release.packageKey ? (hasUpdate ? t('更新中…') : t('安装中…')) : hasUpdate ? t('更新') : release.installed ? t('已安装') : t('安装');
-                  const canUninstall = release.installed && !hasUpdate && !!uninstallCenter;
+                  const { hasUpdate, badge, status, actions } = centerReleaseControls(release);
                   return <article className="prompt-task-row ext-manager-row ext-extension-row" key={release.packageKey}>
-                    <div className="ext-manager-row-main"><ExtensionIcon className="ext-manager-icon" value={undefined} size={22} fallback={release.name.slice(0, 1)} />
-                      <button type="button" className="ext-extension-summary" aria-label={t('查看扩展详情 {{name}}', { name: release.name })} onClick={() => setSelectedCenterPackageKey(release.packageKey)}><span className="ext-manager-name-line"><span className="ext-manager-name">{release.name}</span><span className={`ext-status ${hasUpdate ? 'warning' : release.installed ? 'on' : 'off'}`}>{hasUpdate ? t('有更新') : release.installed ? t('已安装') : t('可安装')}</span></span><span className="ext-manager-desc">{release.publisherId}/{release.extensionId} · v{release.version}{hasUpdate && release.installedVersion ? ` · ${t('当前版本')} v${release.installedVersion}` : ''}</span>{release.description && <span className="ext-manager-desc">{release.description}</span>}</button>
-                      <div className="ui-row ext-extension-actions"><button type="button" className="ui-btn tiny" disabled={(!hasUpdate && release.installed) || centerBusy === release.packageKey || !installCenter} onClick={() => void installCenterRelease(release.packageKey)}>{actionLabel}</button>{canUninstall && <button type="button" className="ui-btn ghost tiny" disabled={centerBusy === release.packageKey} onClick={() => void uninstallCenterRelease(release.packageKey)}>{centerBusy === release.packageKey ? t('卸载中…') : t('卸载')}</button>}</div>
+                    <div className="ext-manager-row-main"><CenterReleaseIcon release={release} size={22} />
+                      <button type="button" className="ext-extension-summary" aria-label={t('查看扩展详情 {{name}}', { name: release.name })} onClick={() => setSelectedCenterPackageKey(release.packageKey)}><span className="ext-manager-name-line"><span className="ext-manager-name">{release.name}</span>{badge}</span><span className="ext-manager-desc">{release.publisherId}/{release.extensionId} · v{release.version}{hasUpdate && release.installedVersion ? ` · ${t('当前版本')} v${release.installedVersion}` : ''}</span>{release.description && <span className="ext-manager-desc">{release.description}</span>}</button>
+                      <div className="ui-row ext-extension-actions">{actions}</div>
                     </div>
+                    {status}
                   </article>;
                 })}
               </section>;
@@ -355,8 +403,8 @@ export function ExtensionsManager({ workspaceId, sourceRootId, projectLabel, pro
           <div className={`xfade ext-extension-center-detail-view${selectedCenterRelease ? ' is-shown' : ''}`} aria-hidden={!selectedCenterRelease} {...(!selectedCenterRelease ? { inert: '' as unknown as boolean } : {})}>
             {centerDetail.presence.mounted && centerDetail.value && (() => {
               const { release, source } = centerDetail.value;
-              const detailHasUpdate = release.installed && Boolean(release.installedVersion) && release.installedVersion !== release.version;
-              return <div className="mp-panel" data-mp-stage={centerDetail.presence.stage}><CenterReleaseDetail release={release} sourceLabel={centerSourceLabels[source]} onBack={() => setSelectedCenterPackageKey(null)} actionLabel={centerBusy === release.packageKey ? (detailHasUpdate ? t('更新中…') : t('安装中…')) : detailHasUpdate ? t('更新') : release.installed ? t('已安装') : t('安装')} canInstall={Boolean(installCenter) && (!release.installed || detailHasUpdate)} canUninstall={Boolean(uninstallCenter && release.installed && !detailHasUpdate)} busy={centerBusy === release.packageKey} onInstall={() => void installCenterRelease(release.packageKey)} onUninstall={() => void uninstallCenterRelease(release.packageKey)} /></div>;
+              const { status, actions, installInProgress } = centerReleaseControls(release);
+              return <div className="mp-panel" data-mp-stage={centerDetail.presence.stage}><CenterReleaseDetail release={release} sourceLabel={centerSourceLabels[source]} onBack={() => setSelectedCenterPackageKey(null)} status={status} actions={actions} installInProgress={installInProgress} /></div>;
             })()}
           </div>
         </div>}

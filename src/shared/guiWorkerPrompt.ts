@@ -61,7 +61,7 @@ export function buildGuiWorkerPromptSections(opts: GuiWorkerPromptOpts): { openi
     hasStatus
       ? `${toolName('host.sessions.setStatus')} — ${SESSION_PHASE_GUIDANCE}` : '',
     available.has('host.sessions.create')
-      ? `Delegate independent subtasks with ${toolName('host.sessions.create')}. Set asSubagent=true and use inherit=true to reuse your launch settings. Include the task and choose isolation=shared or isolated.` : '',
+      ? `Delegate subtasks with ${toolName('host.sessions.create')}. Pass task, asSubagent=true and isolation=shared or isolated. Use target:{targetRef} for a chosen Harness or inherit=true for your setup.` : '',
     [
       hasMail ? `${toolName('host.mail.send')}: ${WORKER_MAIL_GUIDANCE}` : '',
       available.has('host.waitFor') ? workerWaitGuidance(toolName('host.waitFor')) : '',

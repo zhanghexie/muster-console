@@ -58,6 +58,7 @@ try {
   for (const scenario of cases) {
     const width = scenario.narrow ? 780 : 1200;
     await page.setViewportSize({ width, height: 600 });
+    await page.mouse.move(8, 8);
     await page.setContent(fixture(scenario, width));
     // Same order as styles.css; left.css supplies the in-flow sidebar geometry.
     const imports = fs.readFileSync(path.join(root, 'src/renderer/src/styles.css'), 'utf8').matchAll(/@import '\.\/(.*?)';/g);
@@ -94,7 +95,26 @@ try {
     if (scenario.split) {
       for (const y of [120, 300, 500]) assert.deepEqual(pixel(png, actual.center.right - 1, y), pixel(png, actual.side.left, y), `${label}: neighboring sheet rims have identical pixels, with no split border doubling`);
       const seam = await page.locator('.center-split-divider > span').boundingBox();
+      const panes = await page.locator('.center-split-pane').first().boundingBox();
+      assert.equal(seam.width, 1, `${label}: the split stroke stays thin at rest`);
+      assert.equal(seam.x + seam.width / 2, panes.x + panes.width, `${label}: the split stroke is centered on the pane edge`);
       assert.ok([Math.floor(seam.x), Math.ceil(seam.x)].some(x => pixel(png, x, 300).join() !== pixel(png, seam.x - 3, 300).join()), 'internal seam remains visible');
+      await page.mouse.move(seam.x + seam.width / 2, 300);
+      assert.equal((await page.locator('.center-split-divider > span').boundingBox()).width, 3, `${label}: hovering alone thickens the split stroke`);
+      await page.mouse.move(8, 8);
+    }
+    if (scenario.sidebar) {
+      const sidebar = await page.locator('.sessions-column').boundingBox();
+      const handle = await page.locator('.left-col-resizer').boundingBox();
+      assert.equal(handle.x + handle.width / 2, sidebar.x + sidebar.width, `${label}: the left sidebar hit area straddles the pane edge`);
+      const width = await page.locator('.left-col-resizer').evaluate(el => getComputedStyle(el, '::before').width);
+      assert.equal(width, '1px', `${label}: the left sidebar stroke stays thin at rest`);
+      if (handle.x > 0) {
+        await page.mouse.move(handle.x + handle.width / 2, 120);
+        const hovered = await page.locator('.left-col-resizer').evaluate(el => getComputedStyle(el, '::before').width);
+        assert.equal(hovered, '3px', `${label}: hovering the sidebar seam thickens the stroke`);
+        await page.mouse.move(8, 8);
+      }
     }
     // Separate exposed frame geometry from paper decoration: shadows may paint
     // into the gap, but opaque content must never fill it.
@@ -151,6 +171,7 @@ try {
       }
     }
     if (scenario.narrow) {
+      assert.equal(await page.locator('.pane-split-v').evaluate(el => getComputedStyle(el).visibility), 'hidden', `${label}: the divider is out of pointer and keyboard navigation`);
       assert.deepEqual(actual.terminal.padding, [0, 8, 8, 8], `${label}: narrow terminal keeps responsive padding`);
       assert.deepEqual(actual.git.padding, [0, 0, 0, 0], `${label}: drawer has no desktop half-gap`);
       assert.deepEqual(actual.side.radii, ['0px', '0px', '0px', '0px'], `${label}: drawer retains square card skin`);
@@ -218,19 +239,25 @@ try {
       // React supplies these classes; this verifies CSS feedback, not gestures.
       for (const state of ['hot', 'reshaping']) {
         await page.evaluate(state => {
-          document.querySelector('.pane-split').classList.toggle('hot', state === 'hot');
+          const divider = document.querySelector('.pane-split');
+          divider.classList.toggle('hot', state === 'hot');
+          divider.toggleAttribute('data-resizing', state === 'reshaping');
           document.querySelector('.main-view').classList.toggle('is-reshaping', state === 'reshaping');
         }, state);
         await settle(page);
         const feedback = await measure(page);
         assert.notEqual(feedback.line.background, 'rgba(0, 0, 0, 0)', `${state}: active divider remains visible`);
-        if (state === 'hot') assert.equal(feedback.line.width, 1, 'hot: divider keeps its 1px stroke');
+        assert.equal(feedback.line.width, 3, `${state}: hover and drag use the 3px stroke`);
+        assert.equal(feedback.line.left + feedback.line.width / 2, splitX, `${state}: the stroke is centered in the page gap`);
+        if (state === 'hot') await page.screenshot({ path: path.join(captures, 'dark-terminal-divider-hover.png') });
       }
       await page.evaluate(() => {
         document.querySelector('.pane-split').classList.remove('hot');
+        document.querySelector('.pane-split').removeAttribute('data-resizing');
         document.querySelector('.main-view').classList.remove('is-reshaping');
       });
       await settle(page);
+      assert.equal((await measure(page)).line.width, 1, 'leaving the divider restores the thin stroke');
       assert.deepEqual(pixel(PNG.sync.read(await page.screenshot()), splitX, 120), pixel(png, splitX, 120), 'resize release restores paper shadows without divider');
       assert.equal((await measure(page)).terminal.opacity, '1', 'resize release restores card opacity');
       // During the existing workspace slide the next film cell can start right
@@ -311,11 +338,11 @@ function fixture(scenario, width) {
           ${sidebar ? `<div class="sessions-column" style="width:${sidebar}px">
             <div class="session-item active is-pane-open" data-session-row>Session</div>
             <div class="left-ws-slot"><div class="agent-ws-stack"><div class="agent-ws-stack-item is-active"><button class="agent-notify-bubble">Workspace</button></div></div></div>
-          </div>` : ''}
-          <div class="terminal-page" style="width:${workspace - sidebar}px"><div class="center-panel${scenario.split ? ' is-split' : ''}"><div style="position:absolute;inset:0;background:var(--surface-canvas)"></div>${scenario.split ? '<div class="center-split-root"><div class="center-split-pane" style="left:0;top:0;width:50%;height:100%"></div><div class="center-split-pane" style="left:50%;top:0;width:50%;height:100%"></div><div class="center-split-divider" aria-orientation="vertical" style="left:calc(50% - 4px);top:0;width:8px;height:100%"><span></span></div></div>' : ''}</div></div>
+          </div><div class="left-col-resizer resize-divider" style="left:${sidebar}px"></div>` : ''}
+          <div class="terminal-page" style="width:${workspace - sidebar}px"><div class="center-panel${scenario.split ? ' is-split' : ''}"><div style="position:absolute;inset:0;background:var(--surface-canvas)"></div>${scenario.split ? '<div class="center-split-root"><div class="center-split-pane" style="left:0;top:0;width:50%;height:100%"></div><div class="center-split-pane" style="left:50%;top:0;width:50%;height:100%"></div><div class="center-split-divider" aria-orientation="vertical" style="left:calc(50% - 4px);top:0;width:8px;height:100%"><span class="resize-divider-line"></span></div></div>' : ''}</div></div>
         </div>
         <div class="h-page git-page${scenario.narrow ? ' is-drawer-open' : ''}" style="width:${git}px"><div class="side-tools-panel right-workspace"><div style="position:absolute;inset:0;background:var(--surface-canvas)"></div></div></div>
-        <div class="pane-split pane-split-v" style="left:${workspace}px"><div class="pane-split-line"></div><div class="pane-split-hit"></div></div>
+        <div class="pane-split pane-split-v" style="left:${workspace}px"><div class="pane-split-line resize-divider-line"></div><div class="pane-split-hit"></div></div>
       </div></div>
     </div></div></div></main>
   </div></div>`;

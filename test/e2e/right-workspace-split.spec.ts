@@ -60,6 +60,30 @@ test('right split keeps a file and native webpages live through layout changes',
     await pane.locator('.file-tree-row[title="notes.txt"]').dblclick();
     const file = pane.locator('.files-panel.is-shown');
     await expect(file).toContainText('Static file preview');
+    const resourceDivider = pane.getByRole('separator', { name: '调整资源面板宽度' });
+    const resourceLine = resourceDivider.locator('.split-pane-handle-line');
+    const resourceGeometry = () => resourceDivider.evaluate(handle => {
+      const { left, right } = handle.querySelector('.split-pane-handle-line')!.getBoundingClientRect();
+      const content = handle.nextElementSibling!.getBoundingClientRect();
+      const resources = handle.previousElementSibling!.getBoundingClientRect();
+      return { center: (left + right) / 2, seam: (content.right + resources.left) / 2, gap: resources.left - content.right };
+    });
+    await expect(resourceLine).toHaveCSS('width', '1px');
+    const resourceStart = await resourceGeometry();
+    expect(resourceStart.gap).toBeCloseTo(4);
+    expect(resourceStart.center).toBeCloseTo(resourceStart.seam);
+    const resourceBox = (await resourceDivider.boundingBox())!;
+    const resourceY = resourceBox.y + resourceBox.height / 3;
+    await page.mouse.move(resourceStart.center, resourceY);
+    await expect(resourceLine).toHaveCSS('width', '3px');
+    await page.mouse.down();
+    await page.mouse.move(resourceStart.center - 32, resourceY, { steps: 4 });
+    await expect.poll(async () => (await resourceGeometry()).center).toBeLessThan(resourceStart.center - 28);
+    await expect(resourceLine).toHaveCSS('width', '3px');
+    await page.mouse.up();
+    await expect(resourceLine).toHaveCSS('width', '3px');
+    await page.mouse.move(resourceStart.center - 60, resourceY);
+    await expect(resourceLine).toHaveCSS('width', '1px');
     await pane.getByRole('button', { name: '选择分屏布局' }).click();
     await page.getByTestId('right-snap-cell-focus-0').click();
     await pane.locator('[data-right-split-slot="1"]').getByRole('button', { name: 'First page' }).click();
@@ -67,6 +91,9 @@ test('right split keeps a file and native webpages live through layout changes',
     await expect(first).toHaveAttribute('data-browser-presentation', 'foreground');
     await expect(second).toHaveAttribute('data-browser-presentation', 'foreground');
     await expect(file).toBeVisible();
+    const webResource = await resourceGeometry();
+    expect(webResource.gap).toBeCloseTo(0);
+    expect(webResource.center).toBeCloseTo(webResource.seam);
 
     const rows = pane.getByRole('toolbar', { name: '当前内容工具' });
     await expect(rows).toHaveCount(3);
@@ -91,18 +118,24 @@ test('right split keeps a file and native webpages live through layout changes',
     const divider = page.getByTestId('right-split-divider');
     await divider.focus();
     await expect(divider).toBeFocused();
+    const dividerLine = divider.locator('span');
+    await expect(dividerLine).toHaveCSS('width', '1px');
     const dividerBox = (await divider.boundingBox())!;
     const x = dividerBox.x + dividerBox.width / 2, y = dividerBox.y + dividerBox.height / 4;
     expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest('[role="separator"]')?.getAttribute('data-testid'), { x, y })).toBe('right-split-divider');
     await page.mouse.move(x, y);
+    await expect(dividerLine).toHaveCSS('width', '3px');
     await page.mouse.down();
     await expect.poll(() => divider.evaluate(element => element.hasPointerCapture(1))).toBe(true);
     await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
     await page.mouse.move(x - 15, y, { steps: 3 });
     await page.mouse.move(x + 45, y, { steps: 5 });
     await expect.poll(async () => Number(await divider.getAttribute('aria-valuenow'))).toBeGreaterThan(50);
+    await expect(dividerLine).toHaveCSS('width', '3px');
     await page.mouse.up();
     await expect(pane.locator('[data-snap-resizing]')).toHaveCount(0);
+    await page.mouse.move(x + 65, y);
+    await expect(dividerLine).toHaveCSS('width', '1px');
 
     const screenshot = async (name: string) => {
       await pane.evaluate(async node => {

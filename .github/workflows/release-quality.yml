@@ -5,10 +5,12 @@ on:
   push:
     branches:
       - main
-      - 'codex/**'
-      - 'refactor/**'
   workflow_dispatch:
     inputs:
+      quality_only:
+        description: Run quality checks only
+        type: boolean
+        default: false
       signed_release:
         description: Build signed release artifacts (main only)
         type: boolean
@@ -45,10 +47,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Validate signed release branch
-        if: inputs.signed_release
-        run: node -e "if (process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('Signed release builds must run from main')"
+      - name: Validate signed release inputs
+        if: inputs.signed_release && (inputs.quality_only || github.ref != 'refs/heads/main')
+        run: node -e "throw new Error('Signed release builds must run from main with quality_only disabled')"
       - run: npm ci
+      - name: Install Playwright Chromium and system dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Install Playwright Chromium
+        if: runner.os != 'Linux'
+        run: npx playwright install --only-shell chromium
       - run: npm test
         env:
           MUSTER_CI_TEST_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -71,7 +79,9 @@ jobs:
     name: package / ${{ matrix.name }}
     needs: quality
     # Artifacts in a public repository can be downloaded by signed-in readers.
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private)
+    if: >-
+      (github.event_name == 'workflow_dispatch' && !inputs.quality_only) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private)
     strategy:
       fail-fast: false
       matrix:

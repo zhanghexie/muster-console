@@ -77,7 +77,7 @@ export function extensionIconId(value: unknown): ExtensionIconId | undefined {
   if (typeof value !== 'string' || !value.startsWith(EXTENSION_ICON_PREFIX)) return undefined;
   const id = value.slice(EXTENSION_ICON_PREFIX.length);
   if (ids.has(id)) return id as ExtensionIconId;
-  return LEGACY_EXTENSION_ICON_ALIASES[id];
+  return Object.hasOwn(LEGACY_EXTENSION_ICON_ALIASES, id) ? LEGACY_EXTENSION_ICON_ALIASES[id] : undefined;
 }
 
 export function isBuiltinExtensionIcon(value: unknown): value is string {

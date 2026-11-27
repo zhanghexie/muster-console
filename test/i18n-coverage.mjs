@@ -34,9 +34,11 @@ const gateCompile = createSharedCompiler(root, gateTmp);
 const { extractTCallKeyPositions, extractLocaleKeys, duplicateLocaleKeys } = await import(
   pathToFileURL(gateCompile('shared/dimensionGates.ts')).href
 );
-const { EXTENSION_REASON_KEYS, EXTENSION_REASON_TEMPLATES } = await import(
+const { EXTENSION_REASON_KEYS, EXTENSION_REASON_TEMPLATES, EXTENSION_MANIFEST_REASON_TEMPLATES } = await import(
   pathToFileURL(gateCompile('shared/extensionReason.ts')).href
 );
+const { storageMaintenanceCopy } = await import(pathToFileURL(gateCompile('shared/storageMaintenance.ts')).href);
+const { frag: feedbackLocale } = await import(pathToFileURL(gateCompile('shared/i18n/locales/fragments/feedback.ts')).href);
 const { DEFAULT_BOOKMARKS } = await import(pathToFileURL(gateCompile('shared/defaultBookmarks.ts')).href);
 const { SUBAGENT_CHARACTERS } = await import(pathToFileURL(gateCompile('shared/subagentCharacters.ts')).href);
 const { WORKSPACE_ICONS } = await import(pathToFileURL(gateCompile('shared/workspaceIcons.ts')).href);
@@ -150,12 +152,22 @@ if (missingSkillConsolidationErrors.length) console.error(`[i18n] 技能归并�
 const skillConsolidationLiterals = [...SKILL_CONSOLIDATION_ERRORS, ...SKILL_CONSOLIDATION_PREFIXES.flatMap(item => [item.prefix, item.key]), '；原文件已保留或恢复。', '统一源已保存，但旧副本清理未完成：', '；回滚未完成，请检查 '];
 const album = photoAlbumExample();
 const albumDisplayLiterals = [album.name, album.description, ...album.collections.flatMap(collection => [collection.title, ...collection.fields.map(field => field.label)]), ...album.commands.map(command => command.title), ...album.views.map(view => view.title)];
-const extensionReasonLocaleKeys = [...EXTENSION_REASON_KEYS, ...EXTENSION_REASON_TEMPLATES.map(([, key]) => key)];
+const extensionReasonLocaleKeys = [
+  ...EXTENSION_REASON_KEYS, ...EXTENSION_REASON_TEMPLATES.map(([, key]) => key),
+  ...EXTENSION_MANIFEST_REASON_TEMPLATES.map(([, key]) => key)
+];
+const storageMaintenanceLabels = Object.values(storageMaintenanceCopy).flatMap(({ name, effect }) => [name, effect]);
+const missingMaintenanceLabels = storageMaintenanceLabels.filter(label => !enKeys.has(label));
+if (missingMaintenanceLabels.length) throw new Error('Storage maintenance labels are missing English translations: ' + missingMaintenanceLabels.join(', '));
+const channelLabels = ['飞书', '微信', '企业微信', '企业微信应用', '钉钉'];
+if (channelLabels.some(key => !enKeys.has(key))) throw new Error('Messaging channel labels are missing English translations');
+const ownedProcessLabels = ['后台任务终端', '后台任务进程', '终端会话', '终端进程', '扩展运行时进程', '受管工作进程'];
+if (ownedProcessLabels.some(key => !enKeys.has(key))) throw new Error('Owned process labels are missing English translations');
 const missingExtensionReasons = extensionReasonLocaleKeys.filter(key => !enKeys.has(key));
 if (missingExtensionReasons.length) console.error(`[i18n] 扩展状态原因缺少词条：${missingExtensionReasons.join('、')}`);
 const extensionDisplayDataFiles = new Set(['src/main/extensions/extensionCoordinator.ts', 'src/main/extensions/extensionGlobalState.ts', 'src/main/extensions/extensionSafety.ts', 'src/main/extensions/extensionAppSystem.ts', 'src/main/extensions/extensionHost.ts',
-  'src/main/extensions/extensionReplicaTransaction.ts', 'src/main/extensions/extensionWatchService.ts', 'src/main/extensions/extensionNavigation.ts', 'src/main/extensions/extensionNativeRecovery.ts', 'src/main/extensions/extensionStartupDiscovery.ts', 'src/main/extensions/extensionManagement.ts', 'src/main/extensions/extensionReview.ts', 'src/shared/extension.ts', 'src/shared/extensionReason.ts']);
-const extensionDisplayLiterals = [...extensionReasonLocaleKeys, ...EXTENSION_REASON_TEMPLATES.map(([prefix]) => prefix), ' 已有无法确认归属的同名扩展，保留原文件',
+  'src/main/extensions/extensionReplicaTransaction.ts', 'src/main/extensions/extensionWatchService.ts', 'src/main/extensions/extensionNavigation.ts', 'src/main/extensions/extensionNativeRecovery.ts', 'src/main/extensions/extensionStartupDiscovery.ts', 'src/main/extensions/extensionManagement.ts', 'src/main/extensions/extensionReview.ts', 'src/main/extensions/extensionCenter.ts', 'src/shared/extension.ts', 'src/shared/extensionManifest.ts', 'src/shared/extensionReason.ts']);
+const extensionDisplayLiterals = [...extensionReasonLocaleKeys, ...EXTENSION_REASON_TEMPLATES.map(([prefix]) => prefix), ...EXTENSION_MANIFEST_REASON_TEMPLATES.map(([suffix]) => suffix), ' 已有无法确认归属的同名扩展，保留原文件',
   '扩展导航配置损坏，已保留至 ', '；已重建默认导航。原因：', '原生扩展恢复记录损坏，已保留：', '；导航暂不可保存。',
   '无法读取扩展导航：', '扩展导航路径不是普通文件：', '扩展导航配置损坏，无法保留原文件 ',
   '原生扩展 ', ' 上次运行异常，已进入安全模式；禁用后重新启用可重试。启动期能力需重启应用。'];
@@ -514,10 +526,14 @@ for (const dir of SRC_DIRS) {
     // read-letter display boundary, without modifying the stored subject.
     if (rel === 'src/shared/mailReadPresentation.ts') raw = maskKnownLiteralsPreservingLines(raw, ['事件通知：'], file, original);
     if (['src/shared/mailboxUserErrors.ts', 'src/main/messages/deliver.ts', 'src/main/metaAgent/messageStore.ts'].includes(rel)) raw = maskKnownLiteralsPreservingLines(raw, mailboxErrorLiterals, file, original);
+    if (rel === 'src/main/metaAgent/messageStore.ts') raw = maskVerifiedTemplatesPreservingLines(raw, [
+      ['信件 ', ' 正文读取失败：正文索引不存在'], ['信件 ', ' 正文读取失败：邮箱不存在'],
+      ['信件 ', ' 正文读取失败：', ''], ['信件 ', ' 正文文件已存在但内容不同']
+    ], file, original);
     if (rel === 'src/main/messages/deliver.ts') raw = maskVerifiedTemplatesPreservingLines(raw, [['信件正文过长（最多 ', ' 字符），未保存'], ['收信会话不存在：', '']], file, original);
     if (rel === 'src/main/metaAgent/messageStore.ts') raw = maskVerifiedTemplatesPreservingLines(raw, [
       ['旧邮箱读取失败，迁移未完成：', ''], ['旧邮箱迁移失败，原文件已保留：', ''], ['邮箱索引读取失败，已保留原文件：', ''],
-      ['信件正文超过 ', ' 字符，未保存'], ['信件 ', ' 正文读取失败：', '']
+      ['信件正文超过 ', ' 字符，未保存'], ['信件 ', ' 正文读取失败：', ''], ['信件 ', ' 正文文件已存在但内容不同']
     ], file, original);
     if (['src/shared/appUserErrors.ts', 'src/main/agentApps/connectors.ts', 'src/main/agentApps/credentialPolicy.ts', 'src/main/agentApps/images.ts', 'src/main/agentApps/managedImageSource.ts', 'src/main/agentApps/service.ts', 'src/main/agentApps/sqliteStateStore.ts', 'src/main/agentApps/serviceClient.ts'].includes(rel)) raw = maskKnownLiteralsPreservingLines(raw, appErrorLiterals, file, original);
     if (['src/shared/guiHostError.ts', 'src/shared/guiInheritMeta.ts', 'src/shared/runtimeCommunication.ts', 'src/shared/externalPiModel.ts', 'src/main/sessions/createTerminal.ts', 'src/main/handover/paths.ts', 'src/main/agentSession/persist.ts', 'src/main/agentSession/harnessModelIdentity.ts', 'src/main/agentSession/host/agentSessionHost.ts', 'src/main/agentSession/process/owner.ts', 'src/main/agentSession/process/windowsJob.ts', 'src/main/agentSession/process/windowsJobAsset.ts', 'src/main/agentSession/host/sessionOps.ts', 'src/main/agentSession/host/forkDelivery.ts', 'src/main/agentSession/host/lifecycle.ts', 'src/main/agentSession/host/messaging.ts', 'src/main/agentSession/host/turn.ts', 'src/main/agentSession/host/connection.ts', 'src/main/agentSession/host/events.ts', 'src/main/agentSession/host/retirement.ts'].includes(rel)) raw = maskKnownLiteralsPreservingLines(raw, guiHostErrorLiterals, file, original);
@@ -709,6 +725,22 @@ for (const dir of SRC_DIRS) {
     // Only enumerated status keys are persisted as data and translated by the manager;
     // an unrelated raw literal on the same line still fails the scan.
     if (extensionDisplayDataFiles.has(rel)) raw = maskKnownLiteralsPreservingLines(raw, extensionDisplayLiterals, file, original);
+    if (rel === 'src/shared/storageMaintenance.ts') raw = maskKnownLiteralsPreservingLines(raw, storageMaintenanceLabels, file, original);
+    if (rel === 'src/renderer/src/components/MailEnvelopeViewport.tsx') {
+      raw = maskVerifiedLabelReferencesPreservingLines(raw, original, { keys: ['调度'], callName: 't', comparison: 'letter.fromName' }, file);
+    }
+    if (rel === 'src/main/messaging/messagingHost.ts') raw = maskKnownLiteralsPreservingLines(raw, channelLabels, file, original);
+    if (['src/main/pty/manager.ts', 'src/main/extensions/extensionIsolatedRuntime.ts', 'src/main/agentSession/process/owner.ts'].includes(rel)) {
+      raw = maskKnownLiteralsPreservingLines(raw, ownedProcessLabels, file, original);
+      if (rel === 'src/main/extensions/extensionIsolatedRuntime.ts') {
+        raw = maskVerifiedTemplatesPreservingLines(raw, [['扩展运行时 · ', '']], file, original);
+      }
+    }
+    if (rel === 'src/main/feedback/service.ts') {
+      // IPC and the feedback panel translate these stored or thrown message keys.
+      raw = maskKnownLiteralsPreservingLines(raw, Object.keys(feedbackLocale), file, original);
+      raw = maskProtocolFunctionsPreservingLines(raw, original, ['localHistoryBody'], file);
+    }
     for (const hit of scanRawChineseLines(raw, line => !!allowlisted(rel, line), file, original)) {
       if (auditHost && acceptedAuditLine(rel, hit.line)) continue;
       violations.push(`${rel}:${hit.line}: ${hit.text.slice(0, 90)}`);

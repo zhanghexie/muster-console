@@ -13,11 +13,15 @@ const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const Module = require('node:module');
 const originalLoad = Module._load;
+let codexCatalog = { ok: false, error: 'Fixture catalog is not populated' };
 require.extensions['.ts'] = (module, filename) => module._compile(ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true }, fileName: filename
 }).outputText, filename);
 Module._load = function (request, parent) {
   if (request === 'electron') return { app: { getPath: () => tmp, isReady: () => true }, ipcMain: { on() {}, handle() {} } };
+  if (parent?.filename === path.join(root, 'src/main/tasks/workerRoutingCatalog.ts') && request === '../agentSession/drivers/codex/models') {
+    return { codexModelCatalogRevision: () => 1, listCodexModels: async () => codexCatalog };
+  }
   if (parent?.filename === path.join(root, 'src/main/tasks/delegate.ts') && request === '../capabilities/hosts/chat') {
     return { buildBriefWithNamedSkills: async (_ctx, _id, task) => ({ brief: task, vocab: [] }) };
   }
@@ -421,8 +425,73 @@ try {
   assert.equal(followReceipt.config.tiers[0].description, 'Second committed write');
   assert.equal(followReceipt.members[0].state, 'unknown');
 
+  const reasoning = { id: 'reasoning', semantic: 'reasoning', label: 'Reasoning', apply: 'next-turn', supportsDefault: true,
+    options: [{ value: 'max', label: 'Max' }] };
+  const codexModel = { providerId: 'codex-gui', modelId: 'gpt-6.2-sol' };
+  codexCatalog = { ok: true, source: 'app-server', defaultModelId: codexModel.modelId,
+    items: [{ id: codexModel.modelId, displayName: 'GPT-6.2-Sol', parameters: [reasoning] }] };
+  ctx.agentSessions.describeModelParameters = async ({ runtimeId, providerId, modelId }) => ({ runtimeId, providerId, modelId, parameters: [reasoning] });
+  ctx.git = { resolveMainRepoFor: async cwd => cwd };
+  const parent = { id: 'core-parent', name: 'Parent', runtime: 'pi', workspaceId: 'ws', sourceRoot: source.sourceRoot,
+    cwd: source.cwd, configurePermissions: false, guiMode: 'ask' };
+  rows.push(parent);
+  let liveMode = 'auto';
+  ctx.agentSessions.getPolicyState = () => ({ mode: liveMode, planExecuting: false, allowedPrompts: [] });
+  const choices = await runAsAgentSession(parent.id, () => workerOptionsHost['workers.options'](ctx, {
+    mode: 'models', harnessId: 'codex', surface: 'gui', ...codexModel, modelParameters: { reasoning: 'max' }
+  }));
+  const childInput = { target: { targetRef: choices.models[0].targetRef }, task: 'Run the chosen Codex task',
+    isolation: 'isolated', asSubagent: true, select: false };
+  const launchChild = (args = childInput) => runAsAgentSession(parent.id, () => createSessionWithTask(ctx, args));
+  const start = ctx.sessions.createTerminal;
+  let duringPreflight = () => {};
+  ctx.sessions.createTerminal = async input => {
+    input.assertRoutingCurrent();
+    duringPreflight();
+    input.assertRoutingCurrent();
+    return start(input);
+  };
+  const child = await launchChild();
+  assert.equal(child.session.parentSessionId, parent.id);
+  assert.equal(child.session.runtime, 'codex-gui');
+  assert.equal(child.isolate, true);
+  assert.deepEqual(starts.at(-1).isolationGroups, [{ rootId: 'root', relativePath: '', repoSet: [] }]);
+  assert.deepEqual(starts.at(-1).inheritMeta, { modelOverride: codexModel, modelParameters: { reasoning: 'max' } });
+  assert.equal(child.session.workerRouting.crossHarnessRestricted, true, 'startup selection does not authorize a later handoff');
+  assert.deepEqual(submittedTasks.at(-1), { sessionId: child.session.id, text: childInput.task });
+
+  const launched = starts.length;
+  await assert.rejects(launchChild({ ...childInput, asSubagent: false }), /cross-Harness.*subagent/i);
+  parent.configurePermissions = true;
+  await assert.rejects(launchChild(), /Full access/);
+  parent.guiMode = 'auto';
+  duringPreflight = () => { liveMode = 'standard'; };
+  await assert.rejects(launchChild(), /Full access/);
+  assert.equal(starts.length, launched, 'a restricted parent cannot commit a cross-Harness child');
+
+  duringPreflight = () => {};
+  parent.guiMode = 'standard';
+  const coreRef = await mintWorkerReference(ctx, source, targetConfig('second'));
+  const coreInput = { ...childInput, target: { targetRef: coreRef.targetRef } };
+  await launchChild(coreInput);
+  assert.equal(starts.at(-1).inheritMeta.guiMode, 'standard', 'same-Harness children retain the caller policy');
+  parent.runtime = 'codex-gui';
+  parent.configurePermissions = false;
+  liveMode = 'auto';
+  await assert.rejects(launchChild(coreInput), /Full access/, 'native automatic approvals are not proof of full access');
+
+  parent.runtime = 'pi';
+  parent.sourceRoot = undefined;
+  parent.cwd = nested;
+  const legacyChoice = await runAsAgentSession(parent.id, () => workerOptionsHost['workers.options'](ctx, {
+    mode: 'models', harnessId: 'codex', surface: 'gui', ...codexModel
+  }));
+  const legacyChild = await launchChild({ ...childInput, isolation: 'shared', target: { targetRef: legacyChoice.models[0].targetRef } });
+  assert.equal(legacyChild.session.sourceRoot.cwd, nested, 'a legacy parent stays bound to its actual source folder');
+
   console.log('worker-routing: exact cache identity, alias canonicalization, CAS/reload, tier classification and legacy preservation, bridge schemas, cooldown, and startup failover verified');
   console.log('worker-routing: global inheritance, empty override, durable generations, per-source launch/cooldown, consent isolation and atomic receipts verified');
+  console.log('worker-routing: an exact Codex child preserves model, reasoning, parent, isolation and assignment; restricted launches fail before commit');
 } finally {
   Module._load = originalLoad;
   fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 });

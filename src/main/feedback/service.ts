@@ -17,7 +17,10 @@ interface Options {
   file: string;
   appVersion: string;
   remote: FeedbackRemote;
-  openIssue?(url: string, clipboardBody?: string): Promise<void>;
+  issuePage?: {
+    open(url: string): Promise<void>;
+    copyBody(body: string): void | Promise<void>;
+  };
   changed?(): void;
   needsAiCheck?(): void;
 }
@@ -350,7 +353,7 @@ export class FeedbackService {
     if (entry.status !== 'pending') throw new Error('只有待审核反馈可以检查');
     if (entry.aiChecked !== true) { this.options.needsAiCheck?.(); throw new Error('反馈正在等待 AI 查重，完成后即可提交'); }
     const history = await this.verifyAiHistory(entry);
-    const remote = this.options.openIssue && history ? history : await this.options.remote.find(entry.title);
+    const remote = this.options.issuePage && history ? history : await this.options.remote.find(entry.title);
     const fresh = this.find(id, revision);
     if (fresh.status !== 'pending') throw new Error('反馈已变化，请重新检查');
     const matches = this.matches(fresh, remote.issues);
@@ -362,7 +365,7 @@ export class FeedbackService {
     const reviewId = randomUUID();
     this.reviews.set(id, { id: reviewId, revision, matches: matchKey(matches), target: remote.target, expiresAt: Date.now() + 10 * 60_000 });
     const body = feedbackBody(fresh);
-    const copyBody = this.options.openIssue && !!githubIssueHandoff(remote.target, fresh.title, body).clipboardBody;
+    const copyBody = this.options.issuePage && githubIssueHandoff(remote.target, fresh.title, body).clipboardBody !== undefined;
     return { reviewId, revision, matches, body, ...(copyBody ? { copyBody } : {}) };
   }
 
@@ -376,7 +379,8 @@ export class FeedbackService {
       const lease = this.reviews.get(id);
       if (entry.status !== 'pending' || !lease || lease.id !== reviewId || lease.revision !== revision || lease.expiresAt < Date.now()) throw new Error('审核已失效，请重新检查');
       const history = await this.verifyAiHistory(entry);
-      const remote = this.options.openIssue && history ? history : await this.options.remote.find(entry.title);
+      const issuePage = this.options.issuePage;
+      const remote = issuePage && history ? history : await this.options.remote.find(entry.title);
       const fresh = this.find(id, revision);
       if (fresh.status !== 'pending') throw new Error('反馈已变化，请重新检查');
       const matches = this.matches(fresh, remote.issues);
@@ -394,12 +398,14 @@ export class FeedbackService {
       void distinct;
       const target = { ...remote.target };
       const body = feedbackBody(fresh);
-      const handoff = this.options.openIssue ? githubIssueHandoff(target, fresh.title, body) : undefined;
+      const handoff = issuePage ? githubIssueHandoff(target, fresh.title, body) : undefined;
       this.mutate(s => { const item = s.entries.find(e => e.id === id)!; item.status = 'submitting'; item.submissionTarget = target; item.updatedAt = Date.now(); });
       this.reviews.delete(id);
-      if (handoff && this.options.openIssue) {
-        try { await this.options.openIssue(handoff.url, handoff.clipboardBody); }
-        catch {
+      if (handoff && issuePage) {
+        try {
+          if (handoff.clipboardBody !== undefined) await issuePage.copyBody(handoff.clipboardBody);
+          await issuePage.open(handoff.url);
+        } catch {
           const message = '无法打开 GitHub 提交流程，请检查默认浏览器或剪贴板后重试。';
           this.mutate(s => { const item = s.entries.find(e => e.id === id)!; item.status = 'pending'; item.submissionTarget = undefined; item.error = message; item.revision++; item.updatedAt = Date.now(); });
           throw new Error(message);
@@ -423,7 +429,7 @@ export class FeedbackService {
   }
 
   private async verifyAiHistory(entry: FeedbackEntry): Promise<RemoteLookup | undefined> {
-    if (!entry.aiHistory && !this.options.openIssue) return;
+    if (!entry.aiHistory && !this.options.issuePage) return;
     if (!entry.aiHistory) {
       this.invalidateAiHistory(entry.id);
       throw new Error('反馈历史已变化，正在等待 AI 重新查重');
@@ -443,6 +449,17 @@ export class FeedbackService {
     this.mutate(s => { const item = s.entries.find(e => e.id === id)!; item.aiChecked = false; item.aiHistory = undefined; item.revision++; item.updatedAt = Date.now(); });
     this.reviews.delete(id);
     this.options.needsAiCheck?.();
+  }
+
+  async copyIssueBody(id: string, revision: number): Promise<void> {
+    if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('反馈已变化，请重新检查');
+    const entry = this.find(id, revision);
+    if (entry.status !== 'opened') throw new Error('只有已打开 GitHub 的反馈可以复制 Issue 正文。');
+    const issuePage = this.options.issuePage;
+    const message = '无法复制 Issue 正文，请检查系统剪贴板后重试。';
+    if (!issuePage) throw new Error(message);
+    try { await issuePage.copyBody(feedbackBody(entry)); }
+    catch { throw new Error(message); }
   }
 
   async reconcile(id: string, revision: number, returnToDraft = false): Promise<FeedbackSnapshot> {

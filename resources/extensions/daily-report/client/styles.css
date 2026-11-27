@@ -35,8 +35,22 @@ button, input, textarea { -webkit-tap-highlight-color: transparent; }
 .cal-day.has.todo-dot::after { margin-left: 5px; }
 .cal-legend { display: flex; gap: 6px; align-items: center; margin-top: 12px; color: var(--fg-muted); font-size: 10px; }
 .cal-legend::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
-.resizer { width: 5px; flex: none; cursor: col-resize; border-left: 1px solid var(--hairline); }
-.resizer:hover, .resizer.active { background: var(--interaction-hover); }
+.resizer { position: relative; width: 5px; flex: none; cursor: col-resize; }
+.resizer::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  inline-size: 1px;
+  transform: translateX(-50%);
+  border-radius: var(--radius-pill);
+  background: var(--hairline);
+  pointer-events: none;
+}
+.resizer:hover::before, .resizer.active::before {
+  background: var(--divider-active);
+  inline-size: var(--resize-divider-active-width);
+}
 .todo-box, .todo-groups, .todo-group, .todo-list { min-width: 0; width: 100%; max-width: 100%; }
 .todo-box { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--hairline); overflow-x: hidden; }
 .todo-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }

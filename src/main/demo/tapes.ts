@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -14,7 +15,7 @@ export function startTape(dir: string, width: number, height: number) {
     id,
     append(events: DemoEvent[]) {
       if (closed || !Array.isArray(events) || events.some(e => !Number.isInteger(e?.type) || !Number.isFinite(e.timestamp))) {
-        throw new Error('无效回放数据。');
+        throw new Error(t('无效回放数据。'));
       }
       if (!events.length) return;
       fs.writeFileSync(fd, events.map(event => JSON.stringify(event) + '\n').join(''));
@@ -34,7 +35,7 @@ export function listTapes(dir: string): TapeInfo[] {
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter(f => /^\d{8}T\d{9}Z-[a-f0-9]{8}\.json$/.test(f)).sort().reverse().map(f => {
     const meta = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')) as TapeInfo;
-    if (meta.format !== 1 || meta.id + '.json' !== f) throw new Error('不支持的回放清单：' + f);
+    if (meta.format !== 1 || meta.id + '.json' !== f) throw new Error(t('不支持的回放清单：{{file}}', { file: f }));
     return meta;
   });
 }

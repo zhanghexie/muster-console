@@ -44,21 +44,21 @@ import { supportsGuiPermissionMode } from '../../../shared/guiPermissionOptions'
 export async function setConfigurePermissions(host: HostCore, sessionId: string, enabled: boolean): Promise<{ ok: boolean; error?: string }> {
   const session = host.ctx.sessions.get(sessionId);
   if (!session || !session.runtime || session.archived || (host.ctx.sessions.isChatRuntime(session.runtime) && !isOpen(host, sessionId))) {
-    return { ok: false, error: 'Harness 会话未打开' };
+    return { ok: false, error: t('Harness 会话未打开') };
   }
   const entry = host.entries.get(sessionId);
-  if (entry?.permissionStrategySwitch) return { ok: false, error: 'Harness 正在切换权限策略，请稍后重试' };
+  if (entry?.permissionStrategySwitch) return { ok: false, error: t('Harness 正在切换权限策略，请稍后重试') };
   if ((session.configurePermissions === true) === enabled) return { ok: true };
 
   const validate = () => {
     const current = host.entries.get(sessionId);
     if ((entry && (current !== entry || entry.closed)) || current?.clearing || current?.workerSwitch || session.workerRouting?.attempts.at(-1)?.crossHarness) {
-      throw new Error('当前会话无法更改权限配置，请稍后重试');
+      throw new Error(t('当前会话无法更改权限配置，请稍后重试'));
     }
     const driver = getDriver(host, session.runtime ?? '');
-    if (current?.nativeConfigPending) throw new Error('Harness 正在更新权限选项，请稍后重试');
+    if (current?.nativeConfigPending) throw new Error(t('Harness 正在更新权限选项，请稍后重试'));
     if (enabled && session.runtime !== 'pi' && (current?.connecting || (current?.busy && (!driver?.permissionStrategyHot || session.nativePermissionRestore)))) {
-      throw new Error('当前 Harness 正在运行，请等待回合结束后开启权限配置');
+      throw new Error(t('当前 Harness 正在运行，请等待回合结束后开启权限配置'));
     }
   };
   if (entry) entry.permissionStrategySwitch = true;

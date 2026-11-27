@@ -35,9 +35,58 @@ export const EXTENSION_REASON_KEYS = [
   'Git 暂存或目标状态不允许自动恢复，保留现场', '旧副本已变化，保留现场', '暂存副本已变化，保留现场',
   '私有文件的事务位置不完整，保留现场', '私有文件的位置已变化，保留现场', '事务目录出现未知私有文件，保留现场',
   '私有文件在事务期间丢失或重复，保留现场', '旧副本恢复期间发生变化，保留现场', '暂存目录出现未知私有文件，保留现场',
-  '目标副本已发生未知变化，保留现场', '已完成中断的同步', '已恢复同步前状态，仍需同步新版本'
+  '目标副本已发生未知变化，保留现场', '已完成中断的同步', '已恢复同步前状态，仍需同步新版本',
+  '扩展正在卸载，请稍后再试',
+  '扩展内容已变化，请刷新列表后重新卸载',
+  '内置扩展随应用提供，无法卸载',
+  '请先关闭所有工作区中的该扩展后再卸载',
+  '无法将扩展移到系统回收站，请检查回收站和目录权限后重试',
+  '当前扩展内容与中心版本不一致，请先恢复中心版本后再卸载',
+  'surface 不合法',
+  'surface.kind 必须是 toolbar 或 sidebar',
+  'surface.entry 必须是扩展包内 .html 相对路径',
+  'surface 标题或图标不合法',
+  'surface.command 不合法',
+  'surface.menu 必须是 1-20 项的数组',
+  'surface.menu 项不合法',
+  'surface.menu.id 重复',
+  'toolbar surface 需要 command 或 menu',
+  'sidebar surface 需要 entry',
+  'domain.entry 必须是扩展包内 .mjs',
+  'domain.snapshot 不合法',
+  'agent.profile 必须是 scheduler-pi',
+  'agent.systemPrompt 必须是扩展包内 .md',
+  'agent.skills 路径不合法',
+  'agent.mcp 路径不合法',
+  'theme 不合法',
+  'theme.accent 不合法',
+  'theme.tokens 不合法',
+  'theme.tokens 含有不合法值',
+  'commandEntry 必须是扩展包内 .mjs',
+  'sidebar 扩展必须声明 domain',
+  'toolbar 扩展不能声明 domain 或 agent',
+  'toolbar 扩展声明 commands 时必须提供 commandEntry',
+  'sidebar 扩展不能声明 commandEntry',
+  'surface.command 引用了未声明的 command',
+  'surface.menu 引用了未声明的 command',
+  'permissions 不合法',
+  '声明 agent 时需要 agent.state 权限',
+  '向 Agent 开放 domain.commands 时需要 agent.commands 权限',
+  '声明 agent.mcp 时需要 agent.mcp 权限',
 ] as const;
 const exactReasons = new Set<string>(EXTENSION_REASON_KEYS);
+const manifestOperationFields = new Set(['domain.queries', 'domain.commands', 'domain.events', 'domain.queryDefs', 'domain.commandDefs']);
+export const EXTENSION_MANIFEST_REASON_TEMPLATES = [
+  [' 必须是合法的领域操作名数组', '{{field}} 必须是合法的领域操作名数组'],
+  [' 不能重复', '{{field}} 不能重复'],
+  [' 必须与对应操作列表一一对应', '{{field}} 必须与对应操作列表一一对应'],
+  [' 含有未声明的操作', '{{field}} 含有未声明的操作'],
+  ['.title 不合法', '{{field}}.title 不合法'],
+  ['.description 不合法', '{{field}}.description 不合法'],
+  ['.parameters 必须是对象', '{{field}}.parameters 必须是对象'],
+  ['.permission 不合法', '{{field}}.permission 不合法'],
+  ['.id 重复', '{{field}}.id 重复'],
+] as const;
 export const EXTENSION_REASON_TEMPLATES = [
   ['扩展运行状态刷新失败：', '扩展运行状态刷新失败：{{error}}'],
   ['扩展监听重试失败：', '扩展监听重试失败：{{error}}'],
@@ -65,6 +114,13 @@ export function localizeExtensionReason(reason: string): string {
   const invokeError = /^(Error invoking remote method '[^']+': )([\s\S]+)$/.exec(reason);
   if (invokeError) return invokeError[1] + localizeExtensionReason(invokeError[2]);
   if (exactReasons.has(reason)) return t(reason);
+  if (reason.startsWith('domain.')) {
+    for (const [suffix, key] of EXTENSION_MANIFEST_REASON_TEMPLATES) {
+      if (!reason.endsWith(suffix)) continue;
+      const field = reason.slice(0, -suffix.length);
+      if (manifestOperationFields.has(field)) return t(key, { field });
+    }
+  }
   const safeMode = /^原生扩展 ([a-z0-9][a-z0-9-]{0,63}) 上次运行异常，已进入安全模式；禁用后重新启用可重试。启动期能力需重启应用。$/.exec(reason);
   if (safeMode) return t('原生扩展 {{id}} 上次运行异常，已进入安全模式；禁用后重新启用可重试。启动期能力需重启应用。', { id: safeMode[1] });
   const recoveredPrefix = '扩展导航配置损坏，已保留至 ';

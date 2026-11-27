@@ -12,6 +12,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { effectiveCliLaunchOptions } from '../../shared/cliLaunchOptions';
 import { validateCliModelReasoning } from '../agentSession/cliModelReasoning';
+import { initialGuiWorkerMode } from '../agentSession/host/internal';
 import type { AppContext } from '../context';
 import { currentAgentSessionId, isSchedulerInvocation } from '../agent/agentScope';
 import {
@@ -34,7 +35,7 @@ import {
   readMaxConcurrentWorkers,
   shouldQueueDelegate
 } from './delegateQueue';
-import { assertSessionTargetCurrent, resolveSessionTarget } from '../sessions/targets';
+import { assertSessionTargetCurrent, legacySessionSourceRoot, resolveSessionTarget } from '../sessions/targets';
 import { resolveDefaultIsolationGroup } from '../sessions/defaultIsolation';
 import { holdPendingSource } from '../workspaceRootUses';
 import { captureWorkspaceExecutionContext } from '../workspaceExecutionContext';
@@ -393,7 +394,13 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
     const isolate = input.isolate;
     assertSessionTargetCurrent(ctx.config.get(), target);
     const routeSessionId = input.reservedSessionId ?? (plan || input.attachments?.length ? randomUUID() : undefined);
-    const create = async (runtime: string, initialMeta: ReturnType<typeof resolveLaunchConfiguration>['inheritMeta'], cliLaunchOptions = input.cliLaunchOptions, routing?: WorkerRouteState): Promise<SessionMeta> => ctx.sessions.createTerminal({
+    const create = async (
+      runtime: string,
+      initialMeta: ReturnType<typeof resolveLaunchConfiguration>['inheritMeta'],
+      cliLaunchOptions = input.cliLaunchOptions,
+      routing?: WorkerRouteState,
+      assertCallerPermissions?: () => void
+    ): Promise<SessionMeta> => ctx.sessions.createTerminal({
       name,
       ...(routeSessionId ? { reservedSessionId: routeSessionId } : {}),
       ...(input.extensionMeta || input.creationKey ? { meta: { ...input.extensionMeta, ...(input.creationKey ? { creationKey: input.creationKey } : {}) } } : {}),
@@ -404,6 +411,7 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
       ...(routing ? { workerRouting: routing, assertRoutingCurrent: () => {
         if (input.isCancelled?.()) throw new WorkerOptionError('Worker task was cancelled before launch.');
         assertWorkerRouteCurrent(ctx, target, routing.plan);
+        assertCallerPermissions?.();
       } } : {}),
       workspaceId,
       rootId: target.sourceRoot.rootId,
@@ -433,7 +441,7 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
         throw error;
       }
     }
-    const permissionOwner = launchParent ?? (input.routingCallerSessionId ? ctx.sessions.get(input.routingCallerSessionId) : undefined);
+    const permissionOwnerId = parent?.id ?? input.routingCallerSessionId;
     const routing: WorkerRouteState = { plan, attempts: [], phase: 'starting',
       ...(parent || input.routingCallerSessionId || input.configurePermissions === true ? { crossHarnessRestricted: true } : {}) };
     const attempted = new Set<string>();
@@ -454,24 +462,49 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
         const config = checked.config;
         if (config.surface === 'cli' && input.configurePermissions === true && (input.guiMode || input.nativeConfig)) throw new WorkerOptionError('GUI engine settings require a GUI Harness.');
         if (input.configurePermissions === true && input.guiMode && !supportsGuiPermissionMode(config.runtimeId, input.guiMode)) throw new WorkerOptionError('This Worker candidate cannot enforce the requested workbench permission mode.');
-        if ((parent || input.routingCallerSessionId) && (!permissionOwner || permissionOwner.archived || permissionOwner.runtime !== config.runtimeId ||
-            (permissionOwner.runtime === 'acp' && permissionOwner.piModeId !== config.acpPresetId) ||
+        const permissionOwner = permissionOwnerId ? ctx.sessions.get(permissionOwnerId) : undefined;
+        if (permissionOwnerId && (!permissionOwner || permissionOwner.archived || permissionOwner.workspaceId !== workspaceId ||
             (input.configurePermissions !== undefined && input.configurePermissions !== (permissionOwner.configurePermissions === true)) ||
             (permissionOwner.configurePermissions === true && input.guiMode !== undefined && input.guiMode !== (permissionOwner.guiMode ?? 'default')))) {
           throw new WorkerOptionError('This Worker candidate cannot prove that it preserves the caller’s Harness permissions.');
         }
-        const nativeConfig = permissionOwner ? inheritedNativeConfig(permissionOwner) : undefined;
-        if (permissionOwner?.configurePermissions === true && input.nativeConfig !== undefined && JSON.stringify(input.nativeConfig) !== JSON.stringify(nativeConfig)) {
+        const sameHarness = permissionOwner?.runtime === config.runtimeId &&
+          (config.runtimeId !== 'acp' || permissionOwner.piModeId === config.acpPresetId);
+        let assertCallerPermissions: (() => void) | undefined;
+        if (permissionOwner && !sameHarness) {
+          if (!parent || input.routingCallerSessionId !== parent.id || !('targetRef' in plan.requested)) {
+            throw new WorkerOptionError('Cross-Harness Worker creation requires a subagent with an exact target reference.');
+          }
+          if (input.configurePermissions !== undefined || input.guiMode !== undefined || input.nativeConfig !== undefined) {
+            throw new WorkerOptionError('Cross-Harness subagents use the selected Harness’s launch permissions.');
+          }
+          // Only Core Full access is a verified broad host policy. Native auto-approval
+          // can still run under an engine sandbox, so it cannot authorize another Harness.
+          assertCallerPermissions = () => {
+            const caller = ctx.sessions.get(parent.id);
+            const callerSource = caller && legacySessionSourceRoot(ctx.config.get(), caller);
+            const livePolicy = ctx.agentSessions?.getPolicyState(parent.id);
+            if (!caller || caller.archived || caller.runtime !== 'pi' || caller.workspaceId !== workspaceId ||
+                callerSource?.rootId !== target.sourceRoot.rootId || callerSource.cwd !== target.sourceRoot.cwd ||
+                initialGuiWorkerMode(caller) !== 'auto' || (livePolicy && (livePolicy.mode !== 'auto' || livePolicy.planExecuting))) {
+              throw new WorkerOptionError('Cross-Harness subagents require a Muster Core parent with Full access in the current source folder.');
+            }
+          };
+          assertCallerPermissions();
+        }
+        const permissionParent = sameHarness ? permissionOwner : undefined;
+        const nativeConfig = permissionParent ? inheritedNativeConfig(permissionParent) : undefined;
+        if (permissionParent?.configurePermissions === true && input.nativeConfig !== undefined && JSON.stringify(input.nativeConfig) !== JSON.stringify(nativeConfig)) {
           throw new WorkerOptionError('Requested native settings differ from the caller’s observed Harness permissions.');
         }
         const selected = resolveLaunchConfiguration({ runtime: config.runtimeId, acpPresetId: config.acpPresetId,
           model: config.model, modelParameters: config.surface === 'gui' ? checked.launchParameters : undefined,
           configurePermissions: input.configurePermissions, guiMode: input.guiMode, nativeConfig: input.nativeConfig },
-          permissionOwner && { runtime: permissionOwner.runtime, piModeId: permissionOwner.piModeId, configurePermissions: permissionOwner.configurePermissions, guiMode: permissionOwner.guiMode, nativeConfig },
+          permissionParent && { runtime: permissionParent.runtime, piModeId: permissionParent.piModeId, configurePermissions: permissionParent.configurePermissions, guiMode: permissionParent.guiMode, nativeConfig },
           cfg.defaultRuntime, id => ctx.sessions.isChatRuntime(id));
         const cli = config.runtimeId === 'kimi-cli' && config.modelParameters?.reasoning
           ? { ...config.cliLaunchOptions, reasoning: config.modelParameters.reasoning } : config.cliLaunchOptions;
-        const session = await create(selected.runtime, selected.inheritMeta, cli, routing);
+        const session = await create(selected.runtime, selected.inheritMeta, cli, routing, assertCallerPermissions);
         return { session, isolate };
       } catch (error) {
         if (routeSessionId && ctx.sessions.get(routeSessionId)) throw Object.assign(error instanceof Error ? error : new Error(String(error)), { sessionId: routeSessionId });

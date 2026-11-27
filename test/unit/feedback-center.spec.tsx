@@ -4,6 +4,7 @@ import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { FeedbackCenter, FeedbackEntryPoint } from '../../src/renderer/src/components/FeedbackCenter';
 import type { FeedbackEntry, FeedbackReview, FeedbackSnapshot } from '../../src/shared/feedback';
 import { feedbackEditableText, feedbackReadableBody } from '../../src/shared/feedbackFormatting';
+import { applyLocaleSetting } from '../../src/shared/i18n';
 import { currentApiMock } from './helpers/api-mock';
 
 const entry: FeedbackEntry = { id: 'draft-1', revision: 1, status: 'pending', createdAt: 1, updatedAt: 1, sources: ['worker:a'],
@@ -17,6 +18,21 @@ function Harness({ initial = snapshot }: { initial?: FeedbackSnapshot } = {}) {
   const refresh = useCallback(async () => {}, []);
   return <FeedbackCenter open={open} onClose={() => setOpen(false)} snapshot={state} onSnapshot={setState} onRefresh={refresh}/>;
 }
+
+it('translates a persisted failed submission when the interface language changes', async () => {
+  const initial = { entries: [{ ...entry, error: '提交失败' }] };
+  render(<Harness initial={initial}/>);
+  fireEvent.click(screen.getByRole('button', { name: '查看详情' }));
+  expect((await findAppTip()).textContent).toContain('提交失败');
+  try {
+    act(() => { applyLocaleSetting('en'); });
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }));
+    expect((await findAppTip()).textContent).toContain('Submission failed.');
+    expect(initial.entries[0].error).toBe('提交失败');
+  } finally {
+    act(() => { applyLocaleSetting('zh-CN'); });
+  }
+});
 
 it('lets supported browsers size feedback fields without observing or reading their layout', async () => {
   const supports = vi.fn(() => true);
@@ -240,19 +256,41 @@ it('allows anonymous review and keeps browser handoff separate from actual submi
   const issueUrl = 'https://github.com/zhanghexie/muster-console/issues/42';
   api.override('feedback.prepare', async () => ({ ...review, copyBody: true }));
   api.override('feedback.submit', async () => ({ entries: [opened] }));
+  api.override('feedback.copyIssueBody', async () => {});
   api.override('feedback.reconcile', async () => ({ entries: [{ ...opened, status: 'submitted', revision: 3, issueUrl }] }));
   render(<Harness/>);
   fireEvent.click(await screen.findByRole('button', { name: '审核反馈' }));
   expect(await screen.findByText(/标题和正文将在 GitHub 上公开/)).toBeTruthy();
-  expect(screen.getByText(/请在网页中粘贴/)).toBeTruthy();
+  expect(screen.getByText(/只会预填标题/).textContent).toContain('Write');
   expect(api.mockOf('feedback.submit')).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole('button', { name: '在 GitHub 提交' }));
+  fireEvent.click(screen.getByRole('button', { name: '复制正文并打开 GitHub' }));
   const verify = await screen.findByRole('button', { name: '核对是否已提交' });
-  expect(screen.getByText('请在 GitHub 页面提交，再回来核对。')).toBeTruthy();
+  expect(within(screen.getByRole('dialog', { name: '反馈审核' })).getByRole('status').textContent).toContain('Write');
+  expect(api.mockOf('feedback.copyIssueBody')).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: '复制 Issue 正文' }));
+  await waitFor(() => expect(api.mockOf('feedback.copyIssueBody')).toHaveBeenCalledWith(entry.id, 2));
+  expect((await findAppTip()).textContent).toContain('Issue 正文已复制');
   expect(screen.queryByRole('button', { name: '查看已发送反馈' })).toBeNull();
   fireEvent.click(verify);
   await waitFor(() => expect(api.mockOf('feedback.reconcile')).toHaveBeenCalledWith(entry.id, 2));
   expect(await screen.findByRole('button', { name: '查看已发送反馈' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: '复制 Issue 正文' })).toBeNull();
+});
+
+it('can retry copying an already opened issue after a clipboard failure', async () => {
+  const api = currentApiMock();
+  api.override('feedback.copyIssueBody', async () => {});
+  api.mockOf('feedback.copyIssueBody').mockRejectedValueOnce(new Error('无法复制 Issue 正文，请检查系统剪贴板后重试。'));
+  render(<Harness initial={{ entries: [{ ...entry, status: 'opened' }] }}/>);
+  const copy = await screen.findByRole('button', { name: '复制 Issue 正文' });
+  fireEvent.click(copy);
+  expect((await findAppTip()).textContent).toContain('无法复制 Issue 正文');
+  expect(copy.hasAttribute('disabled')).toBe(false);
+  fireEvent.click(copy);
+  await waitFor(() => expect(screen.getByText(/Issue 正文已复制/)).toBeTruthy());
+  expect(api.mockOf('feedback.copyIssueBody')).toHaveBeenCalledTimes(2);
+  expect(api.mockOf('feedback.submit')).not.toHaveBeenCalled();
+  expect(api.mockOf('feedback.reconcile')).not.toHaveBeenCalled();
 });
 
 it('offers to restore the draft after the user closes the GitHub page', async () => {

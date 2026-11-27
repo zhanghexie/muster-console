@@ -9,7 +9,9 @@ import { assertExtensionPackagePath, captureExtensionPackageAsync, fingerprintEx
 import type { ExtensionPackageCatalog } from './extensionPackageCatalog';
 import { compareVersions } from '../metaAgent/hostSkillProvision';
 import { EXTENSION_CENTER_CATEGORIES } from '../../shared/extensionCenter';
-import type { ExtensionCenterCatalog, ExtensionCenterCatalogRelease, ExtensionCenterInstallResult, ExtensionCenterListing, ExtensionCenterPackageArtifact, ExtensionCenterRelease, ExtensionCenterUninstallResult } from '../../shared/extensionCenter';
+import { extensionIconValue, isValidExtensionIcon, type ExtensionIconId } from '../../shared/extensionIcons';
+import { t } from '../../shared/i18n';
+import type { ExtensionCenterCatalog, ExtensionCenterCatalogRelease, ExtensionCenterInstallProgress, ExtensionCenterInstallResult, ExtensionCenterListing, ExtensionCenterPackageArtifact, ExtensionCenterRelease, ExtensionCenterUninstallResult } from '../../shared/extensionCenter';
 export type { ExtensionCenterCatalog, ExtensionCenterCatalogRelease, ExtensionCenterInstallResult, ExtensionCenterPackageArtifact, ExtensionCenterRelease, ExtensionCenterUninstallResult } from '../../shared/extensionCenter';
 
 interface ExtensionCenterServiceOptions {
@@ -26,14 +28,45 @@ interface ExtensionCenterServiceOptions {
 }
 
 export interface ExtensionCenterListOptions { force?: boolean }
+type ReportInstallProgress = (progress: ExtensionCenterInstallProgress) => void;
 
 const DEFAULT_CATALOG_TTL_MS = 30_000;
+const PACKAGE_DOWNLOAD_IDLE_TIMEOUT_MS = 30_000;
+const PACKAGE_DOWNLOAD_LIMIT = 256 * 1024 * 1024;
+const DOWNLOAD_PROGRESS_INTERVAL_MS = 250;
 
 export const DEFAULT_EXTENSION_CENTER_URL = 'https://api.github.com/repos/zhanghexie/muster-extension-index/contents/catalog.json?ref=main';
 
 const GITHUB_API_ORIGIN = 'https://api.github.com';
 const PACKAGE_FINGERPRINT = /^package-extension:[a-f0-9]{64}$/;
 const NUMERIC_VERSION = /^(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})\.(?:0|[1-9]\d{0,8})$/;
+// These published manifests predate the catalog icon field. Match the exact release contents.
+const LEGACY_OFFICIAL_RELEASE_ICONS: Partial<Record<string, { fingerprint: string; icon: ExtensionIconId }>> = {
+  'muster/code-animation': {
+    fingerprint: 'package-extension:9f34143c84b283db0068c8b1e32c6b46c96b8517da44fb9eb3441a90acb6f82d',
+    icon: 'video-player',
+  },
+  'muster/dsh-media-desk': {
+    fingerprint: 'package-extension:e709753ed13175c8fb3a93872ee5950e4b12548e9695278d54d2f02efff55b70',
+    icon: 'library',
+  },
+  'muster/gomoku': {
+    fingerprint: 'package-extension:337c35ae5a5ca31b7885daf230106cf922c2b1ac2f571914a21c10c22c2b193d',
+    icon: 'gomoku',
+  },
+  'muster/guizang-design': {
+    fingerprint: 'package-extension:913c419939de04554f40e13f3acc8691b989be545f07de4d1d6dfdb069149da4',
+    icon: 'design-tools',
+  },
+  'muster/library': {
+    fingerprint: 'package-extension:849b6a66431d2bfdae52a3c4882dfc506bbf6f9870cf3fa6cb571e875b10d3ef',
+    icon: 'library',
+  },
+  'muster/rubiks-cube': {
+    fingerprint: 'package-extension:e5f1298e2eba132756b64b91d8876a5f3bedb8b9fbf0f2689c2096d45745b42c',
+    icon: 'rubiks-cube',
+  },
+};
 // Consume the launch credential before child runtimes inherit the environment.
 const launchToken = process.env.MUSTER_EXTENSION_CENTER_GITHUB_TOKEN?.trim() || undefined;
 delete process.env.MUSTER_EXTENSION_CENTER_GITHUB_TOKEN;
@@ -158,15 +191,16 @@ export class ExtensionCenterService {
     const source = url.protocol === 'file:' ? 'file' : githubContentsOwner(url) ? 'github' : 'remote';
     return { source, releases: catalog.releases.map(release => this.decorate(release)) };
   }
-  async install(packageKey: string): Promise<ExtensionCenterInstallResult> {
+  async install(packageKey: string, report?: ReportInstallProgress): Promise<ExtensionCenterInstallResult> {
     const release = (await this.list()).find(item => item.packageKey === packageKey);
     if (!release) throw new Error('Extension center release was not found');
     if (release.packageUrl) {
       if (!release.sha256) throw new Error('Extension package SHA-256 is missing');
-      return this.installRemote({ ...release, packageUrl: release.packageUrl, sha256: release.sha256 });
+      return this.installRemote({ ...release, packageUrl: release.packageUrl, sha256: release.sha256 }, report);
     }
     const update = release.installed && release.installedVersion !== release.version;
     if (release.installed && !update) return { packageKey, extensionId: release.extensionId, installed: true, skipped: true, updated: false };
+    report?.({ phase: 'installing' });
     return this.installBundled(release, update);
   }
   async uninstall(packageKey: string): Promise<ExtensionCenterUninstallResult> {
@@ -189,7 +223,13 @@ export class ExtensionCenterService {
       try {
         const source = await sourceLayout.discover({ scope: 'global', extensionId });
         const installed = this.catalog.get('global', extensionId);
-        releases.push({ packageKey: `muster/${extensionId}`, publisherId: 'muster', extensionId, name: source.manifest.name, category: 'productivity', ...(source.manifest.description ? { description: source.manifest.description } : {}), version: source.manifest.version ?? '0.0.0', fingerprint: source.fingerprint, sourceKind: 'center', installed: !!installed, ...(installed?.version ? { installedVersion: installed.version } : {}) });
+        const icon = installed?.icon ?? source.manifest.icon;
+        releases.push({
+          packageKey: `muster/${extensionId}`, publisherId: 'muster', extensionId, name: source.manifest.name,
+          category: 'productivity', version: source.manifest.version ?? '0.0.0', fingerprint: source.fingerprint,
+          ...(icon ? { icon } : {}), ...(source.manifest.description ? { description: source.manifest.description } : {}),
+          sourceKind: 'center', installed: !!installed, ...(installed?.version ? { installedVersion: installed.version } : {}),
+        });
       } catch { /* Invalid bundled packages are surfaced by existing diagnostics. */ }
     }
     return releases;
@@ -202,7 +242,7 @@ export class ExtensionCenterService {
     if (error) return { packageKey: release.packageKey, extensionId: release.extensionId, installed: false, skipped: false, updated: false, error: error.error };
     return { packageKey: release.packageKey, extensionId: release.extensionId, installed: result.installed.includes(release.extensionId), skipped: result.skipped.includes(release.extensionId), updated: update && result.installed.includes(release.extensionId) };
   }
-  private async installRemote(release: ExtensionCenterCatalogRelease): Promise<ExtensionCenterInstallResult> {
+  private async installRemote(release: ExtensionCenterCatalogRelease, report?: ReportInstallProgress): Promise<ExtensionCenterInstallResult> {
     if (!this.supportsHost(release.minHostVersion)) {
       throw new Error(`This extension requires Muster ${release.minHostVersion} or later`);
     }
@@ -219,9 +259,8 @@ export class ExtensionCenterService {
     if (current && !release.previousFingerprints?.includes(current.fingerprint)) {
       throw new Error('A local extension with the same ID has different contents. Export or move that copy before installing the center release.');
     }
-    const response = await this.fetchResource(release.packageUrl, 256 * 1024 * 1024, 30_000);
-    if (!response.ok) throw new Error(`Extension package download failed (${response.status})`);
-    const bytes = await boundedBytes(response, 256 * 1024 * 1024);
+    const bytes = await this.downloadPackage(release.packageUrl, report);
+    report?.({ phase: 'verifying' });
     if (createHash('sha256').update(bytes).digest('hex') !== release.sha256) throw new Error('Extension package SHA-256 does not match catalog');
     const artifact = parseArtifact(bytes);
     if (artifact.extensionId !== release.extensionId || artifact.fingerprint !== release.fingerprint) throw new Error('Extension package identity does not match catalog');
@@ -229,17 +268,78 @@ export class ExtensionCenterService {
     if (fingerprintExtensionSnapshot(snapshot) !== release.fingerprint) throw new Error('Extension package fingerprint does not match catalog');
     const manifest = validateExtensionPackage(snapshot, release.extensionId);
     if (manifest.version !== release.version) throw new Error('Extension manifest version does not match catalog');
+    report?.({ phase: 'installing' });
     await fs.promises.mkdir(this.globalRoot, { recursive: true });
     await publishExtensionPackageDirectory(target, snapshot, { root: this.globalRoot, ...(current ? { expectedFingerprint: current.fingerprint } : {}) });
     await this.recordCenterInstall({ descriptor, manifest, fingerprint: snapshot.fingerprint, files: snapshot.files.map(file => file.path) }, release);
     return { packageKey: release.packageKey, extensionId: release.extensionId, installed: true, skipped: false, updated: !!current };
+  }
+  private async downloadPackage(url: string, report?: ReportInstallProgress): Promise<Buffer> {
+    if (url.startsWith('file://')) {
+      const response = await readLocalResource(url, PACKAGE_DOWNLOAD_LIMIT);
+      if (!response.ok) throw new Error(`Extension package download failed (${response.status})`);
+      return boundedBytes(response, PACKAGE_DOWNLOAD_LIMIT);
+    }
+    const controller = new AbortController();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let progressTimer: ReturnType<typeof setTimeout> | undefined;
+    const resetIdleTimeout = (): void => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => controller.abort(), PACKAGE_DOWNLOAD_IDLE_TIMEOUT_MS).unref();
+    };
+    report?.({ phase: 'downloading', receivedBytes: 0 });
+    resetIdleTimeout();
+    try {
+      const response = await this.fetchResource(url, PACKAGE_DOWNLOAD_LIMIT, controller.signal);
+      controller.signal.throwIfAborted();
+      if (!response.ok) throw new Error(`Extension package download failed (${response.status})`);
+      resetIdleTimeout();
+      // Fetch decodes the body, so a compressed Content-Length cannot describe the received bytes.
+      const encoding = response.headers.get('content-encoding')?.trim().toLowerCase();
+      const length = Number(response.headers.get('content-length'));
+      const totalBytes = (!encoding || encoding === 'identity') && Number.isSafeInteger(length) && length > 0 && length <= PACKAGE_DOWNLOAD_LIMIT
+        ? length : undefined;
+      if (totalBytes !== undefined) report?.({ phase: 'downloading', receivedBytes: 0, totalBytes });
+      let receivedBytes = 0;
+      let reportedBytes = 0;
+      let lastReportedAt = -Infinity;
+      const reportReceived = (): void => {
+        progressTimer = undefined;
+        if (!report || receivedBytes === reportedBytes) return;
+        reportedBytes = receivedBytes;
+        lastReportedAt = performance.now();
+        report({ phase: 'downloading', receivedBytes, totalBytes: totalBytes !== undefined && receivedBytes <= totalBytes ? totalBytes : undefined });
+      };
+      const bytes = await boundedBytes(response, PACKAGE_DOWNLOAD_LIMIT, received => {
+        resetIdleTimeout();
+        receivedBytes = received;
+        if (!report || progressTimer) return;
+        const wait = DOWNLOAD_PROGRESS_INTERVAL_MS - (performance.now() - lastReportedAt);
+        if (wait > 0) progressTimer = setTimeout(reportReceived, Math.ceil(wait)).unref();
+        else reportReceived();
+      });
+      controller.signal.throwIfAborted();
+      clearTimeout(progressTimer);
+      receivedBytes = bytes.byteLength;
+      reportReceived();
+      return bytes;
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error(t('扩展安装包下载超时，请检查网络后重试。'), { cause: error });
+      controller.abort();
+      throw error;
+    } finally {
+      clearTimeout(idleTimer);
+      clearTimeout(progressTimer);
+    }
   }
   private async currentInstalled(directory: string): Promise<ExtensionPackageSnapshot | undefined> {
     try { return await captureExtensionPackageAsync(directory); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined; throw error; }
   }
   private decorate(release: ExtensionCenterCatalogRelease): ExtensionCenterRelease {
     const installed = this.catalog.get('global', release.extensionId);
-    return { ...release, sourceKind: 'center', installed: !!installed, ...(installed?.version ? { installedVersion: installed.version } : {}) };
+    const legacy = LEGACY_OFFICIAL_RELEASE_ICONS[release.packageKey];
+    const icon = installed?.icon ?? release.icon ?? (legacy?.fingerprint === release.fingerprint ? extensionIconValue(legacy.icon) : undefined);
+    return { ...release, ...(icon ? { icon } : {}), sourceKind: 'center', installed: !!installed, ...(installed?.version ? { installedVersion: installed.version } : {}) };
   }
   private async readRemoteCatalogSingleFlight(force: boolean): Promise<ExtensionCenterCatalog> {
     const cached = this.remoteCache;
@@ -259,7 +359,7 @@ export class ExtensionCenterService {
     if (!this.catalogUrl) throw new Error('Extension center catalog is not configured');
     const catalogUrl = new URL(this.catalogUrl);
     const githubOwner = githubContentsOwner(catalogUrl);
-    const response = await this.fetchResource(this.catalogUrl, 4 * 1024 * 1024, 5_000);
+    const response = await this.fetchResource(this.catalogUrl, 4 * 1024 * 1024, AbortSignal.timeout(5_000));
     if (!response.ok) {
       if (githubOwner && [401, 403, 404].includes(response.status)) {
         throw new ExtensionCenterAccessError(`GitHub extension catalog is inaccessible (${response.status}). Set MUSTER_EXTENSION_CENTER_GITHUB_TOKEN to a GitHub token with Contents read access and restart Muster.`);
@@ -281,13 +381,13 @@ export class ExtensionCenterService {
     });
     return { schemaVersion: 1, releases };
   }
-  private fetchResource(url: string, maxBytes: number, timeoutMs: number): Promise<Response> {
+  private fetchResource(url: string, maxBytes: number, signal: AbortSignal): Promise<Response> {
     if (url.startsWith('file://')) return readLocalResource(url, maxBytes);
     const owner = githubContentsOwner(new URL(url));
     const catalogOwner = this.catalogUrl && githubContentsOwner(new URL(this.catalogUrl));
     const headers = new Headers({ Accept: owner ? 'application/vnd.github.raw+json' : 'application/json' });
     if (owner && owner === catalogOwner && this.token) headers.set('Authorization', `Bearer ${this.token}`);
-    return this.fetchImpl(url, { headers, redirect: 'error', cache: 'no-store', signal: AbortSignal.timeout(timeoutMs) });
+    return this.fetchImpl(url, { headers, redirect: 'error', cache: 'no-store', signal });
   }
 }
 
@@ -339,6 +439,7 @@ function validateRelease(value: unknown): ExtensionCenterCatalogRelease {
     publisherId,
     extensionId,
     name: text('name'),
+    ...(isValidExtensionIcon(input.icon) ? { icon: input.icon } : {}),
     ...(category ? { category } : {}),
     ...(input.description === undefined ? {} : { description: text('description', 4096) }),
     version: text('version', 128),
@@ -417,7 +518,7 @@ function findZipEnd(bytes: Buffer): number | undefined {
   return undefined;
 }
 
-export async function boundedBytes(response: Response, maxBytes: number): Promise<Buffer> {
+export async function boundedBytes(response: Response, maxBytes: number, onProgress?: (receivedBytes: number) => void): Promise<Buffer> {
   const length = Number(response.headers.get('content-length') ?? 0);
   if (Number.isFinite(length) && length > maxBytes) throw new Error('Extension package exceeds download limit');
   const reader = response.body?.getReader();
@@ -428,6 +529,7 @@ export async function boundedBytes(response: Response, maxBytes: number): Promis
     if (next.done) break;
     total += next.value.byteLength;
     if (total > maxBytes) { await reader.cancel(); throw new Error('Extension package exceeds download limit'); }
+    if (next.value.byteLength) onProgress?.(total);
     chunks.push(Buffer.from(next.value));
   }
   return Buffer.concat(chunks);

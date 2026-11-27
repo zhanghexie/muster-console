@@ -40,6 +40,7 @@ async function packRelease(directory, output, previousDirectories, { captureExte
   await fs.writeFile(output, artifact, { flag: 'wx' });
   console.log(JSON.stringify({
     extensionId, name: manifest.name, description: manifest.description, version: manifest.version,
+    ...(manifest.icon ? { icon: manifest.icon } : {}),
     fingerprint: snapshot.fingerprint, sha256: createHash('sha256').update(artifact).digest('hex'),
     previousFingerprints: [...previousFingerprints],
   }, null, 2));

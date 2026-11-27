@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { BoardTodoStore } from '../../../src/main/boardTodoStore';
+import { applyLocaleSetting } from '../../../src/shared/i18n';
 import type { BoardTodoInput } from '../../../src/shared/boardTodo';
 
 let dir: string;
@@ -35,6 +36,20 @@ it('拒绝空内容、过长和无效数据，不落盘', async () => {
   await expect(store.save({ ...input, task: 'a'.repeat(256_001) })).rejects.toThrow('TODO 内容过长');
   await expect(store.save({ ...input, surface: 'invalid' } as unknown as BoardTodoInput)).rejects.toThrow();
   expect(fs.existsSync(file)).toBe(false);
+});
+
+it('uses the current locale for new and persisted to-do validation errors', async () => {
+  const file = path.join(dir, 'todos.json');
+  const store = new BoardTodoStore(file);
+  const row = await store.save(input);
+  fs.writeFileSync(file, JSON.stringify([{ ...row, task: '' }]));
+  applyLocaleSetting('en');
+  try {
+    await expect(store.save({ ...input, task: '' })).rejects.toThrow('Enter a to-do or attach a file.');
+    expect(() => store.list()).toThrow('Enter a to-do or attach a file.');
+  } finally {
+    applyLocaleSetting('zh-CN');
+  }
 });
 
 it('保存仅附件的代办，队列快照和重开时的内容独立于原文件', async () => {

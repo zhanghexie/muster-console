@@ -28,7 +28,7 @@ import { localizeMailboxUserText } from '../../shared/mailboxUserErrors';
 
 export function registerSessionIpc(ctx: AppContext): void {
   const extensionLaunchMeta = (source: import('../../shared/boardTodo').ExtensionTaskSource, workspaceId?: string, rootId?: string, runtime?: string) => {
-    if (!ctx.extensionSystem) throw new Error('扩展宿主尚未就绪');
+    if (!ctx.extensionSystem) throw new Error(t('扩展宿主尚未就绪'));
     return ctx.extensionSystem.extensionHost.taskLaunchMeta(source, workspaceId, rootId, runtime);
   };
   handle('sessions:setConfigurePermissions', async (_event, sessionId: string, enabled: boolean) => {
@@ -259,7 +259,10 @@ export function registerSessionIpc(ctx: AppContext): void {
   handle('sessions:sendMessage', async (_event, args: { sessionId: string; text: string; idempotencyKey?: string }): Promise<SessionMessageIpcResult> => {
     try {
       const mail = await sendSessionMail(ctx, { sessionId: String(args?.sessionId ?? '').trim(), text: String(args?.text ?? ''), from: 'human', idempotencyKey: args.idempotencyKey });
-      return { ok: true, ...mail };
+      return {
+        ok: true, ...mail,
+        ...(mail.semanticError ? { semanticError: localizeMailboxUserText(mail.semanticError) } : {})
+      };
     } catch (error) {
       const message = (error as Error).message;
       return { ok: false, message: typeof message === 'string' ? localizeMailboxUserText(message) : message };

@@ -1,3 +1,4 @@
+import { t } from '../../shared/i18n';
 import { createOwnedInteractivePty, InteractivePtyCancelledError, InteractivePtyStartupCleanupError, type InteractivePtyOwner } from './interactiveOwner';
 import { randomUUID } from 'node:crypto';
 import { startOwnedBackgroundPty, type OwnedBackgroundPty } from './backgroundOwner';
@@ -328,8 +329,8 @@ export class PtyManager {
     if (after !== undefined) {
       const cursor = /^([\da-f-]{36}):(\d+)$/.exec(after);
       const offset = cursor ? Number(cursor[2]) : NaN;
-      if (!entry || !cursor || cursor[1] !== entry.generation) throw new Error('输出游标不属于当前终端进程，请重新 capture');
-      if (!Number.isSafeInteger(offset) || offset > entry.outputChars || offset < entry.outputChars - retained.length) throw new Error('输出游标已过期或越界，请重新 capture');
+      if (!entry || !cursor || cursor[1] !== entry.generation) throw new Error(t('输出游标不属于当前终端进程，请重新 capture'));
+      if (!Number.isSafeInteger(offset) || offset > entry.outputChars || offset < entry.outputChars - retained.length) throw new Error(t('输出游标已过期或越界，请重新 capture'));
       const split = offset - (entry.outputChars - retained.length);
       prefix = retained.slice(0, split);
       backlog = retained.slice(split);

@@ -208,7 +208,6 @@
 .center-split-divider[aria-orientation='vertical'] { cursor: col-resize; }
 .center-split-divider[aria-orientation='horizontal'] { cursor: row-resize; }
 .center-split-divider > span { position: absolute; background: var(--divider-rest); pointer-events: none; }
-.center-split-divider[aria-orientation='vertical'] > span { left: 3px; top: 0; width: 1px; height: 100%; }
 .center-split-divider[aria-orientation='horizontal'] > span { top: 3px; left: 0; height: 1px; width: 100%; }
 .center-split-divider:hover > span { background: var(--divider-active); }
 .center-split-divider:focus-visible > span { background: var(--divider-focus); }

@@ -223,7 +223,7 @@ const TERM_RATIO_DEFAULT = 7 / 8;
 const TERM_RATIO_MIN = 0.5;
 const TERM_RATIO_MAX = 0.95;
 const GIT_RATIO_DEFAULT = 2 / 3;
-const GIT_RATIO_MIN = 0.4;
+const GIT_RATIO_MIN = 0.5;
 const GIT_RATIO_MAX = 0.95;
 /** 专注模式会话侧占比（中段把手长按拖跟手调节，两侧之和恒为全宽） */
 const FOCUS_RATIO_DEFAULT = 0.5;
@@ -628,6 +628,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     git: GIT_RATIO_DEFAULT,
     focus: FOCUS_RATIO_DEFAULT
   });
+  const resizeDraftRef = useRef<Partial<typeof resizeBaseRef.current>>({});
 
   const clearHTimer = useCallback(() => {
     if (hTimerRef.current != null) {
@@ -750,17 +751,22 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   const onResizeStart = useCallback(() => {
     setHResizing(true);
     resizeBaseRef.current = { term: termRatio, git: gitRatio, focus: focusRatio };
+    resizeDraftRef.current = {};
     // 无快照遮罩（2026-10-10 用户定稿，普通 VS 与双栏全屏两态一致）：拖动中
     // 活内容直接实时重排，只浮百分比指示卡
   }, [termRatio, gitRatio, focusRatio]);
   const onResizeMove = useCallback(
     (pointerX: number) => {
+      const draft = resizeDraftRef.current;
       if (focusMode) {
-        setFocusRatio(clamp(pointerX / viewW, FOCUS_RATIO_MIN, FOCUS_RATIO_MAX));
+        draft.focus = clamp(pointerX / viewW, FOCUS_RATIO_MIN, FOCUS_RATIO_MAX);
+        setFocusRatio(draft.focus);
       } else if (hDock === 'git') {
-        setGitRatio(clamp((viewW - pointerX) / viewW, GIT_RATIO_MIN, GIT_RATIO_MAX));
+        draft.git = clamp((viewW - pointerX) / viewW, GIT_RATIO_MIN, GIT_RATIO_MAX);
+        setGitRatio(draft.git);
       } else {
-        setTermRatio(clamp(pointerX / viewW, TERM_RATIO_MIN, TERM_RATIO_MAX));
+        draft.term = clamp(pointerX / viewW, TERM_RATIO_MIN, TERM_RATIO_MAX);
+        setTermRatio(draft.term);
       }
     },
     [hDock, viewW, focusMode]
@@ -776,21 +782,22 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
         setFocusRatio(base.focus);
         return;
       }
-      // 视觉判定阈值：亚像素级漂移（纵向拖的回弹）不算改动
+      // 最后一次移动可能与松手落在同一帧，从草稿保存尚未渲染的比例。
+      const { focus = base.focus, git = base.git, term = base.term } = resizeDraftRef.current;
       if (focusMode) {
-        if (Math.abs(focusRatio - base.focus) > 0.002) void patchWsFile({ focusRatio });
+        if (Math.abs(focus - base.focus) > 0.002) void patchWsFile({ focusRatio: focus });
         else setFocusRatio(base.focus);
         return;
       }
       if (hDock === 'git') {
-        if (Math.abs(gitRatio - base.git) > 0.002) void patchWsFile({ hGitRatio: gitRatio });
+        if (Math.abs(git - base.git) > 0.002) void patchWsFile({ hGitRatio: git });
         else setGitRatio(base.git);
       } else {
-        if (Math.abs(termRatio - base.term) > 0.002) void patchWsFile({ hTerminalRatio: termRatio });
+        if (Math.abs(term - base.term) > 0.002) void patchWsFile({ hTerminalRatio: term });
         else setTermRatio(base.term);
       }
     },
-    [hDock, gitRatio, termRatio, focusMode, focusRatio, patchWsFile]
+    [hDock, focusMode, patchWsFile]
   );
 
   // 调节占比拖动（size 轴）：指示卡+调整前快照盖在被调侧——git 主态时网页区被盖，
@@ -2017,7 +2024,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   /** 拖动落盘用最新值（回调闭包里 state 可能滞后） */
   const leftWRef = useRef(leftW);
   leftWRef.current = leftW;
-  const leftDragRef = useRef(false);
+  const leftDragRef = useRef<{ x: number; width: number } | null>(null);
 
   /** 左栏拖宽：指针捕获跟手；只占中栏宽度（terminalInnerW 随之伸缩，页宽不变） */
   const onLeftResizeDown = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
@@ -2025,22 +2032,24 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     e.stopPropagation();
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
-    leftDragRef.current = true;
+    leftDragRef.current = { x: e.clientX, width: leftWRef.current };
     setLeftResizing(true);
   }, []);
 
   const onLeftResizeMove = useCallback((e: React.PointerEvent<HTMLDivElement>): void => {
-    if (!leftDragRef.current) return;
+    const drag = leftDragRef.current;
+    if (!drag) return;
     const page = e.currentTarget.parentElement;
     if (!page) return;
     const r = page.getBoundingClientRect();
-    setLeftColW(clamp(Math.round(e.clientX - r.left), LEFT_W_MIN, Math.round(r.width * 0.45)));
+    const dx = e.clientX - drag.x;
+    setLeftColW(clamp(Math.round(drag.width + dx), LEFT_W_MIN, Math.round(r.width * 0.45)));
   }, []);
 
   const onLeftResizeUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>): void => {
+    (): void => {
       if (!leftDragRef.current) return;
-      leftDragRef.current = false;
+      leftDragRef.current = null;
       setLeftResizing(false);
       commitLeftColW(leftWRef.current);
     },
@@ -2111,10 +2120,11 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   const hSplitBar = (
     <div
       className={`pane-split pane-split-v${hSplitHot ? ' hot' : ''}`}
+      data-resizing={hResizing ? '' : undefined}
       style={{ left: workspacePageW }}
       onPointerEnter={() => clearHTimer()}
     >
-      <div className="pane-split-line" />
+      <div className="pane-split-line resize-divider-line" />
       <SplitExpandControl
         hVs={hVs}
         /* 把手无短按动作（开/关与顶栏右栏开关重复）；「关闭虚拟屏」态下长按菜单
@@ -2195,7 +2205,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
               会话栏折叠时不占布局，手柄无意义一并隐藏 */}
           {sessionsInFlow && (
             <div
-              className={`left-col-resizer${leftResizing ? ' is-resizing' : ''}`}
+              className={`left-col-resizer resize-divider${leftResizing ? ' is-resizing' : ''}`}
               style={{ left: leftW }}
               role="separator"
               aria-orientation="vertical"
@@ -2204,6 +2214,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
               onPointerMove={onLeftResizeMove}
               onPointerUp={onLeftResizeUp}
               onPointerCancel={onLeftResizeUp}
+              onLostPointerCapture={onLeftResizeUp}
             />
           )}
           <div className="terminal-page" style={{ width: terminalInnerW }}>

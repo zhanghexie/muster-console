@@ -141,7 +141,7 @@ export default async function ({ page, capture, assert }) {
   await page.getByRole('button', { name: '审核反馈' }).click();
   const review = page.getByRole('region', { name: '提交前核对' });
   await review.waitFor();
-  assert.equal(await page.getByRole('button', { name: '在 GitHub 提交' }).isEnabled(), true);
+  assert.equal(await page.getByRole('button', { name: '复制正文并打开 GitHub' }).isEnabled(), true);
   assert.equal(await review.getByRole('textbox', { name: '使用场景' }).getAttribute('readonly'), '');
   assert.equal(await review.getByRole('textbox', { name: '使用场景' }).inputValue(), initial);
   assert.equal(await review.evaluate(el => el.scrollTop), 0, 'review starts at the title');
@@ -150,6 +150,7 @@ export default async function ({ page, capture, assert }) {
   assert.equal(await page.getByRole('textbox', { name: '使用场景' }).getAttribute('readonly'), null);
   await page.evaluate(() => window.__markFeedbackOpened());
   await dialog.getByRole('button', { name: '核对是否已提交' }).waitFor();
+  assert.equal(await dialog.getByRole('button', { name: '复制 Issue 正文' }).isEnabled(), true);
   assert.equal(await dialog.getByRole('button', { name: '查看已发送反馈' }).count(), 0);
   await capture('browser-opened');
   await page.evaluate(() => window.__markFeedbackSubmitted());

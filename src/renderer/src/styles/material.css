@@ -79,10 +79,16 @@ html:is([data-native-material='mica'], [data-native-material='vibrancy']) :is(.w
 }
 
 /* Whole-page opacity would also fade card surfaces into the native material.
-   Keep pointer disabling, the active resizer and snapshot feedback as cues. */
+   Keep pointer disabling, the active resizer and percentage card as cues. */
 html:is([data-native-material='mica'], [data-native-material='vibrancy']) .main-view.is-reshaping :is(.terminal-page, .git-page),
 html:is([data-native-material='mica'], [data-native-material='vibrancy']) .main-view.is-left-resizing .terminal-page {
   opacity: 1;
+}
+
+/* Bound the resize card's live backdrop to the work area. On Vibrancy the
+   window-level filter otherwise leaves stale pixels as the strip moves. */
+html[data-native-material='vibrancy'] .main-view.h-vs-on.is-reshaping .work-area {
+  will-change: opacity;
 }
 
 /* Retain the lower sidebar through its existing covering slide, then hide all

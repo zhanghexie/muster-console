@@ -237,7 +237,7 @@ test('production frame combines raw Mica and one pure workspace tint across head
       await expect.poll(() => page.locator('.h-strip').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41))
         .toBeCloseTo(patch.hVirtualScreen && patch.hDock === 'git' ? 1200 * (1 - patch.hTerminalRatio - patch.hGitRatio) : 0, 0);
     };
-    await patchLayout({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: 7 / 8, hGitRatio: .4, leftColumnWidth: 480 });
+    await patchLayout({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: .75, hGitRatio: .5, leftColumnWidth: 480 });
     const geometry = await page.locator('.h-strip').evaluate(el => {
       const css = getComputedStyle(el);
       const side = el.querySelector('.sessions-column')!.getBoundingClientRect();
@@ -248,13 +248,13 @@ test('production frame combines raw Mica and one pure workspace tint across head
     expect(geometry.sidebarRight).toBeGreaterThan(100); // Git primary still leaves part of the sidebar visible.
     expect(geometry.background).toBe('rgba(0, 0, 0, 0)');
     await captureDesktop(app, page, 'mica-light-partial-sidebar');
-    await patchLayout({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: .5, hGitRatio: .4, leftColumnWidth: 300 });
-    const gap = await page.locator('.h-strip').evaluate(el => {
+    await patchLayout({ hVirtualScreen: true, hDock: 'git', hTerminalRatio: .5, hGitRatio: .5, leftColumnWidth: 300 });
+    const halfLayout = await page.locator('.h-strip').evaluate(el => {
       return { offset: new DOMMatrixReadOnly(getComputedStyle(el).transform).m41,
         backdrop: getComputedStyle(el, '::before').content };
     });
-    expect(gap.offset).toBeGreaterThan(0);
-    expect(gap.backdrop).toBe('none');
+    expect(halfLayout.offset).toBeCloseTo(0, 0);
+    expect(halfLayout.backdrop).toBe('none');
     await captureDesktop(app, page, 'mica-light-small-ratios');
     await patchLayout({ hVirtualScreen: false, hDock: 'terminal', hTerminalRatio: .875, hGitRatio: .75, leftColumnWidth: 300 });
     // Exercise the actual drag state; native cards remain opaque throughout.
@@ -302,7 +302,7 @@ test('production frame combines raw Mica and one pure workspace tint across head
     expect(await page.locator('.h-strip').evaluate(el => getComputedStyle(el, '::before').content)).toBe('none');
     await captureDesktop(app, page, 'mica-light-narrow');
     expect(pageErrors).toEqual([]);
-    await fs.writeFile(path.join(captures, 'observations.json'), JSON.stringify({ supported, darkRaw, darkTint, lightRaw, lightTint, geometry, gap, pageErrors }, null, 2));
+    await fs.writeFile(path.join(captures, 'observations.json'), JSON.stringify({ supported, darkRaw, darkTint, lightRaw, lightTint, geometry, halfLayout, pageErrors }, null, 2));
   } finally {
     await app.evaluate(({ app }) => app.exit(0)).catch(() => {});
     await app.close().catch(() => {});
@@ -382,6 +382,89 @@ test('scheduler chat and image viewer use the shared glass backdrop', async ({},
     await page.locator('.chrome-sessions-toggle').click();
     await expect(backdrop).toHaveCount(0);
     await expect(body).toHaveCSS('will-change', 'auto');
+  } finally {
+    await app.evaluate(({ app }) => app.exit(0)).catch(() => {});
+    await app.close().catch(() => {});
+    await fs.rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test('right virtual screen stops resizing at 50% and scopes the glass backdrop over Vibrancy', async () => {
+  const { app, sandbox } = await launchFrameApp('virtual-screen-resize');
+  try {
+    const page = await app.firstWindow();
+    await page.locator('.app-shell').waitFor();
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1200, 780));
+    const { workspaceId } = await page.evaluate(() => window.api.workspaceFile.get());
+    await page.evaluate(async ({ workspaceId, pageKey }) => {
+      localStorage.setItem(pageKey, 'right');
+      localStorage.setItem('muster.hSwitchMode', 'click');
+      const layout = await window.api.workspaceFile.patch({
+        hVirtualScreen: true, hTerminalRatio: .61, hGitRatio: .535, focusMode: false
+      }, workspaceId);
+      if (!layout.ok) throw new Error('Could not open the right virtual screen');
+    }, { workspaceId, pageKey: virtualScreenPageKey(workspaceId) });
+    await page.reload();
+
+    const material = expectedFrameMaterial();
+    const main = page.locator('.main-view.h-vs-on.h-git');
+    const area = main.locator('.work-area');
+    const sidebar = main.locator('.sessions-column');
+    const card = main.locator('.ws-resize-card');
+    const seam = main.locator('.pane-split-hit');
+    const grip = main.getByRole('button', { name: /^(虚拟屏操作|Virtual screen controls)$/ });
+    await expect(page.locator('html')).toHaveAttribute('data-native-material', material);
+    await expect(area).toHaveCSS('will-change', 'auto');
+
+    const startResize = async () => {
+      const seamBox = (await seam.boundingBox())!;
+      await seam.hover({ position: { x: seamBox.width / 2, y: seamBox.height / 2 } });
+      await expect(grip.locator('.split-expand-grip')).toHaveAttribute('data-mp-stage', 'in');
+      const box = (await grip.boundingBox())!;
+      const x = box.x + box.width / 2;
+      const y = box.y + box.height / 2;
+      await page.mouse.move(x, y);
+      await page.mouse.down();
+      await expect(main.locator('.split-mode-menu')).toHaveAttribute('data-mp-stage', 'in');
+      await expect(area).toHaveCSS('will-change', 'auto');
+      await page.mouse.move(x + 125, y, { steps: 12 });
+      await expect(main).toHaveClass(/\bis-reshaping\b/);
+      await expect(card).toHaveCSS('backdrop-filter', 'blur(16px) saturate(1.2)');
+      await expect(area).toHaveCSS('will-change', material === 'vibrancy' ? 'opacity' : 'auto');
+      await expect(page.locator('body')).toHaveCSS('will-change', 'auto');
+      await expect(card.locator('.ws-resize-card-num')).toHaveText('50%');
+    };
+
+    const viewWidth = (await area.boundingBox())!.width;
+    const terminalWidth = Math.round(viewWidth * .61);
+    const initialX = viewWidth - terminalWidth - Math.round(viewWidth * .535);
+    const halfWidth = Math.round(viewWidth / 2);
+    const sidebarXAtHalfWidth = viewWidth - terminalWidth - halfWidth;
+    const sidebarX = async () => (await sidebar.boundingBox())!.x;
+    await expect.poll(sidebarX).toBeCloseTo(initialX, 0);
+    await startResize();
+    await expect.poll(sidebarX).toBeCloseTo(sidebarXAtHalfWidth, 0);
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    await page.mouse.move(10, 16);
+    await expect(card).toHaveCount(0);
+    await expect(area).toHaveCSS('will-change', 'auto');
+    await expect.poll(sidebarX).toBeCloseTo(initialX, 0);
+
+    await startResize();
+    await page.mouse.up();
+    await expect(card).toHaveCount(0);
+    await expect(area).toHaveCSS('will-change', 'auto');
+    await expect.poll(sidebarX).toBeCloseTo(sidebarXAtHalfWidth, 0);
+    await expect.poll(() => page.evaluate(async () => (await window.api.workspaceFile.get()).config.hGitRatio)).toBe(.5);
+
+    await test.step('a workspace saved at 40% reopens at half width', async () => {
+      const legacyLayout = await page.evaluate(id => window.api.workspaceFile.patch({ hGitRatio: .4 }, id), workspaceId);
+      expect(legacyLayout).toMatchObject({ ok: true, config: { hGitRatio: .4 } });
+      await page.reload();
+      await expect(main.locator('.git-page')).toHaveCSS('width', `${halfWidth}px`);
+      await expect.poll(sidebarX).toBeCloseTo(sidebarXAtHalfWidth, 0);
+    });
   } finally {
     await app.evaluate(({ app }) => app.exit(0)).catch(() => {});
     await app.close().catch(() => {});

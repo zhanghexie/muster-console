@@ -32,6 +32,7 @@ export function SnapDividers({ container, dividers, state, layoutKey, enabled, t
     const current = drag.current;
     drag.current = null;
     current?.container.removeAttribute('data-snap-resizing');
+    current?.element.removeAttribute('data-resizing');
     try { current?.element.releasePointerCapture(current.pointerId); } catch { /* The capture may already have ended. */ }
     return current;
   }, []);
@@ -78,6 +79,7 @@ export function SnapDividers({ container, dividers, state, layoutKey, enabled, t
       ratio: state.ratio ?? divider.ratio, ratios: dividers.length === 2 ? getCenterSplitRatios(state) : undefined, layoutKey
     };
     event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setAttribute('data-resizing', '');
     host.setAttribute('data-snap-resizing', divider.dir);
   };
   return enabled && dividers.map(divider => {
@@ -107,6 +109,6 @@ export function SnapDividers({ container, dividers, state, layoutKey, enabled, t
         if (value == null) return;
         event.preventDefault();
         onChange(divider.index, value);
-      }}><span/></div>;
+      }}><span className={row ? 'resize-divider-line' : undefined}/></div>;
   });
 }

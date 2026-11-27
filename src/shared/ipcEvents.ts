@@ -98,6 +98,7 @@ export type IpcEventMap = {
   'runtimes:changed': AgentRuntimeEntry[];
   'runtimes:availabilityChanged': Record<string, never>;
   'extensions:changed': Record<string, never>;
+  'extensionCenter:installProgress': import('./extensionCenter').ExtensionCenterInstallSnapshot;
   'workbench:changed': import('./extension').ExtensionNavigationSnapshot;
   'workbench:extensionEvent': import('./extension').ExtensionRuntimeEvent;
   'extensionSurface:newTask': { title: string; draft: string; projectPath: string; source: import('./boardTodo').ExtensionTaskSource };
@@ -223,6 +224,7 @@ export const IPC_EVENT_CHANNELS = [
   'runtimes:changed',
   'runtimes:availabilityChanged',
   'extensions:changed',
+  'extensionCenter:installProgress',
   'workbench:changed',
   'workbench:extensionEvent',
   'extensionSurface:newTask',

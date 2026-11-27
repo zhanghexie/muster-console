@@ -250,10 +250,12 @@ it('holds the dock divider while dragging across the extension iframe and releas
     const handle = screen.getByRole('separator', { name: '调整 AI 侧栏宽度' });
     fireEvent.pointerDown(handle, { pointerId: 1, clientX: 856 });
     expect(layout.classList.contains('resizing')).toBe(true);
+    expect(handle.classList.contains('active')).toBe(true);
     fireEvent.pointerMove(handle, { pointerId: 1, clientX: 800 });
     expect(handle.style.right).toBe('400px');
     fireEvent.pointerUp(handle, { pointerId: 1 });
     expect(layout.classList.contains('resizing')).toBe(false);
+    expect(handle.classList.contains('active')).toBe(false);
     expect(localStorage.getItem('ext-agent-sidebar-width')).toBe('400');
   } finally {
     localStorage.removeItem('ext-agent-sidebar-width');

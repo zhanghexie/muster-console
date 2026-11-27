@@ -37,7 +37,7 @@ Windows 11 22H2（build 22621）及以上的桌面主窗口默认启用 Electron
 
 - 宿主终端默认底、代码编辑器、diff、看板与扩展默认内容面共用 resolved canvas；终端显式 TUI/ANSI 单元格背景、原生浏览器网页正文、媒体图片和 emoji 保留原内容，不以滤镜或截图重染。
 - macOS 顶栏 `hiddenInset` 红绿灯让位（chrome.css `.is-mac .chrome-bar` 84px）随原生全屏收回：主窗口 `enter/leave-full-screen` 与 `did-finish-load` 推 `window:fullscreen` 事件（ipcEvents 白名单，webAccess relay 自动转发），渲染层 `macChrome.ts` 切 `is-native-fullscreen` 收回让位；全屏时悬停顶部由系统层叠加菜单栏，不占应用栏。`test/unit/mac-chrome.spec.tsx` 与 `test/mac-chrome.mjs` 守卫。
-- Mica 模式的应用顶栏、原生窗口控制区与全部框留白共用同一原生背景和单次工作区叠色；回退模式保持均匀框色同步。所有正式表面均无噪点贴图。现有虚拟屏调宽快照的模糊反馈独立保留，不属于背景材质。
+- Mica 模式的应用顶栏、原生窗口控制区与全部框留白共用同一原生背景和单次工作区叠色。回退模式保持均匀框色同步。所有正式表面均无噪点贴图。虚拟屏调宽时，比例指示卡模糊实时重排的内容。macOS Vibrancy 使用 `.main-view.h-vs-on.is-reshaping .work-area` 的临时 `will-change: opacity` 将采样限制在工作面内，避免拖动时透明窗框出现旧帧残影。松手或取消即移除该提示。
 - 运行监视器、全局搜索、反馈审核、全局看板、调度单窗与并排对话、大图查看器共用 `.backdrop-blur-overlay.mp-scrim` 磨砂遮罩。模糊强度由宿主结构 token `--backdrop-blur` 提供。macOS Vibrancy 窗口在遮罩在场期间给 `body` 设置 `will-change: opacity`，让背景滤镜在 Chromium 内容内部采样，避免原生透明窗框区域残留旧面板帧。边界包含挂到应用根外的弹层。层内的 `body::before` 用当前框色生成深色衬底，稳定展开时给透明区域提供不透明的滤镜底色。最后一层遮罩关闭时，衬底与其同步淡出，露出原生 Vibrancy。
 - 支持系统仍可按系统策略改变 Mica/Vibrancy 表现；能力确认不保证所有壁纸、活动状态和系统设置下观感相同。macOS Vibrancy 默认 `followWindow`：窗口非活动时系统按原生惯例退为暗淡材质，不强行常亮。resolver 配对的是实色 fallback，实际 DWM/NSVisualEffectView 框仍需实机验收。主体种子拒绝透明，可读性修正不回写 JSON。xterm 普通前景有 4.5 保底；深色 WebGL 的 SGR dim 保留库自身减半门槛/0.5 alpha，不能等同普通文本保证。浅色用官方 DOM renderer 与公开 onRender 的 dim 前景修正，按实际背景配对至少 4.5，不改变程序背景；具体边界见 [theme-system.md](theme-system.md)。
 - [历史模拟毛玻璃原型](../prototypes/frosted-glass-study/frosted-glass-study.html) 保留用于对比，其颗粒和烘焙 PNG 方案均不用于正式界面。
@@ -53,7 +53,7 @@ Windows 11 22H2（build 22621）及以上的桌面主窗口默认启用 Electron
 - `test/unit/workspace-material.spec.tsx` 验证材质开关、卸载清理与主题切换。
 - `test/window-material.mjs` 验证 Windows 版本门槛、macOS Vibrancy 启用/失败复位/主题切换不重装、原生能力缺失/失败降级、每窗口状态、实际主题深浅，以及 ThemeService 和 IPC 使用统一同步路径（含 darwin 窗口经 IPC 回报 `vibrancy`）。
 - `test/unit/window-chrome.spec.tsx` 验证宿主确认前保持实底、深浅主题同步、Mica 与 Vibrancy 确认、浏览器回退、过期响应忽略与拒绝调用降级。
-- `test/workspace-material-css.mjs` 守卫 Mica 与 Vibrancy 共用透明窗框规则，并校验磨砂遮罩在 Vibrancy 下的采样边界。`test/e2e/panel-exit-layering.spec.ts` 用虚拟屏双页和右侧浏览器验证磨砂衬底与遮罩同步淡出。`test/e2e/window-material.spec.ts` 验证调度和大图查看器叠放时的磨砂及合成层释放。`test/e2e/scheduler-overview.spec.ts` 验证并排对话。macOS 使用正常速度的原生窗口录屏检查残影，冻结 CSS 过渡后的 Chromium 截图可能漏掉短暂的旧帧。
+- `test/workspace-material-css.mjs` 守卫 Mica 与 Vibrancy 共用透明窗框规则，并校验磨砂遮罩和比例指示卡在 Vibrancy 下的采样边界。`test/e2e/panel-exit-layering.spec.ts` 用虚拟屏双页和右侧浏览器验证磨砂衬底与遮罩同步淡出。`test/e2e/window-material.spec.ts` 验证调度和大图查看器叠放时的磨砂，以及虚拟屏长按、调宽、取消和松手时的合成边界。`test/e2e/scheduler-overview.spec.ts` 验证并排对话。macOS 残影须在真实原生窗口中检查，Chromium 页面截图可能捕获不到桌面合成保留的旧帧。
 - `test/unit/sessions-float-surface.spec.tsx` 验证侧栏在关闭覆盖动画期间保留、结束后停止绘制、快速重开取消隐藏、工作区切换隐藏及草稿状态保留。
 - `test/workspace-material-css.mjs` 守实际 App 接线、无渐变/实时滤镜/噪点贴图、输入垫底一致，以及不透明内容面与胶囊规则。
 - `test/workspace-material-visual.mjs` 在 Chromium 使用生产 CSS 验证内置深浅 × 八色/禁用 × 框/抽屉共 36 组：文字对比度至少 4.5:1、退色态不降整体透明度、底色跟随实际所在面。`--baseline` 负向控制恢复旧退色规则后必须失败。

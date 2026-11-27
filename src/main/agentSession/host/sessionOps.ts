@@ -58,7 +58,7 @@ export async function forkSession(
   let nativeCreatedToken:string|undefined;
   try {
     const pending=entry?null:host.store.loadPendingFork(sessionId);
-    if(entry?.forkPendingError||entry?.forkDeliveryState==='unknown'||pending&&pending.state!=='delivered'&&pending.state!=='pending')throw new Error(entry?.forkPendingError??'分叉上下文尚未完成，请先发送或检查原生历史');
+    if(entry?.forkPendingError||entry?.forkDeliveryState==='unknown'||pending&&pending.state!=='delivered'&&pending.state!=='pending')throw new Error(entry?.forkPendingError??t('分叉上下文尚未完成，请先发送或检查原生历史'));
     const page=entry?null:host.store.loadRangeSnapshot(sessionId,undefined,1,uptoMessageId);
     let cut=entry?(uptoMessageId?entry.messages.findIndex(m=>m.id===uptoMessageId):entry.messages.length-1):page!.before+page!.messages.length-1;
     const selected=entry?entry.messages[cut]:page!.messages.find(m=>!uptoMessageId||m.id===uptoMessageId);
@@ -73,7 +73,7 @@ export async function forkSession(
     if(point&&point.role===selected.role&&point.sessionToken===sourceToken&&!hasAttachments){
       entry=entry??materializeForExecution(host,sessionId);
       cut=entry.messages.findIndex(message=>message.id===selected.id);
-      if(cut<0)throw new Error('fork 点不存在（消息可能已被清空）');
+      if(cut<0)throw new Error(t('fork 点不存在（消息可能已被清空）'));
     }
     unlock=lockForkSource(host,sessionId);
     if(entry)entry.forking=true;
@@ -93,7 +93,7 @@ export async function forkSession(
         assertCurrent();
         if(conn.nativeFork){const result=await conn.nativeFork(point);if(result.status==='forked'){native=result;nativeCreatedToken=result.token;}}
       }catch(error){
-        if(error instanceof ConnectionCleanupError){sourceEntry.forkPendingError=`无法确认分叉进程已回收：${(error as Error).message}`;markRetirementFailure(host,sessionId,error);retireConnection(host,sourceEntry);}
+        if(error instanceof ConnectionCleanupError){sourceEntry.forkPendingError=t('无法确认分叉进程已回收：{{detail}}', { detail: (error as Error).message });markRetirementFailure(host,sessionId,error);retireConnection(host,sourceEntry);}
         throw error;
       }
     }
@@ -117,7 +117,7 @@ export async function forkSession(
         try{
           assertCurrent();host.store.beginForkPreparation(session.id);owned=true;
           let remap:(text:string)=>string;
-          try{remap=forkAttachments(app.getPath('userData'),`gui:${sessionId}`,`gui:${session.id}`);}catch(error){throw new Error(`分叉附件复制失败：${(error as Error).message}`);}
+          try{remap=forkAttachments(app.getPath('userData'),`gui:${sessionId}`,`gui:${session.id}`);}catch(error){throw new Error(t('分叉附件复制失败：{{detail}}', { detail: (error as Error).message }));}
           if(native){session.externalSessionId=native.token;session.runtimeResumeToken=native.token;}
           function* messages():IterableIterator<GuiChatMessage>{
             for(const message of prefix()){
@@ -142,7 +142,7 @@ export async function forkSession(
             else host.store.clearPendingFork(session.id);
           }
           assertCurrent();
-        }catch(error){if(owned){try{host.store.delete(session.id);}catch(cleanup){throw new Error(`分叉数据准备失败：${(error as Error).message}；清理失败：${(cleanup as Error).message}`);}}throw error;}
+        }catch(error){if(owned){try{host.store.delete(session.id);}catch(cleanup){throw new Error(t('分叉数据准备失败：{{detail}}；清理失败：{{cleanup}}', { detail: (error as Error).message, cleanup: (cleanup as Error).message }));}}throw error;}
         finally{if(owned)host.store.finishForkPreparation(session.id);}
       }});
     return {ok:true,sessionId:created.id};

@@ -36,6 +36,11 @@ html.is-narrow .left-col-resizer {
   display: none !important;
 }
 
+/* 抽屉布局没有可调页缝，把手退出指针与键盘导航。 */
+html.is-narrow .pane-split-v {
+  visibility: hidden;
+}
+
 /* 窄屏中栏页贴满四周（抽屉浮在其上）；右抽屉内工具页去页皮肤 */
 html.is-narrow .terminal-page {
   padding: 0 8px 8px !important;

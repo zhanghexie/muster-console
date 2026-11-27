@@ -2,7 +2,7 @@
 
 统一模型入口 sessions.create。省略 task 创建空会话；GUI 任务作为首条聊天消息发送，CLI 任务随启动简报投递。asSubagent=true 从可信调用链绑定直接父。所有模型创建（包括空会话和 Shell）必须显式传 isolation=shared 或 isolated；Shell 仅支持 shared。GUI/PTY 共用来源校验、继承与并发队列。
 
-调度派新任务时通过 `target: {tierId}` 选择工作区档位，或把用户通过 `/harness` 选定的 `target: {targetRef}` 原样转交宿主。档位可用成员由宿主按用户设置选择，精确引用校验完整配置与来源版本。已有会话可以继续通过邮箱接收任务。preflight 用于运行时诊断。完整目录通过只读 `host.workers.options` 获取。可在设置的 Agent / Harness 区添加候选。
+调度派新任务时通过 `target: {tierId}` 选择工作区档位，或把用户通过 `/harness` 选定的 `target: {targetRef}` 原样转交宿主。Worker 为自己创建指定配置的子代理时同时传 `asSubagent: true`。档位可用成员由宿主按用户设置选择，精确引用校验完整配置与来源版本。已有会话可以继续通过邮箱接收任务。preflight 用于运行时诊断。完整目录通过只读 `host.workers.options` 获取。可在设置的 Agent / Harness 区添加候选。
 
 ## 管线
 
@@ -10,9 +10,9 @@ Shell HTTP 工具网关由 Runtime Kernel 的 `host-entrypoints` 域启动。退
 
 sessionsHost / 桌面新建任务 → tasks/delegate.delegateTask → 来源/仓库与父子校验 → 统一并发队列 → sessions.createTerminal。GUI 通过 `AgentSessionHost.send` 发送完整 `task`，走普通聊天的转写、排队和引擎提交路径，返回 `gui-prompt` 及聊天消息 ID。桌面提交显示为用户消息，调度或其他 Worker 委派保留相应来源。CLI 在创建时传入 `initialPrompt`。
 
-新派活传 task、isolation 和 target。isolated 省略 isolationGroups 时只隔离 cwd 所属 Git 仓库，无法确定仓库时明确报错；显式 isolationGroups 要求每组给出 rootId、relativePath 和 repoSet（[] 表示仅主仓）。shared 不接受 isolationGroups，dispatch.run 的 isolated delegate 要求显式隔离组。宿主入队时固定来源和隔离范围，出队重验版本与物理身份。并发超限返回队列身份，取消及迟到失败保留已创建的资源身份。
+新派活传 task、isolation 和 target。isolated 省略 isolationGroups 时只隔离 cwd 所属 Git 仓库，无法确定仓库时明确报错；显式 isolationGroups 要求每组给出 rootId、relativePath 和 repoSet（[] 表示仅主仓）。shared 不接受 isolationGroups，dispatch.run 的 isolated delegate 要求显式隔离组。宿主入队时固定来源和隔离范围，出队重验版本与物理身份。并发超限返回队列身份。带路由的会话在注册表写入事务中完成最终校验，提交前失败会回滚本次隔离资源。提交后的投递失败保留原会话 ID 供查验。
 
-兼容创建入口仍接受显式 runtime、模型、权限模式、Pi persona、ACP 产品预设和 CLI 启动选项。父子限同工作区，来源或 Harness 不兼容时清除继承的模型参数。Worker 可通过 `asSubagent: true, inherit: true` 请求完整继承当前父会话兼容身份。已有手工会话及 `creationKey` 恢复保留原 runtime，走原有生命周期。
+兼容创建入口仍接受显式 runtime、模型、权限模式、Pi persona、ACP 产品预设和 CLI 启动选项。父子限同工作区，来源或 Harness 不兼容时清除继承的模型参数。Worker 可通过 `asSubagent: true, inherit: true` 继承当前父会话的兼容设置。「完全访问」的 Muster Core Worker 可以用 `asSubagent: true` 和精确引用在当前来源目录创建不同 Harness 的子会话。宿主提交前复核父会话和权限，目标适配器负责自己的启动权限。已有手工会话及 `creationKey` 恢复保留原 runtime，走原有生命周期。
 
 宿主确认旧回合停止且在途工具已结算后，可给同一逻辑 Worker 切换候选。替换回合携带有界的已知任务进度。首条任务消息、后续回复和工具结果可用 `host.workers.context({})` 查看，沿 `nextBefore` 继续向前分页；单条正文用 `{messageId, bodyOffset}` 和 `nextOffset`。工具只读当前切换后的 Worker 自己的转写。旧版首信和补充信仍从同一邮箱读取。交接保持原目录和父子归属。切到不同 Harness 需要用户在设置中授权目标候选，并由宿主确认实际权限。当前可授权 Codex GUI 候选接替顶层任务。
 
@@ -59,7 +59,7 @@ CLI Worker 的可信身份由进程启动投递：`MUSTER_HOST=1`、`MUSTER_SHEL
 
 `test/session-isolation-choice.mjs` 覆盖模型 schema、缺参/旧 auto/错误范围在访问上下文前拒绝、明确选择不读 dirty、队列选择及范围快照；`catalog-tool-schema.mjs` 验证真实模型参数校验；`catalog-public-surface.mjs` 验证真实创建处理器；`delegate-launch.mjs` 覆盖真实派活/邮箱恢复及既有隔离资源复用；`cli-runs.mjs` 验证非法选择不留下预留 Worker 或日志。`workflow-wiring.mjs` / `workflow-runtime.mjs` 验证工作流执行和恢复。
 
-`test/e2e/acp-tool-display.spec.ts` 通过 Electron 和 Qwen ACP 夹具验证首条任务气泡与实际引擎输入。`test/worker-initial-assignment.mjs` 和 `test/gui-host-lifecycle.mjs` 覆盖旧首信的正文续页、原生输入和回执。
+`test/e2e/acp-tool-display.spec.ts` 通过 Electron 和 Qwen ACP 夹具验证首条任务气泡与实际引擎输入。`test/e2e/codex-model-menu.spec.ts` 用本地模型和 Codex app-server 夹具验证 Core Worker 创建隔离子会话，并核对 Codex 原生回合的工作树、模型、思考档与任务正文。`test/worker-routing.mjs` 覆盖权限变化，`test/session-task-worktree-create.mjs` 使用真实 Git 验证注册前拒绝时的回滚。`test/worker-initial-assignment.mjs` 和 `test/gui-host-lifecycle.mjs` 覆盖旧首信的正文续页、原生输入和回执。
 
 worktree 创建/所有权、多仓来源/版本校验、真实文件碰撞、用户验收与合入确认保留，见 [隔离 worktree](isolate-worktree.md)。父对子即时纠偏用 [邮箱 interrupt](session-mailbox.md)；其他低频管理从 [工具发现](tool-discovery.md) 查询。
 

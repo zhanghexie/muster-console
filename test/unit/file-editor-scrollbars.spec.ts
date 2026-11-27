@@ -10,9 +10,9 @@ it('设置页 textarea 样式不污染 CodeMirror 的同名 cm-editor', () => {
 
 it('仅文件页底部留白与右侧拖拽区同宽，浏览器宿主不留边', () => {
   const css = readFileSync(resolve(process.cwd(), 'src/renderer/src/styles/right-workspace.css'), 'utf8');
-  expect(css).toContain('--right-resource-divider-width: 4px');
-  expect(css).toContain('flex-basis: var(--right-resource-divider-width)');
-  expect(css).toContain('.right-workspace-split:not(.resources-collapsed) .right-content-page.files-panel { height: auto; bottom: var(--right-resource-divider-width); }');
+  const base = readFileSync(resolve(process.cwd(), 'src/renderer/src/styles/base.css'), 'utf8');
+  expect(base).toContain('flex: 0 0 var(--split-pane-divider-size)');
+  expect(css).toContain('.right-workspace-split:not(.resources-collapsed) .right-content-page.files-panel { height: auto; bottom: var(--split-pane-divider-size, 4px); }');
   expect(css).not.toMatch(/\.right-workspace-content\s*\{[^}]*margin-bottom:/);
 });
 

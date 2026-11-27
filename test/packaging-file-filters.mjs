@@ -405,20 +405,37 @@ assert.ok((config.asarUnpack ?? []).includes('out/main/extensions/sdk/extension-
   assert.match(workflow, /Upload packaged smoke diagnostics/, 'packaged smoke must upload failure diagnostics');
   assert.match(workflow, /MUSTER_PACKAGED_KEEP_PROFILE: '1'/, 'packaged smoke workflow must preserve failed userData');
   const definition = YAML.parse(workflow);
+  assert.deepEqual(definition.on.push?.branches, ['main'], 'PRs provide quality checks for work branches');
+  assert.ok(Object.hasOwn(definition.on, 'pull_request'), 'PRs must trigger the quality matrix');
+  assert.deepEqual(definition.on.workflow_dispatch?.inputs?.quality_only, {
+    description: 'Run quality checks only', type: 'boolean', default: false
+  });
   assert.deepEqual(definition.on.workflow_dispatch?.inputs?.signed_release, {
     description: 'Build signed release artifacts (main only)', type: 'boolean', default: false
   });
   const jobs = definition.jobs;
-  assert.equal(jobs.quality.steps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.['fetch-depth'], 0);
-  assert.equal(jobs.quality.steps.find(step => step.run === 'npm test')?.env?.MUSTER_CI_TEST_BASE,
+  const qualitySteps = jobs.quality.steps;
+  const dependenciesIndex = qualitySteps.findIndex(step => step.run === 'npm ci');
+  const testIndex = qualitySteps.findIndex(step => step.run === 'npm test');
+  assert.ok(dependenciesIndex >= 0 && dependenciesIndex < testIndex, 'quality must install npm dependencies before testing');
+  assert.equal(qualitySteps.find(step => step.uses?.startsWith('actions/checkout@'))?.with?.['fetch-depth'], 0);
+  assert.equal(qualitySteps[testIndex]?.env?.MUSTER_CI_TEST_BASE,
     '${{ github.event.pull_request.base.sha || github.event.before }}');
-  assert.equal(jobs.quality.steps.find(step => step.name === 'Validate signed release branch')?.if, 'inputs.signed_release');
-  const typecheck = jobs.quality.steps.find(step => step.run === 'npm run typecheck');
+  const browserSetup = qualitySteps.slice(dependenciesIndex + 1, testIndex)
+    .filter(step => step.run?.startsWith('npx playwright install'))
+    .map(step => ({ if: step.if, run: step.run }));
+  assert.deepEqual(browserSetup, [
+    { if: "runner.os == 'Linux'", run: 'npx playwright install --with-deps --only-shell chromium' },
+    { if: "runner.os != 'Linux'", run: 'npx playwright install --only-shell chromium' },
+  ], 'quality must provision Chromium after npm ci and before visual tests can run');
+  assert.equal(qualitySteps.find(step => step.name === 'Validate signed release inputs')?.if,
+    "inputs.signed_release && (inputs.quality_only || github.ref != 'refs/heads/main')");
+  const typecheck = qualitySteps.find(step => step.run === 'npm run typecheck');
   assert.equal(typecheck?.env?.NODE_OPTIONS, '--max-old-space-size=4096', 'cold CI typecheck needs more than the runner default heap');
   const packageJob = jobs.package;
   assert.equal(packageJob.if,
-    "github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private)",
-    'only private main pushes and manual runs should upload installer artifacts');
+    "(github.event_name == 'workflow_dispatch' && !inputs.quality_only) || (github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private)",
+    'package installers for private main pushes and manual packaging runs');
   assert.equal(packageJob.strategy.matrix.include.find(target => target.name === 'windows')?.os, 'windows-2022', 'the pinned node-gyp recognizes Visual Studio 2022');
   assert.deepEqual(packageJob.strategy.matrix.include.map(target => target.driver_cache), ['win-x64', 'mac-x64', 'mac-arm64', 'linux-x64']);
   const prepareIndex = packageJob.steps.findIndex(step => step.run?.includes('desktop-driver/prepare.mjs --prepare'));

@@ -6,6 +6,7 @@ import inspector from 'node:inspector';
 import v8 from 'node:v8';
 import { promisify } from 'node:util';
 import type { OwnedProcessMonitorMeta, ProcessMonitorCpuStartResult, ProcessMonitorNode, ProcessMonitorProfileResult, ProcessMonitorSnapshot } from '../shared/processMonitor';
+import { t } from '../shared/i18n';
 import { handle } from './ipc/handle';
 import { userDataStorage } from './runtimeKernel/storageRootResolver';
 
@@ -91,19 +92,19 @@ function webContentsLabels(): Map<number, { title?: string; url?: string; type?:
 function businessLabel(type: string, name: string, serviceName?: string, title?: string): string {
   if (title) return title;
   const service = (serviceName || name).toLowerCase();
-  if (service.includes('audio')) return '音频服务';
-  if (service.includes('network')) return '网络服务';
-  if (service.includes('storage')) return '存储服务';
-  if (type === 'Browser') return 'Muster 主进程';
-  if (type === 'GPU') return '图形加速进程';
-  if (type === 'Tab' || type === 'Renderer') return '工作区页面';
-  if (type === 'Utility') return serviceName ? `Electron ${serviceName}` : 'Electron 工具进程';
-  if (/^(node|node\.exe)$/i.test(name)) return 'Node 工作进程';
-  if (/^(powershell|pwsh)(\.exe)?$/i.test(name)) return 'PowerShell 任务';
-  if (/^conhost(\.exe)?$/i.test(name)) return 'Windows 控制台';
+  if (service.includes('audio')) return t('音频服务');
+  if (service.includes('network')) return t('网络服务');
+  if (service.includes('storage')) return t('存储服务');
+  if (type === 'Browser') return t('Muster 主进程');
+  if (type === 'GPU') return t('图形加速进程');
+  if (type === 'Tab' || type === 'Renderer') return t('工作区页面');
+  if (type === 'Utility') return serviceName ? `Electron ${serviceName}` : t('Electron 工具进程');
+  if (/^(node|node\.exe)$/i.test(name)) return t('Node 工作进程');
+  if (/^(powershell|pwsh)(\.exe)?$/i.test(name)) return t('PowerShell 任务');
+  if (/^conhost(\.exe)?$/i.test(name)) return t('Windows 控制台');
   if (/cursor/i.test(name)) return 'Cursor Agent';
-  if (/zcode/i.test(name)) return 'ZCode 任务';
-  if (/electron/i.test(name)) return 'Electron 外部进程';
+  if (/zcode/i.test(name)) return t('ZCode 任务');
+  if (/electron/i.test(name)) return t('Electron 外部进程');
   return name || type;
 }
 
@@ -135,8 +136,8 @@ function postInspector(session: inspector.Session, method: string, params?: Reco
 }
 
 async function startCpuCapture(pid: number): Promise<ProcessMonitorCpuStartResult> {
-  if (!Number.isSafeInteger(pid) || pid <= 0) return { ok: false, error: '进程 PID 无效' };
-  if (activeCpuCaptures.has(pid)) return { ok: false, error: '该进程已经在采集 CPU' };
+  if (!Number.isSafeInteger(pid) || pid <= 0) return { ok: false, error: t('进程 PID 无效') };
+  if (activeCpuCaptures.has(pid)) return { ok: false, error: t('该进程已经在采集 CPU') };
   const startedAt = Date.now();
   const maxDurationMs = 10 * 60 * 1000;
   let mainSession: inspector.Session | undefined;
@@ -152,14 +153,14 @@ async function startCpuCapture(pid: number): Promise<ProcessMonitorCpuStartResul
       contents = webContents.getAllWebContents().find(item => {
         try { return item.getOSProcessId() === pid; } catch { return false; }
       });
-      if (!contents) return { ok: false, error: '该进程不是可附加的 Electron/Chromium 进程' };
-      if (contents.debugger.isAttached()) return { ok: false, error: '该页面已被 DevTools 占用，请先关闭 DevTools 后重试' };
+      if (!contents) return { ok: false, error: t('该进程不是可附加的 Electron/Chromium 进程') };
+      if (contents.debugger.isAttached()) return { ok: false, error: t('该页面已被 DevTools 占用，请先关闭 DevTools 后重试') };
       contents.debugger.attach('1.3');
       await contents.debugger.sendCommand('Profiler.enable');
       await contents.debugger.sendCommand('Profiler.start');
     }
     const stop = async (): Promise<ProcessMonitorProfileResult> => {
-      if (finished) return { ok: false, error: 'CPU 采集已经结束' };
+      if (finished) return { ok: false, error: t('CPU 采集已经结束') };
       finished = true;
       const capturedAt = Date.now();
       const file = profileFile(pid, 'cpuprofile');
@@ -200,7 +201,7 @@ async function startCpuCapture(pid: number): Promise<ProcessMonitorCpuStartResul
 
 async function stopCpuCapture(pid: number): Promise<ProcessMonitorProfileResult> {
   const active = activeCpuCaptures.get(pid);
-  if (!active) return { ok: false, error: '该进程没有正在进行的 CPU 采集' };
+  if (!active) return { ok: false, error: t('该进程没有正在进行的 CPU 采集') };
   clearTimeout(active.timer);
   return active.stop();
 }
@@ -221,7 +222,7 @@ async function captureHeapSnapshot(pid: number): Promise<ProcessMonitorProfileRe
       const contents = webContents.getAllWebContents().find(item => {
         try { return item.getOSProcessId() === pid; } catch { return false; }
       });
-      if (!contents) return { ok: false, error: '该进程不支持 Electron 堆快照' };
+      if (!contents) return { ok: false, error: t('该进程不支持 Electron 堆快照') };
       await contents.takeHeapSnapshot(file);
     }
     pruneCaptures(path.dirname(file));
@@ -236,8 +237,8 @@ function openCaptureArtifact(filePath: string): { ok: true } | { ok: false; erro
   try {
     const root = path.resolve(captureDirectory());
     const target = path.resolve(filePath);
-    if (target !== root && !target.startsWith(`${root}${path.sep}`)) return { ok: false, error: '诊断文件路径不在受管目录内' };
-    if (!fs.existsSync(target)) return { ok: false, error: '诊断文件已不存在' };
+    if (target !== root && !target.startsWith(`${root}${path.sep}`)) return { ok: false, error: t('诊断文件路径不在受管目录内') };
+    if (!fs.existsSync(target)) return { ok: false, error: t('诊断文件已不存在') };
     shell.showItemInFolder(target);
     return { ok: true };
   } catch (error) { return { ok: false, error: error instanceof Error ? error.message : String(error) }; }
@@ -272,12 +273,17 @@ export async function collectProcessMonitorSnapshot(): Promise<ProcessMonitorSna
     });
   }
   for (const [pid, owned] of ownedProcesses) {
+    const label = owned.businessLabel;
+    const extension = label && /^扩展运行时 · ([a-z0-9][a-z0-9-]{0,63})$/.exec(label);
+    const businessLabel = extension ? t('扩展运行时 · {{id}}', { id: extension[1] }) : label && t(label);
+    const role = owned.role && t(owned.role);
+    const serviceName = owned.serviceName && t(owned.serviceName);
     const existing = records.get(pid);
     if (existing) {
       records.set(pid, {
         ...existing,
-        ...(owned.businessLabel ? { businessLabel: owned.businessLabel } : {}),
-        ...(owned.role ? { role: owned.role } : {}),
+        ...(businessLabel ? { businessLabel } : {}),
+        ...(role ? { role } : {}),
         ...(owned.workspaceId ? { workspaceId: owned.workspaceId } : {}),
         ...(owned.workspaceName ? { workspaceName: owned.workspaceName } : {}),
         ...(owned.sessionId ? { sessionId: owned.sessionId } : {}),
@@ -294,9 +300,9 @@ export async function collectProcessMonitorSnapshot(): Promise<ProcessMonitorSna
       parentPid,
       type: owned.type,
       name: owned.name,
-      ...(owned.businessLabel ? { businessLabel: owned.businessLabel } : {}),
-      ...(owned.serviceName ? { serviceName: owned.serviceName } : {}),
-      ...(owned.role ? { role: owned.role } : {}),
+      ...(businessLabel ? { businessLabel } : {}),
+      ...(serviceName ? { serviceName } : {}),
+      ...(role ? { role } : {}),
       ...(owned.workspaceId ? { workspaceId: owned.workspaceId } : {}),
       ...(owned.workspaceName ? { workspaceName: owned.workspaceName } : {}),
       ...(owned.sessionId ? { sessionId: owned.sessionId } : {}),
@@ -315,8 +321,8 @@ export async function collectProcessMonitorSnapshot(): Promise<ProcessMonitorSna
       pid: process.pid,
       parentPid: null,
       type: 'Browser',
-      name: 'Muster 主进程',
-      businessLabel: 'Muster 主进程',
+      name: t('Muster 主进程'),
+      businessLabel: t('Muster 主进程'),
       creationTime: process.getCreationTime() ?? capturedAt,
       cpuPercent: Math.max(0, Number(process.getCPUUsage().percentCPUUsage) || 0),
       workingSetKb: 0,

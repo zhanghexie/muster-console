@@ -144,7 +144,7 @@ export async function cleanupTaskWorktrees(ctx: SessionWorktreeCtx, session: Ses
       await opts?.release?.();
       if (ctx.findSession(session.id) !== session || taskWorktreeOwnership(session) !== fingerprint) throw new Error('borrowed worktree reference changed');
       clearSessionWorktreeMetadata(session); ctx.persist(); ctx.flushPersist?.(); ctx.broadcast();
-      return { ok: true, message: '已解除任务目录引用，未删除所有者的 worktree' };
+      return { ok: true, message: t('已解除任务目录引用，未删除所有者的 worktree') };
     } finally { operation.release(); }
   }
   if (!state || (!opts?.storage && state.groups.length < 2 && state.cwdPolicy !== 'source')) throw new Error('task cleanup requires multiple worktree groups');
@@ -426,7 +426,7 @@ export async function cleanupTaskWorktrees(ctx: SessionWorktreeCtx, session: Ses
           continue;
         }
         if (opts?.forceBranches) {
-          if (!ctx.git) throw new Error('GitService 不可用');
+          if (!ctx.git) throw new Error(t('GitService 不可用'));
           const forced = await ctx.git.deleteBranchForce(item.main, item.branch);
           if (!forced.ok) throw new Error(forced.message ?? t('分支删除失败'));
           item.entry.branchRemoved = true; item.entry.status = 'removed'; delete item.entry.message;

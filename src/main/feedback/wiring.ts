@@ -33,10 +33,12 @@ export function createFeedbackService(ctx: AppContext): FeedbackService {
     file: path.join(userDataStorage(app.getPath('userData')).resolve('app', 'feedback'), 'queue.json'),
     appVersion: app.getVersion(),
     remote: createDirectFeedbackRemote(fetcher, DEFAULT_FEEDBACK_TARGET),
-    openIssue: async (url, clipboardBody) => {
-      if (clipboardBody !== undefined) clipboard.writeText(clipboardBody);
-      const result = await openExternalUrl(url);
-      if (!result.ok) throw new Error(result.error);
+    issuePage: {
+      open: async url => {
+        const result = await openExternalUrl(url);
+        if (!result.ok) throw new Error(result.error);
+      },
+      copyBody: body => clipboard.writeText(body)
     },
     changed, needsAiCheck: requestCheck
   });

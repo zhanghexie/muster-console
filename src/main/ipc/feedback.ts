@@ -21,7 +21,7 @@ export function registerFeedbackIpc(ctx: AppContext): void {
   function service(event: Electron.IpcMainInvokeEvent) {
     const win = ctx.getWindow();
     if (!win || !event?.sender || event.sender.id !== win.webContents.id || event.senderFrame !== win.webContents.mainFrame) throw new Error('反馈审核只支持本机工作台窗口');
-    if (!ctx.feedback) throw new Error(ctx.feedbackError ? t('反馈服务不可用：{{error}}', { error: ctx.feedbackError }) : t('反馈服务不可用'));
+    if (!ctx.feedback) throw new Error(ctx.feedbackError ? t('反馈服务不可用：{{error}}', { error: t(ctx.feedbackError) }) : t('反馈服务不可用'));
     return ctx.feedback;
   }
   handle('feedback:snapshot', event => service(event).snapshot());
@@ -34,5 +34,6 @@ export function registerFeedbackIpc(ctx: AppContext): void {
   handle('feedback:prepare', (event, id: string, revision: number) => service(event).prepare(id, revision));
   handle('feedback:duplicate', (event, id: string, revision: number, match: FeedbackMatch) => service(event).markDuplicate(id, revision, match));
   handle('feedback:submit', (event, id: string, revision: number, reviewId: string, distinct: boolean) => service(event).submit(id, revision, reviewId, distinct));
+  handle('feedback:copyIssueBody', (event, id: string, revision: number) => service(event).copyIssueBody(id, revision));
   handle('feedback:reconcile', (event, id: string, revision: number, returnToDraft?: boolean) => service(event).reconcile(id, revision, returnToDraft));
 }

@@ -455,23 +455,23 @@
   function initResizer() {
     const rz = $('#resizer');
     const calPane = document.querySelector('.cal-pane');
-    let dragging = false;
+    let drag = null;
     rz.addEventListener('mousedown', e => {
-      dragging = true;
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, width: calPane.getBoundingClientRect().width };
       rz.classList.add('active');
       document.body.style.userSelect = 'none';
       e.preventDefault();
     });
     window.addEventListener('mousemove', e => {
-      if (!dragging) return;
-      const left = calPane.getBoundingClientRect().left;
-      const w = Math.max(260, Math.min(420, e.clientX - left));
+      if (!drag) return;
+      const w = Math.max(260, Math.min(420, drag.width + e.clientX - drag.x));
       state.calWidth = Math.round(w);
       applyCalWidth();
     });
     window.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
+      if (!drag) return;
+      drag = null;
       rz.classList.remove('active');
       document.body.style.userSelect = '';
       saveUi();

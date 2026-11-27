@@ -139,13 +139,16 @@ it('offers uninstall for an installed center release', async () => {
 it('opens a VS Code style center detail view and returns to the catalog', async () => {
   render(<ExtensionsManager workspaceId="ws" sourceRootId="root" projectLabel="项目"
     listing={{ global: [], project: [], problems: [], issues: [] }} setEnabled={async () => {}}
-    centerCatalog={{ source: 'github', releases: [{ packageKey: 'muster/bookshelf', publisherId: 'muster', publisherName: 'Muster', extensionId: 'bookshelf', name: '图书馆', version: '1.2.0', fingerprint: 'package-extension:abc', sha256: 'a'.repeat(64), sourceKind: 'center', installed: false, description: '本地阅读器', category: 'reading', releaseNotes: '首发版本', readme: '# 图书馆\n\n阅读本地书籍。' }] }}
+    centerCatalog={{ source: 'github', releases: [{ packageKey: 'muster/bookshelf', publisherId: 'muster', publisherName: 'Muster', extensionId: 'bookshelf', name: '图书馆', icon: 'builtin-extension:library', version: '1.2.0', fingerprint: 'package-extension:abc', sha256: 'a'.repeat(64), sourceKind: 'center', installed: false, description: '本地阅读器', category: 'reading', releaseNotes: '首发版本', readme: '# 图书馆\n\n阅读本地书籍。' }] }}
     installCenter={async () => {}} />);
   fireEvent.click(screen.getByRole('tab', { name: '扩展中心' }));
   expect(screen.getByText('GitHub 扩展中心')).toBeTruthy();
   expect(screen.getByRole('heading', { name: '阅读' })).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: '查看扩展详情 图书馆' }));
-  expect(screen.getByRole('article', { name: '图书馆' })).toBeTruthy();
+  const release = screen.getByRole('button', { name: '查看扩展详情 图书馆' });
+  expect(release.closest('article')?.querySelector('.ext-manager-icon [aria-hidden="true"]')?.getAttribute('style')).toContain('library.svg');
+  fireEvent.click(release);
+  const detail = screen.getByRole('article', { name: '图书馆' });
+  expect(detail.querySelector('.ext-manager-icon [aria-hidden="true"]')?.getAttribute('style')).toContain('library.svg');
   expect(screen.getAllByText('GitHub 扩展中心')).toHaveLength(2);
   expect(screen.getByText('package-extension:abc')).toBeTruthy();
   expect(screen.getByText('首发版本')).toBeTruthy();

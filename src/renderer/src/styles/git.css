@@ -1813,8 +1813,8 @@
   box-shadow: 0 0 0 1px var(--border-subtle);
 }
 
-.side-tools-panel .split-pane-handle:not(:hover):not(.is-hot) .split-pane-handle-line {
-  background: transparent;
+.side-tools-panel .split-pane-handle:not(:hover):not(.is-hot):not(:focus-visible) .split-pane-handle-line {
+  background: var(--split-pane-divider-rest, transparent);
 }
 
 /* 历史列表与提交详情、文件树与 Diff 的分界始终可见。 */

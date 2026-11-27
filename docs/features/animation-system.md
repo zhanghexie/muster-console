@@ -48,7 +48,7 @@ CLI 输入区使用 `usePresence` + `mp-panel`/`mp-pop` 从胶囊位置缩放进
 --ease-exit:     cubic-bezier(0.4, 0, 0.2, 1);    /* 退场：缓起快收 */
 --ease-hover:    ease-out;                         /* 微交互 */
 --ease-move:     cubic-bezier(0.33, 0.1, 0.25, 1); /* 大位移（虚拟屏/工作区胶片/全局看板） */
---ease-loop:     cubic-bezier(0.37, 0, 0.63, 1);   /* 循环装饰（对称缓入缓出） */
+--ease-loop:     cubic-bezier(0.37, 0, 0.63, 1);   /* 对称缓入缓出（循环装饰、双向伸缩） */
 --dur-micro:   120ms;  /* hover/图标；菜单退场；xfade 旧视图淡出 */
 --dur-menu:    160ms;  /* 菜单/小浮层 */
 --dur-panel:   280ms;  /* 面板/弹窗入场 */
@@ -141,6 +141,7 @@ CenterPanel 以 selection 为 key 在同一父节点下渲染层列表（当前�
 
 - 弹窗族：设置、命令面板（QuickOpen）、ConfirmDialog（含入站 MCP TOFU 审查体）、AppConfirmDialog（含 6 调用点 open prop 化）、NewTaskDialog、CreateWorkspaceModal、ExtensionUiDialog、EvidencePanel、PrCreateDialog、FeedbackCenter（顶栏下方飞入 + 磨砂层）、ProcessMonitorPanel（与全局看板共用飞入/飞出和磨砂层节拍）
 - 菜单浮层：ContextMenu、顶栏工作区/扩展 overflow 菜单、GitBranchPopover、Composer plus/模型菜单、CustomSelect、聊天「滚动到底部」浮钮（mp-pop-up）、全局 Tooltip（退场可播，热身免延迟，见 [menus-and-tooltips.md](menus-and-tooltips.md)）
+- 虚拟屏把手、提示、加减号胶囊和长按调节菜单复用 `mp-pop`。菜单以把手为原点，在胶囊大小和完整菜单大小之间双向缩放和淡化，展开与收起共用 `--dur-micro` 和对称曲线 `--ease-loop`。横拖或退出时菜单立即释放命中。胶囊横拖期间独立保留，随分割线移动。轻微动态档缩小伸缩幅度，减少动态效果时即时切换。
 - 视图切换：Files↔Git 侧工具页、设置页签（滚动下放各页，含通知偏好免打扰 acc 手风琴）、对话↔轨迹、文件编辑↔预览（CM 保活）、Git 工作↔历史——均「先出后入」；**工作会话切换**（terminal-wrap/agent-chat-view）叠放保活 + `xfade-instant` 瞬切；Git PR 页签为常驻列表无独立进出场骨架
 - 调度对话浮窗（AgentFloat）：`usePresenceValue(chatWorkspaceId)` 驱动面板与公共磨砂遮罩，退场中再点头像可回弹，开着换区只换内容不重播，见 [sessions-dock.md](sessions-dock.md)
 - 调度并排对话：`usePresenceValue` 驱动整组在场，`mp-scrim` 淡入同单窗的磨砂遮罩。各列在独立尺寸的槽位中用 `mp-panel` 从工作区栏方向飞入，复用单窗缩放原点计算，以 `--dur-stagger` 错峰并封顶三步。拖动只更新槽位布局，每帧至多一次。收起各列同时飞回，退场时冻结会话内容，中途重开沿当前插值继续并跳过错峰。减少动态效果时立即切换，见 [调度面板入口](scheduler-panel-entry.md#并排对话)。

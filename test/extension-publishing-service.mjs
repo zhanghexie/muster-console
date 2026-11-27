@@ -20,7 +20,8 @@ try {
   const repository = 'https://github.com/author/xiangqi';
   await fs.writeFile(reviewersFile, '[2]');
   execFileSync('git', ['init', '--bare', '--quiet', '--initial-branch=main', remote]);
-  execFileSync(process.execPath, ['scripts/pack-extension-release.mjs', 'resources/extensions/xiangqi', artifact]);
+  const packed = JSON.parse(execFileSync(process.execPath, ['scripts/pack-extension-release.mjs', 'resources/extensions/xiangqi', artifact], { encoding: 'utf8' }));
+  assert.equal(packed.icon, 'builtin-extension:games');
   const fixture = await createExtensionPublishingService({ directory: path.join(temp, 'private'), origin: 'http://127.0.0.1:0', reviewersFile,
     clientId: 'fixture-client', clientSecret: 'fixture-secret', fetchImpl: async (url, options) => {
       if (url === 'https://github.com/login/oauth/access_token') {
@@ -81,6 +82,7 @@ try {
   assert.equal((await request(`/review/${id}/approve`, reviewer, { sha256 })).status, 200);
   const catalog = await (await request('/catalog.json')).json();
   assert.equal(catalog.releases[0].packageUrl, `${origin}/packages/${id}.json`);
+  assert.equal(catalog.releases[0].icon, packed.icon);
   assert.equal(await (await fetch(catalog.releases[0].packageUrl)).text(), input.artifact);
   const compile = createSharedCompiler(path.resolve(import.meta.dirname, '..'), path.join(temp, 'compiled'));
   const { DEFAULT_EXTENSION_CENTER_URL, ExtensionCenterService } = await import(pathToFileURL(compile('main/extensions/extensionCenter.ts')));

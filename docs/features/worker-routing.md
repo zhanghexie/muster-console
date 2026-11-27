@@ -6,7 +6,11 @@
 
 保存的分类依次为 `low`、`medium`、`high`、`xhigh` 和 `special`，派活请求使用稳定 `tierId`。宿主读取旧池时仅将唯一的「轻量／Lightweight」归为低、「攻坚／Complex tasks」归为高，冲突和其他旧池留在特殊功能，包括原来叫「极高」的特殊池。读取不写盘，保留 ID、旧名称、候选和后继。每层最多 16 个池，可把特殊池显式分配到空标准档，保留原身份和内容。
 
-调度在现有 Pi 回合里看到当前工作区的档位摘要，按任务要求调用 `host.sessions.create({task,isolation,target:{tierId}})`。用户指定精确型号时，调度直接传 `target:{targetRef}`。没有选择时，调度的普通新任务返回选档和设置入口。内部工作流、手工建空会话和旧会话恢复沿用原合同。Worker 用 `asSubagent:true,inherit:true` 继承可信父会话的兼容启动身份。ACP preset 随产品继承，改 preset 或模型后清除旧参数。Pi persona 单独选择。调度通过 `target` 派活时，配置全部来自档位或引用：`sessions.create` 不再接受内联的 `model`、`thinking`、`modelParameters`、`nativeConfig`、`cliLaunchOptions`、`guiMode`、`configurePermissions`、`runtime`、`acpPresetId` 或 `piModeId`，传了按 `additionalProperties:false` 直接失败。**引用当前不含权限与思考档**（`WorkerTargetConfig` 只有 harnessId/surface/runtimeId/acpPresetId/model/modelParameters/cliLaunchOptions），所以经引用或档位创建的 Worker 一律走自动权限：`configurePermissions` 未开 → `automaticPermissions: true`，Core 取 `auto`、Claude 取 `bypassPermissions`、ACP 从原生目录取 `bypassPermissions`/`yolo`/`full-access` 之一（引擎当前为 plan 时保留 plan）。用户在新建对话框、会话输入栏或模型选择器旁配置的权限只作用于 UI 直接创建的会话，不随引用传递；要指定权限仍走界面。
+调度在现有 Pi 回合里看到当前工作区的档位摘要，按任务要求调用 `host.sessions.create({task,isolation,target:{tierId}})`。用户指定精确型号时，调度直接传 `target:{targetRef}`。没有选择时，调度的普通新任务返回选档和设置入口。内部工作流、手工建空会话和旧会话恢复沿用原合同。模型工具通过档位或引用提交 Harness、runtime、ACP preset、模型及思考等模型参数，内联启动字段由 `additionalProperties:false` 拒绝。新建对话框走独立入口，可传用户选择的原生设置。
+
+Worker 用 `asSubagent:true,inherit:true` 继承可信父会话的兼容启动设置。指定子代理的 Harness 或型号时，传 `asSubagent:true,target:{targetRef}`。处于「完全访问」的 Muster Core 父会话可以创建跨 Harness 子代理。宿主核对同一工作区和来源目录，在预检和会话持久化前复核父会话的生效权限。目标使用自己的常规启动权限，父子关系、隔离范围和首条任务沿用统一创建管线。受限 Core 和外部 Harness 的权限继承限兼容运行时及 ACP preset。改 preset 或模型后清除不兼容的旧参数，Pi persona 单独选择。
+
+宿主分别解析精确引用和权限。调度用引用或档位创建顶层 Worker，以及获准的新建跨 Harness 子代理，按目标适配器采用常规自动权限策略。Core 取 `auto`，Claude 取 `bypassPermissions`，ACP 从原生目录选择已知免审批档并保留引擎的 `plan`。同 Harness 委派使用调用者的权限设置，外部原生设置须来自同源会话的可传递确认值。
 
 `host.workers.options` 在调度、接入宿主工具的 GUI/ACP 和 PTY 可用。缺省读取含分类的档位，`mode:harnesses` 查看接入，`mode:models` 按 Harness、表面、搜索或精确模型查目录及参数。目录读取使用既有缓存，未知快照在 Harness 设置手动刷新。来源由可信调度工作区、Worker 会话或用户选择绑定。模型目录按 provider、runtime、ACP preset 和来源匹配。原生响应未确认的模型和参数只在回执中标作已解析。
 
@@ -18,7 +22,7 @@
 
 GUI 运行中切换要求原生终态、宿主与原生工具结果均结算，且旧连接已确认回收。替换保留逻辑会话、任务目录、工作树、父子关系、邮箱和等待，清除旧原生标识。宿主用有界转写、邮件与记录的产物路径组装交接，长文经 `host.workers.context` 和 `host.mail.read` 分页续读。同一 Harness 可在现有权限下切模型。配置与 attempt 先原子落盘，再打开新引擎；重启看到未决运行时等待人工核对。精确引用始终使用所选配置。
 
-工作区覆盖中的 Codex GUI 候选可以在设置中显式授权接替其他 Harness 的顶层任务。用户选择内建权限方案、审批策略和审批者，默认关闭。保存通过不发送模型回合的临时 Codex 线程确认生效权限，并把授权绑定到具体工作区、候选、源目录和版本。全局候选禁止携带此授权。实际接替与之后的恢复回合在 `turn/start` 前重验目标目录、有效沙箱、工作区根和审批设置。目标只接受自身工作目录对应的写根，检测到额外目录、权限或配置变化就暂停。进入已授权的 Codex 后，后续更换候选也需要新候选自己的授权。设置中的授权由用户操作，模型只能读取能力摘要。继承权限的委派、由 Worker 发起的派活以及显式指定其他启动权限的任务保留来源权限约束。其他引擎目前缺少完整的目标权限确认，运行中跨 Harness 接替停在可检查状态。
+工作区覆盖中的 Codex GUI 候选可以在设置中显式授权接替其他 Harness 的顶层任务。用户选择内建权限方案、审批策略和审批者，默认关闭。保存通过不发送模型回合的临时 Codex 线程确认生效权限，并把授权绑定到具体工作区、候选、源目录和版本。全局候选禁止携带此授权。实际接替与之后的恢复回合在 `turn/start` 前重验目标目录、有效沙箱、工作区根和审批设置。目标只接受自身工作目录对应的写根，检测到额外目录、权限或配置变化就暂停。进入已授权的 Codex 后，后续更换候选也需要新候选自己的授权。设置中的授权由用户操作，模型只能读取能力摘要。由 Worker 发起的任务和显式选择启动权限的任务继续约束运行时交接。其他引擎目前缺少完整的目标权限确认，运行中跨 Harness 接替停在可检查状态。
 
 Core 在同一次受管请求的 OpenAI Completions、Responses 和 Anthropic Messages 非成功 HTTP 响应中读取有界结构，ACP 保留明确 JSON-RPC 终态错误数据，Codex 保留终态结构化错误字段。只报告文本、未确认终态或工具结果不全的引擎保留阻塞事实。传统 CLI 支持启动前预检选择，执行中的终端输出缺少通用可验证的终态和工具结算证据；退出时保留原会话供用户检查。不同表面的权限不能确认相容时也停在原会话。在线账号配额与 macOS、Linux 真机待验收。
 

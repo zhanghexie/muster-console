@@ -71,7 +71,7 @@ export async function describeParameters(host: HostCore, target: ParameterTarget
     const explicitAgent = preset;
     if (scopedAgent !== undefined && (!scopedAgent || (explicitAgent && scopedAgent !== explicitAgent))) throw new Error(t('ACP 参数范围与目标 Agent 不一致'));
     const source = session && sessionModelSourceCwd(config, session);
-    if (!target.cwd && session && !source && (session.worktreePath || session.worktreeSource || session.worktreeGroups)) throw new Error('会话缺少可确认的模型目录来源。');
+    if (!target.cwd && session && !source && (session.worktreePath || session.worktreeSource || session.worktreeGroups)) throw new Error(t('会话缺少可确认的模型目录来源。'));
     const context = await driver.describeModelParameters({
       cwd: target.cwd ?? source ?? session?.cwd ?? config.workspace,
       modelOverride: session?.modelOverride ?? (target.modelId || target.providerId ? { providerId: target.providerId, modelId: target.modelId } : undefined),

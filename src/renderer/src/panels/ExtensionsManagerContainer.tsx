@@ -2,7 +2,7 @@ import { ErrorTip } from '../components/ErrorTip';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ExtensionManagementSnapshot } from '../../../shared/extension';
-import type { ExtensionCenterListing } from '../../../shared/extensionCenter';
+import type { ExtensionCenterInstallResult, ExtensionCenterInstallSnapshot, ExtensionCenterListing } from '../../../shared/extensionCenter';
 import type { ExtensionPublishingApi } from '../../../shared/extensionPublishing';
 import { BrandLoading } from '../components/BrandLoader';
 import { ExtensionsManager, type ExtensionManagementTab } from './ExtensionsManager';
@@ -18,8 +18,9 @@ export interface ExtensionManagementApi {
   preserveTransaction?: (workspaceId: string, id: string) => Promise<string>;
   onChanged: (listener: (workspaceId?: string) => void) => () => void;
   centerList?: (force?: boolean) => Promise<ExtensionCenterListing>;
-  centerInstall?: (packageKey: string) => Promise<unknown>;
+  centerInstall?: (packageKey: string) => Promise<ExtensionCenterInstallResult>;
   centerUninstall?: (packageKey: string) => Promise<unknown>;
+  onCenterInstallProgress?: (listener: (snapshot: ExtensionCenterInstallSnapshot) => void) => () => void;
 }
 
 /** Keep asynchronous responses bound to the workspace and selected project. */
@@ -31,7 +32,9 @@ export function ExtensionsManagerContainer({ workspaceId, api, publishingApi }: 
   const [selectedTab, setSelectedTab] = useState<ExtensionManagementTab>('global');
   const [centerCatalog, setCenterCatalog] = useState<ExtensionCenterListing | null>(null);
   const [centerLoading, setCenterLoading] = useState(false), [centerError, setCenterError] = useState('');
-  const [centerRequested, setCenterRequested] = useState(false);
+  const [centerInstallProgress, setCenterInstallProgress] = useState<ExtensionCenterInstallSnapshot>();
+  const latestCenterProgress = useRef<ExtensionCenterInstallSnapshot | undefined>(undefined);
+  const centerRequested = useRef(false), centerRead = useRef(0);
   const generation = useRef(0), selecting = useRef(false), changedWhileSelecting = useRef(false);
   const currentWorkspace = useRef(workspaceId); currentWorkspace.current = workspaceId;
   const refresh = useCallback(async (clear: boolean): Promise<void> => {
@@ -55,17 +58,33 @@ export function ExtensionsManagerContainer({ workspaceId, api, publishingApi }: 
     void refresh(true);
     return () => { generation.current++; selecting.current = false; stop(); };
   }, [api, workspaceId, refresh]);
+  const applyCenterProgress = useCallback((next: ExtensionCenterInstallSnapshot): boolean => {
+    if (latestCenterProgress.current && next.revision <= latestCenterProgress.current.revision) return false;
+    latestCenterProgress.current = next;
+    setCenterInstallProgress(next);
+    return true;
+  }, []);
   const refreshCenter = useCallback(async (force = false): Promise<void> => {
     if (!api.centerList) return;
-    setCenterRequested(true);
+    const request = ++centerRead.current;
+    centerRequested.current = true;
     setCenterLoading(true); setCenterError('');
-    try { setCenterCatalog(await api.centerList(force)); }
-    catch (cause) { setCenterError(String(cause)); }
-    finally { setCenterLoading(false); }
-  }, [api]);
+    try {
+      const next = await api.centerList(force);
+      if (next.installProgress) applyCenterProgress(next.installProgress);
+      if (request === centerRead.current) setCenterCatalog(next);
+    } catch (cause) { if (request === centerRead.current) setCenterError(String(cause)); }
+    finally { if (request === centerRead.current) setCenterLoading(false); }
+  }, [api, applyCenterProgress]);
+  useEffect(() => api.onCenterInstallProgress?.(next => {
+    const previous = latestCenterProgress.current;
+    if (applyCenterProgress(next) && centerRequested.current && previous?.active.some(
+      item => !next.active.some(active => active.packageKey === item.packageKey),
+    )) void refreshCenter();
+  }), [api, applyCenterProgress, refreshCenter]);
   const openCenter = useCallback((): void => {
-    if (!centerRequested && !centerLoading) void refreshCenter();
-  }, [centerLoading, centerRequested, refreshCenter]);
+    if (!centerRequested.current) void refreshCenter();
+  }, [refreshCenter]);
 
   const selectProject = (sourceRootId: string): void => {
     const sequence = ++generation.current;
@@ -116,14 +135,18 @@ export function ExtensionsManagerContainer({ workspaceId, api, publishingApi }: 
   } : undefined;
   const uninstallGlobal = api.uninstallGlobal ? async (id: string, fingerprint: string): Promise<void> => {
     await api.uninstallGlobal!(workspaceId, id, fingerprint);
-    await Promise.all([refresh(false), centerRequested && refreshCenter()]);
+    await Promise.all([refresh(false), centerRequested.current && refreshCenter()]);
   } : undefined;
   const installLocal = api.installLocal ? async (): Promise<{ canceled: true } | { extensionId: string }> => {
     const result = await api.installLocal!();
     if (!('canceled' in result)) await refresh(false);
     return result;
   } : undefined;
-  const installCenter = api.centerInstall ? async (packageKey: string): Promise<void> => { await api.centerInstall!(packageKey); await Promise.all([refresh(false), refreshCenter(true)]); } : undefined;
+  const installCenter = api.centerInstall ? async (packageKey: string): Promise<void> => {
+    const result = await api.centerInstall!(packageKey);
+    if (!result.installed && !result.skipped) throw new Error(result.error || t('扩展安装失败'));
+    await Promise.all([refresh(false), refreshCenter(true)]);
+  } : undefined;
   const uninstallCenter = api.centerUninstall ? async (packageKey: string): Promise<void> => { await api.centerUninstall!(packageKey); await Promise.all([refresh(false), refreshCenter(true)]); } : undefined;
-  return <><ExtensionsManager workspaceId={workspaceId} sourceRootId={snapshot.sourceRootId} projectLabel={selected?.label ?? t('选择当前项目')} projects={snapshot.projects} onProjectChange={selectProject} selectedTab={selectedTab} onTabChange={setSelectedTab} listing={snapshot.listing} setEnabled={setEnabled} setEnabledAll={setEnabledAll} preserveTransaction={preserveTransaction} uninstallGlobal={uninstallGlobal} installLocal={installLocal} onRefresh={() => void refresh(false)} centerCatalog={centerCatalog} centerLoading={centerLoading} centerError={centerError} installCenter={installCenter} uninstallCenter={uninstallCenter} onCenterOpen={openCenter} onCenterRefresh={() => void refreshCenter(true)} publishingApi={publishingApi}/>{error && <ErrorTip message={localizeExtensionReason(error)} />}</>;
+  return <><ExtensionsManager workspaceId={workspaceId} sourceRootId={snapshot.sourceRootId} projectLabel={selected?.label ?? t('选择当前项目')} projects={snapshot.projects} onProjectChange={selectProject} selectedTab={selectedTab} onTabChange={setSelectedTab} listing={snapshot.listing} setEnabled={setEnabled} setEnabledAll={setEnabledAll} preserveTransaction={preserveTransaction} uninstallGlobal={uninstallGlobal} installLocal={installLocal} onRefresh={() => void refresh(false)} centerCatalog={centerCatalog} centerLoading={centerLoading} centerError={centerError} centerInstallProgress={centerInstallProgress} installCenter={installCenter} uninstallCenter={uninstallCenter} onCenterOpen={openCenter} onCenterRefresh={() => void refreshCenter(true)} publishingApi={publishingApi}/>{error && <ErrorTip message={localizeExtensionReason(error)} />}</>;
 }

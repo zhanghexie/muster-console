@@ -37,12 +37,14 @@ function attachResize(handle: HTMLElement, event: React.PointerEvent, onMove: (m
     handle.removeEventListener('pointermove', onMove);
     handle.removeEventListener('pointerup', end);
     handle.removeEventListener('pointercancel', end);
+    handle.removeEventListener('lostpointercapture', end);
     setResizing(false);
     onEnd();
   };
   handle.addEventListener('pointermove', onMove);
   handle.addEventListener('pointerup', end);
   handle.addEventListener('pointercancel', end);
+  handle.addEventListener('lostpointercapture', end);
 }
 
 export function useAgentSidebarWidth(layoutRef: React.RefObject<HTMLElement | null>): {

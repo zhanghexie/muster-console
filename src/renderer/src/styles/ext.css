@@ -272,6 +272,7 @@
 .ext-agent-layout.docked.dock-left .ext-panel-frame {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
+  border-left-width: 0;
 }
 
 .ext-agent-resizer {
@@ -290,14 +291,7 @@
 }
 
 .ext-agent-resizer::before {
-  content: '';
-  position: absolute;
-  left: 3.5px;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  border-radius: 2px;
-  background: transparent;
+  background: var(--border-subtle);
 }
 
 .ext-agent-resizer:hover::before,
@@ -1105,6 +1099,31 @@
 .ext-extension-center-list-view, .ext-extension-center-detail-view { min-height: 0; overflow: auto; }
 .ext-extension-row { max-width: 1132px; margin-left: auto; margin-right: auto; }
 .ext-extension-summary { display: flex; flex: 1 1 120px; min-width: 0; flex-direction: column; align-items: flex-start; gap: 5px; border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.ext-extension-row > .ext-center-install-feedback { margin: 0 12px 12px 56px; }
+.ext-center-install-feedback { display: grid; gap: 8px; min-inline-size: 0; font-size: var(--font-ui); }
+.ext-center-install-line { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 12px; }
+.ext-center-install-label { display: inline-flex; align-items: center; gap: 7px; color: var(--raised-fg-primary); font-weight: 500; }
+.ext-center-install-label svg { flex: none; color: var(--raised-status-info-fg); }
+.ext-center-install-size { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; margin-inline-start: auto; color: var(--raised-fg-secondary); font-size: var(--font-caption); font-variant-numeric: tabular-nums; }
+.ext-center-install-size strong { color: var(--raised-fg-primary); font-weight: 500; }
+.ext-center-install-progress {
+  appearance: none;
+  display: block;
+  inline-size: 100%;
+  block-size: 5px;
+  border: 0 solid;
+  border-radius: var(--radius-pill);
+  overflow: clip;
+  background: var(--raised-status-info-bg);
+}
+.ext-center-install-progress::-webkit-progress-bar { background: transparent; }
+.ext-center-install-progress::-webkit-progress-value { background: var(--raised-status-info-fg); border-radius: var(--radius-pill); }
+.ext-center-install-progress::-moz-progress-bar { background: var(--raised-status-info-fg); border-radius: var(--radius-pill); }
+@media (forced-colors: active) {
+  .ext-center-install-progress { appearance: auto; }
+}
+.ext-center-install-error .ext-center-install-label, .ext-center-install-error .ext-center-install-label svg { color: var(--raised-status-danger-fg); }
+.ext-center-install-error p { margin: 4px 0 0; color: var(--raised-fg-secondary); overflow-wrap: anywhere; }
 .ext-extension-toggle { flex: 0 0 auto; }
 .ext-extension-detail { margin: 0 12px 12px 56px; color: var(--fg-secondary); font-size: var(--font-ui); overflow-wrap: anywhere; }
 .ext-extension-detail > div + div { margin-top: 6px; }
@@ -1112,12 +1131,12 @@
 .ext-extension-center-detail { box-sizing: border-box; min-height: 420px; padding: 20px 24px 28px; background: var(--surface-raised); color: var(--fg-primary); }
 .ext-extension-center-detail-toolbar { display: flex; justify-content: flex-start; margin-bottom: 20px; }
 .ext-extension-center-detail-header { display: flex; align-items: center; gap: 14px; }
+.ext-extension-center-detail-header > .ext-manager-icon { inline-size: 40px; block-size: 40px; }
 .ext-extension-center-detail-title { min-width: 0; flex: 1; }
 .ext-extension-center-detail-title h2 { margin: 0; font-size: var(--font-title); font-weight: 650; }
 .ext-extension-center-detail-title p { margin: 5px 0 0; color: var(--fg-secondary); font-size: var(--font-caption); }
-.ext-extension-center-detail-header .ext-status { flex: none; }
 .ext-extension-center-detail-description { max-width: 760px; margin: 18px 0; color: var(--fg-secondary); font-size: var(--font-ui); line-height: 1.6; }
-.ext-extension-center-detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; max-width: 760px; margin: 0; }
+.ext-extension-center-detail-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; max-width: 760px; margin: 20px 0 0; }
 .ext-extension-center-detail-meta > div { min-width: 0; }
 .ext-extension-center-detail-meta dt { color: var(--fg-muted); font-size: var(--font-caption); }
 .ext-extension-center-detail-meta dd { margin: 3px 0 0; color: var(--fg-primary); overflow-wrap: anywhere; }
@@ -1128,7 +1147,8 @@
 .ext-extension-center-detail-readme { padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-canvas); color: var(--fg-secondary); white-space: pre-wrap; line-height: 1.6; }
 .ext-extension-center-detail-link { margin: 14px 0 0; }
 .ext-extension-center-detail-link a { color: var(--fg-link); }
-.ext-extension-center-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.ext-extension-center-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ext-extension-center-detail > .ext-center-install-feedback { max-inline-size: 760px; margin-block-start: 12px; }
 .ext-extension-issue { margin: 8px 24px; overflow-wrap: anywhere; }
 .ext-extension-problems { flex: 0 1 auto; min-height: 0; max-height: 48%; overflow: auto; }
 .ext-extension-transaction { padding: 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-raised); color: var(--fg-primary); font-size: var(--font-ui); }
@@ -1143,6 +1163,7 @@
   .ext-extension-center-detail { padding: 16px 14px 22px; }
   .ext-extension-center-detail-meta { grid-template-columns: minmax(0, 1fr); }
   .ext-extension-detail { margin-left: 12px; }
+  .ext-extension-row > .ext-center-install-feedback { margin-inline-start: 12px; }
 }
 
 /* 扩展独立窗口（#extension-window?...）：整个 v4 面板（iframe + AI 侧栏）一体承载 */

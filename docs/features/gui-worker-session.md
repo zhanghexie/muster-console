@@ -388,7 +388,7 @@ Muster Core connect 用工作台 `resolveLlmConfigWithReload` 解析服务商和
 
 从新建任务直接启动时，完整任务文本走 `AgentSessionHost.send`，和打开空白会话后发送消息共用同一套聊天转写和引擎投递。已注册轮次文件登记工具时，GUI 首条宿主说明提醒 Worker 在审阅可能漏检的文件改动前后登记准确路径，用法见 [轮次文件改动](turn-checkpoint.md)。
 
-已注册 `host.sessions.create` 时，首条宿主说明也提示 Worker 可把独立子任务交给子代理，传 `asSubagent: true`、`task` 和显式 `isolation`，可用 `inherit: true` 沿用父会话启动设置。完整创建用法见 [Worker 创建与任务投递](worker-inject.md)。
+已注册 `host.sessions.create` 时，首条宿主说明提示 Worker 可把独立子任务交给子代理，传 `asSubagent: true`、`task` 和显式 `isolation`。可用 `inherit: true` 沿用父会话启动设置，也可传 `target: {targetRef}` 选择具体 Harness 和模型。「完全访问」的 Muster Core 父会话可在当前来源使用精确引用启动跨 Harness 子代理。完整创建用法见 [Worker 创建与任务投递](worker-inject.md)。
 
 宿主说明按实际注册的工具提供状态上报、邮件、隔离交付和记忆等调用提示。项目指令由各 Harness 自己加载，工具参数随注册定义提供。模式 persona 和扩展提示、记忆与模式钩子按各自入口运行。目录快照通过 `cwd` 和源根 ID 引用已列出的路径，可读写范围、额外只读范围及隔离映射各自列出。全局行为规约从设置读取并原样附加。默认聊天气泡显示用户原文。开启 [Harness 透明](trajectory-view.md) 后，用户气泡直接显示 driver 提交的完整文本，图片继续使用附件视图。
 

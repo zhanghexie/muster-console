@@ -10,16 +10,25 @@ import { SPLIT_RATIO_MAX, SPLIT_RATIO_MIN } from '../../src/shared/workspaceUiPe
 
 function Harness({
   onRatioCommit,
-  primaryRatio
+  primaryRatio,
+  dividerSize,
+  overlayDivider,
+  reverse
 }: {
   onRatioCommit: (ratio: number) => void;
   primaryRatio?: number;
+  dividerSize?: number;
+  overlayDivider?: boolean;
+  reverse?: boolean;
 }): React.JSX.Element {
   return (
     <SplitPane
       axis="row"
       defaultPrimaryRatio={0.28}
       primaryRatio={primaryRatio}
+      dividerSize={dividerSize}
+      overlayDivider={overlayDivider}
+      reverse={reverse}
       onRatioCommit={onRatioCommit}
       minPrimary={80}
       minSecondary={80}
@@ -31,13 +40,13 @@ function Harness({
   );
 }
 
-function mockRect(el: HTMLElement, width = 1006, height = 400): void {
+function mockRect(el: HTMLElement, width = 1006, height = 400, left = 0): void {
   vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
-    x: 0,
+    x: left,
     y: 0,
     top: 0,
-    left: 0,
-    right: width,
+    left,
+    right: left + width,
     bottom: height,
     width,
     height,
@@ -52,15 +61,37 @@ describe('SplitPane 松手再提交', () => {
     const body = container.querySelector('.split-pane') as HTMLElement;
     const handle = screen.getByRole('separator', { name: '调整分割' });
     mockRect(body, 1006);
+    mockRect(handle, 6, 400, 280);
 
-    fireEvent.pointerDown(handle, { clientX: 400, clientY: 10, pointerId: 1 });
+    fireEvent.pointerDown(handle, { clientX: 283, clientY: 10, pointerId: 1 });
     expect(onRatioCommit).not.toHaveBeenCalled();
-    fireEvent.pointerMove(handle, { clientX: 500, clientY: 10, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 503, clientY: 10, pointerId: 1 });
     expect(onRatioCommit).not.toHaveBeenCalled();
-    fireEvent.pointerUp(handle, { clientX: 500, clientY: 10, pointerId: 1 });
-    // usable = 1006 - 6，raw=500 → 500/1000 = 0.5
+    fireEvent.pointerUp(handle, { clientX: 503, clientY: 10, pointerId: 1 });
+    // 轴长 1006，扣除 6px 手柄后，接缝中心 503 对应主栏宽 500。
     expect(onRatioCommit).toHaveBeenCalledTimes(1);
     expect(onRatioCommit).toHaveBeenCalledWith(0.5);
+  });
+
+  it.each([false, true])('右侧资源栏从接缝边缘抓取时不跳动（overlay=%s）', overlayDivider => {
+    const commit = vi.fn();
+    const { container } = render(<Harness reverse dividerSize={4} overlayDivider={overlayDivider} onRatioCommit={commit} />);
+    const handle = screen.getByRole('separator');
+    const gap = overlayDivider ? 0 : 4;
+    const seam = 1000 + gap / 2 - 280;
+    mockRect(container.querySelector<HTMLElement>('.split-pane')!, 1000 + gap);
+    mockRect(handle, 4, 400, seam - 2);
+
+    fireEvent.pointerDown(handle, { clientX: seam + 1, pointerId: 1 });
+    expect(handle.getAttribute('aria-valuenow')).toBe('28');
+    expect(handle.classList.contains('is-hot')).toBe(true);
+    fireEvent.pointerMove(handle, { clientX: seam - 119, pointerId: 1 });
+    expect(handle.getAttribute('aria-valuenow')).toBe('40');
+    expect(handle.classList.contains('is-hot')).toBe(true);
+    expect(commit).not.toHaveBeenCalled();
+    fireEvent.pointerUp(handle, { clientX: seam - 119, pointerId: 1 });
+    expect(commit).toHaveBeenCalledWith(0.4);
+    expect(handle.classList.contains('is-hot')).toBe(false);
   });
 
   it('方向键 / Home / End 每次都 commit', () => {

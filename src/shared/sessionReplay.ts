@@ -1,3 +1,4 @@
+import { t } from './i18n';
 import type { GuiChatMessage, GuiMessagePart, GuiToolCallView } from './guiWorker';
 
 /** Offsets refer to the final text in UTF-16 units. Tool updates include the output visible at that instant. */
@@ -24,7 +25,7 @@ export function replayMessage(m: GuiChatMessage): GuiChatMessage {
   if (!id || (role !== 'user' && role !== 'assistant') || !Number.isFinite(ts) || !Array.isArray(parts) ||
       !parts.every(p => p && (p.kind === 'tool' ? !!p.tool?.id && typeof p.tool.name === 'string' :
         (p.kind === 'text' || p.kind === 'thinking') && typeof p.text === 'string'))) {
-    throw new Error('会话回放素材包含无效的消息');
+    throw new Error(t('会话回放素材包含无效的消息'));
   }
   return structuredClone({ id, role, ts, parts, images, source, sourceAgent, host, steering, error, aborted, finishedAt, displayItems });
 }
@@ -70,15 +71,15 @@ export function* sessionReplayFrames(material: SessionReplayMaterial): Generator
     for (const step of tracks.get(id) ?? syntheticSteps(message)) {
       const finalPart = message.parts[step.partIndex];
       if (!Number.isFinite(step.at) || !Number.isInteger(step.partIndex) || step.partIndex < 0 ||
-          step.partIndex > parts.length || !finalPart) throw new Error('会话回放片段与消息不匹配');
+          step.partIndex > parts.length || !finalPart) throw new Error(t('会话回放片段与消息不匹配'));
       let part: GuiMessagePart;
       if ('tool' in step) {
         if (finalPart.kind !== 'tool' || step.tool?.id !== finalPart.tool.id || step.tool.name !== finalPart.tool.name)
-          throw new Error('回放工具与消息不匹配');
+          throw new Error(t('回放工具与消息不匹配'));
         part = { kind: 'tool', tool: step.tool };
       } else {
         if (finalPart.kind === 'tool' || !Number.isInteger(step.end) || step.end < 0 || step.end > finalPart.text.length)
-          throw new Error('回放文字位置无效');
+          throw new Error(t('回放文字位置无效'));
         part = { kind: finalPart.kind, text: finalPart.text.slice(0, step.end) };
       }
       parts = parts.slice();

@@ -1,5 +1,5 @@
 ---
-x-muster-version: 0.1.2
+x-muster-version: 0.1.3
 name: sessions
 description: Reference for host.sessions.create routing, configuration references and the session management family.
 ---
@@ -18,7 +18,7 @@ Parameters:
 | `isolation` | Required. `shared` reuses the existing checkout; `isolated` creates a task tree without uncommitted changes. Read-only review may share; independent or parallel edits should isolate even when clean. |
 | `target` | `{ tierId }` for policy-based routing, or `{ targetRef }` copied verbatim from `host.workers.options`. Omit only with `inherit`. |
 | `inherit` | With `asSubagent`, inherit compatible parent launch settings; omit `target`. |
-| `asSubagent` | Bind the caller as parent. GUI runtime/permissions and same-runtime model/thinking inherit from the parent. |
+| `asSubagent` | Bind the calling Worker as parent. Use `targetRef` for a chosen Harness/model or `inherit` for the parent's compatible launch settings. |
 | `name` | Short task name; the host prefixes subagent character names. Top-level default is the first 20 task characters. |
 | `select` | Default true. Cross-workspace selection stays pending without stealing focus; `false` never changes focus. |
 | `force` | Skip runtime preflight. Diagnostics only — do not use it to work around a real failure. |
@@ -48,7 +48,9 @@ host.sessions.create({ target: { targetRef }, task, isolation })
 - `mode: 'models'` — cached model catalog for a harness and surface, plus the exact `targetRef`;
 - `mode: 'native-settings'` — native permission settings catalog for that harness and surface.
 
-Permissions, plan/ask modes and native Harness settings are chosen by the user in the model picker or Settings and travel inside the reference. Do not try to reconstruct them; if a reference is missing a setting, say so and let the user pick it.
+To delegate to a chosen Harness as a child, pass `asSubagent: true` and `target: { targetRef }` together with `task` and `isolation`. A Muster Core parent in Full access mode can create a child on a different enabled Harness with an exact reference for its source folder. The child uses the target Harness's normal launch permissions. The host checks the parent's access and source again before committing the child. Same-Harness children keep the caller's permission policy.
+
+References carry the Harness, model and model parameters. The host resolves permissions separately. `native-settings` describes the engine's available choices.
 
 A `targetRef` is bound to the workspace source, expires when superseded, and must be used with the same workspace. If creation reports an expired or foreign reference, call `host.workers.options` again — do not retry with a modified reference.
 
