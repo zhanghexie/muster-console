@@ -94,7 +94,7 @@ Agent 可以通过会话邮箱互相传递接口变更、测试结果或文件�
 
 [在 GitHub 获取集序](https://github.com/zhanghexie/muster-console)
 
-准备 Git、npm 和 Node.js 22.22.2 或同系列更新版本，即可克隆仓库并启动工作台。
+准备 Git、npm 和 Node.js 24 LTS，即可克隆仓库并启动工作台。
 
 ```bash
 git clone https://github.com/zhanghexie/muster-console.git
