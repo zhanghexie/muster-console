@@ -34,7 +34,7 @@ HTTP+WebSocket 网关：浏览器打开网页后拿到与桌面壳等价的 `win
 | `src/shared/wsProtocol.ts` | WS 控制帧（hello/filter/ping/pong）、caps 过滤、send 可靠性与 outbox、token 解析、候选地址、心跳常量——shim 与 server 共用契约 |
 | `src/shared/webApiPacking.ts` | `ARG_PACKERS`：桌面位置参数 → 主进程单对象 payload（steerOnBusy / editQueued / reorderQueued 等字段齐全） |
 | `src/renderer/src/components/settings/RemoteAccessSettings.tsx` | 设置「远程访问」页：「用网址打开」扫码主卡（二维码 + 首选网址 + 提示，其余网址收进「其他网址」折叠）、「安全」区（重新生成 Token）、飞书小节（原 FeishuSettings 内容）、Webhook 折叠 |
-| `src/renderer/src/onboarding/ConnectRemote.tsx` | [首次设置](first-run.md)按需显示扫描二维码和复制连接地址，支持稍后连接与网关失败反馈 |
+| `src/renderer/src/onboarding/ResumeSetupLinks.tsx` | [首次设置](first-run.md)完成页入口跳转至正式的远程访问设置，查看网址、二维码和网关状态 |
 | `src/main/ipc/app.ts` | `webAccess:status`（状态+URL+推荐地址二维码 dataURL+hook 信息）/ `webAccess:rotate`（换 token 踢客户端；落盘失败时 ok=false 保留旧凭证，R2）/ `webAccess:rotateHook`（换 hook token）/ `webAccess:setHookSecret`（设置/清除签名密钥；同判据） |
 | `test/web-access.mjs` | e2e：构建产物 + dev 沙箱拉起真实应用，浏览器视角全链路（需先 `npm run build`，手动跑，已进 run.mjs EXCLUDE） |
 | `test/web-stability.mjs` | 集成：最小 WS 服务端/客户端验证 ping/pong、caps 过滤、可靠 send 重发（listen(0)，进 npm test） |

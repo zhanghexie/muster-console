@@ -45,7 +45,7 @@
     为什么悬停模式也要吃点击（2026-09-11 修）：程序化切页（点会话里的文件链接 → 自动 pan 到
     Git 页露文件预览）后，指针常仍停在露条上——露条里还是同一个工作页元素，浏览器**不会**重发
     `pointerenter`，悬停计时器永不武装，于是只能「移出露条再移回」才能切回会话区。
-  - `click`：点击非当前主屏的那一页（含 peek）→ 平移到该页；无悬停延时（唯一通道）。
+  - `click`（默认）：点击非当前主屏的那一页（含 peek）后平移到该页，鼠标停留时保持当前页。已保存的切屏偏好优先。
   - 程序化切页后 `suppressPageClickUntilRef`（700ms）拦住宿主 DOM 的跟随 click 和悬停。网页或扩展露条手势层收到一次新的 `pointerdown` 时立即切页，用户无需等静默期结束。
 - 虚拟屏开关状态：当前工作区 `.muster/workspace.json` 的 `hVirtualScreen`（boolean；经 IPC 读写）。
 - **切页入口唯一且只看真实 DOM**（2026-10-28 重构，`hooks/usePageActivation.ts`）：两页页根带 `data-h-page="terminal|git"`，`.h-strip` 上挂原生 `click` / `pointerover` / `pointerout` 监听，按事件目标所在页根判定点击了哪一屏、指针进出了哪一屏。不用 React 的 `onClick` / `onPointerEnter`：经 portal 渲染到另一屏的内容（固定到右侧的会话 / 工具、右侧扩展标签）在 React 树里仍属原屏，合成事件会冒泡、enter/leave 会计算到原屏，曾导致固定到右侧后点击 / 悬停右屏无法激活。当前屏上的点击与悬停本来就是空操作（alreadyThere），因此不再维护「控件排除」选择器清单；露条态整条都是切页热区（含按钮）。新面板无论是否 portal 都无需接线，**唯一的接法要求是 iframe / webview**：它们会吞掉宿主指针事件，露条态必须放透明手势层并调用 `dispatchPeekPointer(type, 覆盖层元素)`，目标屏按覆盖层自身所在 DOM 解析，覆盖层不需要知道自己在哪一屏；窄屏抽屉不响应该通道。回归 `test/unit/page-activation.spec.tsx`。
@@ -150,7 +150,7 @@ hOffset = (hVs && hDock === 'git')
 | `LEFT_W_MIN` / `LEFT_W_MAX` | 200 / 480 | 会话列夹紧（未拖过时自适应上限 `AUTO_LEFT_W_MAX`=280，手动拖宽可到 480） |
 | `HOVER_SWITCH_MS` | 280 | 悬停切换延迟 |
 | `HOVER_COOLDOWN_MS` | 300 | 切换冷却 |
-| `muster.hSwitchMode` | `hover`\|`click` | 全局切屏方式（把手长按菜单拖选） |
+| `muster.hSwitchMode` | `click` | 全局切屏方式，可从把手长按菜单改为 `hover` |
 | 分割条检测带兼触发区 | 缝宽（`--page-gap`）× 全高；右栏收起时不显示 | 压线任意位置召出按钮（旧中段胶囊触发区已删） |
 | CSS transition | 0.42s | 平移手感 |
 | Agent 展开宽 | 520px（`min(520px, 100vw − 80px)`） | `.agent-float.is-expanded`（styles/float.css） |

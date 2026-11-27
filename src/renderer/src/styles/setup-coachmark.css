@@ -1,0 +1,27 @@
+.setup-coachmark-layer { position: fixed; inset: 0; z-index: calc(var(--z-menu) + 2); pointer-events: none; }
+.setup-coachmark-blockers > div { position: fixed; pointer-events: auto; touch-action: none; }
+.setup-coachmark-shade {
+  position: absolute;
+  inset: 0;
+  background: rgb(0 0 0 / 26%);
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0,
+    var(--setup-spot-left) var(--setup-spot-top), var(--setup-spot-left) var(--setup-spot-bottom),
+    var(--setup-spot-right) var(--setup-spot-bottom), var(--setup-spot-right) var(--setup-spot-top),
+    var(--setup-spot-left) var(--setup-spot-top), 0 0);
+}
+.setup-coachmark-spotlight { position: fixed; border-radius: var(--radius-control); outline: 2px solid var(--action-bg); pointer-events: none; }
+.setup-coachmark-card { position: fixed; box-sizing: border-box; width: min(304px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: visible; padding: 16px; border: 1px solid var(--border-control); border-radius: var(--radius-card); color: var(--fg-primary); background: var(--bg-overlay); box-shadow: 0 8px 30px rgb(0 0 0 / 22%); pointer-events: auto; }
+.setup-coachmark-card::before { content: ''; position: absolute; left: var(--setup-arrow-x); top: -6px; width: 10px; height: 10px; background: var(--bg-overlay); border-left: 1px solid var(--border-control); border-top: 1px solid var(--border-control); transform: translateX(-50%) rotate(45deg); }
+.setup-coachmark-card[data-side='above']::before { top: auto; bottom: -6px; transform: translateX(-50%) rotate(225deg); }
+.setup-coachmark-card[data-side='left']::before { left: auto; right: -6px; top: var(--setup-arrow-x); transform: translateY(-50%) rotate(135deg); }
+.setup-coachmark-card[data-side='right']::before { left: -6px; top: var(--setup-arrow-x); transform: translateY(-50%) rotate(-45deg); }
+.setup-coachmark-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.setup-coachmark-progress { color: var(--fg-muted); font-size: var(--font-caption); }
+.setup-coachmark-dismiss { margin-left: auto; background: transparent; border: 0; color: var(--fg-muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 2px 4px; }
+.setup-coachmark-card h2 { margin: 8px 0; font-size: var(--font-title); line-height: 1.4; }
+.setup-coachmark-body { max-height: max(64px, calc(100vh - 180px)); overflow: auto; font-size: var(--font-ui); line-height: 1.7; overflow-wrap: anywhere; }
+.setup-coachmark-body p { margin: 0 0 8px; }
+.setup-coachmark-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.setup-coachmark-card :focus-visible { outline: 2px solid var(--action-bg); outline-offset: 3px; }
+.setup-coachmark-layer[data-mp-stage='out'] { pointer-events: none; }
+.setup-coachmark-layer[data-mp-stage='out'] .setup-coachmark-card { pointer-events: none; }

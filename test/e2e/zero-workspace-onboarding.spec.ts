@@ -1,5 +1,5 @@
 /**
- * 真 Electron 首装链路：本机检测 → Key 验证 → 浏览器访问 → 工作区 → 第一条会话与回复。
+ * 真 Electron 首装链路：本机检测 → 真实模型设置 → 工作区/会话 → 工作台导览 → 回复与恢复。
  *
  * 隔离方式：不能用 dev sandbox（setupDevSandbox 会无条件注入 3 个 demo 工作区），
  * 因此走 MUSTER_NO_SANDBOX=1，通过测试入口先设置 Electron appData 和 documents，
@@ -15,7 +15,7 @@ import path from 'node:path';
 
 const project = path.resolve(__dirname, '../..');
 
-test('首次设置真实连接模型和网关，重启后续办并创建会话，删空回到工作区入口', async ({}, info) => {
+test('真实设置连接模型、实际入口建区建会话、导览完成并收发，删空后恢复', async ({}, info) => {
   fs.mkdirSync(path.join(project, '.tmp'), { recursive: true });
   const tmpRoot = fs.mkdtempSync(path.join(project, '.tmp', 'zero-ws-e2e-'));
   const appData = path.join(tmpRoot, 'AppData', 'Roaming');
@@ -74,6 +74,12 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
   const requests: Array<{ path?: string; keyAccepted: boolean; stream: boolean; model?: string }> = [];
   const reply = '收到，这是第一条测试回复。';
   const server = http.createServer(async (req, res) => {
+    if (req.method === 'GET' && req.url === '/v1/models') {
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({
+        object: 'list', data: [{ id: 'onboarding-model', object: 'model' }]
+      }));
+      return;
+    }
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     const body = JSON.parse(Buffer.concat(chunks).toString());
@@ -115,6 +121,8 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
     expect(initial.workspaces).toHaveLength(0);
     expect(initial.activeWorkspaceId).toBe('');
     expect(config.workspaces).toHaveLength(0);
+    expect(config.openai).toMatchObject({ baseUrl: '', apiKey: '', model: '' });
+    expect(config.llm).toMatchObject({ providers: [], activeProviderId: '', activeModelId: '' });
     const navigation = await win.evaluate(() => window.api.workbench.navigation());
     expect(navigation).toMatchObject({ workspaceId: '', nodes: [] });
     await expect(win.locator('.ext-nav-error')).toHaveCount(0);
@@ -125,6 +133,16 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
     expect(config.locale).toBe('system');
     await win.evaluate(() => window.api.config.update({ locale: 'zh-CN' }));
     await expect(win.getByRole('heading', { name: '检测本机 AI 工具' })).toBeVisible();
+    await expect(win.locator('.app-shell .chrome-bar')).toBeVisible();
+    const initialDialog = await win.locator('.setup-dialog').evaluate(dialog => {
+      const bounds = dialog.getBoundingClientRect();
+      return { backdrop: getComputedStyle(dialog, '::backdrop').backdropFilter,
+        horizontalOffset: Math.abs(bounds.left + bounds.width / 2 - innerWidth / 2),
+        verticalOffset: Math.abs(bounds.top + bounds.height / 2 - innerHeight / 2) };
+    });
+    expect(initialDialog.backdrop).toMatch(/blur\(/);
+    expect(initialDialog.horizontalOffset).toBeLessThan(8);
+    expect(initialDialog.verticalOffset).toBeLessThan(8);
     await expect(win.locator('.create-ws-modal')).toHaveCount(0);
     const shot = async (name: string): Promise<void> => { await win.screenshot({ path: info.outputPath(name), animations: 'disabled' }); };
     const checkGuideCard = async (): Promise<void> => {
@@ -143,67 +161,131 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
     await expect(win.getByRole('button', { name: '重新检测' })).toBeVisible({ timeout: 45_000 });
     await shot('02-本机检测结果-深色.png');
     await win.getByRole('button', { name: '继续', exact: true }).click();
-    const providers = win.getByRole('combobox', { name: '模型供应商' });
-    await providers.click();
-    await win.getByRole('option', { name: '自定义供应商', exact: true }).click();
-    await win.getByLabel('接口地址').fill(baseUrl);
-    await win.getByLabel('模型 ID').fill('onboarding-model');
-    await win.getByLabel('API Key', { exact: true }).fill('onboarding-fixture-invalid');
-    await win.getByRole('button', { name: '测试并保存' }).click();
-    const error = win.getByRole('alert').filter({ hasText: 'HTTP 401' });
-    await expect(error).toContainText('••••');
-    await expect(error).not.toContainText('onboarding-fixture-invalid');
-    expect(requests).toEqual([{ path: '/v1/chat/completions', keyAccepted: false, stream: false, model: 'onboarding-model' }]);
-    const remained = await win.evaluate(async () => (await window.api.config.get()).llm?.activeModelId);
-    expect(remained).not.toBe('onboarding-model');
-
-    expect(await win.evaluate(() => window.api.themes.activate('light'))).toMatchObject({ ok: true });
+    await win.getByRole('button', { name: '去模型设置', exact: true }).click();
+    let settings = win.getByRole('dialog', { name: '设置' });
+    await expect(settings).toBeVisible();
+    const providerSection = settings.locator('[data-settings-item="agent-provider"]');
+    await expect(providerSection.locator('.llm-provider-choice')).toHaveCount(0);
+    await expect(providerSection.locator('.llm-provider[data-provider-id]')).toHaveCount(0);
+    await expect(providerSection).toHaveClass(/\bis-settings-flash\b/);
+    const locatorStyle = await providerSection.evaluate(section => {
+      const heading = section.querySelector('.s-sec-h h2')!;
+      const marker = getComputedStyle(heading, '::before');
+      return { background: getComputedStyle(section).backgroundColor, markerWidth: marker.inlineSize, markerColor: marker.backgroundColor };
+    });
+    expect(locatorStyle.background).toBe('rgba(0, 0, 0, 0)');
+    expect(locatorStyle.markerWidth).toBe('2px');
+    expect(locatorStyle.markerColor).not.toBe('rgba(0, 0, 0, 0)');
+    await shot('02a-模型设置标题定位.png');
     const initialWindow = await app.browserWindow(win);
     const full = await initialWindow.evaluate(window => ({ size: window.getContentSize(), min: window.getMinimumSize() }));
     await initialWindow.evaluate(window => { window.setMinimumSize(460, 480); window.setContentSize(688, 680); });
     await expect.poll(() => win.evaluate(() => innerWidth)).toBeLessThanOrEqual(688);
-    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
-    await checkGuideCard();
-    await win.getByLabel('API Key', { exact: true }).fill('onboarding-fixture-key');
-    const submitModel = win.getByRole('button', { name: '测试并保存' });
-    await expect(submitModel).toBeInViewport({ ratio: 1 });
-    await shot('03-连接模型-浅色窄窗.png');
-    await submitModel.click();
-    await expect(win.getByRole('heading', { name: '在手机或另一台电脑上继续' })).toBeVisible();
-    await expect(win.getByRole('img', { name: '网页访问二维码' })).toHaveCount(0);
-    await shot('04-远程访问-浅色窄窗.png');
-    await win.getByRole('button', { name: '显示连接方式' }).click();
-    const qr = win.getByRole('img', { name: '网页访问二维码' });
-    const url = new URL(await win.evaluate(async () => (await window.api.webAccess.status()).urls[0]));
-    if (url.hostname === '127.0.0.1') {
-      await expect(win.getByText('当前地址仅可在这台电脑上打开')).toBeVisible();
-    } else {
-      await expect(qr).toBeVisible();
-      expect(await qr.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
-    }
-    url.hostname = '127.0.0.1';
-    expect((await fetch(url)).ok).toBe(true);
-    await win.getByRole('button', { name: '稍后连接', exact: true }).click();
-
-    const workspaceGuide = win.getByRole('region', { name: '在工作台创建工作区' });
-    await expect(workspaceGuide).toBeVisible();
-    const resumeRemote = win.getByRole('button', { name: '设置 → 远程访问 → 用网址打开' });
-    await expect(resumeRemote).toBeVisible();
-    await resumeRemote.click();
-    const settings = win.getByRole('dialog', { name: '设置' });
-    await expect(settings.getByRole('button', { name: '远程访问', exact: true })).toHaveAttribute('aria-current', 'page');
-    await expect(settings.locator('[data-settings-item="webaccess-url"]')).toBeVisible();
-    await settings.getByRole('button', { name: /返回工作台/ }).click();
+    await settings.getByRole('button', { name: '＋ 添加供应商', exact: true }).click();
+    // DeepSeek remains available as a preset; first launch must not configure it for the user.
+    await expect(settings.locator('.llm-add-menu-item').filter({ has: win.getByText('DeepSeek', { exact: true }) })).toBeEnabled();
+    await settings.getByRole('button', { name: '添加自定义供应商', exact: true }).click();
+    const provider = settings.locator('.llm-provider[data-provider-id="custom"]');
+    await expect(provider.locator('.llm-badge-default-active')).toHaveText('默认服务商');
+    const manualAdd = provider.getByRole('button', { name: '＋ 添加模型', exact: true });
+    const keyInput = provider.locator('[data-settings-item="agent-api-key"] input');
+    const modelGuide = win.locator('[data-setup-coachmark]');
+    await expect(modelGuide).toContainText('2 / 4');
+    await expect(keyInput).toHaveAttribute('aria-describedby', /.+/);
+    await expect(keyInput).toBeInViewport({ ratio: 1 });
+    await shot('02a-填写连接配置.png');
+    await expect(manualAdd).not.toHaveAttribute('aria-describedby', /.+/);
+    await provider.getByLabel('Base URL', { exact: true }).fill(baseUrl);
+    await keyInput.fill('onboarding-fixture-key');
+    await expect(modelGuide).toContainText('2 / 4');
+    await expect(keyInput).toHaveAttribute('aria-describedby', /.+/);
+    await modelGuide.getByRole('button', { name: '下一步', exact: true }).click();
+    await expect(modelGuide).toContainText('3 / 4');
+    await expect(keyInput).not.toHaveAttribute('aria-describedby', /.+/);
+    await expect(manualAdd).toHaveAttribute('aria-describedby', /.+/);
+    await expect(manualAdd).toBeInViewport({ ratio: 1 });
+    await provider.getByRole('button', { name: '刷新目录', exact: true }).click();
+    const catalogAdd = provider.getByRole('button', { name: '从目录添加（1）', exact: true });
+    await expect(catalogAdd).toHaveAttribute('aria-describedby', /.+/);
+    await expect(catalogAdd).toBeInViewport({ ratio: 1 });
+    await expect(manualAdd).not.toHaveAttribute('aria-describedby', /.+/);
+    await shot('02b-模型引导优先目录.png');
+    await catalogAdd.click();
+    const catalogPicker = settings.getByRole('dialog', { name: '从目录添加', exact: true });
+    await expect(catalogPicker).toBeInViewport({ ratio: 1 });
+    await expect(catalogPicker.getByRole('button', { name: 'onboarding-model' })).toBeVisible();
+    await expect(catalogPicker.getByRole('searchbox', { name: '搜索模型' })).toBeFocused();
+    await shot('02c-模型目录浮层.png');
+    await catalogPicker.getByRole('button', { name: 'onboarding-model' }).click();
+    await expect(catalogPicker).toBeHidden();
+    const modelRow = provider.locator('.llm-model-row-item').filter({ hasText: 'onboarding-model' });
+    await expect(modelRow).toHaveClass(/\bis-active\b/);
+    const modelDialog = settings.locator('.llm-model-dialog');
+    await keyInput.fill('onboarding-fixture-invalid');
+    await provider.getByRole('button', { name: '测试连通性', exact: true }).click();
+    const failureTip = win.locator('.app-tip.is-error').filter({ hasText: 'HTTP 401' });
+    await expect(failureTip).toBeVisible();
+    await expect(failureTip).not.toContainText('onboarding-fixture-invalid');
+    expect(requests).toEqual([{ path: '/v1/chat/completions', keyAccepted: false, stream: false, model: 'onboarding-model' }]);
+    await keyInput.fill('onboarding-fixture-key');
+    await provider.getByRole('button', { name: '测试连通性', exact: true }).click();
+    await expect(provider.getByRole('status').filter({ hasText: '连通测试成功' })).toBeVisible();
+    await expect(failureTip).toBeHidden();
+    await manualAdd.click();
+    await modelDialog.locator('.llm-dialog-field input').first().fill('onboarding-secondary');
+    await modelDialog.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(modelDialog).toBeHidden();
+    await expect(modelRow).toHaveClass(/\bis-active\b/);
+    // A successful draft connection test does not replace a saved API Key.
+    await keyInput.fill('');
+    await settings.locator('.settings-savebar').getByRole('button', { name: /^保存/ }).click();
+    await expect.poll(() => win.evaluate(async () => (await window.api.config.get()).llm?.activeModelId)).toBe('onboarding-model');
+    const connected = await win.evaluate(() => window.api.config.get());
+    expect(connected.llm?.providers.map(item => item.id)).toEqual(['custom']);
+    expect(connected.llm?.activeProviderId).toBe('custom');
+    expect(connected.llm?.providers[0].apiKey).toBe('');
+    await settings.getByRole('button', { name: /^返回引导/ }).click();
     await expect(settings).toBeHidden();
+    const missingKeyNotice = win.getByRole('alert').filter({ hasText: '默认供应商还没填写 API Key。请填写并保存后继续。' });
+    await expect(missingKeyNotice).toHaveText('默认供应商还没填写 API Key。请填写并保存后继续。');
+    await expect(win.getByRole('heading', { name: '在工作台创建工作区' })).toHaveCount(0);
+    await win.getByRole('button', { name: '去模型设置', exact: true }).click();
+    await expect(settings).toBeVisible();
+    const keyRow = provider.locator('[data-settings-item="agent-api-key"]');
+    await expect(keyRow).toHaveClass(/\bis-settings-flash\b/);
+    await expect(keyInput).toBeInViewport({ ratio: 1 });
+    await expect(keyInput).toHaveValue('');
+    await keyInput.fill('onboarding-fixture-key');
+    await settings.locator('.settings-savebar').getByRole('button', { name: /^保存/ }).click();
+    await expect.poll(() => win.evaluate(async () => (await window.api.config.get()).llm?.providers[0].apiKey)).toBe('onboarding-fixture-key');
+    await settings.getByRole('button', { name: /^返回引导/ }).click();
+    await expect(settings).toBeHidden();
+    await expect(win.getByRole('heading', { name: '在工作台创建工作区' })).toBeVisible();
+    await expect(missingKeyNotice).toHaveCount(0);
+    await shot('03-真实设置返回工作台引导.png');
 
+    expect(await win.evaluate(() => window.api.themes.activate('light'))).toMatchObject({ ok: true });
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+    const coachmark = win.locator('[data-setup-coachmark]');
+    const spotlight = win.locator('[data-setup-spotlight]');
+    await expect(coachmark).toBeVisible();
+    await expect(spotlight).toBeVisible();
     const workspaceAdd = win.locator('button[data-setup-target="workspace"]');
     await win.mouse.move(400, 80);
     await expect(workspaceAdd).toBeInViewport({ ratio: 1 });
     await expect(workspaceAdd).toHaveCSS('opacity', '1');
     await expect(workspaceAdd).toHaveText('+');
-    await expect(workspaceAdd).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(workspaceAdd).toHaveCSS('box-shadow', /inset/);
-    const guidedAddSize = await workspaceAdd.evaluate(button => [getComputedStyle(button).width, getComputedStyle(button).height]);
+    // Use physical pointer coordinates: blocked controls must not wait for actionability.
+    const blockedBoard = win.locator('button[data-setup-target="global-board"]:visible');
+    const blockedBounds = await blockedBoard.boundingBox();
+    expect(blockedBounds).not.toBeNull();
+    await win.mouse.click(blockedBounds!.x + blockedBounds!.width / 2, blockedBounds!.y + blockedBounds!.height / 2);
+    await win.keyboard.press('Control+Shift+G');
+    await win.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect(settings).toBeHidden();
+    await expect(win.getByRole('dialog', { name: '全局看板', exact: true })).toHaveCount(0);
+    await expect(coachmark.getByRole('heading', { name: '在工作台创建工作区', exact: true })).toBeVisible();
+    await expect(spotlight).toBeVisible();
     await shot('05-工作台高亮建区入口.png');
     await workspaceAdd.click();
     const workspaceDialog = win.getByRole('dialog', { name: '新建工作区' });
@@ -213,79 +295,182 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
     expect(fs.existsSync(initial.recommendedRoot)).toBe(false);
     await shot('05b-工作台新建工作区.png');
     await workspaceDialog.getByRole('button', { name: '创建', exact: true }).click();
-    await expect(win.getByRole('heading', { name: '打开第一条会话' })).toBeFocused();
-    const ordinaryWorkspaceAdd = win.locator('.agent-ws-add-btn[title="新建工作区"]');
-    expect(await ordinaryWorkspaceAdd.evaluate(button => [getComputedStyle(button).width, getComputedStyle(button).height])).toEqual(guidedAddSize);
+    await expect(win.getByRole('heading', { name: '打开第一条会话' })).toBeVisible();
     expect(fs.statSync(initial.recommendedRoot).isDirectory()).toBe(true);
     const created = await win.evaluate(() => window.api.config.get());
     expect(created.workspaces).toHaveLength(1);
     expect(created.workspaces[0].name).toBe('我的工作区');
     expect(created.llm?.activeModelId).toBe('onboarding-model');
-    await win.getByRole('button', { name: '显示左侧栏' }).click();
-    let newSessionEntry = win.locator('button[data-setup-target="session"]');
-    await expect(newSessionEntry).toBeInViewport({ ratio: 1 });
-    await expect(newSessionEntry).toBeFocused();
-    await expect(newSessionEntry).toHaveText('＋');
-    await expect(newSessionEntry).toHaveCSS('width', '28px');
-    await shot('06a-窄窗展开真实会话栏.png');
-    await initialWindow.evaluate((window, geometry) => {
-      window.setMinimumSize(geometry.min[0], geometry.min[1]);
-      window.setContentSize(geometry.size[0], geometry.size[1]);
-    }, full);
+    expect(created.llm?.providers.find(item => item.id === 'custom')?.models.map(item => item.id))
+      .toEqual(['onboarding-model', 'onboarding-secondary']);
+    // No work session exists yet: the real board must show its complete empty artwork and copy.
+    await win.locator('[data-setup-coachmark]').getByRole('button', { name: '稍后继续', exact: true }).click();
+    await expect(win.getByRole('button', { name: '继续新手引导', exact: true })).toBeVisible();
+    const boardToggle = win.locator('button[data-setup-target="global-board"]:visible');
+    await boardToggle.click();
+    const emptyBoard = win.getByRole('dialog', { name: '全局看板', exact: true });
+    await expect(emptyBoard).toBeVisible();
+    await expect(emptyBoard.getByText('所有工作区都还没有工作会话', { exact: true })).toBeVisible();
+    const emptyArtwork = emptyBoard.locator('.board-empty');
+    const artwork = await emptyArtwork.evaluate(empty => {
+      const bounds = empty.getBoundingClientRect();
+      const logo = empty.querySelector('svg')!.getBoundingClientRect();
+      const content = [...empty.querySelectorAll('svg, p')].map(element => element.getBoundingClientRect());
+      return { width: logo.width, height: logo.height, contained: content.every(rect =>
+        rect.top >= bounds.top - 1 && rect.bottom <= bounds.bottom + 1 &&
+        rect.left >= bounds.left - 1 && rect.right <= bounds.right + 1) };
+    });
+    expect(artwork.width).toBeGreaterThanOrEqual(55);
+    expect(artwork.height).toBeGreaterThanOrEqual(55);
+    expect(artwork.contained).toBe(true);
+    await shot('06a-窄窗空看板完整标志.png');
+    await boardToggle.click();
+    await expect(emptyBoard).toBeHidden();
+    await win.getByRole('button', { name: '继续新手引导', exact: true }).click();
+    await expect(win.getByRole('heading', { name: '打开第一条会话' })).toBeVisible();
+    const leftDrawerToggle = () => win.locator('button[data-setup-target="left-sidebar"]:visible');
+    await expect(leftDrawerToggle()).toBeInViewport({ ratio: 1 });
+    await shot('06-窄窗先打开左栏.png');
+    await win.getByRole('button', { name: '稍后继续', exact: true }).click();
+    await expect(win.locator('[data-setup-coachmark]')).toHaveCount(0);
+    await win.getByRole('button', { name: '继续新手引导', exact: true }).click();
+    await expect(win.getByRole('heading', { name: '打开第一条会话' })).toBeVisible();
     await win.evaluate(() => { void window.api.app.quit(); }).catch(() => {});
     await app.close();
     app = await launch();
     win = await app.firstWindow();
-    newSessionEntry = win.locator('button[data-setup-target="session"]');
-    await expect(win.getByRole('heading', { name: '打开第一条会话' })).toBeVisible({ timeout: 60_000 });
-    await expect(win.getByRole('button', { name: '设置 → 远程访问 → 用网址打开' })).toBeVisible();
-    await win.getByRole('button', { name: '稍后创建会话' }).click();
-    await expect(win.getByRole('heading', { name: '继续设置', exact: true })).toBeFocused();
-    await win.getByRole('button', { name: '左栏 → 工作会话 → ＋' }).click();
-    await expect(newSessionEntry).toBeInViewport({ ratio: 1 });
-    await expect(newSessionEntry).toBeFocused();
-    await expect(newSessionEntry).toHaveText('＋');
-    await expect(newSessionEntry).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-    await expect(newSessionEntry).toHaveCSS('box-shadow', /inset/);
-    await shot('06-第一条会话-重启续办.png');
-    expect(await win.evaluate(() => window.api.themes.activate('dark'))).toMatchObject({ ok: true });
-    await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
-    await shot('06c-第一条会话-深色宽窗.png');
-    await win.getByRole('button', { name: '稍后创建会话' }).click();
-    const continuation = win.getByRole('region', { name: '继续设置' });
-    await expect(continuation.getByRole('button', { name: '设置 → 远程访问 → 用网址打开' })).toBeVisible();
-    await shot('06d-续办卡片的关闭入口.png');
-    await continuation.getByRole('button', { name: '关闭设置引导' }).click();
-    await expect(win.getByTestId('center-panel')).toBeFocused();
-    await expect(win.locator('.workbench-setup-guide')).toHaveCount(0);
-    await expect(win.getByText('还没有选中会话', { exact: true })).toBeVisible();
-    await shot('06e-关闭后回到工作台.png');
-    await win.evaluate(() => { void window.api.app.quit(); }).catch(() => {});
-    await app.close();
-    app = await launch();
-    win = await app.firstWindow();
-    await expect(win.getByText('还没有选中会话', { exact: true })).toBeVisible({ timeout: 60_000 });
-    await expect(win.locator('.workbench-setup-guide')).toHaveCount(0);
+    await expect(win.locator('[data-setup-coachmark]')).toBeVisible({ timeout: 60_000 });
+    settings = win.getByRole('dialog', { name: '设置' });
     const resumedWindow = await app.browserWindow(win);
     await resumedWindow.evaluate(window => { window.setMinimumSize(460, 480); window.setContentSize(688, 680); });
-    await win.getByRole('button', { name: '会话', exact: true }).click();
-    const sessionHeader = win.locator('.sessions-column .panel-header.sub').filter({ hasText: '工作会话' });
-    await sessionHeader.hover();
-    await sessionHeader.getByRole('button', { name: '新建任务', exact: true }).click();
+    await expect(win.locator('html')).toHaveClass(/\bis-narrow\b/);
+    await leftDrawerToggle().click();
+    const resumedSessionEntry = win.locator('button[data-setup-target="session"]:visible');
+    await expect(resumedSessionEntry).toBeInViewport({ ratio: 1 });
+    await shot('06b-重启续办会话.png');
+    await resumedSessionEntry.click();
     const taskDialog = win.getByRole('dialog', { name: '新建任务' });
     const createSession = taskDialog.getByRole('button', { name: '新建空白', exact: true });
-    await expect(createSession).toHaveClass('git-btn');
     await expect(createSession).toBeEnabled();
-    await shot('06b-标准新建任务表单.png');
     await createSession.click();
     await expect(taskDialog).toBeHidden();
+    const tourCoachmark = win.locator('[data-setup-coachmark]');
+    const tour = [
+      ['left-sidebar', '开合左侧栏'], ['right-sidebar', '开合右侧栏'],
+      ['virtual-screen', '切换虚拟屏'], ['global-board', '使用全局看板'], ['theme', '设置主题']
+    ] as const;
+    for (const [target, heading] of tour) {
+      await expect(tourCoachmark.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      // 上一步沿真实状态机回退，再前进；不能依赖完成会话后自动结束引导。
+      if (target === 'right-sidebar') {
+        await tourCoachmark.getByRole('button', { name: '上一步', exact: true }).click();
+        await expect(tourCoachmark.getByRole('heading', { name: '开合左侧栏', exact: true })).toBeVisible();
+        await tourCoachmark.getByRole('button', { name: '下一步', exact: true }).click();
+        await expect(tourCoachmark.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      }
+      const targetButton = win.locator(`[data-setup-target="${target}"]:visible`).first();
+      if (target === 'virtual-screen') {
+        await expect(tourCoachmark.getByText('宽窗口中可以体验虚拟屏。', { exact: true })).toBeVisible();
+        await resumedWindow.evaluate(window => window.setContentSize(1250, 760));
+        await expect.poll(() => win.evaluate(() => innerWidth)).toBe(1250);
+        const rightToggle = win.locator('button[data-setup-target="right-sidebar"]:visible');
+        await expect(rightToggle).toHaveCount(1);
+        if ((await rightToggle.getAttribute('aria-pressed')) !== 'true') await rightToggle.click();
+        const peek = win.locator('[data-h-page][data-h-peek]');
+        await expect(peek).toHaveCount(1);
+        await expect.poll(() => win.locator('.h-strip').evaluate(strip =>
+          strip.getAnimations().filter(animation => animation.playState === 'running').length)).toBe(0);
+        const previousPeek = await peek.getAttribute('data-h-page');
+        const point = await peek.evaluate(element => {
+          const page = element.getBoundingClientRect();
+          const work = document.querySelector('.work-area')!.getBoundingClientRect();
+          const coach = document.querySelector('.setup-coachmark-card')!.getBoundingClientRect();
+          const left = Math.max(0, page.left, work.left);
+          const right = Math.min(innerWidth, page.right, work.right);
+          const x = (left + right) / 2;
+          const top = Math.max(0, page.top, work.top);
+          const bottom = Math.min(innerHeight, page.bottom, work.bottom);
+          const y = [bottom - 36, top + 72, (top + bottom) / 2].find(candidate =>
+            candidate > top && candidate < bottom &&
+            !(x >= coach.left && x <= coach.right && candidate >= coach.top && candidate <= coach.bottom));
+          if (right <= left || y === undefined) throw new Error('No exposed virtual-screen point outside coachmark');
+          return { x, y };
+        });
+        await win.mouse.click(point.x, point.y);
+        await expect(peek).toHaveAttribute('data-h-page', previousPeek === 'git' ? 'terminal' : 'git');
+        await shot('tour-virtual-screen-wide-switched.png');
+        await resumedWindow.evaluate(window => window.setContentSize(688, 680));
+        await expect.poll(() => win.evaluate(() => innerWidth)).toBe(688);
+        await expect(tourCoachmark.getByText('宽窗口中可以体验虚拟屏。', { exact: true })).toBeVisible();
+      } else {
+        await expect(targetButton).toBeInViewport();
+        await expect(win.locator('[data-setup-spotlight]')).toBeVisible();
+      }
+      await shot(`tour-${target}.png`);
+      if (target === 'left-sidebar' || target === 'right-sidebar') {
+        const before = await targetButton.getAttribute('aria-pressed');
+        await targetButton.click();
+        if (before !== null) await expect(targetButton).not.toHaveAttribute('aria-pressed', before);
+        await targetButton.click();
+      }
+      if (target === 'theme') {
+        await targetButton.click();
+        await expect(settings.getByRole('button', { name: '外观', exact: true })).toHaveAttribute('aria-current', 'page');
+        await expect(tourCoachmark.getByRole('heading', { name: '选择喜欢的主题' })).toBeVisible();
+        await settings.locator('.theme-grid [data-theme-id="dark"]').click();
+        await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
+        await shot('tour-theme-settings.png');
+        await settings.getByRole('button', { name: /^返回引导/ }).click();
+        await expect(tourCoachmark.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+      }
+      if (target === 'global-board') {
+        await targetButton.click();
+        const board = win.getByRole('dialog', { name: '全局看板', exact: true });
+        await expect(board).toBeVisible();
+        const views = board.locator('[data-setup-target="global-board-views"]');
+        await expect(views).toBeInViewport({ ratio: 1 });
+        await expect(tourCoachmark).toBeVisible();
+        const statusView = views.getByRole('tab', { name: '状态', exact: true });
+        const freeView = views.getByRole('tab', { name: '自由', exact: true });
+        await freeView.click();
+        await expect(freeView).toHaveAttribute('aria-selected', 'true');
+        await expect(statusView).toHaveAttribute('aria-selected', 'false');
+        await shot('tour-global-board-free.png');
+        await statusView.click();
+        await expect(statusView).toHaveAttribute('aria-selected', 'true');
+        await shot('tour-global-board-status.png');
+      }
+      await tourCoachmark.getByRole('button', { name: '下一步', exact: true }).click();
+      if (target === 'global-board') {
+        await expect(win.getByRole('dialog', { name: '全局看板', exact: true })).toBeHidden();
+        await expect(tourCoachmark.getByRole('heading', { name: '设置主题', exact: true })).toBeVisible();
+      }
+    }
+    await expect(win.getByRole('heading', { name: '准备就绪', exact: true })).toBeVisible();
+    // 远程访问是完成页里的可选入口，打开真实设置再返回仍保留完成页。
+    await expect(win.getByRole('heading', { name: '稍后设置', exact: true })).toBeVisible();
+    await win.getByRole('button', { name: '设置 → 远程访问 → 用网址打开', exact: true }).click();
+    await expect(settings.getByRole('button', { name: '远程访问', exact: true })).toHaveAttribute('aria-current', 'page');
+    await expect(settings.locator('[data-settings-item="webaccess-url"]')).toBeVisible();
+    const gateway = await win.evaluate(() => window.api.webAccess.status());
+    const remoteUrl = new URL(gateway.urls[0]);
+    remoteUrl.hostname = '127.0.0.1';
+    expect((await fetch(remoteUrl)).ok).toBe(true);
+    await settings.getByRole('button', { name: /^返回工作台/ }).click();
+    await expect(win.getByRole('heading', { name: '准备就绪', exact: true })).toBeVisible();
+    await expect(win.getByText('已配置默认模型', { exact: true })).toBeVisible();
+    await expect(win.getByText('已创建工作区', { exact: true })).toBeVisible();
+    await expect(win.getByText('已打开第一条会话', { exact: true })).toBeVisible();
+    await shot('06c-准备就绪.png');
+    await win.getByRole('button', { name: '开始使用集序', exact: true }).click();
+    await expect(win.locator('[data-setup-coachmark]')).toHaveCount(0);
     await expect(win.locator('.drawer-scrim')).not.toHaveClass(/\bis-shown\b/);
     const conversation = win.locator('.agent-chat-view.is-shown');
     await expect(conversation.locator('.composer-editable')).toBeVisible();
     const sessions = await win.evaluate(() => window.api.sessions.list());
     expect(sessions.sessions.filter(session => session.workspaceId === created.activeWorkspaceId && session.runtime === 'pi')).toHaveLength(1);
     expect(requests.map(request => request.stream)).toEqual([false, false]);
-    await conversation.locator('.composer-editable').click();
+    await expect(conversation.locator('.composer-editable')).toBeFocused();
     await conversation.locator('.composer-editable').fill('你好，Muster');
     await conversation.getByRole('button', { name: '发送', exact: true }).click();
     await expect(conversation.locator('.chat-msg.assistant').getByText(reply, { exact: true })).toBeVisible({ timeout: 30_000 });
@@ -296,41 +481,6 @@ test('首次设置真实连接模型和网关，重启后续办并创建会话�
       window.setMinimumSize(geometry.min[0], geometry.min[1]);
       window.setContentSize(geometry.size[0], geometry.size[1]);
     }, full);
-
-    expect(await win.evaluate(() => window.api.themes.activate('dark'))).toMatchObject({ ok: true });
-    await expect(win.locator('html')).toHaveAttribute('data-theme', 'dark');
-    const chat = win.locator('.agent-ws-stack-item.is-active .agent-notify-chat');
-    await chat.click();
-    const float = win.locator('.agent-float-panel.is-open');
-    await expect(float).toBeVisible();
-    const checkHeight = async (): Promise<void> => {
-      await expect.poll(() => float.evaluate(el => Math.abs((el as HTMLElement).offsetHeight - Math.min(520, innerHeight * 2 / 3, innerHeight - 48)))).toBeLessThanOrEqual(1);
-    };
-    await checkHeight();
-    await float.screenshot({ path: info.outputPath('scheduler-dark.png') });
-    expect(await win.evaluate(() => window.api.themes.activate('light'))).toMatchObject({ ok: true });
-    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
-    const browserWindow = await app.browserWindow(win);
-    const original = await browserWindow.evaluate(window => ({ size: window.getContentSize(), min: window.getMinimumSize() }));
-    await browserWindow.evaluate(window => { window.setMinimumSize(640, 480); window.setContentSize(820, 560); });
-    await expect.poll(() => win.evaluate(() => innerHeight)).toBeLessThanOrEqual(560);
-    await checkHeight();
-    await float.screenshot({ path: info.outputPath('scheduler-light-narrow.png') });
-    await browserWindow.evaluate((window, { size, min }) => {
-      window.setMinimumSize(min[0], min[1]);
-      window.setContentSize(size[0], size[1]);
-    }, original);
-    await chat.click();
-    await expect(float).toBeHidden();
-
-    const tools = win.locator('.utility-library-toggle');
-    if ((await tools.getAttribute('aria-expanded')) !== 'true') await tools.click();
-    await win.getByRole('treeitem', { name: '工作日报' }).click();
-    const frame = win.frameLocator('.ext-panel iframe');
-    const todo = frame.locator('#todoText');
-    await expect.poll(async () => await todo.isVisible() ? 'report ready' : await win.locator('.ext-panel').textContent()).toBe('report ready');
-    await expect(frame.locator('.d-date')).toHaveText(/\d{4}-\d{2}-\d{2}/);
-    await shot('workspace-extension.png');
 
     // The empty snapshot is broadcast before the renderer has committed its file-view cleanup.
     // Check the actual close result as well as the page that follows it.

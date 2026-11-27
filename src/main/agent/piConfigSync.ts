@@ -152,25 +152,29 @@ export interface PiSyncResult {
 function extractLlmProviders(
   input: AppConfig | LlmConfig | OpenAIConfig
 ): { providers: LlmProviderConfig[]; activeProviderId: string; activeModelId: string } {
-  if ('llm' in input && input.llm?.providers?.length) {
+  if ('llm' in input && Array.isArray(input.llm?.providers)) {
     return {
       providers: input.llm.providers,
       activeProviderId: input.llm.activeProviderId,
       activeModelId: input.llm.activeModelId
     };
   }
-  if ('providers' in input && Array.isArray(input.providers) && input.providers.length) {
+  if ('providers' in input && Array.isArray(input.providers)) {
     return {
       providers: input.providers,
-      activeProviderId: input.activeProviderId || input.providers[0].id,
-      activeModelId: input.activeModelId || input.providers[0].models[0]?.id || 'default'
+      activeProviderId: input.activeProviderId || input.providers[0]?.id || '',
+      activeModelId: input.activeModelId || input.providers[0]?.models[0]?.id || ''
     };
   }
   // 单个 OpenAIConfig 回退
   const openai = 'openai' in input ? input.openai : (input as OpenAIConfig);
-  const baseUrl = openai.baseUrl || 'https://api.deepseek.com';
+  // Blank legacy fields are an unconfigured profile, not a DeepSeek preset.
+  if (![openai.baseUrl, openai.apiKey, openai.model].some(value => value?.trim())) {
+    return { providers: [], activeProviderId: '', activeModelId: '' };
+  }
+  const baseUrl = openai.baseUrl?.trim() || '';
   const apiKey = openai.apiKey || '';
-  const modelId = (openai.model || 'deepseek-chat').trim();
+  const modelId = openai.model?.trim() || '';
   const provId = /deepseek\.com/i.test(baseUrl) ? 'deepseek' : PROVIDER_ID;
   const provName = provId === 'deepseek' ? 'DeepSeek' : 'Muster Console';
   const provider: LlmProviderConfig = {
@@ -178,7 +182,7 @@ function extractLlmProviders(
     name: provName,
     baseUrl,
     apiKey,
-    models: [{ id: modelId, name: modelId }],
+    models: modelId ? [{ id: modelId, name: modelId }] : [],
     enabled: true
   };
   return {
@@ -428,7 +432,7 @@ export function syncPiConfigFromApp(
   }
 
   for (const p of providers) {
-    if (p.enabled === false) continue;
+    if (p.enabled === false || !p.models?.length || !p.baseUrl?.trim()) continue;
     const provId = p.id.trim() || PROVIDER_ID;
     const apiProtocol = p.api || 'openai-completions';
     // Native protocols keep their own path (for example Gemini's /v1beta).
@@ -445,7 +449,7 @@ export function syncPiConfigFromApp(
     const userThinking = p.thinking ?? null;
     const userThinkingMap = userPiThinkingMap(p);
 
-    const userModels = p.models?.length ? p.models : [{ id: 'default', name: 'default' }];
+    const userModels = p.models;
     const catalogModels = piCatalog?.[provId];
     const catalogMeta = configuredPiCatalogMeta(provId);
     const accountEndpoint = catalogMeta?.accountEndpointExample ? piAccountEndpoint(provId, p.baseUrl) : undefined;

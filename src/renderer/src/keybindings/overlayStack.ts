@@ -35,6 +35,10 @@ export function overlayDepth(): number {
   return stack.length;
 }
 
+export function getSetupInteractionLock(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-setup-lock="true"]');
+}
+
 /** 单测隔离：卸掉残留层，避免用例之间串栈。 */
 export function resetOverlayStackForTest(): void {
   stack.length = 0;

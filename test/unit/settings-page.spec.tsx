@@ -7,7 +7,7 @@
  * - countFormChanges 不把即时生效键（主题/语言/快捷键…）计入未保存。
  */
 import React from 'react';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsModal, countFormChanges, type SettingsTab } from '../../src/renderer/src/components/settings/SettingsModal';
 import { SettingsSurfacePortal } from '../../src/renderer/src/components/settings/SettingsSurfacePortal';
@@ -206,6 +206,30 @@ describe('整窗设置页', () => {
         document.querySelector('[data-settings-item="worker-keep-awake"]')?.classList.contains('is-settings-flash')
       ).toBe(true)
     );
+  });
+
+  it('定位后编辑草稿不重复滚动或延长定位标记', async () => {
+    const onClose = vi.fn();
+    const page = (focusItem?: string) => <KeybindingProvider><SettingsModal onClose={onClose} focusItem={focusItem} /></KeybindingProvider>;
+    const view = render(page());
+    const toggle = await screen.findByRole('checkbox', { name: '任务运行时阻止休眠' });
+    vi.useFakeTimers();
+    try {
+      view.rerender(page('worker-keep-awake'));
+      act(() => { vi.advanceTimersByTime(0); });
+      const target = document.querySelector('[data-settings-item="worker-keep-awake"]')!;
+      expect(target.classList.contains('is-settings-flash')).toBe(true);
+      const scrollCount = vi.mocked(Element.prototype.scrollIntoView).mock.calls.length;
+      act(() => { vi.advanceTimersByTime(1000); });
+      fireEvent.click(toggle);
+      expect(screen.getByText('有 1 项更改未保存')).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(600); });
+      expect(target.classList.contains('is-settings-flash')).toBe(false);
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalledTimes(scrollCount);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
   });
 
   it('搜索文件转换工具时定位到模型与输入的对应分区', async () => {

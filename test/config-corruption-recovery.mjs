@@ -27,7 +27,36 @@ const errors = [];
 const origError = console.error;
 console.error = (...a) => errors.push(a.join(' '));
 try {
-  const { ConfigManager } = await import(pathToFileURL(compile('main/config.ts')).href);
+  const { ConfigManager, resolveLlmConfig, resolveLlmConfigWithReload } = await import(pathToFileURL(compile('main/config.ts')).href);
+  const blankLlm = { providers: [], activeProviderId: '', activeModelId: '' };
+  const blankOpenai = { baseUrl: '', apiKey: '', model: '' };
+
+  const fresh = new ConfigManager();
+  assert.deepEqual(fresh.get().llm, blankLlm, 'fresh config ships without providers or models');
+  assert.deepEqual(fresh.get().openai, blankOpenai, 'legacy fields do not seed a fresh config');
+  assert.equal(resolveLlmConfig(fresh.get()).model.id, '', 'empty read paths do not suggest a default model');
+  fresh.update({ locale: 'zh-CN' });
+  assert.deepEqual(new ConfigManager().get().llm, blankLlm, 'saving unrelated settings leaves models unconfigured');
+  let reloads = 0;
+  assert.throws(() => resolveLlmConfigWithReload({ get: () => fresh.get(), reloadFromDisk: () => {
+    reloads++;
+    return fresh.reloadFromDisk();
+  } }), /配置可用的文本模型|Configure a text model/);
+  assert.equal(reloads, 1);
+
+  const previousDeepSeek = { baseUrl: 'https://api.deepseek.com', apiKey: 'fixture-deepseek-key', model: 'saved-deepseek-model' };
+  fs.writeFileSync(path.join(userData, 'config.json'), JSON.stringify({ openai: previousDeepSeek }), 'utf8');
+  const migrated = new ConfigManager();
+  assert.equal(migrated.get().llm.activeProviderId, 'deepseek', 'a saved legacy endpoint keeps its provider identity');
+  assert.deepEqual(migrated.get().openai, previousDeepSeek);
+  migrated.update({ llm: blankLlm });
+  assert.deepEqual(migrated.get().openai, blankOpenai, 'deleting the final provider clears its legacy mirror');
+  assert.deepEqual(new ConfigManager().get().llm, blankLlm, 'the legacy mirror cannot resurrect a deleted provider');
+  migrated.update({ openai: { ...previousDeepSeek, model: '' } });
+  assert.equal(migrated.get().llm.activeProviderId, 'deepseek');
+  assert.equal(migrated.get().llm.activeModelId, '', 'adding a provider alone does not invent a default model');
+  migrated.update({ openai: previousDeepSeek });
+  assert.deepEqual(new ConfigManager().get().openai, previousDeepSeek, 'legacy updates can configure the first model');
 
   // 1) 损坏文件：含机密的半截 JSON → .bad 现场保留 + 诊断日志 + 回默认不抛
   fs.writeFileSync(path.join(userData, 'config.json'), '{"openai":{"apiKey":"sk-CORRUPT-SECRET"},"broken":', 'utf8');

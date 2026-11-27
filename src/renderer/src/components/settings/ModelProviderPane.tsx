@@ -1,9 +1,11 @@
+import { SetupCoachmark } from '../../onboarding/SetupCoachmark';
+import { dismissTip, getTipSnapshot } from '../../tips';
 import { SettingsResourceItem, SettingsResourceStatus, SettingsDetailSection } from './SettingsResource';
 import { SearchBar } from '../SearchBar';
 import { BrandLoading } from '../BrandLoader';
 import type React from 'react';
 import { ErrorTip } from '../ErrorTip';
-import { useEffect, useId, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   AppConfig,
@@ -245,18 +247,41 @@ interface ModelModalState {
   baseline?: { maxTokens: number | ''; reasoning: boolean };
 }
 
+const CATALOG_ADD_TARGET = 'button[data-setup-target="catalog-add"]:not(:disabled)';
+const MANUAL_ADD_TARGET = 'button[data-setup-target="manual-add"]';
+const MODEL_DEFAULT_TARGET = 'button[data-setup-default]';
+const MODEL_LIST_SECTION = '[data-settings-item="agent-models"]';
+const MODEL_LIST_HEADING = '.settings-detail-section-head';
+const API_KEY_TARGET = '[data-settings-item="agent-api-key"] input';
+const BASE_URL_TARGET = '[data-settings-item="agent-base-url"] input';
+const CONNECTION_STEP = 1;
+const ADD_MODEL_STEP = 2;
+const DEFAULT_MODEL_STEP = 3;
+
 /**
  * 「模型服务商」页：左侧供应商列表、右侧配置，全部随底部「保存」生效。
  * 调度提示词的编辑在「调度 Agent」页。
  */
 export function ModelProviderPane({
   cfg,
-  set
+  set,
+  setupGuide = false,
+  guideFocus,
+  active = true
 }: {
+  setupGuide?: boolean;
+  guideFocus?: string;
+  active?: boolean;
   cfg: AppConfig;
   set: (patch: Partial<AppConfig>) => void;
 }): React.JSX.Element {
   const { t } = useTranslation();
+  const [guideStep, setGuideStep] = useState(0);
+  const [guideDismissed, setGuideDismissed] = useState(false);
+  const [catalogGuideBlocked, setCatalogGuideBlocked] = useState(false);
+  const providerBodyRef = useRef<HTMLDivElement>(null);
+  const modelActionsRef = useRef<HTMLDivElement>(null);
+  const modelListRef = useRef<HTMLDivElement>(null);
   const [testStates, setTestStates] = useState<
     Record<string, { testing: boolean; result?: LlmTestResult }>
   >({});
@@ -266,6 +291,12 @@ export function ModelProviderPane({
   const [modelModal, setModelModal] = useState<ModelModalState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LlmProviderConfig | null>(null);
   const [providerQuery, setProviderQuery] = useState('');
+  useLayoutEffect(() => {
+    if (!guideFocus) return;
+    setGuideStep(guideFocus === 'agent-model-actions' ? ADD_MODEL_STEP :
+      guideFocus === 'agent-api-key' || guideFocus === 'agent-base-url' ? CONNECTION_STEP : 0);
+    setGuideDismissed(false);
+  }, [guideFocus]);
   /** 添加模型命中同 ID 的两步确认（F-06：静默覆盖→先提示，再次保存才覆盖） */
   const [modelOverwriteArmed, setModelOverwriteArmed] = useState(false);
   const detailPresence = usePresence(true);
@@ -429,31 +460,31 @@ export function ModelProviderPane({
     return name.charAt(0).toUpperCase();
   };
 
+  // An explicitly saved empty list stays empty; legacy fields only migrate when llm is absent.
+  const legacyBaseUrl = cfg.openai?.baseUrl?.trim() ?? '';
+  const legacyApiKey = cfg.openai?.apiKey?.trim() ?? '';
+  const legacyModel = cfg.openai?.model?.trim() ?? '';
+  const hasLegacyConfig = Boolean(legacyBaseUrl || legacyApiKey || legacyModel);
+  const legacyProviderId = /deepseek/i.test(legacyBaseUrl) ? 'deepseek' : /openai\.com/i.test(legacyBaseUrl) ? 'openai' : 'custom';
+  const currentLlm: LlmConfig = cfg.llm ?? {
+    providers: hasLegacyConfig ? [{
+      id: legacyProviderId,
+      name: legacyProviderId === 'deepseek' ? 'DeepSeek' : legacyProviderId === 'openai' ? 'OpenAI' : t('自定义服务商'),
+      baseUrl: legacyBaseUrl, apiKey: legacyApiKey, api: 'openai-completions',
+      models: legacyModel ? [{ id: legacyModel, name: legacyModel }] : [], enabled: true
+    }] : [],
+    activeProviderId: hasLegacyConfig ? legacyProviderId : '',
+    activeModelId: legacyModel
+  };
+
   const updateLlm = (updater: (prev: LlmConfig) => LlmConfig): void => {
-    const currentLlm: LlmConfig = cfg.llm || {
-      providers: [
-        {
-          id: 'deepseek',
-          name: 'DeepSeek',
-          baseUrl: cfg.openai.baseUrl || 'https://api.deepseek.com',
-          apiKey: cfg.openai.apiKey || '',
-          models: [
-            {
-              id: cfg.openai.model || 'deepseek-v4-pro',
-              name: cfg.openai.model || 'deepseek-v4-pro'
-            }
-          ],
-          enabled: true
-        }
-      ],
-      activeProviderId: 'deepseek',
-      activeModelId: cfg.openai.model || 'deepseek-v4-pro'
-    };
     const nextLlm = updater(structuredClone(currentLlm));
     const activeP =
       nextLlm.providers.find((p) => p.id === nextLlm.activeProviderId) || nextLlm.providers[0];
     const activeM =
       activeP?.models.find((m) => m.id === nextLlm.activeModelId) || activeP?.models[0];
+    nextLlm.activeProviderId = activeP?.id ?? '';
+    nextLlm.activeModelId = activeM?.id ?? '';
     set({
       llm: nextLlm,
       openai: {
@@ -490,6 +521,7 @@ export function ModelProviderPane({
     });
     setShowAddMenu(false);
     setSelectedProviderId(createdId);
+    if (setupGuide) setGuideStep(CONNECTION_STEP);
   };
 
   const handleAddCustomProvider = (): void => {
@@ -515,10 +547,18 @@ export function ModelProviderPane({
     });
     setShowAddMenu(false);
     setSelectedProviderId(customId);
+    if (setupGuide) setGuideStep(CONNECTION_STEP);
   };
 
   const handleTestProvider = async (provider: LlmProviderConfig): Promise<void> => {
+    const previous = testStates[provider.id]?.result;
+    const currentTip = getTipSnapshot();
+    if (previous?.ok === false && currentTip?.text === t('✖ 连通失败: {{error}}', { error: previous.error })) dismissTip(currentTip.id);
     setTestStates((prev) => ({ ...prev, [provider.id]: { testing: true } }));
+    const redactKey = (message: string): string => {
+      const key = provider.apiKey.trim();
+      return key ? message.replaceAll(key, '••••') : message;
+    };
     try {
       const res = await window.api.config.testLlm({
         baseUrl: provider.baseUrl,
@@ -526,11 +566,12 @@ export function ModelProviderPane({
         model: provider.models[0]?.id,
         api: provider.api
       });
-      setTestStates((prev) => ({ ...prev, [provider.id]: { testing: false, result: res } }));
+      const result = res.ok ? res : { ...res, error: redactKey(res.error ?? '') };
+      setTestStates((prev) => ({ ...prev, [provider.id]: { testing: false, result } }));
     } catch (e) {
       setTestStates((prev) => ({
         ...prev,
-        [provider.id]: { testing: false, result: { ok: false, error: (e as Error).message } }
+        [provider.id]: { testing: false, result: { ok: false, error: redactKey(e instanceof Error ? e.message : String(e)) } }
       }));
     }
   };
@@ -652,6 +693,7 @@ export function ModelProviderPane({
       return llm;
     });
     setModelModal(null);
+    if (setupGuide) setGuideStep(DEFAULT_MODEL_STEP);
   };
 
   // 新增模型的同 ID 确认态随 ID/弹窗变化复位：改了 ID 或重开弹窗都要重新确认
@@ -662,10 +704,10 @@ export function ModelProviderPane({
   const handleRemoveModel = (providerId: string, modelId: string): void => {
     updateLlm((llm) => {
       const prov = llm.providers.find((p) => p.id === providerId);
-      if (prov && prov.models.length > 1) {
+      if (prov) {
         prov.models = prov.models.filter((m) => m.id !== modelId);
         if (llm.activeProviderId === providerId && llm.activeModelId === modelId) {
-          llm.activeModelId = prov.models[0].id;
+          llm.activeModelId = prov.models[0]?.id || '';
         }
       }
       return llm;
@@ -674,21 +716,18 @@ export function ModelProviderPane({
 
   const handleRemoveProvider = (providerId: string): void => {
     updateLlm((llm) => {
-      if (llm.providers.length <= 1) return llm;
       const nextProviders = llm.providers.filter((p) => p.id !== providerId);
       llm.providers = nextProviders;
       if (llm.activeProviderId === providerId) {
-        llm.activeProviderId = nextProviders[0].id;
-        llm.activeModelId = nextProviders[0].models[0]?.id || 'default';
+        llm.activeProviderId = nextProviders[0]?.id || '';
+        llm.activeModelId = nextProviders[0]?.models[0]?.id || '';
       }
       return llm;
     });
     // 如果当前选中的是被删除的服务商，自动切到第一个剩余服务商
     if (selectedProviderId === providerId) {
-      const remaining = (cfg?.llm?.providers || []).filter((p) => p.id !== providerId);
-      if (remaining.length > 0) {
-        setSelectedProviderId(remaining[0].id);
-      }
+      const remaining = currentLlm.providers.filter((p) => p.id !== providerId);
+      setSelectedProviderId(remaining[0]?.id ?? '');
     }
   };
 
@@ -697,30 +736,13 @@ export function ModelProviderPane({
       llm.activeProviderId = providerId;
       const prov = llm.providers.find((p) => p.id === providerId);
       if (prov) {
-        llm.activeModelId = modelId || prov.models[0]?.id || 'default';
+        llm.activeModelId = modelId || prov.models[0]?.id || '';
       }
       return llm;
     });
   };
 
-  const llmProviders: LlmProviderConfig[] = cfg.llm?.providers?.length
-    ? cfg.llm.providers
-    : [
-        {
-          id: 'deepseek',
-          name: 'DeepSeek',
-          baseUrl: cfg.openai.baseUrl || 'https://api.deepseek.com',
-          apiKey: cfg.openai.apiKey || '',
-          api: 'openai-completions',
-          models: [
-            {
-              id: cfg.openai.model || 'deepseek-v4-pro',
-              name: cfg.openai.model || 'deepseek-v4-pro'
-            }
-          ],
-          enabled: true
-        }
-      ];
+  const llmProviders = currentLlm.providers;
 
   /** 新增模型时命中的同 ID 模型（F-06：覆盖前必须显式确认） */
   const duplicateModelId =
@@ -730,13 +752,13 @@ export function ModelProviderPane({
           ?.models.find((m) => m.id === modelModal.id.trim())?.id
       : undefined;
 
-  const activeGlobalProviderId = cfg.llm?.activeProviderId || 'deepseek';
+  const activeGlobalProviderId = currentLlm.activeProviderId;
   const effectiveSelectedId =
     selectedProviderId && llmProviders.some((p) => p.id === selectedProviderId)
       ? selectedProviderId
       : llmProviders.some((p) => p.id === activeGlobalProviderId)
         ? activeGlobalProviderId
-        : llmProviders[0]?.id || 'deepseek';
+        : llmProviders[0]?.id || '';
 
   const currentProvider = llmProviders.find((p) => p.id === effectiveSelectedId) || llmProviders[0];
   const modalProvider = modelModal && llmProviders.find(provider => provider.id === modelModal.providerId);
@@ -744,12 +766,47 @@ export function ModelProviderPane({
     ...modalProvider.models.find(model => model.id === modelModal.originalId),
     id: modelModal.id.trim(), multimodal: modelModal.multimodal, multimodalExplicit: modelModal.multimodalExplicit
   });
-  const isSelectedActive = activeGlobalProviderId === currentProvider.id;
-  const testState = testStates[currentProvider.id];
-  const isShowKey = showApiKey[currentProvider.id] ?? false;
+  const isSelectedActive = activeGlobalProviderId === currentProvider?.id;
+  const testState = currentProvider ? testStates[currentProvider.id] : undefined;
+  const isShowKey = currentProvider ? showApiKey[currentProvider.id] ?? false : false;
+  const showSetupGuide = setupGuide && guideFocus !== 'agent-provider-enabled' && !guideDismissed && !showAddMenu && !modelModal && !deleteTarget && !catalogGuideBlocked;
+  const visibleGuideStep = currentProvider ? guideStep : 0;
+  const guideDestination = showSetupGuide ? visibleGuideStep : undefined;
+  const connectionTarget = guideFocus === 'agent-base-url' ? BASE_URL_TARGET : API_KEY_TARGET;
+
+  useLayoutEffect(() => {
+    const modelActions = modelActionsRef.current;
+    const modelList = modelListRef.current;
+    const target = guideDestination === CONNECTION_STEP
+      ? providerBodyRef.current?.querySelector(connectionTarget)
+      : guideDestination === ADD_MODEL_STEP
+        ? modelActions?.querySelector(CATALOG_ADD_TARGET) ?? modelActions?.querySelector(MANUAL_ADD_TARGET)
+        : guideDestination === DEFAULT_MODEL_STEP
+        ? modelList?.querySelector(MODEL_DEFAULT_TARGET) ?? modelList?.closest(MODEL_LIST_SECTION)?.querySelector(MODEL_LIST_HEADING)
+        : undefined;
+    target?.scrollIntoView({ block: guideDestination === DEFAULT_MODEL_STEP ? 'nearest' : 'center', inline: 'nearest', behavior: 'instant' });
+  }, [guideDestination, currentProvider?.id, connectionTarget]);
+
+  const guideContent = [
+    { target: '.llm-add-anchor > button', fallback: '[data-settings-item="agent-provider"]', text: t('点击「添加供应商」，选择要配置的供应商。') },
+    { target: connectionTarget, fallback: API_KEY_TARGET, text: t('在「API Key」输入框填入供应商提供的密钥。自定义供应商还需填写正确的 Base URL。填好后点「下一步」。') },
+    { target: `.llm-add-model-row ${CATALOG_ADD_TARGET}`, fallback: `.llm-add-model-row > ${MANUAL_ADD_TARGET}`, text: t('选中供应商后，优先用「从目录添加」选择模型。没有可选目录时，用「＋ 添加模型」手动配置。') },
+    { target: `.llm-model-row-right ${MODEL_DEFAULT_TARGET}`, fallback: `${MODEL_LIST_SECTION} > ${MODEL_LIST_HEADING}`, text: t('在模型右侧点击「默认」选择默认模型。已有星标表示已默认。底部点击「保存」后，再点「返回引导」。') }
+  ];
+  const modelGuide = guideContent[visibleGuideStep];
 
   return (
     <SettingsContent>
+    {showSetupGuide && <SetupCoachmark
+      target={modelGuide.target} fallbackTarget={modelGuide.fallback} focusTarget={visibleGuideStep === CONNECTION_STEP}
+      title={visibleGuideStep === CONNECTION_STEP ? t('填写连接配置') : t('配置你的模型')}
+      progress={`${visibleGuideStep + 1} / ${guideContent.length}`} onDismiss={() => setGuideDismissed(true)}
+      actions={currentProvider && <>
+        {visibleGuideStep > 0 && <button type="button" className="btn tiny ghost" onClick={() => setGuideStep(visibleGuideStep - 1)}>{t('上一步')}</button>}
+        <button type="button" className="btn tiny" onClick={() => visibleGuideStep === DEFAULT_MODEL_STEP ? setGuideDismissed(true) : setGuideStep(visibleGuideStep + 1)}>{visibleGuideStep === DEFAULT_MODEL_STEP ? t('知道了') : t('下一步')}</button>
+      </>}>
+      {modelGuide.text}
+    </SetupCoachmark>}
     <AppConfirmDialog open={!!deleteTarget} title={t('删除此供应商')}
       detail={deleteTarget?.name} confirmLabel={t('确认删除')} danger
       onCancel={() => setDeleteTarget(null)} onConfirm={() => { const target = deleteTarget; setDeleteTarget(null); if (target) handleRemoveProvider(target.id); }}/>
@@ -872,6 +929,9 @@ export function ModelProviderPane({
               ))}
             </div>
           </nav>
+          {!llmProviders.length && <div className="settings-split-main settings-resource-detail">
+            <p className="settings-hint">{t('尚未添加供应商，请点击「＋ 添加供应商」开始配置。')}</p>
+          </div>}
           {llmProviders.filter((prov) => prov.id === effectiveSelectedId).map((prov) => {
             const isDefault = activeGlobalProviderId === prov.id;
             const isEnabled = prov.enabled !== false;
@@ -882,53 +942,34 @@ export function ModelProviderPane({
             const accountEndpointExample = catalogMeta?.accountEndpointExample;
             return (
               <section key={prov.id} className="llm-provider settings-split-main settings-resource-detail mp-panel" {...detailPresence.spread} aria-label={prov.name} data-provider-id={prov.id} data-catalog={isCatalog || undefined}>
-                <SettingsDetailHeader title={prov.name} icon={<span className="llm-sidebar-avatar">{getProviderInitial(prov)}</span>} meta={<>
-                  {isCatalog && (
-                    <span className="s-tag" title={accountEndpointExample ? undefined : t('按 pi 模型目录配置：地址、协议、思考档与价格由目录决定，只需填写 API Key')}>
-                      {t('pi 目录')}
-                    </span>
-                  )}
-                  {isDefault && (
-                    <span className="s-tag" title={t('默认服务商')}>
-                      ★ {t('默认')}
-                    </span>
-                  )}
-                  <SettingsResourceStatus state={isEnabled ? 'success' : 'neutral'}>{isEnabled ? t('已启用') : t('已停用')}</SettingsResourceStatus>
-                </>}/>
-                  <div className="llm-provider-body">
-                    <SettingsDetailSection title={t('基本信息')}>
-                    <FieldRow label={t('名称')}>
-                      <input className="s-input" aria-label={t('供应商名称')} value={prov.name}
-                        onChange={(e) => updateLlm((llm) => {
-                          const target = llm.providers.find((p) => p.id === prov.id);
-                          if (target) target.name = e.target.value;
+                <div className="llm-provider-summary">
+                  <SettingsDetailHeader
+                    title={<input className="llm-provider-name" aria-label={t('供应商名称')} title={t('供应商名称')} value={prov.name}
+                      onChange={event => {
+                        const name = event.target.value;
+                        updateLlm(llm => {
+                          const target = llm.providers.find(item => item.id === prov.id);
+                          if (target) target.name = name;
                           return llm;
-                        })} />
-                    </FieldRow>
-                    <SettingRow title={t('启用')} desc={t('禁用后聊天与定时任务都不再选用它')}>
-                      <Switch
-                        label={t('启用 {{name}}', { name: prov.name })}
-                        checked={isEnabled}
-                        onChange={(checked) => {
-                          updateLlm((llm) => {
-                            const target = llm.providers.find((p) => p.id === prov.id);
+                        });
+                      }} />}
+                    icon={<span className="llm-sidebar-avatar">{getProviderInitial(prov)}</span>}
+                    actions={<div className="llm-provider-controls">
+                      <label className="llm-provider-enabled" data-settings-item="agent-provider-enabled" title={t('禁用后聊天与定时任务都不再选用它')}>
+                        <Switch label={t('启用 {{name}}', { name: prov.name })} checked={isEnabled} onChange={checked => {
+                          updateLlm(llm => {
+                            const target = llm.providers.find(item => item.id === prov.id);
                             if (target) target.enabled = checked;
                             return llm;
                           });
-                        }}
-                      />
-                    </SettingRow>
-                    <SettingRow title={t('默认服务商')}>
-                      {isSelectedActive ? (
-                        <span className="llm-badge-default-active">{t('默认服务商')}</span>
-                      ) : (
-                        <button type="button" className="btn tiny" onClick={() => handleSetActive(currentProvider.id)}>
-                          {t('设为默认')}
-                        </button>
-                      )}
-                    </SettingRow>
-
-                    </SettingsDetailSection>
+                        }} />
+                        <span>{t('启用')}</span>
+                      </label>
+                      {isDefault ? <span className="llm-badge-default-active">{t('默认服务商')}</span> :
+                        <button type="button" className="btn tiny" onClick={() => handleSetActive(prov.id)}>{t('设为默认')}</button>}
+                    </div>} />
+                </div>
+                  <div className="llm-provider-body" ref={providerBodyRef}>
                     <SettingsDetailSection title={t('连接配置')}>
                     {isCatalog && !accountEndpointExample ? (
                       <FieldRow label="Base URL" item="agent-base-url">
@@ -989,6 +1030,7 @@ export function ModelProviderPane({
                       <div className="llm-password-input-wrap">
                         <input
                           type={isShowKey ? 'text' : 'password'}
+                          aria-label="API Key"
                           className="s-input llm-password-input"
                           value={currentProvider.apiKey}
                           placeholder="sk-…"
@@ -1160,13 +1202,29 @@ export function ModelProviderPane({
                     )}
 
                     </SettingsDetailSection>
-                    <SettingsDetailSection title={t('模型列表')} desc={<>★ = {t('默认模型')}</>} item="agent-models">
+                    <SettingsDetailSection title={t('模型列表')} item="agent-models" actions={
+                      <div className="llm-add-model-row" data-settings-item="agent-model-actions" ref={modelActionsRef}>
+                        <ProviderModelCatalogPicker active={active} onOpenChange={setCatalogGuideBlocked} onAddManually={() => openAddModel(prov.id)}
+                          provider={{ id: prov.id, baseUrl: prov.baseUrl, apiKey: prov.apiKey,
+                            api: isCatalog ? catalogMeta?.api ?? prov.api : prov.api }}
+                          models={prov.models}
+                          builtin={isCatalog ? catalogModelMap.get(catalogMeta?.id ?? prov.id) : undefined}
+                          onAdd={model => {
+                            if (setupGuide) setGuideStep(DEFAULT_MODEL_STEP);
+                            updateLlm(llm => {
+                              const target = llm.providers.find(item => item.id === prov.id);
+                              if (target && !target.models.some(item => item.id === model.id)) target.models.push(model);
+                              return llm;
+                            });
+                          }} />
+                      </div>
+                    }>
                     {!currentProvider.models.length && <p className="settings-hint llm-model-empty-hint">{t('尚未添加模型，请从目录选择或手动添加。')}</p>}
-                    <div className="llm-model-card-list">
+                    <div className="llm-model-card-list" ref={modelListRef}>
                       {currentProvider.models.map((m) => {
                         const isCurrentActiveModel =
                           isSelectedActive &&
-                          (cfg.llm?.activeModelId || cfg.openai.model) === m.id;
+                          currentLlm.activeModelId === m.id;
                         const cat = catalogModelOf(currentProvider.id, m.id);
                         const input = modelInput(currentProvider, m);
                         const isReasoning = m.reasoning ?? cat?.reasoning ?? false;
@@ -1212,6 +1270,7 @@ export function ModelProviderPane({
                                   type="button"
                                   className="llm-model-tool-btn"
                                   title={t('设为此供应商默认模型')}
+                                  data-setup-default
                                   onClick={() => handleSetActive(currentProvider.id, m.id)}
                                 >
                                   {t('默认')}
@@ -1227,7 +1286,7 @@ export function ModelProviderPane({
                                 {t('编辑')}
                               </button>
 
-                              {currentProvider.models.length > 1 && (
+                              {currentProvider.models.length > 0 && (
                                 <button
                                   type="button"
                                   className="llm-model-tool-btn is-delete"
@@ -1242,30 +1301,9 @@ export function ModelProviderPane({
                         );
                       })}
                     </div>
-                    <div className="llm-add-model-row">
-                      <button
-                        type="button"
-                        className="btn ghost tiny"
-                        onClick={() => {
-                          openAddModel(currentProvider.id);
-                        }}
-                      >
-                        {t('＋ 添加模型')}
-                      </button>
-                      <ProviderModelCatalogPicker
-                        provider={{ id: currentProvider.id, baseUrl: currentProvider.baseUrl, apiKey: currentProvider.apiKey,
-                          api: isCatalog ? catalogMeta?.api ?? currentProvider.api : currentProvider.api }}
-                        models={currentProvider.models}
-                        builtin={isCatalog ? catalogModelMap.get(catalogMeta?.id ?? currentProvider.id) : undefined}
-                        onAdd={model => updateLlm(llm => {
-                          const provider = llm.providers.find(item => item.id === currentProvider.id);
-                          if (provider && !provider.models.some(item => item.id === model.id)) provider.models.push(model);
-                          return llm;
-                        })}/>
-                    </div>
 
                     </SettingsDetailSection>
-                    {llmProviders.length > 1 ? (
+                    {llmProviders.length > 0 ? (
                       <SettingRow
                         divided
                         title={<span style={{ color: 'var(--status-danger-fg)' }}>{t('删除这个供应商')}</span>}

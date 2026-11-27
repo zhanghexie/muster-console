@@ -195,6 +195,7 @@ assert.ok(p.SETTINGS_TABS.every((t) => groupIds.has(t.group)));
 assert.ok(p.SETTINGS_GROUPS.every((g) => p.SETTINGS_TABS.some((t) => t.group === g.id)));
 // 搬到「通用」页的设置项：搜索命中后跳 general 页（focusItem id 不变）
 assert.equal(p.collectSettingsHits('休眠').find((h) => h.id === 'worker-keep-awake')?.tab, 'general');
+assert.equal(p.collectSettingsHits('添加模型')[0]?.id, 'agent-model-actions');
 assert.ok(p.SETTINGS_TABS.some((t) => t.id === 'memory'));
 assert.ok(p.SETTINGS_TABS.some((t) => t.id === 'textTools'));
 assert.ok(p.SETTINGS_TABS.some((t) => t.id === 'about'));

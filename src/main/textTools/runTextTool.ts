@@ -168,6 +168,7 @@ export async function runTextTool(
   if (!text.trim()) throw new Error(t('选中文本为空'));
 
   const { provider, modelId, baseUrl: rawBase, apiKey } = resolveTextToolLlm(config, req);
+  if (!modelId) throw new Error(t('请先在模型设置中配置可用的文本模型'));
   const api = provider.api ?? 'openai-completions';
   if (api !== 'openai-completions' && api !== 'openai-responses') {
     throw new Error(t('「{{name}}」的 {{api}} 协议暂不支持文本工具，请换 OpenAI 兼容模型', { name: provider.name, api }));

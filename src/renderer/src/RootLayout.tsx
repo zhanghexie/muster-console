@@ -15,14 +15,14 @@ import { KeybindingProvider } from './keybindings/KeybindingHost';
 import { useWorkspaceAppearance } from './useWorkspaceAppearance';
 import { useSessionStore, useWorkspaceStore } from './store';
 import { isWebGateway } from './webGatewayEnvironment';
-import { readSetupProgress, writeSetupProgress, type MoveSetup, type SetupState } from './onboarding/setupProgress';
+import { getSetupModelIssue, readSetupProgress, reconcileSetupStep, writeSetupProgress, type MoveSetup, type SetupState } from './onboarding/setupProgress';
 import { bootStatusSnapshot, subscribeBootStatus } from './bootStatus';
 import { BrandBootLoader } from './components/BrandLoader';
 import { showTip } from './tips';
 import { t } from '../../shared/i18n';
 
 const DesktopApp = React.lazy(() => import('./App').then((m) => ({ default: m.App })));
-const FirstRun = React.lazy(() => import('./onboarding/FirstRun').then((m) => ({ default: m.FirstRun })));
+const WorkspaceRecovery = React.lazy(() => import('./onboarding/FirstRun').then((m) => ({ default: m.WorkspaceRecovery })));
 const MobileApp = React.lazy(() => import('./mobile/MobileApp').then((m) => ({ default: m.MobileApp })));
 const ExtensionDetachedWindow = React.lazy(() => import('./panels/ExtensionDetachedWindow').then((m) => ({ default: m.ExtensionDetachedWindow })));
 
@@ -30,8 +30,11 @@ const ExtensionDetachedWindow = React.lazy(() => import('./panels/ExtensionDetac
 const detachedExtensionWindow = window.location.hash.startsWith('#extension-window');
 const noDeferredSteps = [] as const;
 
-function persistSetup(state: SetupState): void {
-  if (!writeSetupProgress(state)) showTip(t('无法保存引导进度，重启后可能需要重新进入这一步。'), { tone: 'error' });
+function persistSetup(state: SetupState): string | undefined {
+  if (writeSetupProgress(state)) return undefined;
+  const message = t('无法保存引导进度，重启后可能需要重新进入这一步。');
+  showTip(message, { tone: 'error' });
+  return message;
 }
 
 function DesktopSurface(): React.JSX.Element {
@@ -40,56 +43,75 @@ function DesktopSurface(): React.JSX.Element {
   const boot = useSyncExternalStore(subscribeBootStatus, bootStatusSnapshot);
   const [saved, setSaved] = useState(readSetupProgress);
   const [closingWorkspace, setClosingWorkspace] = useState(false);
+  const [configuredModel, setConfiguredModel] = useState(false);
+  const [setupNotice, setSetupNotice] = useState<string>();
+  const [modelIssue, setModelIssue] = useState<ReturnType<typeof getSetupModelIssue>>();
   const started = saved?.step ?? (workspaces.length ? 'done' : 'tools');
   const deferred = saved?.deferred ?? noDeferredSteps;
   const hasWorkspace = workspaces.some(workspace => workspace.id === activeWorkspaceId);
   const hasSession = visibleSessions.some(session => session.type === 'terminal' && !!session.runtime &&
     !session.archived && !session.hidden && session.launchKind !== 'shell');
-  const progress = started === 'workspace' || started === 'session'
-    ? !hasWorkspace ? 'workspace' : hasSession ? 'done' : 'session'
-    : started;
+  const progress = reconcileSetupStep(started, hasWorkspace, hasSession);
+
+  const commit = (state: SetupState): void => { setSaved(state); setSetupNotice(persistSetup(state)); };
 
   useEffect(() => {
     if (activeWorkspaceId === null || (!saved && progress !== 'done')) return;
-    const remaining = hasSession ? deferred.filter(step => step !== 'session') : deferred;
-    if (saved?.step === progress && remaining.length === deferred.length) return;
-    const reconciled: SetupState = { ...saved, step: progress, deferred: [...remaining] };
+    if (saved?.step === progress) return;
+    const reconciled: SetupState = { ...saved, step: progress, deferred: [...deferred] };
     setSaved(reconciled);
-    persistSetup(reconciled);
-  }, [activeWorkspaceId, deferred, hasSession, progress, saved]);
+    setSetupNotice(persistSetup(reconciled));
+  }, [activeWorkspaceId, deferred, progress, saved]);
 
   const move: MoveSetup = (step, outcome) => {
     const remaining = outcome ? deferred.filter(item => item !== outcome.step) : [...deferred];
     if (outcome?.skipped) remaining.push(outcome.step);
-    const next = { step, deferred: remaining };
-    setSaved(next);
-    persistSetup(next);
+    if (step !== 'model') setModelIssue(undefined);
+    commit({ step, deferred: remaining });
   };
+
+  useEffect(() => {
+    if (progress !== 'model' && progress !== 'finish') return;
+    let live = true;
+    void window.api.config.get().then(config => {
+      if (live) setConfiguredModel(!getSetupModelIssue(config.llm));
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [progress]);
 
   if (activeWorkspaceId === null) {
     return boot.phase === 'degraded' || boot.phase === 'failed' ? <DesktopApp onWorkspaceClosePendingChange={setClosingWorkspace} /> : <BrandBootLoader />;
   }
-  // The empty snapshot arrives before the renderer commits the close transaction.
-  if (progress === 'workspace' || progress === 'session' ||
-      (progress === 'done' && (workspaces.length > 0 || closingWorkspace))) {
-    const guiding = !saved?.dismissed && (progress !== 'done' || (hasWorkspace && !hasSession && deferred.length > 0));
-    return <DesktopApp onWorkspaceClosePendingChange={setClosingWorkspace} setup={guiding ? {
+  // Keep the workbench alive until the close transaction releases its file views.
+  if (progress === 'done' && !workspaces.length && !closingWorkspace) return <WorkspaceRecovery />;
+  return <DesktopApp onWorkspaceClosePendingChange={setClosingWorkspace} setup={progress === 'done' ? undefined : {
       step: progress,
-      deferred,
-      onBack: () => move('remote'),
-      onSkipSession: () => move('done', { step: 'session', skipped: true }),
-      onShowSession: () => move('session', { step: 'session', skipped: false }),
-      onDismiss: () => {
-        const remaining = [...deferred];
-        if (progress === 'session' && !remaining.includes('session')) remaining.push('session');
-        const next: SetupState = { step: 'done', deferred: remaining, dismissed: true };
-        setSaved(next);
-        persistSetup(next);
+      deferred: [...deferred],
+      paused: saved?.paused,
+      hasWorkspace,
+      hasSession,
+      configuredModel,
+      notice: setupNotice ?? (progress === 'model' ? modelIssue?.message : undefined),
+      modelSettingsItem: progress === 'model' ? modelIssue?.settingsItem : undefined,
+      move,
+      onPause: () => commit({ step: progress, deferred: [...deferred], paused: true }),
+      onResume: () => move(progress),
+      onModelReturn: async () => {
+        try {
+          const config = await window.api.config.get();
+          const issue = getSetupModelIssue(config.llm);
+          setConfiguredModel(!issue);
+          if (progress === 'model') {
+            if (!issue) move('workspace', { step: 'model', skipped: false });
+            else { setModelIssue(issue); setSetupNotice(undefined); }
+          }
+        } catch {
+          const message = t('读取模型设置失败，可以稍后在设置中重试。');
+          if (progress === 'model') setSetupNotice(message);
+          else showTip(message, { tone: 'error' });
+        }
       }
-    } : undefined} />;
-  }
-
-  return <FirstRun progress={progress} deferred={deferred} onProgress={move} />;
+    }} />;
 }
 
 export function RootLayout(): React.JSX.Element {

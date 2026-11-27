@@ -12,10 +12,8 @@
   overflow-wrap: anywhere;
 }
 
-.setup-step > .setup-resume { margin-block-end: 16px; }
-.setup-resume p { margin: 0; font-weight: 500; }
+.setup-resume h2 { margin: 0; font-size: inherit; font-weight: 550; }
 .setup-resume ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.setup-resume li > span { color: var(--chrome-fg-primary); }
 .setup-resume .btn.ghost {
   --fg-primary: var(--chrome-fg-primary);
   --interaction-hover: var(--chrome-interaction-hover);
@@ -24,67 +22,69 @@
   inline-size: 100%;
   padding: 4px 8px;
   text-align: start;
+  white-space: normal;
   font-size: var(--font-ui);
 }
 
+.setup-finish-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  inline-size: min(460px, calc(100% - 24px));
+  block-size: fit-content;
+  max-block-size: calc(100% - 24px);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: inherit;
+  overscroll-behavior: contain;
+}
+
+.setup-finish-dialog::backdrop {
+  overflow: hidden;
+  background: var(--overlay-dim, rgb(0 0 0 / .32));
+  transition: opacity var(--dur-panel) var(--ease-standard);
+}
+
+.setup-finish-dialog:is([data-mp-stage='enter'], [data-mp-stage='out'])::backdrop { opacity: 0; }
+
+:root[data-ui-motion='reduced'] .setup-finish-dialog::backdrop { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .setup-finish-dialog::backdrop { transition: none; }
+}
+
 .workbench-setup-guide {
+  position: relative;
   display: grid;
   gap: 16px;
-  inline-size: min(100%, 464px);
-  padding: 24px;
+  padding: 28px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
   background: var(--surface-raised);
   color: var(--raised-fg-primary);
-  text-align: start;
   overflow-wrap: anywhere;
 }
 
-.workbench-setup-title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.workbench-setup-guide h1 { margin: 0; font-size: var(--font-title); }
+.workbench-setup-close { position: absolute; inset-block-start: 12px; inset-inline-end: 12px; }
+
+.setup-finish-check {
+  display: grid;
+  place-items: center;
+  inline-size: 48px;
+  block-size: 48px;
+  color: var(--fg-success, var(--fg-primary));
+  background: var(--surface-chrome);
+  border-radius: var(--radius-control);
 }
 
-.workbench-setup-title h2 {
-  margin: 0;
-  font-size: var(--font-title);
-  font-weight: 500;
-}
-
-.workbench-setup-close {
-  margin-inline-start: auto;
-  align-self: start;
-}
-
-.workbench-setup-progress {
-  margin-block-end: 4px;
-  color: var(--raised-fg-secondary);
-  font-size: var(--font-caption);
-}
-
-.workbench-setup-guide > p {
-  margin: 0;
-  color: var(--raised-fg-secondary);
-  font-size: var(--font-body);
-  line-height: 1.55;
-}
-
-.workbench-setup-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
+.setup-finish-results { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.setup-finish-results li { display: flex; align-items: center; gap: 8px; }
+.setup-finish-button { justify-self: end; }
 
 .session-header-actions:has([data-setup-target='session']),
 .agent-ws-stack-header .agent-ws-add-btn[data-setup-target='workspace'] {
   opacity: 1;
   visibility: visible;
-  transition: none;
-}
-
-.left-panel .session-header-actions [data-setup-target='session'],
-.agent-ws-stack-header .agent-ws-add-btn[data-setup-target='workspace'] {
-  box-shadow: inset 0 0 0 1px var(--fg-primary);
 }

@@ -941,10 +941,9 @@ function restoreDevSandboxFromTemplate(workspacesDir: string, userDataDir: strin
 function inheritProdConfig(prodUserDataDir: string, seedWorkspaces: WorkspaceInfo[]): Partial<AppConfig> {
   const prodConfigPath = path.join(prodUserDataDir, 'config.json');
   let openai = {
-    baseUrl: 'https://api.deepseek.com',
+    baseUrl: '',
     apiKey: '',
-    // 与 DEFAULT_LLM_CONFIG 的默认模型一致（曾用 deepseek-v4-flash——预设表里不存在的 id）
-    model: 'deepseek-chat'
+    model: ''
   };
   let mcp: McpConfig = {
     enabled: true,
