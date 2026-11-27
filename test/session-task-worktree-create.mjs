@@ -167,7 +167,23 @@ fs.appendFileSync(${JSON.stringify(preparationTrace)},JSON.stringify({tag:proces
   assert.equal(preset.cwd, path.join(b, 'src'));
   assert.equal((await gitService.worktreeRemove(preset.worktreePath)).ok, true);
   git(b, 'branch', '-D', preset.worktreeBranch);
-  console.log('ok session-task-worktree-create: actual create/integrate entries, all-group disk merge/results, row/launch, leases, input snapshot, cwd, metadata and failed-group no-publication');
+  const beforeCommit = git(a, 'worktree', 'list', '--porcelain');
+  const launchCount = launches.length;
+  let revoked = false;
+  flow.persistStrict = async validate => {
+    revoked = true;
+    validate();
+  };
+  await assert.rejects(create({ workspaceId: 'ws', rootId: 'a', force: true, isolate: true,
+    isolationGroups: [{ rootId: 'a', relativePath: '' }], parentSessionId: preset.id,
+    workerRouting: { phase: 'starting', attempts: [] },
+    assertRoutingCurrent() { if (revoked) throw new Error('fixture parent policy changed before commit'); }
+  }), /parent policy changed before commit/);
+  assert.equal(rows.length, 1, 'a rejected routed child never enters the live registry');
+  assert.equal(launches.length, launchCount);
+  assert.equal(git(a, 'worktree', 'list', '--porcelain'), beforeCommit, 'the rejected child releases its isolated worktree');
+  assert.equal(git(a, 'for-each-ref', '--format=%(refname)', 'refs/heads/ao/'), '');
+  console.log('ok session-task-worktree-create: create/integrate, worktree scope, and rollback on group failure or final route rejection');
 } finally {
   Module._load = originalLoad;
   assert.ok(path.resolve(fixture).startsWith(path.resolve(tempRoot) + path.sep));

@@ -1,5 +1,7 @@
 /** 真 Electron/preload/IPC/SessionMeta；隔离的 Codex app-server 夹具。 */
 import { test, expect, _electron, type ElectronApplication } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -48,7 +50,7 @@ rl.on('line', line => {
       reply({ error: { code: -32601, message: 'Model listing unavailable' } });
       return;
     }
-    const parameters = { supportedReasoningEfforts: ['low', 'medium', 'high'], defaultReasoningEffort: 'medium' };
+    const parameters = { supportedReasoningEfforts: ['low', 'medium', 'high', 'max'], defaultReasoningEffort: 'medium' };
     reply({ result: { data: [
       { model: defaultModel, displayName: 'CLI Default', isDefault: true, ...parameters },
       { model: 'chosen', displayName: 'Selected Codex', ...parameters }
@@ -64,7 +66,8 @@ rl.on('line', line => {
   } else if (request.method === 'turn/start') {
     const model = params.model ?? defaultModel;
     fs.appendFileSync(process.env.TEST_CODEX_MODEL_LEDGER, JSON.stringify({ model, resume: resumed,
-      effort: params.effort ?? null, explicitModel: params.model ?? null }) + '\n');
+      effort: params.effort ?? null, explicitModel: params.model ?? null, cwd: params.cwd ?? process.cwd(),
+      text: params.input?.find(item => item.type === 'text')?.text }) + '\n');
     const turnId = 'fixture-turn';
     reply({ result: { turn: { id: turnId } } });
     console.log(JSON.stringify({ method: 'item/completed', params: { threadId, turnId,
@@ -86,15 +89,21 @@ rl.on('line', line => {
   fs.writeFileSync(path.join(userData, 'config.json'), JSON.stringify({ locale: 'zh-CN', themeId: 'dark', activeWorkspaceId: 'codex-test', defaultCwd: workspace,
     workspaces: [{ id: 'codex-test', name: 'Codex models', path: workspace, controlRoot: workspace, defaultRootId: 'main',
       roots: [{ id: 'main', path: workspace, label: 'Main source' }, { id: 'secondary', path: secondary }] }],
+    worktreeStorageRoot: path.join(cwd, 'tasks'),
     webAccess: { enabled: false }, mcp: { enabled: false, servers: [] } }));
   fs.writeFileSync(path.join(userData, 'sessions.json'), '[]');
   const env = { ...process.env, MUSTER_SANDBOX: '1', MUSTER_INSTANCE_ID: path.basename(cwd), CODEX_HOME: codexHome,
     USERPROFILE: profile, APPDATA: appData, LOCALAPPDATA: localAppData, HOME: profile,
     TEST_CODEX_MODEL_LEDGER: ledger, TEST_CODEX_DISCOVERY_LEDGER: discoveryLedger } as Record<string, string>;
   for (const key of Object.keys(env)) if (key.toUpperCase() === 'PATH') delete env[key];
-  env.PATH = process.platform === 'win32'
-    ? [path.join(process.env.SystemRoot || 'C:\\Windows', 'System32'), path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0')].join(path.delimiter)
-    : '/usr/bin:/bin';
+  const systemPaths = process.platform === 'win32'
+    ? [path.join(process.env.SystemRoot || 'C:\\Windows', 'System32'), path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0')]
+    : ['/usr/bin', '/bin'];
+  const gitName = process.platform === 'win32' ? 'git.exe' : 'git';
+  const gitDirectory = (process.env.PATH ?? '').split(path.delimiter).map(dir => dir.replace(/^"(.*)"$/, '$1'))
+    .find(dir => path.isAbsolute(dir) && fs.existsSync(path.join(dir, gitName)));
+  if (!gitDirectory) throw new Error('Git is required for the isolated Codex child fixture');
+  env.PATH = [bin, ...systemPaths, gitDirectory].join(path.delimiter);
   for (const key of ['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'MUSTER_DEVTOOLS_PORT', 'MUSTER_WEB_PORT', 'MUSTER_NO_SANDBOX']) delete env[key];
   const launch = () => _electron.launch({ executablePath: nodeRequire('electron'), args: [repoRoot], cwd, env, timeout: 60000 });
   const waitForBoot = async (instance: ElectronApplication) => {
@@ -254,6 +263,71 @@ rl.on('line', line => {
       }
     }, { timeout: 15_000 }).toEqual(['cli-default', 'chosen']);
     expect(fs.readFileSync(discoveryLedger, 'utf8')).toBe('list\nlist\nlist\n');
+
+    await test.step('Core Worker creates an isolated Codex child with the selected model and effort', async () => {
+      const git = (...args: string[]) => execFileSync(path.join(gitDirectory, gitName), [
+        '-c', `core.hooksPath=${path.join(cwd, 'hooks')}`, '-c', 'commit.gpgsign=false',
+        '-c', 'user.name=Fixture', '-c', 'user.email=fixture@invalid', ...args
+      ], { cwd: workspace, stdio: 'pipe', windowsHide: true });
+      git('init', '-b', 'main');
+      git('add', 'app-server');
+      git('commit', '-m', 'Codex app-server fixture');
+
+      const task = 'Return the model selected for this child.';
+      const model = createServer(async (request, response) => {
+        const chunks: Buffer[] = [];
+        for await (const chunk of request) chunks.push(Buffer.from(chunk));
+        const last = JSON.parse(Buffer.concat(chunks).toString('utf8')).messages.at(-1);
+        let call: { id: string; name: string; args: object } | undefined;
+        if (last?.role === 'user') {
+          call = { id: 'lookup', name: 'host_workers_options', args: { mode: 'models', harnessId: 'codex', surface: 'gui',
+            modelId: 'chosen', providerId: 'codex-gui', modelParameters: { reasoning: 'max' } } };
+        } else if (last?.role === 'tool' && last.tool_call_id === 'lookup') {
+          const targetRef = JSON.stringify(last.content).match(/wr1\.[A-Za-z0-9_-]{32}/)?.[0];
+          if (targetRef) call = { id: 'delegate', name: 'host_sessions_create',
+            args: { target: { targetRef }, task, isolation: 'isolated', asSubagent: true, select: false } };
+        }
+        response.writeHead(200, { 'content-type': 'text/event-stream' });
+        const chunk = (delta: object, finish_reason: string | null) => response.write(`data: ${JSON.stringify({
+          id: 'core-worker-fixture', object: 'chat.completion.chunk', choices: [{ index: 0, delta, finish_reason }]
+        })}\n\n`);
+        if (call) {
+          chunk({ tool_calls: [{ index: 0, id: call.id, type: 'function', function: { name: call.name, arguments: JSON.stringify(call.args) } }] }, null);
+          chunk({}, 'tool_calls');
+        } else {
+          chunk({ content: 'Delegation fixture finished.' }, null);
+          chunk({}, 'stop');
+        }
+        response.end('data: [DONE]\n\n');
+      });
+      try {
+        await new Promise<void>(resolve => model.listen(0, '127.0.0.1', resolve));
+        const baseUrl = `http://127.0.0.1:${(model.address() as { port: number }).port}/v1`;
+        const enabled = await restarted.evaluate(() => window.api.runtimes.update({ id: 'pi', enabled: true }));
+        expect(enabled.ok, enabled.error).toBe(true);
+        await restarted.evaluate(baseUrl => window.api.config.update({ openai: { baseUrl, apiKey: 'fixture-key', model: 'core-fixture' } }), baseUrl);
+        const parent = await restarted.evaluate(() => window.api.sessions.create({ runtime: 'pi', workspaceId: 'codex-test',
+          rootId: 'main', name: 'Core parent', configurePermissions: false }));
+        const sent = await restarted.evaluate(id => window.api.agentSession.send(id, 'Delegate to the chosen Codex model.'), parent.id);
+        expect(sent.ok, sent.error).toBe(true);
+        const children = () => restarted.evaluate(async id => (await window.api.sessions.list()).sessions.filter(s => s.parentSessionId === id), parent.id);
+        await expect.poll(async () => (await children()).length, { timeout: 25_000 }).toBe(1);
+        const [child] = await children();
+        expect(child).toMatchObject({ runtime: 'codex-gui', workspaceId: parent.workspaceId,
+          modelOverride: { providerId: 'codex-gui', modelId: 'chosen' }, modelParameters: { reasoning: 'max' } });
+        expect(child.worktreeGroups?.cwdPolicy).toBe('source');
+        expect(child.cwd).toBe(parent.cwd);
+        expect(child.worktreePath).toBeTruthy();
+        await expect.poll(() => JSON.parse(fs.readFileSync(ledger, 'utf8').trim().split('\n').at(-1)!), { timeout: 25_000 })
+          .toMatchObject({ model: 'chosen', effort: 'max', cwd: child.worktreePath, text: expect.stringContaining(task) });
+        const history = () => restarted.evaluate(id => window.api.agentSession.historyRange(id), child.id);
+        await expect.poll(async () => JSON.stringify((await history())?.messages), { timeout: 15_000 }).toContain('model:chosen');
+        expect((await history())?.messages.filter(message => message.role === 'user')).toHaveLength(1);
+      } finally {
+        model.closeAllConnections();
+        await new Promise<void>(resolve => model.close(() => resolve()));
+      }
+    });
 
   } finally {
     const proc = app?.process();

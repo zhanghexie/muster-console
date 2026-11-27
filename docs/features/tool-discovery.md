@@ -94,7 +94,11 @@ GUI、调度和 PTY 的合并更新共用 `projectedSessionTarget.ts` 固定目�
 
 `host.workers.options` 是调度及接入宿主工具的 GUI、ACP 和 PTY Worker 的只读选型入口。缺省给工作区档位，指定 Harness 和表面后从缓存查询模型与参数。`host.sessions.create` 接受档位或精确引用，创建自身执行预检。已交接的 Worker 可经 `host.workers.context` 分页读自身原始转写和已结算工具结果。调用面与边界见 [Worker 自动派活](worker-routing.md)。
 
-**模型面的 `host.sessions.create` 已收窄为「任务 + 位置 + 路由」**：只接受 `task`、`isolation`、`target`（`tierId`/`targetRef`）、`inherit`、`name`、`asSubagent`、`select`、`force`、`workspaceId`、`rootId`、`cwd`、`rootsRevision`、`isolationGroups`，并以 `additionalProperties:false` 拒绝其余字段。`runtime`、`model`、`thinking`、`modelParameters`、`nativeConfig`、`cliLaunchOptions`、`guiMode`、`configurePermissions`、`acpPresetId`、`piModeId` 由档位或引用携带；新建对话框走 `sessions:create` IPC 直传，不经工具面，因此界面仍可指定这些值。普通 Shell 改用 terminal.create；Agent 仍须显式 shared/isolated。isolated 可省略隔离组并默认选 cwd 所属 Git 仓库，或用 isolationGroups/repoSet 显式指定范围；源目录与版本仍校验。空会话与带任务创建共用 resolveLaunchConfiguration：IPC 直传时显式 runtime 优先，省略时只继承父或配置的 GUI runtime，否则使用 `pi`；CLI 不推荐且只在明确指定时创建。选中 GUI 不可用时明确报错，不自动改用 CLI；恢复已有会话沿用原 runtime。同 runtime 继承模型，同 runtime/模型继承 modelParameters 或 thinking；切换目标不携带不兼容参数。modelParameters={} 清除继承的参数覆盖，thinking 与显式 modelParameters 互斥；piModeId 不继承。显式不支持的 GUI 模型、思考、模式或 CLI 参数在创建前拒绝；实际参数 ID/值经适配器的能力声明与模型配置校验，探测不可用明确报错。Core 沿用宿主权限继承；同源同 Harness 的外部 GUI 使用父会话最新已确认且可传递的原生设置，CLI 使用自身原生配置。两类创建复用跨平台宿主创建服务，无平台专属新分支。经引用或档位创建时权限一律走自动档，见 [Worker 自动派活](worker-routing.md)。
+模型面的 `host.sessions.create` 接受 `task`、`isolation`、`target`（`tierId`/`targetRef`）、`inherit`、`name`、`asSubagent`、`select`、`force`、`workspaceId`、`rootId`、`cwd`、`rootsRevision`、`isolationGroups`，并以 `additionalProperties:false` 拒绝其余字段。目标引用或档位携带 Harness、runtime、模型与模型参数，权限由宿主分别解析。新建对话框走 `sessions:create` IPC，可直接指定模型、引擎及权限设置。普通 Shell 使用 `host.terminal.create`。Agent 显式选择 `shared` 或 `isolated`。`isolated` 省略隔离组时默认选 cwd 所属 Git 仓库，也可用 `isolationGroups` 显式指定范围。
+
+空会话与带任务创建共用 `resolveLaunchConfiguration`。IPC 直传时显式 runtime 优先，省略时使用父或配置的 GUI runtime，缺省使用 `pi`。CLI 需要明确指定。选中 GUI 不可用时返回错误，恢复会话沿用原 runtime。同 runtime 继承模型，同 runtime 和模型可继承 `modelParameters` 或 `thinking`。`modelParameters={}` 清除继承的覆盖，`thinking` 与显式 `modelParameters` 互斥。Pi persona 单独选择。创建前校验源目录身份、版本、运行时选择及适配器支持的模型、参数和权限设置。
+
+Worker 用 `asSubagent:true` 绑定父会话，可选 `inherit:true` 复用兼容的启动设置。选择不同 Harness 的子代理时传精确 `targetRef`，宿主复核 Muster Core 父会话处于「完全访问」，目标采用其常规启动权限。同源同 Harness 的外部 GUI 使用父会话最新已确认且可传递的原生设置，CLI 使用自身原生配置。创建复用跨平台宿主服务，见 [Worker 自动派活](worker-routing.md)。
 
 ## 安全审核执行门
 

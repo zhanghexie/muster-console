@@ -1694,7 +1694,7 @@ export class SessionsService {
       isChatRuntime: (runtimeKey) => this.isChatRuntime(runtimeKey),
       applySelectDisplay: (s, activate) => this.applySelectDisplay(s, activate),
       persist: () => this.persist(),
-      persistStrict: validate => this.persister.flushStrict(validate),
+      persistStrict: (validate, project, commit) => this.persister.flushStrict(validate, project, commit),
       broadcast: () => this.broadcast(),
       get: (id) => this.get(id),
       launchTerminal: async (s, mode, initialPrompt, forkFrom, injectHostIntro) => {

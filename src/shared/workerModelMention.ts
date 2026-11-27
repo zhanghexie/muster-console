@@ -57,5 +57,5 @@ export function summarizeWorkerModelMentions(text: string): string {
 /** Expand only after the caller has validated each reference against the current source. */
 export function serializeWorkerModelMentions(text: string): string {
   return mapMentions(text, ({ label, targetRef }) =>
-    `[Worker model ${JSON.stringify(label)}. To delegate to this exact configuration, use ${workerModelInvocation(targetRef)}.]`);
+    `[Worker model ${JSON.stringify(label)}. To delegate to this exact configuration, use ${workerModelInvocation(targetRef)}. To create a child of the calling Worker, include asSubagent: true.]`);
 }

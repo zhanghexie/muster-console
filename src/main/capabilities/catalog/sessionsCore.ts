@@ -34,7 +34,7 @@ export const SESSIONS_CORE_TOOL_DEFS: ToolDef[] = [
     parameters: { type: 'object', required: ['isolationGroups'], properties: { ...sessionIdProp, isolationGroups: worktreeSelectionProperty, apply: { type: 'boolean' } } } },
   {
     name: 'sessions.create',
-    description: 'Create a Worker. Pass target from host.workers.options (tierId or the exact targetRef); for a child use inherit. No inline model, thinking, permission or launch overrides: put them in the reference. Isolated defaults to the cwd repo. Creation runs preflight; queued/stored means pending. Parameters: ~/.muster/skills/sessions/SKILL.md.',
+    description: 'Create a Worker. Pass target from host.workers.options. For a child of the calling Worker, set asSubagent and pass the chosen targetRef or use inherit to reuse the parent setup. Isolated defaults to the cwd repo. Creation runs preflight. Queued or stored means pending. Parameters: ~/.muster/skills/sessions/SKILL.md.',
     dangerous: false,
     parameters: {
       type: 'object',
@@ -44,7 +44,7 @@ export const SESSIONS_CORE_TOOL_DEFS: ToolDef[] = [
           type: 'string',
           description: 'Goal, deliverable, constraints and paths to relevant context or skills.'
         },
-        target: { description: 'Choose tierId for policy-based routing or pass the exact targetRef unchanged. Creation accepts no inline model, permission or launch overrides: get a reference from host.workers.options first.', oneOf: [
+        target: { description: 'Choose tierId for policy-based routing or pass the exact targetRef unchanged. The host resolves launch permissions separately.', oneOf: [
           { type: 'object', required: ['tierId'], properties: { tierId: { type: 'string' } }, additionalProperties: false },
           { type: 'object', required: ['targetRef'], properties: { targetRef: { type: 'string' } }, additionalProperties: false }
         ] },
@@ -64,7 +64,7 @@ export const SESSIONS_CORE_TOOL_DEFS: ToolDef[] = [
         asSubagent: {
           type: 'boolean',
           description:
-            'Bind caller as parent. GUI runtime/permissions and same-runtime model/thinking inherit from the parent. Report to the parent with sessions.message.'
+            'Bind the caller as parent. Use inherit for the parent setup, or targetRef for an exact Harness and model choice. Report to the parent with sessions.message.'
         },
         select: {
           type: 'boolean',

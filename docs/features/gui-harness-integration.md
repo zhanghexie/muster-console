@@ -82,7 +82,7 @@ MiMo Code 的 `mimo-code` 预设使用独立 ACP 身份。先查 PATH 与常用 
 
 `sessions:setConfigurePermissions` 持久化开关，渲染层等待成功后更新；失败时保持原状态，并调用全局 `showTip` 短暂提示，不在输入栏常驻错误文字。会话设置的读取、刷新及修改失败也使用该轻提示；目录尚未读取、未公开可调目录和等待引擎确认等持续状态留在面板内。Core 从提交后的会话状态计算有效档位，并通过 `agentSession:event` 的 `permission-mode` 同步界面；关闭时保留手动选择，重新开启、切会话及刷新均恢复该选择。迟到历史或切换前的模式请求不会覆盖已确认档位。关闭时释放当前有效的待决权限申请，继续保留回合、连接和取消检查。支持在线策略的引擎保持连接；只能启动时设置的引擎在空闲时重建，运行中不能安全恢复人工配置时明确拒绝开启。已启动的 PTY 权限参数需要重启才能改变。
 
-宿主工具 `host.workers.options({mode:"native-settings", harnessId, surface:"gui"})` 只读当前工作区已登记来源的原生设置目录；Worker 来源绑定其会话，调度来源绑定当前工作区。目录未读取时由用户在界面刷新，查询本身不启动引擎。创建接口接收返回身份下的显式 `nativeConfig` 意图并再次校验。
+宿主工具 `host.workers.options({mode:"native-settings", harnessId, surface:"gui"})` 只读当前工作区已登记来源的原生设置目录。Worker 来源绑定其会话，调度来源绑定当前工作区。目录未读取时由用户在界面刷新，查询复用缓存。桌面新建接口接收相应身份下的 `nativeConfig` 意图并再次校验。模型工具用精确引用选择 Harness 和模型，权限由宿主解析。「完全访问」的 Core Worker 启动跨 Harness 子代理时采用目标适配器的常规启动权限。
 
 会话菜单通过 `agentSession:getNativeConfig`、`refreshNativeConfig`、`setNativeConfig` 与 `agentSession:event` 的 `native-config` 通知同步。普通读取使用已观察状态，刷新可能物化连接。修改携带当前身份和 revision；迟到结果不能替换其他会话或更新的快照。请求值逐项显示为待确认，引擎通知或实际回执才更新当前值。启动时生效的选项和只读事实各自标注。引擎报错、目录尚未读取、未公开可调目录是不同状态。
 

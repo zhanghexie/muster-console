@@ -7,7 +7,7 @@ import type { AppConfig } from '../../shared/types';
 import type { WorkerCrossHarnessConsent, WorkerRouteCandidate, WorkerRoutePlan, WorkerRouteReceipt, WorkerRouteState, WorkerRoutingConfig, WorkerRoutingLayer, WorkerRoutingMemberStatus, WorkerRoutingRouteVersion, WorkerRoutingScope, WorkerRoutingSettings, WorkerRoutingTier, WorkerTargetConfig, WorkerTargetReference, WorkerTargetSelection } from '../../shared/workerRouting';
 import { parseNativeConfigIntent } from '../../shared/nativeSessionConfig';
 import { isWorkerRoutingTierKind, normalizeWorkerRoutingTierKinds, workerRoutingTierKindRank, WORKER_ROUTING_LIMITS, WORKER_ROUTING_SETTINGS_LOCATION } from '../../shared/workerRouting';
-import { assertSessionTargetCurrent, resolveSessionTarget, type SessionTarget, type SessionTargetInput } from '../sessions/targets';
+import { assertSessionTargetCurrent, legacySessionSourceRoot, resolveSessionTarget, type SessionTarget, type SessionTargetInput } from '../sessions/targets';
 import { currentAgentSessionId, currentAgentWorkspaceId, isSchedulerInvocation } from '../agent/agentScope';
 import { optionObject, optionText, readTargetConfig, readWorkerNativeCatalog, validateWorkerConfig, WorkerOptionError } from './workerRoutingCatalog';
 import { cooldownFor, publishWorkerRoutingChanged, resetWorkerCooldown } from './workerRoutingPolicy';
@@ -350,10 +350,11 @@ export function workerToolSource(ctx: AppContext, input: SessionTargetInput): Se
   const workspaceId = caller?.workspaceId ?? currentAgentWorkspaceId() ?? ctx.resolveBubbleWorkspaceId();
   if (callerId && (!caller || caller.archived || !caller.workspaceId)) throw new WorkerOptionError('Worker tool caller no longer exists.');
   if (input.workspaceId !== undefined && input.workspaceId !== workspaceId) throw new WorkerOptionError('Worker model choices are scoped to the current workspace.');
-  if (caller?.sourceRoot) {
-    if ((input.rootId !== undefined && input.rootId !== caller.sourceRoot.rootId) ||
-        (input.cwd !== undefined && input.cwd !== caller.sourceRoot.cwd)) throw new WorkerOptionError('Worker model choices are scoped to the caller’s source folder.');
-    return { workspaceId, rootId: caller.sourceRoot.rootId, cwd: caller.sourceRoot.cwd, rootsRevision: input.rootsRevision, capturedSource: caller.sourceRoot };
+  const callerSource = caller && legacySessionSourceRoot(ctx.config.get(), caller);
+  if (callerSource) {
+    if ((input.rootId !== undefined && input.rootId !== callerSource.rootId) ||
+        (input.cwd !== undefined && input.cwd !== callerSource.cwd)) throw new WorkerOptionError('Worker model choices are scoped to the caller’s source folder.');
+    return { workspaceId, rootId: callerSource.rootId, cwd: callerSource.cwd, rootsRevision: input.rootsRevision, capturedSource: callerSource };
   }
   if (isSchedulerInvocation() && input.rootId === undefined && input.cwd === undefined) {
     const scope = ctx.orchestrator?.getWorkspacePromptScope?.(workspaceId).workspaceContext;

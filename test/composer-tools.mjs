@@ -45,7 +45,7 @@ const secondModel = { targetRef: 'wr1.' + 'B'.repeat(32), label: 'OpenCode · GU
 const referencedDraft = `${'x'.repeat(1999)} ${encodeWorkerModelMention(firstModel)} and ${encodeWorkerModelMention(secondModel)}`;
 assert.equal(parseTosendList(serializeTosendList(addTosendItem([], referencedDraft)))[0].text, referencedDraft);
 assert.deepEqual(workerModelMentions(referencedDraft).map(item => item.mention), [firstModel, secondModel]);
-assert.match(serializeWorkerModelMentions(referencedDraft), /host\.sessions\.create/);
+assert.match(serializeWorkerModelMentions(referencedDraft), /host\.sessions\.create.*include asSubagent: true/);
 assert.equal(workerModelMentions(`[File: ${JSON.stringify(encodeWorkerModelMention(firstModel))}]`).length, 0);
 
 // ---------- 手动确认发送清单操作 ----------

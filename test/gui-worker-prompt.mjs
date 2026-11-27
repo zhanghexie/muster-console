@@ -39,7 +39,8 @@ try {
   assert.doesNotMatch(text, /\[Muster Console · GUI Worker\]|AGENTS\.md|CLAUDE\.md|Use the tool names/);
   assert.match(text, /host_mcp_search → host_mcp_call/);
   assert.ok(text.includes('host_sessions_setStatus — 能继续就继续。必须用户行动时，报「需要你」并说清等什么。明确任务已交付并核验、用户无需再操作时，报「完成」。普通对话自然结束即可。'));
-  assert.match(text, /Delegate independent subtasks with host_sessions_create\. Set asSubagent=true and use inherit=true to reuse your launch settings\. Include the task and choose isolation=shared or isolated/);
+  assert.match(text, /Delegate subtasks with host_sessions_create\. Pass task, asSubagent=true and isolation=shared or isolated/);
+  assert.match(text, /Use target:\{targetRef\} for a chosen Harness or inherit=true for your setup/);
   assert.match(text, /kind=notice.*keep working.*kind=ask.*kind=handoff.*host_waitFor.*keep working/);
   assert.match(text, /Read ~\/\.muster\/skills\/memory\/SKILL\.md before your first memory tool call in this session\. For prior work, past decisions or corrections, recurring issues, or standing preferences, search first with host_memory_search and short topic keywords/);
   assert.match(text, /Use host_memory_journal for decisions, findings, or handoffs worth revisiting/);
@@ -60,7 +61,7 @@ try {
   assert.match(codex, /Assigned worktree \/task-tree/);
   assert.match(codex, /commit before needs_you.*mcp__muster__host_sessions_requestIntegrate after explicit user approval/);
   assert.match(codex, /mcp__muster__host_mail_send.*to="parent"/);
-  assert.match(codex, /mcp__muster__host_sessions_create\. Set asSubagent=true and use inherit=true/);
+  assert.match(codex, /mcp__muster__host_sessions_create\. Pass task, asSubagent=true/);
   assert.match(codex, /mcp__muster__host_ui_suggestReplies/);
   assert.match(codex, /mcp__muster__host_ui_reminders.*action=add/);
   assert.match(codex, /Use mcp__muster__host_ui_render when filtering/);

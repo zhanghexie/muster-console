@@ -41,6 +41,7 @@ import { preflightRuntime } from '../runtime/preflight';
 import { RuntimePreflightError } from '../../shared/runtimePreflight';
 import { assertSessionTargetCurrent, type SessionTarget } from './targets';
 import { sourcePathKey } from '../workspacePaths';
+import type { SessionPersister } from './persister';
 
 /** SessionsService 晚绑定的 GUI 会话宿主最小面（预检探测 driver 用） */
 export type SessionServiceAgentSessions = {
@@ -142,7 +143,7 @@ export interface CreateTerminalFlowCtx {
   isChatRuntime(runtimeKey: string | undefined): boolean;
   applySelectDisplay(s: SessionMeta, activate?: boolean): 'show' | 'pending' | 'skip';
   persist(): void;
-  persistStrict?(validate: () => void): Promise<void>;
+  persistStrict?: SessionPersister['flushStrict'];
   broadcast(): void;
   get(id: string): SessionMeta | undefined;
   launchTerminal(
@@ -512,16 +513,21 @@ export async function createAgentTerminalSession(
     meta: opts.meta,
     hidden: opts.hidden
   });
+  const persistRoutedSession = !opts.hidden && opts.workerRouting ? ctx.persistStrict : undefined;
+  const assertCreationCurrent = (): void => {
+    assertParentCurrent();
+    assertSessionTargetCurrent(ctx.config.get(), target);
+    assertInheritedSourceCurrent();
+    taskCreation?.assertCurrent();
+    if (ctx.sessions.some(row => row.id === sessionId)) throw new Error(t('交接会话标识已被使用'));
+  };
   try {
     // Preferences can change while preflight or worktree creation is in flight.
     // Revalidate before publishing and use the existing worktree rollback path on failure.
     if (!deferModelValidation) ctx.agentSessionsRef?.assertLaunchModelAllowed?.(runtime, opts.inheritMeta?.modelOverride, opts.inheritMeta?.piModeId);
     if (validateLaunchModel) await ctx.agentSessionsRef?.validateLaunchModel?.(runtime, target.sourceRoot.cwd, opts.inheritMeta?.modelOverride, opts.inheritMeta?.piModeId);
     // 预检/建树可能异步等待；归档或删除父之后，不能再插入新的活跃子会话。
-    assertParentCurrent();
-    assertSessionTargetCurrent(ctx.config.get(), target);
-    assertInheritedSourceCurrent();
-    taskCreation?.assertCurrent();
+    assertCreationCurrent();
     session.sourceRoot = { ...target.sourceRoot };
     if (worktreeGroups) session.worktreeGroups = worktreeGroups;
     if (borrowed) {
@@ -530,6 +536,17 @@ export async function createAgentTerminalSession(
       session.worktreeGroups = borrowed; projectPrimaryWorktree(session);
     }
     normalizeSessionWorktrees(session);
+    if (ctx.isChatRuntime(runtime) && opts.inheritMeta) applyInheritMeta(session, opts.inheritMeta);
+    if (configurePermissions !== undefined) session.configurePermissions = configurePermissions;
+    if (cliLaunchOptions) session.cliLaunchOptions = { ...cliLaunchOptions };
+    if (opts.workerRouting) session.workerRouting = structuredClone(opts.workerRouting);
+    if (opts.prepareGuiSession) {
+      if (!ctx.isChatRuntime(runtime) || !opts.sourceSessionId) throw new Error('GUI fork preparation requires a source session');
+      await opts.prepareGuiSession(session);
+    }
+    const register = () => { ctx.sessions.push(session); };
+    if (persistRoutedSession) await persistRoutedSession(assertCreationCurrent, rows => [...rows, session], register);
+    else register();
   } catch (error) {
     if (taskCreation) {
       const leftovers = await taskCreation.rollback();
@@ -544,19 +561,6 @@ export async function createAgentTerminalSession(
     }
     throw error;
   }
-  // GUI Worker 会话初始态（chat runtime）：模式/模型/思考档在引擎连接前落到 SessionMeta，
-  // 引擎侧按「会话字段缺省才回落默认」消费——开局指定与 fork 延续走同一条赋值路径
-  if (ctx.isChatRuntime(runtime) && opts.inheritMeta) {
-    applyInheritMeta(session, opts.inheritMeta);
-  }
-  if (configurePermissions !== undefined) session.configurePermissions = configurePermissions;
-  if (cliLaunchOptions) session.cliLaunchOptions = { ...cliLaunchOptions };
-  if (opts.workerRouting) session.workerRouting = structuredClone(opts.workerRouting);
-  if (opts.prepareGuiSession) {
-    if (!ctx.isChatRuntime(runtime) || !opts.sourceSessionId) throw new Error('GUI fork preparation requires a source session');
-    await opts.prepareGuiSession(session);
-  }
-  ctx.sessions.push(session);
   if (launchParameterContext) ctx.agentSessionsRef?.rememberLaunchParameterContext?.(session, launchParameterContext);
   if (worktreeSetupWarning) {
     ctx.notify.push({ workspaceId: target.workspaceId, sessionId: session.id, sessionName: session.name,
@@ -564,8 +568,7 @@ export async function createAgentTerminalSession(
   }
   ctx.applySelectDisplay(session, opts.activate);
   if (!opts.hidden) {
-    if (session.workerRouting && ctx.persistStrict) await ctx.persistStrict(assertParentCurrent);
-    else ctx.persist();
+    if (!persistRoutedSession) ctx.persist();
     ctx.broadcast();
     ctx.usageStats?.recordSessionCreated('agent', runtime);
   }
