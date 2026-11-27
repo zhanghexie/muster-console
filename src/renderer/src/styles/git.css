@@ -1316,9 +1316,11 @@
 
 .git-hist-body {
   position: relative;
+  isolation: isolate;
   width: 100%;
 }
 
+/* 分支线和节点绘制在提交行的悬浮、选中底色之上。 */
 .git-hist-graph {
   position: absolute;
   left: 0;
@@ -1331,10 +1333,7 @@
   display: block;
 }
 
-/* 文案区整体在图右侧起排（Fork：不跟泳道左右飘） */
 .git-hist-rows {
-  position: relative;
-  z-index: 2;
   width: 100%;
   box-sizing: border-box;
 }
