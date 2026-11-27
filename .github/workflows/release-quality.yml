@@ -39,13 +39,13 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - name: Validate signed release inputs
         if: inputs.signed_release && (inputs.quality_only || github.ref != 'refs/heads/main')
@@ -66,7 +66,7 @@ jobs:
       - run: npm run build
       - name: Upload quality diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quality-diagnostics-${{ matrix.name }}-${{ github.run_id }}
           path: |
@@ -108,10 +108,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run rebuild
@@ -148,7 +148,7 @@ jobs:
           xcrun stapler validate "$app"
       - name: Archive installers and packaged applications
         run: tar -cf "${{ runner.temp }}/packaged-${{ matrix.name }}.tar" -C release .
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packaged-${{ inputs.signed_release && 'signed' || 'verification' }}-${{ matrix.name }}
           path: ${{ runner.temp }}/packaged-${{ matrix.name }}.tar
@@ -156,7 +156,7 @@ jobs:
           retention-days: 7
       - name: Upload package diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: package-diagnostics-${{ matrix.name }}-${{ github.run_id }}
           path: |
@@ -191,13 +191,13 @@ jobs:
     env:
       MUSTER_PACKAGED_KEEP_PROFILE: '1'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: packaged-${{ inputs.signed_release && 'signed' || 'verification' }}-${{ matrix.package || matrix.name }}
           path: release
@@ -235,7 +235,7 @@ jobs:
         run: node scripts/test-packaged-smoke.mjs
       - name: Upload packaged smoke diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: packaged-smoke-diagnostics-${{ matrix.name }}-${{ github.run_id }}
           path: |
@@ -251,11 +251,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
-      - uses: actions/download-artifact@v4
+          node-version: 24
+      - uses: actions/download-artifact@v8
         with:
           pattern: packaged-*
           path: artifacts
@@ -267,7 +267,7 @@ jobs:
             tar -xf "$archive" -C release
           done
       - run: node scripts/verify-release-artifacts.mjs
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ inputs.signed_release && 'release' || 'verification' }}-manifest
           path: release/release-manifest.json

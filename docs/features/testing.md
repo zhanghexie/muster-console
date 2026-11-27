@@ -160,7 +160,9 @@ PR 和 `main` 推送自动运行质量检查。工作分支通过 PR 触发质�
 
 Actions 结果用于确认对应 runner 已执行，GPU、真实用户桌面、硬件驱动和系统输入法仍需在发布记录中单独标记。
 
-CI 的日常测试以 PR 基线或推送前的提交与检出的 HEAD 做差异选取。首推、手动运行或基线不可用时使用有界冒烟。本地日常测试继续按工作区改动取样，显式传入的 `--changed-files` 按清单执行。直接改动的 Chromium 视觉测试会并入日常测试，所以质量检查在 `npm ci` 之后、`npm test` 之前安装当前 Playwright 版本对应的 Chromium Headless Shell，Linux 同时安装浏览器所需的系统依赖。`test/packaging-file-filters.mjs` 检查安装步骤的顺序和平台条件。
+CI 的日常测试以 PR 基线或推送前的提交与检出的 HEAD 做差异选取。首推、手动运行或基线不可用时使用有界冒烟。本地日常测试继续按工作区改动取样，显式传入的 `--changed-files` 按清单执行。直接改动的 Chromium 视觉测试会并入日常测试，所以质量检查在 `npm ci` 之后、`npm test` 之前安装当前 Playwright 版本对应的 Chromium Headless Shell，Linux 同时安装浏览器所需的系统依赖。
+
+质量检查、打包、冒烟、清单和 PR 审查草稿均通过 `setup-node` 配置 Node.js 24。工作流引用的 checkout、setup-node 和工件 Actions 也声明 Node.js 24 运行时。打包应用启动时使用 Electron 自带的运行时。`test/packaging-file-filters.mjs` 检查 CI 的 Node.js 版本、Actions 兼容版本，以及浏览器安装步骤的顺序和平台条件。
 
 CI 类型检查步骤用 `NODE_OPTIONS=--max-old-space-size=4096` 为冷缓存编译提供足够的 Node 堆空间，仍沿用类型检查的时间预算和并发限制。各 packaged smoke 步骤通过步骤级 `env` 将 `runner.temp` 下的隔离 profile 交给冒烟脚本，失败时保留 profile 供诊断 artifact 收集。Linux 两种桌面会话分别设置 `XDG_SESSION_TYPE=x11` 和 `XDG_SESSION_TYPE=wayland`，让 Electron 选择 Xvfb 或 Weston 对应的 Ozone 后端。Wayland 步骤为 Weston 创建独立的 `XDG_RUNTIME_DIR`，失败诊断包括 Weston 日志。`test/packaging-file-filters.mjs` 检查堆设置、冒烟入口的作用域和 Linux 后端选择。
 
