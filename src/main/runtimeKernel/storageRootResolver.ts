@@ -304,6 +304,11 @@ export class StorageRootResolver {
     return result;
   }
 
+  /** Resolve a scheduler Pi bucket without creating it or sweeping retained sessions. */
+  schedulerPiSessionDir(bucket: string): string {
+    return this.scopedPath('workspace', 'pi-sessions', bucket || 'default', safeScopedKey);
+  }
+
   /** 大体积数据根：`<platform data>/<PRODUCT_STORAGE_DIR>/worktrees`。 */
   worktreesRoot(): string {
     const root = path.join(platformDataRoot(this.platform, this.env, this.homedir), PRODUCT_STORAGE_DIR, 'worktrees');

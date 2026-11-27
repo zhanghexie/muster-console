@@ -9,6 +9,7 @@ import { sendHostNotification } from './hostNotification';
 import { app } from 'electron';
 import { installAttachmentPayload } from '../../attachments/piExtension';
 import { captureModelRequests } from '../../agentSession/drivers/pi/modelRequestCapture';
+import { traceRequestCompression } from '../../agentSession/drivers/pi/requestCompression';
 import { schedulerModelRequestId } from '../../../shared/modelRequest';
 import { promises as fsp, existsSync } from 'node:fs';
 import { dirname, join as pathJoin } from 'node:path';
@@ -563,7 +564,9 @@ async function createPiSession(
       : pi.SessionManager.continueRecent(args.cwd, sessionDir);
   const workspaceContext = bindSchedulerSessionContext(ctx.config.get(), sessionManager, args.workspaceContext);
   const priorMsgs = sessionManager.buildSessionContext()?.messages?.length ?? 0;
-  const agentDir = userDataStorage(app.getPath('userData')).resolve('app', 'muster-core');
+  const userData = app.getPath('userData');
+  const storage = userDataStorage(userData);
+  const agentDir = storage.resolve('app', 'muster-core');
   await primePiCatalogSnapshot();
   assertLlmCurrent();
   // Other providers may have changed during catalog loading. Publish the current
@@ -699,8 +702,12 @@ async function createPiSession(
     const effThinking = reasoning?.setLevel(requested) ??
       resolveThinkingLevel(GUI_THINKING_LEVELS.find(level => level === requested), !!model.reasoning);
     if (!args.headless) {
-      stopRequestCapture = captureModelRequests(modelRuntime, app.getPath('userData'), schedulerModelRequestId(workspaceContext.workspaceId),
-        message => console.warn('[model-requests] scheduler capture failed:', message));
+      const traceDirectory = storage.resolve('app', 'pi-sessions');
+      stopRequestCapture = captureModelRequests(modelRuntime, userData, schedulerModelRequestId(workspaceContext.workspaceId),
+        message => console.warn('[model-requests] scheduler capture failed:', message), {
+          leaf: () => sessionManager.getLeafId(),
+          trace: (body, leaf) => traceRequestCompression(body, leaf, sessionManager, traceDirectory, pi.buildSessionProjection)
+        });
     }
     const created = await pi.createAgentSession({
       cwd: args.cwd,
