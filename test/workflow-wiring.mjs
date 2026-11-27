@@ -251,7 +251,8 @@ try {
   await until(()=>resumed.runtime.get('ws',crashedRec.runId).pendingAsk,'recovered assignment');
   assert.equal(creates,0);assert.equal(state.sessions.length,1);assert.equal(chat.length,1);
   assert.equal(chat[0].sessionId,state.sessions[0].id);assert.equal(chat[0].opts.source,'scheduler');
-  assert.equal(chat[0].text,'work');
+  assert.ok(chat[0].text.includes('work'), 'delegated task body is preserved after the delegation contract');
+  assert.match(chat[0].text, /scheduler is your task authority/i, 'GUI first message carries the delegation contract');
   assert.equal(store.readAgentMessageLedger(dir,'ws').messages.length,0);
   // Replaying an accepted task keeps the original chat message.
   const { runAsSchedulerTool } = require(path.join(root,'src/main/agent/agentScope.ts'));
@@ -267,7 +268,8 @@ try {
   ctx.sessions.createTerminal=async input=>{creates++;const row={...state.sessions[0],id:'gui-vocab',meta:input.meta};state.sessions.push(row);return row;};
   await runAsSchedulerTool(()=>delegateTask(ctx,{workspaceId:'ws',creationKey:'vocab-key',task:'new work',isolate:false,select:false,statusVocabulary:['实现中']}));
   assert.equal(chat.at(-1).sessionId,'gui-vocab');
-  assert.equal(chat.at(-1).text,'new work');
+  assert.ok(chat.at(-1).text.includes('new work'), 'delegated task body preserved after the contract prefix');
+  assert.match(chat.at(-1).text, /scheduler is your task authority/i);
   console.log('workflow-wiring: OK (real assembly, creation key, archive/delete precondition, failure and late compensation)');
 } finally {
   for (const item of active) item.dispose();

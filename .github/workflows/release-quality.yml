@@ -60,6 +60,7 @@ jobs:
       - run: npm test
         env:
           MUSTER_CI_TEST_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          TEST_JOBS: 4
       - run: npm run typecheck
         env:
           NODE_OPTIONS: --max-old-space-size=4096

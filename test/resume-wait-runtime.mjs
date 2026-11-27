@@ -7,13 +7,14 @@ import { createSharedCompiler } from './helpers/shared-compile.mjs';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'resume-wait-runtime-'));
 const originalNow = Date.now;
-let log, detach, workerEpochRuntime, schedulerEpochRuntime;
+let log, detach, workerEpochRuntime, schedulerEpochRuntime, resetMessageStore;
 try {
   const compile = createSharedCompiler(process.cwd(), path.join(tmp, 'compiled'));
   const load = p => import(pathToFileURL(compile(p)).href);
   const { EventLog } = await load('main/awareness/eventLog.ts');
   const { EventRouter } = await load('main/awareness/eventRouter.ts');
   const mailStore = await load('main/metaAgent/messageStore.ts');
+  resetMessageStore = mailStore.resetMessageStoreChainsForTest;
   const { ResumeWaitStore } = await load('main/resumeWait/store.ts');
   const { attachResumeWait, refreshResumeWait } = await load('main/resumeWait/runtime.ts');
   const { WorkerDesktopEpochRuntime } = await load('main/desktop/workerEpochRuntime.ts');
@@ -271,5 +272,5 @@ try {
     assert.deepEqual(respawns, ['cli-cold'], 'unavailable targets must not be relaunched');
   }
   orchBusy = false;
-} finally { detach?.(); schedulerEpochRuntime?.close(); workerEpochRuntime?.close(); log?.close(); Date.now = originalNow; fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); }
+} finally { detach?.(); schedulerEpochRuntime?.close(); workerEpochRuntime?.close(); resetMessageStore?.(); log?.close(); Date.now = originalNow; fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); }
 console.log('resume-wait-runtime: ok');
