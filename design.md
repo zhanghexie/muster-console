@@ -117,8 +117,8 @@
 
 | Token | 值 | 用途 |
 |---|---|---|
-| `--radius-page` | 窗框参考半径减去 `--frame-gap`（实色框 10px） | 会话、右侧工具、设置与其他阅读页，含对应骨架、同位浮层与侧栏会话和工作区行 |
-| `--corner-shape-page` | 窗框参考角型（实色框跟随 `--corner-shape`） | 阅读页及相接的内容裁切与描边，侧栏会话行、工作区行与拖动落点 |
+| `--radius-page` | Windows Mica 8px，macOS Vibrancy 为 17px 减去 `--frame-gap`（最小为 0），实色框 10px | 会话、右侧工具、设置与其他阅读页，含对应骨架、同位浮层与侧栏会话和工作区行 |
+| `--corner-shape-page` | macOS Vibrancy 使用 `superellipse(1.2)`，其他材质跟随 `--corner-shape` | 阅读页及相接的内容裁切与描边，侧栏会话行、工作区行与拖动落点 |
 | `--radius-control` | `8px` | 按钮、输入框、列表行、菜单项、chip、tab |
 | `--radius-card` | `12px` | 其他页、卡片、代码块、popover、下拉面板、工具条容器 |
 | `--radius-modal` | `16px` | 弹窗、调度对话面板、主输入外壳 |

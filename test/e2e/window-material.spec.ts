@@ -84,6 +84,79 @@ async function launchFrameApp(instance: string) {
   return { app, sandbox };
 }
 
+test('Windows Mica corners stay coordinated in normal and maximized windows', async () => {
+  test.skip(expectedFrameMaterial() !== 'mica', 'Requires a Windows desktop with Mica');
+  test.setTimeout(65_000);
+  await fs.mkdir(captures, { recursive: true });
+  const { app, sandbox } = await launchFrameApp('mica-corners');
+  try {
+    const page = await app.firstWindow();
+    await expect(page.locator('html')).toHaveAttribute('data-native-material', 'mica', { timeout: 25_000 });
+    const win = await app.browserWindow(page);
+    const normalWidth = await app.evaluate(({ BrowserWindow, screen }) => {
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win.isMaximized()) win.unmaximize();
+      const area = screen.getDisplayMatching(win.getBounds()).workArea;
+      const width = Math.min(1400, area.width - 48);
+      win.setBounds({ x: area.x + 24, y: area.y + 24, width, height: Math.min(820, area.height - 48) });
+      return win.getContentSize()[0];
+    });
+    const workspaceId = await page.evaluate(async () => {
+      const { workspaceId } = await window.api.workspaceFile.get();
+      if (!workspaceId) throw new Error('No active test workspace');
+      await window.api.workspaces.update(workspaceId, { accent: '#8b5966', accentOff: false });
+      const session = await window.api.sessions.create({ workspaceId, runtime: 'pi', name: '圆角验收会话', force: true });
+      await window.api.sessions.select(session.id);
+      return workspaceId;
+    });
+    const session = page.locator('.session-item[data-session-row]').filter({ hasText: '圆角验收会话' });
+    const workspace = page.locator('.left-ws-slot .agent-ws-stack-item.is-active .agent-notify-bubble');
+    const sheet = page.locator('.terminal-page > .center-panel');
+    await expect(session).toHaveClass(/is-pane-focused/);
+    await expect(workspace).toBeVisible();
+    await expect(sheet).toBeVisible();
+    for (const theme of ['dark', 'light'] as const) {
+      await page.evaluate(({ theme, workspaceId }) => window.api.themes.activate(theme, { scope: 'workspace', workspaceId }), { theme, workspaceId });
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      for (const maximized of [false, true]) {
+        await win.evaluate((win, maximized) => {
+          if (maximized) win.maximize();
+          else if (win.isMaximized()) win.unmaximize();
+        }, maximized);
+        await expect.poll(() => win.evaluate(win => win.isMaximized())).toBe(maximized);
+        await expect.poll(() => page.evaluate(() => innerWidth)).toBe(maximized ? await win.evaluate(win => win.getContentSize()[0]) : normalWidth);
+        await expect(page.locator('html')).toHaveAttribute('data-native-material', 'mica');
+        await expect(session).toHaveCSS('border-bottom-right-radius', '8px');
+        await expect(session).toHaveCSS('corner-bottom-right-shape', 'superellipse(1.5)');
+        await expect(sheet).toHaveCSS('border-bottom-left-radius', '8px');
+        await expect(sheet).toHaveCSS('corner-bottom-left-shape', 'superellipse(1.5)');
+        expect(await workspace.evaluate(el => {
+          const css = getComputedStyle(el, '::before');
+          return [css.borderTopRightRadius, css.getPropertyValue('corner-top-right-shape')];
+        })).toEqual(['8px', 'superellipse(1.5)']);
+        const mode = maximized ? 'maximized' : 'normal';
+        const png = await app.evaluate(async ({ BrowserWindow, desktopCapturer, screen }) => {
+          const win = BrowserWindow.getAllWindows()[0];
+          const bounds = win.getBounds();
+          const display = screen.getDisplayMatching(bounds);
+          const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: {
+            width: Math.round(bounds.width * display.scaleFactor),
+            height: Math.round(bounds.height * display.scaleFactor)
+          } });
+          const source = sources.find(source => source.id === win.getMediaSourceId());
+          if (!source || source.thumbnail.isEmpty()) throw new Error('No native capture of the test window');
+          return source.thumbnail.toPNG().toString('base64');
+        });
+        await fs.writeFile(path.join(captures, `mica-corners-${theme}-${mode}.png`), Buffer.from(png, 'base64'));
+      }
+    }
+  } finally {
+    await app.evaluate(({ app }) => app.exit(0)).catch(() => {});
+    await app.close().catch(() => {});
+    await fs.rm(sandbox, { recursive: true, force: true });
+  }
+});
+
 test('production frame combines raw Mica and one pure workspace tint across header, sidebar and edges', async () => {
   test.setTimeout(65_000);
   const material = expectedFrameMaterial();

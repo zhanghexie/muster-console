@@ -479,15 +479,14 @@
   --spinner-dash: 75 25; /* pathLength=100；75% 弧 + 25% 缺口 = 90° */
 }
 
-/* Reference curves for the native frame, inset by the window gutter. */
+/* Inset the macOS page radius from the native frame. */
 :root[data-native-material='vibrancy'] {
   --radius-page: max(0px, calc(17px - var(--frame-gap)));
   --corner-shape-page: superellipse(1.2);
 }
 
 :root[data-native-material='mica'] {
-  --radius-page: max(0px, calc(8px - var(--frame-gap)));
-  --corner-shape-page: round;
+  --radius-page: 8px;
 }
 
 /* 浅色输入使用主题的控件白底，以描边和轻微投影区分白色阅读面。 */
