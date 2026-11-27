@@ -53,17 +53,8 @@ export const WORKFLOW_LIMITS = {
 
 export const WORKFLOW_NAME_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
-/** wf.tool 可调的宿主工具（派活走 wf.delegate，问人走 wf.ask，均不在此列） */
-export const WORKFLOW_TOOL_WHITELIST: readonly string[] = [
-  'sessions.message',
-  'sessions.observe',
-  'sessions.review',
-  'sessions.delete',
-  'memory.search',
-  'memory.note',
-  'web.fetch',
-  'ui.notify'
-];
+/** wf.tool 禁止通过工作流入口启动新 run；子工作流应使用 wf.call。 */
+export const WORKFLOW_TOOL_DENYLIST: readonly string[] = ['workflow.run'];
 
 // ---------------------------------------------------------------------------
 // WORKFLOW.md

@@ -121,7 +121,7 @@ export default async function (wf, args) {
 | `wf.waitFor(match, {timeoutMs?})` | 等一个事件。match 同订阅策略规则：`kind`（必填：phase / fact / turn_end / workflow …）、`trigger`、`sessionId`…；字符串字段可给数组表示任一。返回事件字段；超时返回 `{timedOut: true}`（不抛错）。等具体会话相位时先查会话现状，已满足立即返回 |
 | `wf.ask(question, {to?, options?, multi?})` | 挂起并交还判断。默认问调度；`to: 'human'` 问用户（亮在工作流面板，答案原样回来）。有 options 时单选返回选项原文，`multi` 返回数组 |
 | `wf.run(cmd, args?, {cwd?, timeoutMs?, key?})` | 跑命令（不给 args 时 cmd 按整行 shell 命令执行，可写 `wf.run(cmd, {key})`），返回 `{code, stdout, stderr}`；非零退出不抛错。带 `key` 时记账（重跑直接返回上次结果）。默认超时 10 分钟，最长 60 分钟 |
-| `wf.tool(name, args)` | 调少数宿主工具：sessions.observe/message/review/delete、memory.search/note、web.fetch、ui.notify |
+| `wf.tool(name, args)` | 调宿主工具；`name` 须为非空字符串，字面量 `workflow.run` 被拒绝，其余交由执行器处理（未知工具会报错）。调用边界见下文 |
 | `wf.read(path)` / `wf.glob(pattern)` | 读工作区内文件（不存在返回 null，超 256KB 截断）/ 列匹配的相对路径（`**` `*` `?` `{a,b}`） |
 | `wf.call(name, args)` | 调子工作流并等它结束，返回其结果（嵌套 ≤3 层；失败时抛错） |
 | `wf.phase(name)` | 标记阶段（进 run 记录，调度下次被唤醒时捎带看到） |
@@ -129,6 +129,13 @@ export default async function (wf, args) {
 | `wf.log(text)` | 进度日志（不唤醒调度） |
 
 脚本 `return` 的值是 run 结果（完成时唤醒调度）；抛错 = run 失败（唤醒调度）。
+
+`wf.tool` 的边界：
+
+- `workflow.run` 被拒绝以避免通过该入口启动工作流，受控子工作流用 `wf.call`。这不是完整的递归防护：执行器仍接受 `workflow.start` 和 `workflow_run` 等别名，可启动顶层 run 并绕过 `wf.call` 的嵌套限制；不要通过这些入口启动工作流。
+- 危险工具仍走宿主安全审核；需人工确认时，若没人处理弹窗，run 会一直等待，同一工作流的定时触发在上一次触发的 run 未结束时会被跳过。
+- 工具以调度身份和工作区作用域调用，不携带 Worker 会话身份。依赖 Worker 身份或活动回合的工具缺少上下文时会报错；`waitFor` 可为调度会话注册等待，`ui.render` 可使用调度会话身份，`turnChanges.trackFiles` 在存在调度活动审查回合时可能使用该回合，不能假定这些调用都会直接报错。
+- 工具结果不记账，resume 会重新执行；脚本必须保证调用幂等。
 
 ### 必须可安全重跑
 
