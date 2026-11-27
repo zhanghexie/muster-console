@@ -264,9 +264,18 @@ writeWorkflow(
   const out = {};
   out.created = await wf.tool('sessions.create', { name: 'worker' });
   out.ok = await wf.tool('sessions.observe', {});
-  try { await wf.tool('workflow.run', { action: 'start' }); } catch (e) { out.recursive = e.message; }
-  out.directStart = await wf.tool('workflow.start', { name: 'child' });
-  out.aliasStart = await wf.tool('workflow_run', { action: 'start', params: { name: 'child' } });
+  out.denied = [];
+  for (const name of [
+    'workflow.run', 'workflow.start', 'workflow_run', 'workflow_start', ' Workflow_Run ', ' Workflow_Start ',
+    'mcp__muster__workflow_run', 'muster__workflow_start', 'other__workflow_run',
+    'host.workflow.start', 'host_workflow_run', 'mcp__muster__host.workflow_start'
+  ]) {
+    try { await wf.tool(name, { action: 'start' }); } catch (e) { out.denied.push({ name, message: e.message }); }
+  }
+  out.listed = await wf.tool('workflow.list', {});
+  out.got = await wf.tool('workflow.get', { runId: 'r1' });
+  out.replied = await wf.tool('workflow.reply', { runId: 'r1' });
+  out.unrelated = await wf.tool('hostXworkflow.run', {});
   try { await wf.tool('fixture.unknown', {}); } catch (e) { out.unknown = e.message; }
   out.invalidNames = [];
   for (const name of ['', '   ', null, 123, {}]) {
@@ -301,17 +310,25 @@ writeWorkflow('idle', 'description: 挂起', `export default async function (wf)
   const r = fence.result;
   assert.deepEqual(r.created, { echoed: 'sessions.create' });
   assert.deepEqual(r.ok, { echoed: 'sessions.observe' });
-  assert.match(r.recursive, /wf\.tool 不允许调用 workflow\.run.*不能通过此入口启动另一个工作流/);
-  assert.deepEqual(r.directStart, { echoed: 'workflow.start' });
-  assert.deepEqual(r.aliasStart, { echoed: 'workflow_run' });
+  assert.equal(r.denied.length, 12, '启动入口及其别名/前缀都被拒绝');
+  for (const item of r.denied) {
+    assert.match(item.message, /wf\.tool 不允许调用 .*启动另一个工作流；子流程用 wf\.call/);
+    assert.ok(item.message.includes(item.name.trim()), '拒绝消息包含实际工具名');
+  }
+  assert.deepEqual(r.listed, { echoed: 'workflow.list' });
+  assert.deepEqual(r.got, { echoed: 'workflow.get' });
+  assert.deepEqual(r.replied, { echoed: 'workflow.reply' });
+  assert.deepEqual(r.unrelated, { echoed: 'hostXworkflow.run' });
   assert.equal(r.unknown, '未知工具: fixture.unknown', '执行器错误原样传递');
   assert.equal(r.invalidNames.length, 5);
   for (const message of r.invalidNames) assert.match(message, /name.*非空字符串/);
   assert.deepEqual(st.tools, [
     { name: 'sessions.create', args: { name: 'worker' } },
     { name: 'sessions.observe', args: {} },
-    { name: 'workflow.start', args: { name: 'child' } },
-    { name: 'workflow_run', args: { action: 'start', params: { name: 'child' } } },
+    { name: 'workflow.list', args: {} },
+    { name: 'workflow.get', args: { runId: 'r1' } },
+    { name: 'workflow.reply', args: { runId: 'r1' } },
+    { name: 'hostXworkflow.run', args: {} },
     { name: 'fixture.unknown', args: {} }
   ], '仅合法且未被拒绝的工具名到达执行器');
   assert.match(r.escape, /越出工作区/);

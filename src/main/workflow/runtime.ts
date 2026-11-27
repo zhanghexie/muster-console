@@ -38,7 +38,7 @@ import {
   WORKFLOW_LIMITS,
   WORKFLOW_MEMO_PENDING,
   WORKFLOW_NAME_RE,
-  WORKFLOW_TOOL_DENYLIST,
+  isBlockedWorkflowTool,
   WorkflowMemoCounter,
   type WorkflowOverview,
   type WorkflowRunRecord,
@@ -1707,8 +1707,8 @@ export class WorkflowRuntime {
   private async wfTool(live: LiveRun, rawName: unknown, rawArgs: unknown): Promise<unknown> {
     const name = typeof rawName === 'string' ? rawName.trim() : '';
     if (!name) throw new WorkflowError('wf.tool 的 name 必须是非空字符串');
-    if (WORKFLOW_TOOL_DENYLIST.includes(name)) {
-      throw new WorkflowError(`wf.tool 不允许调用 ${name}（工作流不能通过此入口启动另一个工作流）`);
+    if (isBlockedWorkflowTool(name)) {
+      throw new WorkflowError(`wf.tool 不允许调用 ${name}（工作流不能通过此入口启动另一个工作流；子流程用 wf.call）`);
     }
     const r = await this.deps.executeTool(live.rec.workspaceId, name, isObj(rawArgs) ? rawArgs : {}, live.controller.signal);
     if (!r.ok) throw new WorkflowError(r.error || `${name} 调用失败`);

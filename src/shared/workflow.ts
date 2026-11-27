@@ -54,7 +54,14 @@ export const WORKFLOW_LIMITS = {
 export const WORKFLOW_NAME_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
 
 /** wf.tool 禁止通过工作流入口启动新 run；子工作流应使用 wf.call。 */
-export const WORKFLOW_TOOL_DENYLIST: readonly string[] = ['workflow.run'];
+export const WORKFLOW_TOOL_DENYLIST: readonly string[] = ['workflow.run', 'workflow.start'];
+
+/** 归一化工具名后判断是否为「启动工作流」入口：覆盖下划线/大小写别名与 host./muster 前缀。 */
+export function isBlockedWorkflowTool(rawName: string): boolean {
+  let name = rawName.trim().toLowerCase();
+  name = name.replace(/^mcp__muster__/, '').replace(/^muster__/, '').replace(/^host./, '');
+  return WORKFLOW_TOOL_DENYLIST.includes(name.replace(/_/g, '.'));
+}
 
 // ---------------------------------------------------------------------------
 // WORKFLOW.md
