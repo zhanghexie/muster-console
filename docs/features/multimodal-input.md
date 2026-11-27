@@ -26,6 +26,7 @@
 | `ComposerImageStrip.tsx` | 图片缩略图/灯箱与普通文件卡片，支持移除 |
 | `src/shared/attachmentPolicy.ts` | 配置归一、协议与 MIME 能力判定 |
 | `src/main/attachments/service.ts` | 源文件保存、四级路由、元信息、限额、抽帧、清理与分叉复制 |
+| `src/main/attachments/guiInput.ts` | GUI 新任务和会话发送入口共用的附件预处理。派活入口静态导入此模块和附件服务，按 GUI/CLI 分支处理提交的附件 |
 | `src/main/attachments/worker.ts` | 有界后台线程文字提取；构建输出 `out/main/attachments/worker.mjs` |
 | `src/main/attachments/document.ts` | PDF.js 页面渲染与按页文字；PPT/PPTX/ODP 经 LibreOffice 导出 PDF；PPTX 文字可直接读取 |
 | `src/main/attachments/convert.ts` / `capabilities/{catalog,hosts}/attachments.ts` | `attachments.convert` 按页/字符区间/视频时间续读，只访问调用方会话受管源文件 |

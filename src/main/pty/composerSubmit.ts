@@ -6,6 +6,7 @@ import { writeComposerInputFile } from './injectFile';
 import { sleep } from './submit';
 import type { ChatImageAttachment } from '../../shared/types';
 import { hasWorkerModelMentions } from '../../shared/workerModelMention';
+import { prepareWorkerModelMentions } from '../tasks/workerRouting';
 
 type PrepareInput = (sessionId: string, text: string, attachments: ChatImageAttachment[]) => Promise<string>;
 
@@ -43,7 +44,6 @@ export function createCliComposerSubmitter(ctx: AppContext, prepareInput?: Prepa
         const context = binding?.workspaceContext;
         const workspaceId = context?.workspaceId ?? session.workspaceId;
         if (!workspaceId) return { ok: false, error: 'Worker model reference: the terminal has no bound workspace source.' };
-        const { prepareWorkerModelMentions } = await import('../tasks/workerRouting');
         const checked = await prepareWorkerModelMentions(ctx, { workspaceId, rootId: context?.sourceRootId ?? session.sourceRoot?.rootId,
           rootsRevision: context?.rootsRevision, cwd: session.sourceRoot?.cwd ?? context?.cwd ?? session.cwd,
           capturedSource: session.sourceRoot }, text);

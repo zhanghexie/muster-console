@@ -12,6 +12,7 @@ import type { OrchestratorHost } from './internal';
 import { activateSchedulerDesktopSteer, endSchedulerDesktopTurn } from './internal';
 import type { PendingDesktopSteer, QueuedTurn } from './types';
 import { hasWorkerModelMentions } from '../../../shared/workerModelMention';
+import { prepareWorkerModelMentions } from '../../tasks/workerRouting';
 import { getSchedulerConnectionContext } from '../schedulerWorkspaceContext';
 
 /**
@@ -192,7 +193,6 @@ export async function sendNow(
     if (hasWorkerModelMentions(content)) {
       const context = getSchedulerConnectionContext(session);
       if (!context) throw new Error('Worker model reference: the active turn has no bound workspace source.');
-      const { prepareWorkerModelMentions } = await import('../../tasks/workerRouting');
       engineText = await prepareWorkerModelMentions(o.ctx, { workspaceId: wsId, rootId: context.sourceRootId,
         rootsRevision: context.rootsRevision, cwd: context.cwd }, content);
       if (!bucket.busy || bucket.piSession !== session) {

@@ -7,7 +7,13 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 const { config } = await resolveConfig({ root, logLevel: 'silent' }, 'build', 'production');
 assert.ok(config?.main, 'Missing Electron main build configuration');
 
-const modules = ['src/main/turnChanges/runtime.ts', 'src/main/agent/providers/piProvider.ts'];
+const modules = [
+  'src/main/turnChanges/runtime.ts',
+  'src/main/agent/providers/piProvider.ts',
+  'src/main/tasks/workerRouting.ts',
+  'src/main/attachments/service.ts',
+  'src/main/attachments/guiInput.ts'
+];
 const ineffectiveImports = new Set();
 
 await build({

@@ -30,7 +30,7 @@ Core 在同一次受管请求的 OpenAI Completions、Responses 和 Anthropic Me
 
 | 路径 | 职责 |
 |---|---|
-| `src/shared/workerRouting.ts`、`src/main/tasks/workerRouting.ts` | 目标身份、版本、目录范围、短引用、配置池快照及简洁回执 |
+| `src/shared/workerRouting.ts`、`src/main/tasks/workerRouting.ts` | 目标身份、版本、目录范围、短引用、配置池快照及简洁回执。调度、GUI 和 CLI 的提交入口静态引用同一校验模块，在输入包含配置胶囊时执行校验 |
 | `src/main/tasks/workerRoutingCatalog.ts` | 既有原生目录、模型白名单、描述符与 CLI 启动参数 |
 | `src/main/tasks/{delegate,delegateQueue,workerRoutingPolicy}.ts` | 委派、并发、结构化错误分类、冷却及启动前选择 |
 | `src/main/agentSession/host/workerRoute.ts`、`src/main/sessions.ts` | 同一会话的运行中切换、严格落盘和原生连接回收 |
