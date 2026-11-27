@@ -13,15 +13,30 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-brief-'));
 const compile = createSharedCompiler(root, tmp);
 
-const { buildHostIntro, buildTaskBriefText } = await import(
+const { buildHostIntro, buildTaskBriefText, WORKER_DELEGATION_CONTRACT } = await import(
   'file:///' + compile('shared/workerBrief.ts').replace(/\\/g, '/')
 );
+const { INJECTION_REGISTRY } = await import(
+  'file:///' + compile('main/agent/injection-registry.ts').replace(/\\/g, '/')
+);
+const delegationSource = INJECTION_REGISTRY.find(entry => entry.id === 'worker.turn-prefix.delegation-authority');
+assert.equal(delegationSource?.target, 'worker');
+assert.equal(delegationSource?.channel, 'turn-prefix');
+assert.equal(delegationSource?.mode, 'conditional');
+assert.equal(delegationSource?.survivesCompact, false);
 
 const intro = buildHostIntro();
 const brief = buildTaskBriefText('Investigate', { memorySection: 'Existing preference' });
 assert.match(intro, /【Muster Console】\nNo task assigned yet\./);
 assert.doesNotMatch(intro, /^Task:/m);
 assert.match(brief, /Task: Investigate[\s\S]*Workspace memory \(snapshot\)[\s\S]*Existing preference/);
+assert.ok(brief.includes(WORKER_DELEGATION_CONTRACT));
+assert.doesNotMatch(intro, /scheduler is your task authority/, 'an empty session has not yet been assigned a delegated task');
+assert.match(brief, /scheduler is your task authority.*task scope, acceptance criteria, and implementation details/);
+assert.match(brief, /Send task questions to the scheduler with host\.mail\.send to=scheduler, or to=parent when you have a parent session/);
+assert.match(brief, /do not ask the user to confirm changes to task scope, acceptance criteria, or implementation details/);
+assert.match(brief, /Only irreversible actions require explicit user approval: integration or merge, push, publication, credential changes, data deletion, and external sending/);
+assert.match(brief, /Respect explicit user instructions and existing tool permissions/);
 assert.ok(intro.length < 1980, 'keep the static CLI introduction compact with the reminder workflow');
 
 for (const input of [intro, brief]) {

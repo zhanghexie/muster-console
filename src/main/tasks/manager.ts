@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { buildTaskBriefText } from '../../shared/workerBrief';
+import { buildTaskBriefText, buildWorkerTaskMessage } from '../../shared/workerBrief';
 import { holdPendingSource } from '../workspaceRootUses';
 import { supportsGuiPermissionMode } from '../../shared/guiPermissionOptions';
 import type {
@@ -1079,11 +1079,11 @@ export class PromptTasksManager {
       run.sessionId = session.id;
       if (this.closing) throw new Error('Workbench stopped before scheduled task injection; inspect the created session before retrying');
       // GUI（chat surface）runtime：createTerminal 会忽略 initialPrompt（GUI 约定派活方
-      // 经 AgentSessionHost.send 注入，与 delegateTask 同一分流），任务原文在这里补发。
+      // 经 AgentSessionHost.send 注入，与 delegateTask 同一分流），派活契约和任务正文在这里发送。
       // send 派发即返回（回合异步推进），不会阻塞定时器；失败按本轮执行失败走统一收尾。
       if (isGuiRuntime) {
         if (!this.guiHost) throw new Error(t('GUI 会话宿主未就绪（应用初始化异常）'));
-        const sent = await this.guiHost.send(session.id, runPrompt, undefined, { fromInject: true });
+        const sent = await this.guiHost.send(session.id, buildWorkerTaskMessage(runPrompt), undefined, { fromInject: true });
         if (!sent.ok) throw new Error(sent.error || t('任务注入失败'));
       }
       task.lastResult = 'ok';
