@@ -17,7 +17,7 @@ export const AUDIT_ACCEPTED_LINES = Object.freeze([
   Object.freeze({"file":"src/main/agent/orchestrator/contextStatus.ts","line":142,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
   Object.freeze({"file":"src/main/agent/orchestrator/contextStatus.ts","line":150,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
   Object.freeze({"file":"src/main/agent/orchestrator/contextStatus.ts","line":158,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
-  Object.freeze({"file":"src/main/agent/orchestrator/queueOps.ts","line":258,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
+  Object.freeze({"file":"src/main/agent/orchestrator/queueOps.ts","line":265,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
   Object.freeze({"file":"src/main/agent/orchestrator/sendPipeline.ts","line":20,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
   Object.freeze({"file":"src/main/agent/providers/hostNotification.ts","line":26,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),
   Object.freeze({"file":"src/main/agent/skillSources.ts","line":92,"category":"model-protocol","reason":"主进程工具/Worker/模型协议或内部诊断文本；用户可见包装在 IPC/渲染边界翻译"}),

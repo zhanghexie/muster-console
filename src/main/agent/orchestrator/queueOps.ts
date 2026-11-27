@@ -183,10 +183,22 @@ export async function sendNow(
   o.ctx?.desktopTurns?.().noteUserInstruction(`orchestrator:${wsId}`, messageId);
   desktopTurnGrants.nextUserMessage(`orchestrator:${wsId}`);
   const bucket = o.ensureBucket(wsId);
-  if (!bucket.busy) {
-    await o.send(content, wsId, undefined, { messageId, desktopInstructionNoted: true });
-    return 'sent';
-  }
+  // send() tracks the entire turn. The queue panel only waits for host admission.
+  const submit = (): Promise<'sent' | 'queued' | 'failed'> => new Promise((resolve, reject) => {
+    let accepted = false;
+    void o.send(content, wsId, undefined, {
+      messageId,
+      desktopInstructionNoted: true,
+      onAccepted: () => {
+        accepted = true;
+        resolve(bucket.queue.some(item => item.id === messageId) ? 'queued' : 'sent');
+      }
+    }).then(() => resolve('failed'), error => {
+      if (!accepted) reject(error);
+      else console.error('[chat:sendNow] accepted send failed', wsId, error);
+    });
+  });
+  if (!bucket.busy) return submit();
   const session = bucket.piSession;
   if (!bucket.workbenchRemoteAssistantId && session?.steer && session.isStreaming !== false) {
     let engineText = content;
@@ -195,11 +207,7 @@ export async function sendNow(
       if (!context) throw new Error('Worker model reference: the active turn has no bound workspace source.');
       engineText = await prepareWorkerModelMentions(o.ctx, { workspaceId: wsId, rootId: context.sourceRootId,
         rootsRevision: context.rootsRevision, cwd: context.cwd }, content);
-      if (!bucket.busy || bucket.piSession !== session) {
-        const disposition = bucket.busy ? 'queued' : 'sent';
-        await o.send(content, wsId, undefined, { messageId, desktopInstructionNoted: true });
-        return disposition;
-      }
+      if (!bucket.busy || bucket.piSession !== session) return submit();
     }
     const tracked = !!o.ctx?.desktopTurns;
     const execution = bucket.desktopExecution;
@@ -223,11 +231,10 @@ export async function sendNow(
       }
     } catch (error) {
       if ((error as { deliveryUncertain?: boolean })?.deliveryUncertain) throw error;
-      // steer 被引擎拒绝：回落排队（busy 时 send 即入队）
+      // steer 被引擎拒绝：回落普通发送，按实际受理时的状态直发或入队。
       if (pending && bucket.desktopExecution === execution) bucket.desktopPendingSteers = bucket.desktopPendingSteers?.filter(item => item !== pending);
       endDelivery();
-      await o.send(content, wsId, undefined, { messageId, desktopInstructionNoted: true });
-      return 'queued';
+      return await submit();
     } finally {
       endDelivery();
       if (tracked && bucket.desktopExecution === execution) {
@@ -260,6 +267,5 @@ export async function sendNow(
     }
     return 'steered';
   }
-  await o.send(content, wsId, undefined, { messageId, desktopInstructionNoted: true });
-  return 'queued';
+  return submit();
 }

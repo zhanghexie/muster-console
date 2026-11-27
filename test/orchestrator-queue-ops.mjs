@@ -175,7 +175,11 @@ console.log('ok   splitSteeredDisplayTurn 切分顺序 + running 工具收口');
       ensureBucket: () => bucket,
       emit: (channel, payload) => calls.emitted.push({ channel, payload }),
       persistBucket: () => { calls.persisted += 1; },
-      send: async (text) => { calls.sent.push(text); }
+      send: async (text, _workspaceId, _images, options) => {
+        calls.sent.push(text);
+        if (bucket.busy) bucket.queue.push({ id: options.messageId, text });
+        options.onAccepted();
+      }
     };
   }
   const steerSession = (steerImpl) => ({ steer: steerImpl, isStreaming: true });

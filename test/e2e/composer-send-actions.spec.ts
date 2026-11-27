@@ -1,6 +1,7 @@
 import { test as base, expect, _electron } from '@playwright/test';
 import type { AppContext } from './fixtures/electron';
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 
@@ -34,6 +35,70 @@ const test = base.extend<{}, { appCtx: AppContext }>({
       await app.close().catch(() => {});
     }
   }, { scope: 'worker' }]
+});
+
+test('调度手动确认发送后，模型仍在运行时条目已出列', async ({ appCtx }, testInfo) => {
+  const { win: page } = appCtx;
+  let pendingReply: http.ServerResponse | undefined;
+  const model = http.createServer((req, res) => {
+    req.on('end', () => { pendingReply = res; });
+    req.resume();
+  });
+  await new Promise<void>(resolve => model.listen(0, '127.0.0.1', resolve));
+  try {
+    const port = (model.address() as { port: number }).port;
+    const previousLlm = await page.evaluate(async baseUrl => {
+      const { llm } = await window.api.config.get();
+      await window.api.config.update({
+        llm: {
+          activeProviderId: 'composer-test', activeModelId: 'mock',
+          providers: [{ id: 'composer-test', name: 'Composer test', enabled: true,
+            api: 'openai-completions', baseUrl, apiKey: 'local-test', models: [{ id: 'mock', name: 'Mock' }] }]
+        }
+      });
+      return llm;
+    }, `http://127.0.0.1:${port}/v1`);
+    await page.locator('.agent-ws-stack-item.is-active .agent-notify-chat').click();
+    const panel = page.locator('.agent-float-panel');
+    const shell = panel.locator('.chat-input-shell');
+    const manual = shell.getByRole('list', { name: '手动确认', exact: true });
+    const stop = shell.getByRole('button', { name: '停止', exact: true });
+    const message = '这条消息已手动确认发送';
+    await shell.locator('.composer-editable').fill(message);
+    await shell.getByRole('button', { name: '留待确认', exact: true }).click();
+    const row = manual.getByRole('listitem').filter({ hasText: message });
+    await expect(row).toBeVisible();
+    await row.hover();
+    await panel.screenshot({ path: testInfo.outputPath('manual-before-send.png'), animations: 'disabled' });
+    await row.getByRole('button', { name: '立即发送', exact: true }).click();
+
+    // 模型响应由测试留住，出列不能依赖回合结束。
+    await expect.poll(() => pendingReply !== undefined, { timeout: 15_000 }).toBe(true);
+    await expect(stop).toBeVisible();
+    await expect(panel.locator('[data-mid]').getByText(message, { exact: true })).toHaveCount(1);
+    await expect(row).toHaveCount(0);
+    await expect(shell.locator('.agent-composer-qspanel')).toHaveCount(0);
+    await panel.screenshot({ path: testInfo.outputPath('manual-sent-while-running.png'), animations: 'disabled' });
+
+    const response = pendingReply!;
+    response.writeHead(200, { 'content-type': 'text/event-stream' });
+    for (const [delta, finishReason] of [[{ content: '已收到。' }, null], [{}, 'stop']] as const) {
+      response.write(`data: ${JSON.stringify({ id: 'composer-test', object: 'chat.completion.chunk',
+        choices: [{ index: 0, delta, finish_reason: finishReason }] })}\n\n`);
+    }
+    response.end('data: [DONE]\n\n');
+    await expect(stop).toHaveCount(0);
+    expect(appCtx.consoleErrors).toEqual([]);
+    await page.evaluate(async llm => {
+      await window.api.chat.clear();
+      await window.api.config.update({ llm });
+    }, previousLlm);
+    await panel.getByRole('button', { name: '收起', exact: true }).click();
+    await expect(panel).toHaveCount(0);
+  } finally {
+    model.closeAllConnections();
+    await new Promise<void>(resolve => model.close(() => resolve()));
+  }
 });
 
 

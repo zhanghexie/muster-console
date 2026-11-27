@@ -9,7 +9,8 @@ import { getDraft, replaceDraft } from '../../src/renderer/src/composerDrafts';
 import { parseTosendList } from '../../src/shared/composerTools';
 import { expandNoteTokens } from '../../src/shared/noteAnnotations';
 import { StoreProvider } from '../../src/renderer/src/store';
-import type { ChatSurface } from '../../src/shared/chatSurface';
+import type { ChatSurface, SendNowResult } from '../../src/shared/chatSurface';
+import { currentApiMock } from './helpers/api-mock';
 vi.stubGlobal('ResizeObserver', class { observe() {} unobserve() {} disconnect() {} });
 
 const bucket = 'queued-note-regression';
@@ -24,7 +25,7 @@ function Harness({ surface }: { surface: ChatSurface }) {
 }
 function setup(busy = false) {
   const send = vi.fn(async (_text: string) => true);
-  const sendNow = vi.fn(async (_text: string) => 'sent' as const);
+  const sendNow = vi.fn(async (_text: string): Promise<SendNowResult> => 'sent');
   const snap = { messages: [], busy, queuedCount: 0, queuedItems: [], status: null, mode: null, preset: null };
   const surface: ChatSurface = { sessionId: bucket,
     caps: { surfaceKind: 'dispatch', draftKey: bucket, notes: true, images: false },
@@ -43,6 +44,31 @@ beforeEach(() => {
   openFile.mockClear();
   Element.prototype.scrollIntoView ??= () => {};
   document.execCommand ??= () => false;
+});
+
+it('手动条目受理失败后保留，重试受理后只移出该条目', async () => {
+  const retryable = { id: 'retryable', text: '等待受理的消息', ts: 1 };
+  const other = { id: 'other', text: '继续待确认', ts: 2 };
+  localStorage.setItem(key, JSON.stringify([retryable, other]));
+  const app = setup(true);
+  app.sendNow.mockResolvedValueOnce('failed');
+  app.mount();
+
+  const manual = screen.getByRole('list', { name: '手动确认' });
+  const row = within(manual).getByText(retryable.text).closest('[role="listitem"]') as HTMLElement;
+  const send = within(row).getByRole('button', { name: '立即发送' });
+  fireEvent.click(send);
+  await waitFor(() => expect(currentApiMock().mockOf('notify.toast')).toHaveBeenCalledWith({
+    text: '立即发送失败，请重试'
+  }));
+  expect(within(manual).getByText(retryable.text)).toBeTruthy();
+  expect(saved()).toEqual([retryable, other]);
+
+  fireEvent.click(send);
+  await waitFor(() => expect(within(manual).queryByText(retryable.text)).toBeNull());
+  expect(app.sendNow.mock.calls).toEqual([[retryable.text], [retryable.text]]);
+  expect(within(manual).getByText(other.text)).toBeTruthy();
+  expect(saved()).toEqual([other]);
 });
 
 describe('批注与队列：真实 host + composer', () => {

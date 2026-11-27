@@ -79,7 +79,7 @@
 
 | 表面 | 空闲 | 忙 |
 |---|---|---|
-| 调度（orchestrator） | 正常发送 | `PiSessionHandle.steer(text)`（SDK steer，`isStreaming === false` 时不尝试）；拒绝/失败回落排队 |
+| 调度（orchestrator） | 正常发送 | `PiSessionHandle.steer(text)`（SDK steer，`isStreaming === false` 时不尝试）；拒绝/跳过插话后按受理时状态直发或排队 |
 | GUI 会话 | 正常发送 | 仅对声明真实 turn-scoped steer 的 runtime 请求 driver 回执；内置 Pi 使用 SDK `steer()`，Harness 自己的 `queued` 不算立即插话，其他消息由工作台队列接管 |
 
 - **插话切分转写（2026-10-03 修复，双面一致）**：steer 成功后旧 assistant 不再接流、
@@ -101,6 +101,8 @@
 - 上泳道行点「立即」：**先 sendNow 受理，成功后再** `cancelQueued(id)` 摘掉排队副本
   （受理失败条目原地保留，不丢消息；queued 落点时新副本已在队尾，摘旧位置等价于
   挪到末尾）。
+- 调度面 `chat:sendNow` 直发或回落普通发送时，宿主受理后立即回执。Composer 收到回执就移出原条目，
+  即使模型回合仍在运行；队列满或其他受理失败时保留原条目。
 - GUI harness 不支持原生插话且返回 `unsupported` 时，立即按钮会打开兜底弹窗。用户可选择
   以用户身份写入该会话邮箱，或先中断当前回合再发送。邮箱写入调用
   `sessions.sendMessage`，中断发送以 `agentSession.abort({holdQueue:true})` 保留宿主队列，
