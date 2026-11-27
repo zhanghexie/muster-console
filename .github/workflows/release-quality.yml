@@ -49,6 +49,12 @@ jobs:
         if: inputs.signed_release
         run: node -e "if (process.env.GITHUB_REF !== 'refs/heads/main') throw new Error('Signed release builds must run from main')"
       - run: npm ci
+      - name: Install Playwright Chromium and system dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install --with-deps --only-shell chromium
+      - name: Install Playwright Chromium
+        if: runner.os != 'Linux'
+        run: npx playwright install --only-shell chromium
       - run: npm test
         env:
           MUSTER_CI_TEST_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
