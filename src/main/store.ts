@@ -1,4 +1,4 @@
-import { safeScopedKey, userDataStorage, type StorageRootResolver } from './runtimeKernel/storageRootResolver';
+import { userDataStorage, type StorageRootResolver } from './runtimeKernel/storageRootResolver';
 import { app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -136,8 +136,7 @@ export class Store {
 
   /** Pi 调度会话 jsonl 目录（按工作区分桶；跨重启续聊；仅「清空聊天」时新建） */
   getPiSessionDir(workspaceId = 'default'): string {
-    const safe = safeScopedKey(workspaceId || 'default');
-    const dir = path.join(this.storage.resolve('app', 'pi-sessions'), safe);
+    const dir = this.storage.schedulerPiSessionDir(workspaceId);
     fs.mkdirSync(dir, { recursive: true });
     // X3-F05：旧会话 jsonl 7 天滚动（每进程每桶首次取用时扫一次；活跃会话文件
     // 每次续聊都会触碰 mtime，不会被误删）

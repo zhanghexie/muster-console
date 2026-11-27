@@ -7,13 +7,14 @@ import { createSharedCompiler } from './helpers/shared-compile.mjs';
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'resume-wait-runtime-'));
 const originalNow = Date.now;
-let log, detach, workerEpochRuntime, schedulerEpochRuntime;
+let log, detach, workerEpochRuntime, schedulerEpochRuntime, resetMessageStore;
 try {
   const compile = createSharedCompiler(process.cwd(), path.join(tmp, 'compiled'));
   const load = p => import(pathToFileURL(compile(p)).href);
   const { EventLog } = await load('main/awareness/eventLog.ts');
   const { EventRouter } = await load('main/awareness/eventRouter.ts');
   const mailStore = await load('main/metaAgent/messageStore.ts');
+  resetMessageStore = mailStore.resetMessageStoreChainsForTest;
   const { ResumeWaitStore } = await load('main/resumeWait/store.ts');
   const { attachResumeWait, refreshResumeWait } = await load('main/resumeWait/runtime.ts');
   const { WorkerDesktopEpochRuntime } = await load('main/desktop/workerEpochRuntime.ts');
@@ -23,7 +24,7 @@ try {
   let now = originalNow(), busy = true, orchBusy = true, humanWaiting = false, aborts = 0;
   let guiCapabilities, driverAvailable = true;
   Date.now = () => now;
-  const sends = [], interjects = [], lifecycle = new Set(), phases = new Set(), removed = new Set();
+  const sends = [], interjects = [], lifecycle = new Set(), phases = new Set(), removed = new Set(), notifications = [];
   const cliSessions = new Map(), cliBindings = new Map(), running = new Set(), strategies = new Map();
   const writes = [], relaunches = [], respawns = [], nativeMessages = [];
   const worker = { id: 'worker', name: 'worker', type: 'terminal', launchKind: 'agent', runtime: 'codex-gui', workspaceId: 'ws', createdAt: 1, lifecycle: 'working' };
@@ -47,7 +48,7 @@ try {
       observe: () => ({ busy, updatedAt: 1, lastReply: null }) },
     orchestrator: { isBusy: () => orchBusy, getHumanWait: () => humanWaiting ? {} : null, onEvent: () => () => {},
       async interjectHostNotification(_ws, delivery) { const batch = await delivery.prepare(); interjects.push(batch); await delivery.accepted(batch); return true; } },
-    notify: { push() {} }, pty: { getBufferTail() {}, isRunning: id => running.has(id),
+    notify: { push(entry) { notifications.push(entry); } }, pty: { getBufferTail() {}, isRunning: id => running.has(id),
       captureWriter: () => ({ write(id, data) { writes.push({ id, data }); return running.has(id); } }) } };
   const staleStore = new ResumeWaitStore(dir);
   const staleWait = staleStore.arm({ owner: 'deleted-worker', workspaceId: 'ws', condition: { kind: 'time', at: new Date(now).toISOString() }, note: 'stale wait', priority: 'normal', deadlineAt: null });
@@ -172,6 +173,17 @@ try {
   assert.equal(aborts, 1, 'missing preemption capabilities must not stop the working GUI turn');
   await ctx.resumeWait.tick();
   assert.equal(ctx.resumeWait.store.get(boundary.id).attempts, 1, 'busy boundary waiting must not repeatedly submit');
+  const queuedNotice = notifications.find(entry => entry.text.includes(boundary.id));
+  assert.ok(queuedNotice, 'a queued preempt wait reports that it is waiting for the boundary');
+  assert.match(queuedNotice.label, /排队/);
+  assert.match(queuedNotice.text, /已排队到回合边界投递/);
+  assert.doesNotMatch(queuedNotice.text, /未完成|核对目标会话|避免重复执行/,
+    'queueing behind a busy turn is not reported as a failed or uncertain delivery');
+  const hostNotices = mailStore.readAgentMessageLedger(dir, 'ws').messages
+    .filter(message => message.from === 'host' && message.to === 'orchestrator:ws' && message.text.includes(boundary.id));
+  assert.ok(hostNotices.some(message => /已排队到回合边界投递/.test(message.text)));
+  assert.ok(hostNotices.every(message => !/未完成|核对目标会话|避免重复执行/.test(message.text)),
+    'the scheduler notice must not claim an incomplete delivery while the wait is still queued');
   busy = false; worker.lifecycle = 'idle';
   ctx.agentSessions.entries.get('worker').busy = false;
   for (const fn of lifecycle) fn(worker, 'working', 'idle');
@@ -260,5 +272,5 @@ try {
     assert.deepEqual(respawns, ['cli-cold'], 'unavailable targets must not be relaunched');
   }
   orchBusy = false;
-} finally { detach?.(); schedulerEpochRuntime?.close(); workerEpochRuntime?.close(); log?.close(); Date.now = originalNow; fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); }
+} finally { detach?.(); schedulerEpochRuntime?.close(); workerEpochRuntime?.close(); resetMessageStore?.(); log?.close(); Date.now = originalNow; fs.rmSync(tmp, { recursive: true, force: true, maxRetries: 3 }); }
 console.log('resume-wait-runtime: ok');

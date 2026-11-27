@@ -55,6 +55,8 @@ export const INJECTION_REGISTRY: readonly InjectionSource[] = [
     note: '调度固定提示段用英文说明回复语言。优先采用用户指定的语言，否则跟随用户最近的自然语言表述。自定义调度正文也使用此规则。src/main/agent/systemPrompt.ts、src/shared/workerGuidance.ts。' },
   { id: 'worker.brief.reply-language', target: 'worker', channel: 'turn-prefix', mode: 'conditional', survivesCompact: false,
     note: 'GUI 与 CLI Worker 的首条宿主说明共用英文回复语言规则。判断依据是用户自己的表达，宿主提示、引文、代码和工具输出不参与。src/shared/workerGuidance.ts、guiWorkerPrompt.ts、workerBrief.ts。' },
+  { id: 'worker.turn-prefix.delegation-authority', target: 'worker', channel: 'turn-prefix', mode: 'conditional', survivesCompact: false,
+    note: 'GUI 与 CLI 任务首条输入说明调度派活的任务权威、回信对象及不可逆动作的用户批准边界；空会话不注入。src/shared/workerBrief.ts、src/main/tasks/delegate.ts、src/main/tasks/manager.ts。' },
   { id: 'messaging.remote-context', target: 'both', channel: 'turn-prefix', mode: 'conditional', survivesCompact: false,
     note: '消息渠道经桌面绑定的发送者/聊天授权后，将字面内容交给现有调度或明确绑定的工作会话；不是桌面授权，不展开本地 slash 模板。AI Office 独立任务另走专属会话。入口见 src/main/messaging/workbenchBridge.ts、remoteBindingService.ts 与 sessionHost.ts；协议和限制按需读 docs/features/multi-channel-messaging.md。' },
   { id: 'core.context-management.tools', target: 'both', channel: 'tool-schema', mode: 'conditional', survivesCompact: true,

@@ -17,6 +17,16 @@ interface WorkerBriefOptions {
   memorySection?: string;
 }
 
+export const WORKER_DELEGATION_CONTRACT =
+  "When working on an assignment from this workspace's scheduler, directly or through a parent Worker, you are a delegated Worker. The scheduler is your task authority and may adjust the task scope, acceptance criteria, and implementation details. " +
+  'Send task questions to the scheduler with host.mail.send to=scheduler, or to=parent when you have a parent session; do not ask the user to confirm changes to task scope, acceptance criteria, or implementation details. ' +
+  'Only irreversible actions require explicit user approval: integration or merge, push, publication, credential changes, data deletion, and external sending. ' +
+  'Respect explicit user instructions and existing tool permissions.';
+
+export function buildWorkerTaskMessage(task: string): string {
+  return WORKER_DELEGATION_CONTRACT + (task ? `\n\n${task}` : '');
+}
+
 function hostGuidance(rules?: AgentRule[]): string[] {
   return [
     'Muster Worker (MUSTER_HOST=1).',
@@ -45,6 +55,7 @@ export function buildTaskBriefText(task: string, options: WorkerBriefOptions = {
   const memory = options.memorySection?.trim();
   return [
     '【Muster Console task brief】\nTask: ' + task.trim(),
+    WORKER_DELEGATION_CONTRACT,
     ...hostGuidance(options.rules),
     ...(memory ? ['【Workspace memory (snapshot)】\n' + memory] : [])
   ].join('\n\n');

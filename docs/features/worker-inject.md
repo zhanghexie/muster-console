@@ -8,7 +8,13 @@
 
 Shell HTTP 工具网关由 Runtime Kernel 的 `host-entrypoints` 域启动。退出时先停止新请求受理并取消活动请求的源 signal，再在会话退休后等待 HTTP close 与已受理 handler 完成；`ShellApiServer.stop()` 是完整异步屏障，不能以发出 `server.close()` 代替宿主工具执行结束。
 
-sessionsHost / 桌面新建任务 → tasks/delegate.delegateTask → 来源/仓库与父子校验 → 统一并发队列 → sessions.createTerminal。GUI 通过 `AgentSessionHost.send` 发送完整 `task`，走普通聊天的转写、排队和引擎提交路径，返回 `gui-prompt` 及聊天消息 ID。桌面提交显示为用户消息，调度或其他 Worker 委派保留相应来源。CLI 在创建时传入 `initialPrompt`。
+sessionsHost / 桌面新建任务 → tasks/delegate.delegateTask → 来源/仓库与父子校验 → 统一并发队列 → sessions.createTerminal。GUI 通过 `AgentSessionHost.send` 发送派活契约及完整 `task`，走普通聊天的转写、排队和引擎提交路径，返回 `gui-prompt`、所发送文本的 `briefChars` 及聊天消息 ID。桌面提交显示为用户消息，调度或其他 Worker 委派保留相应来源。CLI 在创建时传入 `initialPrompt`。
+
+### 调度权威与不可逆动作边界
+
+`src/shared/workerBrief.ts` 的英文派活契约随 CLI 任务简报，以及 GUI 委派和 GUI 定时任务的首条聊天消息投递。由本工作区调度直接或经父 Worker 派出的任务，以调度为任务权威：调度可调整范围、验收口径和实现细节；任务疑问发 `host.mail.send to=scheduler`，有父会话时发 `to=parent`，不因这些调整向用户要求确认。合入、推送、发布、修改凭据、删除数据和对外发送仍需用户明确批准；已有用户明确指令和工具权限继续生效。隔离树的 `host.sessions.requestIntegrate` 仍须在用户明确批准之后调用，已有的明确批准不需要重复取得。
+
+通用任务入口也接受桌面直接提交和定时任务，所以文本以“由调度派出时”为条件，不把所有首信都宣称为调度派活。CLI 无任务的 `buildHostIntro` 不含契约；旧版 GUI 首信及已受理消息的恢复沿用原正文和回执，不为追加契约重投。GUI 的契约是实际发送消息的前缀，会进入聊天转写；任务正文与附件处理沿用既有路径。
 
 新派活传 task、isolation 和 target。isolated 省略 isolationGroups 时只隔离 cwd 所属 Git 仓库，无法确定仓库时明确报错；显式 isolationGroups 要求每组给出 rootId、relativePath 和 repoSet（[] 表示仅主仓）。shared 不接受 isolationGroups，dispatch.run 的 isolated delegate 要求显式隔离组。宿主入队时固定来源和隔离范围，出队重验版本与物理身份。并发超限返回队列身份。带路由的会话在注册表写入事务中完成最终校验，提交前失败会回滚本次隔离资源。提交后的投递失败保留原会话 ID 供查验。
 
@@ -31,7 +37,7 @@ sessionsHost / 桌面新建任务 → tasks/delegate.delegateTask → 来源/仓
 
 不要求每次额外调用预检或填写长篇理由。已有 Git 查询和会话观察可用于判断，信息不足时先核查。桌面新建任务默认共享检出，用户可手动选择隔离，UI 提交最终布尔选择；每次打开默认 GUI 页签，显式切换 CLI 仍可创建 CLI 会话。runs.delegate 同样必须明确 isolation 和隔离范围；工作流 wf.delegate 使用显式 isolate:true/false，执行层不再接收 auto 或省略值。
 
-新建传统 CLI 会话的第一条引擎消息使用 `buildHostIntro` 或任务简报，直接携带宿主身份、上报方式、必要工具指引和当前全局规约。工具参数从注册的 MCP 定义或带会话令牌的 GET MUSTER_TOOL_URL 获取。GUI 与 CLI 的目录快照均合并可读写目录并单列额外只读范围。启动参数或 TTY 回退传递临时文件的读取指令。原生 CLI 自行绘制终端，可能展示读取指令。普通 Shell 不触发 Worker 介绍。GUI 首条引擎输入附加宿主说明，聊天转写保留任务原文。
+新建传统 CLI 会话的第一条引擎消息使用 `buildHostIntro` 或任务简报，直接携带宿主身份、上报方式、必要工具指引和当前全局规约。工具参数从注册的 MCP 定义或带会话令牌的 GET MUSTER_TOOL_URL 获取。GUI 与 CLI 的目录快照均合并可读写目录并单列额外只读范围。启动参数或 TTY 回退传递临时文件的读取指令。原生 CLI 自行绘制终端，可能展示读取指令。普通 Shell 不触发 Worker 介绍。GUI 首条引擎输入附加宿主说明；任务首信的聊天转写包含契约前缀及完整任务正文。
 
 工作区初始化仅迁移曾由工作台写入的 `muster` / `metaagent` 及其 `-memory` 成对标记。迁移保留块外原文，只含托管块的空壳文件会被移除。跳过符号链接、硬链接及未闭合的块。新工作区初始化和再次打开均不生成根指令文件。`HOST.md` 和 `HOST-EXT.md` 退出投递路径，升级时只清理匹配旧生成模板的文件。
 
@@ -59,7 +65,7 @@ CLI Worker 的可信身份由进程启动投递：`MUSTER_HOST=1`、`MUSTER_SHEL
 
 `test/session-isolation-choice.mjs` 覆盖模型 schema、缺参/旧 auto/错误范围在访问上下文前拒绝、明确选择不读 dirty、队列选择及范围快照；`catalog-tool-schema.mjs` 验证真实模型参数校验；`catalog-public-surface.mjs` 验证真实创建处理器；`delegate-launch.mjs` 覆盖真实派活/邮箱恢复及既有隔离资源复用；`cli-runs.mjs` 验证非法选择不留下预留 Worker 或日志。`workflow-wiring.mjs` / `workflow-runtime.mjs` 验证工作流执行和恢复。
 
-`test/e2e/acp-tool-display.spec.ts` 通过 Electron 和 Qwen ACP 夹具验证首条任务气泡与实际引擎输入。`test/e2e/codex-model-menu.spec.ts` 用本地模型和 Codex app-server 夹具验证 Core Worker 创建隔离子会话，并核对 Codex 原生回合的工作树、模型、思考档与任务正文。`test/worker-routing.mjs` 覆盖权限变化，`test/session-task-worktree-create.mjs` 使用真实 Git 验证注册前拒绝时的回滚。`test/worker-initial-assignment.mjs` 和 `test/gui-host-lifecycle.mjs` 覆盖旧首信的正文续页、原生输入和回执。
+`test/worker-brief.mjs` 和 `test/gui-worker-prompt.mjs` 检查契约内容与任务组合；`test/delegate-launch.mjs` 覆盖 GUI 实际发送、来源、附件、长度及幂等回执，`test/prompt-tasks-manager.mjs` 覆盖定时 GUI 首信。`test/e2e/acp-tool-display.spec.ts` 通过 Electron 和 Qwen ACP 夹具验证首条任务气泡与实际引擎输入。`test/e2e/codex-model-menu.spec.ts` 用本地模型和 Codex app-server 夹具验证 Core Worker 创建隔离子会话，并核对 Codex 原生回合的工作树、模型、思考档与任务正文。`test/worker-routing.mjs` 覆盖权限变化，`test/session-task-worktree-create.mjs` 使用真实 Git 验证注册前拒绝时的回滚。`test/worker-initial-assignment.mjs` 和 `test/gui-host-lifecycle.mjs` 覆盖旧首信的正文续页、原生输入和回执。
 
 worktree 创建/所有权、多仓来源/版本校验、真实文件碰撞、用户验收与合入确认保留，见 [隔离 worktree](isolate-worktree.md)。父对子即时纠偏用 [邮箱 interrupt](session-mailbox.md)；其他低频管理从 [工具发现](tool-discovery.md) 查询。
 

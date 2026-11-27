@@ -5,7 +5,7 @@
  *   待答问题沿用原 askId 重发
  * - 先查现状：任务已在目标状态时 waitFor 立即返回；waitFor 超时 resolve {timedOut}
  * - 停机期间改脚本：不续跑、标记中断并发 interrupted 事件
- * - 护栏：派活超 maxDelegates 失败；同时运行上限；wf.tool 白名单；wf.read 越界/禁区；wf.glob
+ * - 护栏：派活超 maxDelegates 失败；同时运行上限；wf.tool 调用边界；wf.read 越界/禁区；wf.glob
  * - 子工作流 wf.call；workflow.validate 冒烟 import；reply 拒答问人的问题
  * - 派活队列出队回调（排队的 wf.delegate 据此等到真正拉起）
  * 运行: node test/workflow-runtime.mjs
@@ -60,6 +60,7 @@ async function assertStopsWriting(file,label) {
 }
 
 function sessionTool(state, name, args) {
+  if (name === 'fixture.unknown') return { ok: false, error: `未知工具: ${name}` };
   if (state.toolFail?.(name, args)) return { ok: false, error: '假失败' };
   if (!['sessions.setArchived', 'sessions.delete'].includes(name)) return { ok: true, result: { echoed: name } };
   state.sessionRows ??= new Map();
@@ -261,8 +262,25 @@ writeWorkflow(
   'description: 边界',
   `export default async function (wf) {
   const out = {};
-  try { await wf.tool('sessions.create', {}); } catch (e) { out.tool = e.message; }
+  out.created = await wf.tool('sessions.create', { name: 'worker' });
   out.ok = await wf.tool('sessions.observe', {});
+  out.denied = [];
+  for (const name of [
+    'workflow.run', 'workflow.start', 'workflow_run', 'workflow_start', ' Workflow_Run ', ' Workflow_Start ',
+    'mcp__muster__workflow_run', 'muster__workflow_start', 'other__workflow_run',
+    'host.workflow.start', 'host_workflow_run', 'mcp__muster__host.workflow_start'
+  ]) {
+    try { await wf.tool(name, { action: 'start' }); } catch (e) { out.denied.push({ name, message: e.message }); }
+  }
+  out.listed = await wf.tool('workflow.list', {});
+  out.got = await wf.tool('workflow.get', { runId: 'r1' });
+  out.replied = await wf.tool('workflow.reply', { runId: 'r1' });
+  out.unrelated = await wf.tool('hostXworkflow.run', {});
+  try { await wf.tool('fixture.unknown', {}); } catch (e) { out.unknown = e.message; }
+  out.invalidNames = [];
+  for (const name of ['', '   ', null, 123, {}]) {
+    try { await wf.tool(name, {}); } catch (e) { out.invalidNames.push(e.message); }
+  }
   try { await wf.read('../outside.txt'); } catch (e) { out.escape = e.message; }
   try { await wf.read('.muster/local/x.json'); } catch (e) { out.local = e.message; }
   out.missing = await wf.read('nope.md');
@@ -286,10 +304,33 @@ writeWorkflow('idle', 'description: 挂起', `export default async function (wf)
   fs.writeFileSync(path.join(wsRoot, 'docs', 'a.md'), '# A');
   fs.writeFileSync(path.join(wsRoot, 'docs', 'sub', 'b.md'), '# B');
   const f = await rt.startRun(WS, 'fence', {});
-  await until(() => readRunRecord(wsRoot, f.runId)?.status === 'completed', 'fence 完成');
-  const r = readRunRecord(wsRoot, f.runId).result;
-  assert.match(r.tool, /不允许调用 sessions\.create/);
+  await until(() => ['completed', 'failed'].includes(readRunRecord(wsRoot, f.runId)?.status), 'fence 结束');
+  const fence = readRunRecord(wsRoot, f.runId);
+  assert.equal(fence.status, 'completed', fence.error);
+  const r = fence.result;
+  assert.deepEqual(r.created, { echoed: 'sessions.create' });
   assert.deepEqual(r.ok, { echoed: 'sessions.observe' });
+  assert.equal(r.denied.length, 12, '启动入口及其别名/前缀都被拒绝');
+  for (const item of r.denied) {
+    assert.match(item.message, /wf\.tool 不允许调用 .*启动另一个工作流；子流程用 wf\.call/);
+    assert.ok(item.message.includes(item.name.trim()), '拒绝消息包含实际工具名');
+  }
+  assert.deepEqual(r.listed, { echoed: 'workflow.list' });
+  assert.deepEqual(r.got, { echoed: 'workflow.get' });
+  assert.deepEqual(r.replied, { echoed: 'workflow.reply' });
+  assert.deepEqual(r.unrelated, { echoed: 'hostXworkflow.run' });
+  assert.equal(r.unknown, '未知工具: fixture.unknown', '执行器错误原样传递');
+  assert.equal(r.invalidNames.length, 5);
+  for (const message of r.invalidNames) assert.match(message, /name.*非空字符串/);
+  assert.deepEqual(st.tools, [
+    { name: 'sessions.create', args: { name: 'worker' } },
+    { name: 'sessions.observe', args: {} },
+    { name: 'workflow.list', args: {} },
+    { name: 'workflow.get', args: { runId: 'r1' } },
+    { name: 'workflow.reply', args: { runId: 'r1' } },
+    { name: 'hostXworkflow.run', args: {} },
+    { name: 'fixture.unknown', args: {} }
+  ], '仅合法且未被拒绝的工具名到达执行器');
   assert.match(r.escape, /越出工作区/);
   assert.match(r.local, /不允许访问/);
   assert.equal(r.missing, null);
@@ -306,7 +347,7 @@ writeWorkflow('idle', 'description: 挂起', `export default async function (wf)
 
   st.trust = false;
   await assert.rejects(rt.startRun(WS, 'idle', {}), /未确认/);
-  console.log('ok: 护栏（派活上限/并发上限/工具白名单/读边界/信任拒绝）');
+  console.log('ok: 护栏（派活上限/并发上限/工具调用边界/读边界/信任拒绝）');
 }
 
 // ---------- 6) 子工作流 + validate ----------

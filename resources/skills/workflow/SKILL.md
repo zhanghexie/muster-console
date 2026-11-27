@@ -1,5 +1,5 @@
 ---
-x-muster-version: 0.1.34
+x-muster-version: 0.1.36
 name: workflow
 description: Author and manage scripted multi-agent workflows. Covers WORKFLOW.md, run.mjs, the wf API, triggers, restart behavior, and host.workflow.run parameters.
 ---
@@ -117,18 +117,27 @@ export default async function (wf, args) {
 
 | API | 说明 |
 |---|---|
-| `wf.delegate({task, isolate, runtime?, name?, model?, thinking?, key?})` | 派一个 Worker（isolate 必须显式为 true 或 false，无 auto 或默认值；与 sessions.create 同管线，首次任务经邮箱保存）。排队时等到真正拉起才返回 `{sessionId, sessionName, taskId}` |
+| `wf.delegate({task, isolate, runtime?, name?, tier?, targetRef?, model?, thinking?, guiMode?, key?})` | 派一个 Worker；`isolate` 必须显式为 true 或 false。`tier` 是设置中的 Worker 档位 ID，`targetRef` 是精确配置引用；二者均须为非空字符串，且与 `model` 三选一。可先用 `host.workers.options` 查询实际档位 ID。指定目标时沿用 `sessions.create` 的路由：`tier` 按候选、冷却与后继档选择；`targetRef` 绑定工作区和来源且可能过期。候选决定实际 Harness、模型和思考参数；`runtime` 可选，传入不会覆盖候选。未知目标的宿主错误消息原样抛出。排队时等真正拉起才返回 `{sessionId, sessionName, taskId}`。 |
 | `wf.waitFor(match, {timeoutMs?})` | 等一个事件。match 同订阅策略规则：`kind`（必填：phase / fact / turn_end / workflow …）、`trigger`、`sessionId`…；字符串字段可给数组表示任一。返回事件字段；超时返回 `{timedOut: true}`（不抛错）。等具体会话相位时先查会话现状，已满足立即返回 |
 | `wf.ask(question, {to?, options?, multi?})` | 挂起并交还判断。默认问调度；`to: 'human'` 问用户（亮在工作流面板，答案原样回来）。有 options 时单选返回选项原文，`multi` 返回数组 |
 | `wf.run(cmd, args?, {cwd?, timeoutMs?, key?})` | 跑命令（不给 args 时 cmd 按整行 shell 命令执行，可写 `wf.run(cmd, {key})`），返回 `{code, stdout, stderr}`；非零退出不抛错。带 `key` 时记账（重跑直接返回上次结果）。默认超时 10 分钟，最长 60 分钟 |
-| `wf.tool(name, args)` | 调少数宿主工具：sessions.observe/message/review/delete、memory.search/note、web.fetch、ui.notify |
+| `wf.tool(name, args)` | 调宿主工具；`name` 须为非空字符串。归一化（`_`→`.`、折叠重复点、小写，取末两段）后命中 `workflow.run` / `workflow.start` 的调用被拒绝（任意前缀如 `host.`、`mcp__muster__` 都会命中），其余交由执行器（未知工具会报错）。边界见下文 |
 | `wf.read(path)` / `wf.glob(pattern)` | 读工作区内文件（不存在返回 null，超 256KB 截断）/ 列匹配的相对路径（`**` `*` `?` `{a,b}`） |
 | `wf.call(name, args)` | 调子工作流并等它结束，返回其结果（嵌套 ≤3 层；失败时抛错） |
 | `wf.phase(name)` | 标记阶段（进 run 记录，调度下次被唤醒时捎带看到） |
 | `wf.state` / `wf.checkpoint()` | 自定义进度对象（须可 JSON 序列化）/ 立即落盘 |
 | `wf.log(text)` | 进度日志（不唤醒调度） |
 
+例如：`await wf.delegate({ task: args.task, isolate: true, tier: args.workerTierId })`。
+
 脚本 `return` 的值是 run 结果（完成时唤醒调度）；抛错 = run 失败（唤醒调度）。
+
+`wf.tool` 的边界：
+
+- `workflow.run` / `workflow.start` 及其别名（下划线、大小写、任意前缀如 `host.` / `mcp__muster__`）归一化后被拒绝：不能通过 `wf.tool` 启动新 run，受控子工作流用 `wf.call`（嵌套 ≤3 层）；`workflow.list/get/reply/cancel` 等非启动入口仍可用。
+- 危险工具仍走宿主安全审核；需人工确认时，若没人处理弹窗，run 会一直等待，同一工作流的定时触发在上一次触发的 run 未结束时会被跳过。
+- 工具以调度身份和工作区作用域调用，不携带 Worker 会话身份。依赖 Worker 身份或活动回合的工具缺少上下文时会报错；`waitFor` 可为调度会话注册等待，`ui.render` 可使用调度会话身份，`turnChanges.trackFiles` 在存在调度活动审查回合时可能使用该回合，不能假定这些调用都会直接报错。
+- 工具结果不记账，resume 会重新执行；脚本必须保证调用幂等。
 
 ### 必须可安全重跑
 

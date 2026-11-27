@@ -110,15 +110,18 @@ export function attachResumeWait(ctx: AppContext, userDataDir: string): () => vo
       getDesktopSources()?.pruneRemoved(store);
     },
     isBusy: (owner: string) => isBusy(ctx, owner),
-    alert: async (wait: ResumeWait, reason: string) => {
-      const category = reason.includes('七天') ? 'expired' : reason.includes('未确认') ? 'uncertain' : 'delivery';
+    alert: async (wait: ResumeWait, reason: string, kind?: 'queued') => {
+      const category = kind ?? (reason.includes('七天') ? 'expired' : reason.includes('未确认') ? 'uncertain' : 'delivery');
       const key = `${wait.id}:${category}`;
       if (alerted.has(key)) return;
       ctx.notify.push({ workspaceId: wait.workspaceId, sessionId: wait.owner, sessionName: '续接等待',
-        label: '续接未确认', text: `${reason}（${wait.id}）`, update: true, updateKey: `resume-wait:${wait.id}`, toast: true });
+        label: category === 'queued' ? '续接已排队' : '续接未确认',
+        text: category === 'queued' ? `抢占不可用，已排队到回合边界投递（${wait.id}）` : `${reason}（${wait.id}）`,
+        update: true, updateKey: `resume-wait:${wait.id}`, toast: true });
       await runOutsideAgentScope(() => deliverAgentMessage(ctx, { from: 'host', to: `orchestrator:${wait.workspaceId}`,
         workspaceId: wait.workspaceId, idempotencyKey: `resume-wait-dead:${key}`,
         text: category === 'expired' ? `续接 ${wait.id} 已过期超过七天，记录将被清理。`
+          : category === 'queued' ? `续接 ${wait.id} 抢占不可用，已排队到回合边界投递；回合结束后会正常送达，无需重复执行。`
           : `续接 ${wait.id} 未完成；请核对目标会话和回执，避免重复执行。` }));
       alerted.add(key);
     },

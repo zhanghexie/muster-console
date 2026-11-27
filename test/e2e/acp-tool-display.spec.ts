@@ -151,13 +151,15 @@ lines.on('line', line => {
     await expect(firstMessage).toHaveAttribute('data-mid', launched.inject!.messageId!);
     await expect(firstMessage.getByText('Read the fixture from a new task.', { exact: true })).toBeVisible();
     await expect(firstMessage.getByText('Keep the whole first message.', { exact: true })).toBeVisible();
+    await expect(firstMessage.getByText(/scheduler is your task authority/)).toBeVisible();
     await expect(firstMessage.getByLabel('发送给 Harness 的完整文本')).toHaveCount(0);
     const taskInput = JSON.parse(fs.readFileSync(capturedPrompt, 'utf8')).find((block: { type: string }) => block.type === 'text').text;
     const [submittedTask, context, ...extra] = taskInput.split('\n\n<muster_host_context source="automatic">\n');
     expect(context).toContain('mcp__muster__host_turnChanges_trackFiles');
     expect(context).not.toContain('[Host initial assignment]');
     expect(context.endsWith('\n</muster_host_context>')).toBe(true);
-    expect(submittedTask).toBe(task);
+    expect(submittedTask).toContain('scheduler is your task authority');
+    expect(submittedTask.endsWith(`\n\n${task}`)).toBe(true);
     expect(extra).toHaveLength(0);
     await firstMessage.screenshot({ path: info.outputPath('delegated-first-message.png') });
     await menu.press('Enter');

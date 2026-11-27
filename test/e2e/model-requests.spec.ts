@@ -276,9 +276,56 @@ test('Core requests window shows each actual HTTP request independently of Harne
     await win.locator('.agent-ws-stack-item.is-active .agent-notify-chat').click();
     const scheduler = win.locator('.agent-float-anchor > .agent-float-panel');
     await recordInConversation(scheduler, 'Scheduler recording fixture one.', 'recording-scheduler-dark.png');
+    const schedulerEditor = scheduler.getByRole('textbox');
+    await schedulerEditor.fill('/record-requests');
+    await schedulerEditor.press('Enter');
+    await expect(toggle).toBeChecked();
+    await win.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
+    async function submitScheduler(text: string) {
+      const replies = scheduler.getByText('Recorded.', { exact: true });
+      const previousReplies = await replies.count();
+      await schedulerEditor.fill(text);
+      await schedulerEditor.press('Enter');
+      await expect(replies).toHaveCount(previousReplies + 1, { timeout: 30_000 });
+      return JSON.parse(bodies.at(-1)!).messages.find((message: { role: string }) => message.role === 'tool');
+    }
+    readForCompression = true;
+    const schedulerOriginal = await submitScheduler('Read the fixture log from the scheduler.');
+    expect(schedulerOriginal.content).toBe(log);
+    const schedulerExcerpt = await submitScheduler('Continue from the scheduler tool result.');
+    expect(schedulerExcerpt.tool_call_id).toBe(schedulerOriginal.tool_call_id);
+    expect(schedulerExcerpt.content).toContain('[Core excerpt · source ');
+
+    await scheduler.getByRole('button', { name: shortcutName }).click();
+    const schedulerRows = dialog.locator('.request-rows button');
+    await expect(schedulerRows).toHaveCount(4);
+    await expect(schedulerRows.first()).toContainText('压缩 1 项');
+    await dialog.getByRole('button', { name: '压缩', exact: true }).click();
+    const schedulerCard = dialog.locator('.request-compression-card');
+    await expect(schedulerCard.getByText('工具结果摘录')).toBeVisible();
+    expect(await schedulerCard.locator('section > pre').textContent()).toBe(schedulerExcerpt.content);
+    await schedulerCard.locator('summary').click();
+    await expect.poll(() => schedulerCard.locator('.request-original pre').textContent()).toBe(log.slice(0, 6000));
+    await dialog.screenshot({path: info.outputPath('scheduler-compression-dark.png'), animations: 'disabled'});
+    await schedulerCard.getByRole('button', { name: '下一页' }).click();
+    await expect.poll(() => schedulerCard.locator('.request-original pre').textContent()).toBe(log.slice(6000));
+    expect((await win.evaluate(() => window.api.themes.activate('light'))).ok).toBe(true);
+    await expect(win.locator('html')).toHaveAttribute('data-theme', 'light');
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setContentSize(480, 750));
+    await expect.poll(() => dialog.evaluate(el => getComputedStyle(el.querySelector('.request-columns')!).gridTemplateColumns.split(' ').length)).toBe(1);
+    await dialog.screenshot({path: info.outputPath('scheduler-compression-light-narrow.png'), animations: 'disabled'});
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]!.setContentSize(1100, 820));
+    await schedulerRows.nth(1).click();
+    await dialog.getByRole('button', { name: '压缩', exact: true }).click();
+    await expect(dialog.getByText('此次请求未检测到 Core 压缩内容')).toBeVisible();
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await win.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
     await scheduler.getByRole('button', { name: '收起', exact: true }).click();
     await expect(scheduler).toHaveCount(0);
-    await expect.poll(() => win.evaluate(id => window.api.agentSession.modelRequests(`scheduler:${id}`).then(rows => rows.length), workspaceId)).toBe(1);
+    await expect.poll(() => win.evaluate(id => window.api.agentSession.modelRequests(`scheduler:${id}`).then(rows => rows.length), workspaceId)).toBe(4);
 
     const tools = win.getByRole('button', { name: '展开更多工具' });
     if (await tools.isVisible()) await tools.click();

@@ -19,6 +19,7 @@ Module._load = function(name, parent) {
   return originalLoad.apply(this, arguments);
 };
 const off = [];
+let resetMessageStore;
 try {
   // Exercise the same attachment worker on a fresh checkout as in the packaged app.
   fs.symlinkSync(path.dirname(path.dirname(require.resolve('i18next/package.json'))), path.join(tmp, 'node_modules'),
@@ -28,10 +29,13 @@ try {
     format: 'esm', packages: 'external', logLevel: 'silent' });
   const load = name => require(path.join(root, 'src', name));
   const { delegateTask } = load('main/tasks/delegate.ts');
+  const { runAsSchedulerTool } = load('main/agent/agentScope.ts');
+  const { WORKER_DELEGATION_CONTRACT } = load('shared/workerBrief.ts');
   const { waitForSessionLaunch } = load('main/tasks/delegateLaunch.ts');
   const { sessionObservation } = load('shared/sessionObservation.ts');
-  const { setAgentMessagesUserDataDir, readAgentMessageLedger, updateAgentMessageWakeInStore } = load('main/metaAgent/messageStore.ts');
-  const { attachMailboxWakes, flushMailboxWake } = load('main/messages/wake.ts');
+  const { setAgentMessagesUserDataDir, readAgentMessageLedger, updateAgentMessageWakeInStore, resetMessageStoreChainsForTest } = load('main/metaAgent/messageStore.ts');
+  resetMessageStore = resetMessageStoreChainsForTest;
+  const { attachMailboxWakes, flushMailboxWake, holdMailboxWake } = load('main/messages/wake.ts');
   const { sendSessionMail } = load('main/messages/assignment.ts');
   setAgentMessagesUserDataDir(path.join(tmp, 'userdata'));
   const rows = [], cfg = { activeWorkspaceId: 'w', defaultRuntime: 'fixture-cli', workspaces: [{ id: 'w', path: tmp }] };
@@ -39,7 +43,7 @@ try {
   const ctx = { config: { get: () => cfg }, resolveBubbleWorkspaceId: () => 'w', workspaces: { list: () => cfg.workspaces },
     sessions: { list: () => rows, listByWorkspace: () => rows, get: id => rows.find(s => s.id === id),
       peek: id => rows.find(s => s.id === id), isChatRuntime: () => false, onLifecycle: () => () => {}, broadcastMessagesChanged() {},
-      ensureStatusToken() {}, clearDonePhase() {},
+      ensureStatusToken() {}, clearDonePhase() {}, setOrchestrated() {},
       createTerminal: async input => {
         live = { ...input, id: input.reservedSessionId ?? 'session-' + rows.length, type: 'terminal', runtime: input.runtime,
           status: outcome === 'failed' ? 'exited' : outcome === 'slow' ? 'starting' : 'running',
@@ -97,7 +101,7 @@ try {
   const sent = [];
   let guiOpen = true, acceptGui = true;
   ctx.agentSessions = {
-    isOpen: () => guiOpen,
+    isOpen: () => guiOpen, isBusy: () => false,
     async send(sessionId, task, images, opts) {
       sent.push({ sessionId, task, images, opts });
       return acceptGui ? { ok: true } : { ok: false, error: 'test admission failure' };
@@ -110,13 +114,15 @@ try {
   assert.equal(gui.session.runtime, 'pi', 'a configured CLI does not become the implicit task runtime');
   assert.deepEqual(replay.inject, gui.inject);
   assert.equal(gui.inject.mode, 'gui-prompt');
-  assert.equal(gui.inject.briefChars, guiTask.length);
-  assert.deepEqual(sent, [{ sessionId: gui.session.id, task: guiTask, images: undefined,
+  const guiMessage = `${WORKER_DELEGATION_CONTRACT}\n\n${guiTask}`;
+  assert.equal(gui.inject.briefChars, guiMessage.length);
+  assert.deepEqual(sent, [{ sessionId: gui.session.id, task: guiMessage, images: undefined,
     opts: { messageId: gui.inject.messageId, steerOnBusy: false } }]);
   assert.equal(readAgentMessageLedger(tmp, 'w').messages.some(mail => mail.to === gui.session.id), false);
   const blank = await delegateTask(ctx, { ...guiInput, task: '', creationKey: 'blank-gui' });
   assert.equal(blank.inject, undefined);
   assert.equal(sent.length, 1, 'opening a blank GUI session does not start a turn');
+  const releaseLegacyWake = holdMailboxWake(ctx, blank.session.id, 'w');
   const old = await sendSessionMail(ctx, { sessionId: blank.session.id, text: 'Saved task mail',
     idempotencyKey: 'initial-assignment', initialAssignment: true });
   const resumed = await delegateTask(ctx, { ...guiInput, creationKey: 'blank-gui' });
@@ -129,6 +135,20 @@ try {
   assert.equal(sent.at(-1).opts.source, 'agent');
   assert.equal(sent.at(-1).opts.fromInject, true);
   assert.equal(sent.at(-1).opts.sourceAgent.sessionId, existing.id);
+  assert.equal(sent.at(-1).task, `${WORKER_DELEGATION_CONTRACT}\n\nchild assignment`);
+  const schedulerTask = '调度调整范围\n完整任务正文';
+  const scheduledGui = await runAsSchedulerTool(() => delegateTask(ctx, { task: schedulerTask, workspaceId: 'w', isolate: false, select: false, notifyOrchestrator: false }));
+  assert.equal(sent.at(-1).task, `${WORKER_DELEGATION_CONTRACT}\n\n${schedulerTask}`);
+  assert.equal(sent.at(-1).opts.source, 'scheduler');
+  assert.equal(sent.at(-1).opts.messageId, scheduledGui.inject.messageId);
+  assert.equal(scheduledGui.inject.briefChars, sent.at(-1).task.length);
+  const guiWithFile = await delegateTask(ctx, { ...guiInput, creationKey: 'gui-file', task: '附件任务',
+    attachments: [{ id: 'gui-doc', name: 'task.txt', mimeType: 'text/plain', data: Buffer.from('gui attachment body').toString('base64') }] });
+  const fileMessage = sent.at(-1);
+  assert.ok(fileMessage.task.startsWith(`${WORKER_DELEGATION_CONTRACT}\n\n附件任务`));
+  assert.ok(fileMessage.task.includes('gui attachment body'));
+  assert.equal(guiWithFile.inject.briefChars, fileMessage.task.length);
+  assert.equal(fileMessage.opts.messageId, guiWithFile.inject.messageId);
   const cliChild = await delegateTask(ctx, { task: 'CLI child', runtime: 'fixture-cli', parentSessionId: existing.id, workspaceId: 'w', isolate: false, select: false, notifyOrchestrator: false });
   assert.equal(cliChild.session.runtime, 'fixture-cli', 'an explicit CLI child is still supported');
   assert.equal(cliChild.inject.mode, 'cli-prompt');
@@ -162,9 +182,11 @@ try {
   assert.equal(withFile.session.name, 'task.txt');
   assert.equal((await delegateTask(ctx, cliFiles)).session.id, withFile.session.id);
   assert.equal(readAgentMessageLedger(tmp, 'w').messages.some(mail => mail.to === withFile.session.id), false);
+  releaseLegacyWake();
   console.log('delegate-launch: OK (direct GUI task, retained recovery and CLI startup)');
 } finally {
-  for (const dispose of off) dispose();
+  for (const dispose of off) { dispose(); await dispose.drain(); }
+  resetMessageStore?.();
   Module._load = originalLoad;
   if (oldTs) require.extensions['.ts'] = oldTs; else delete require.extensions['.ts'];
   fs.rmSync(tmp, { recursive: true, force: true });

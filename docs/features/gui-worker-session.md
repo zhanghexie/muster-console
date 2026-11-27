@@ -162,7 +162,7 @@ src/renderer/src/styles/chat.css        工具卡可视化（.tool-diff 红绿�
 | `src/main/sessions/createTerminal.ts` `createAgentTerminalSession`（`sessions.ts` 委托） | chat 忽略 initialPrompt/injectHostIntro（空会话只物化系统提示） |
 | `src/main/sessions.ts` `select` | chat 会话选中即幂等 `chatBridge.open`（重启后恢复入口；2026-08-26 修复） |
 | `sessions.close` / `sessions.restartConversation` | chat → `close(purgeHistory)` 仅左栏删会话时清落盘（应用侧 json + 引擎侧数据，见「落盘生命周期」）；退出/切走只释放 driver；`refresh` 只中止当前回合 |
-| `src/main/tasks/delegate.ts` | chat：建会话后 `agentSessions.send(任务原文)`，mode `gui-prompt`，跳过 waitTerminalReady |
+| `src/main/tasks/delegate.ts` | chat：建会话后 `agentSessions.send(派活契约 + 任务正文)`，mode `gui-prompt`，跳过 waitTerminalReady |
 | `messages/assignment.ts` / `messages/wake.ts` | 旧版 GUI 首信和后续邮件的兼容投递 |
 | `runtime/host.ts` | chat runtime 误走 allocate/resolveLaunch/scriptPath 明确抛错；migrateBuiltinHints 合并新 builtin 种子（老用户升级即见 Pi；旧 dsh 条目合并时清除） |
 | `agent/systemPrompt.ts` | 调度知道 surface=chat 的 runtime 也可 sessions.create（task 仍极简） |
@@ -386,11 +386,13 @@ Muster Core connect 用工作台 `resolveLlmConfigWithReload` 解析服务商和
 
 `materializeGuiWorkerPrompt` 先介绍 Muster 如何托管会话及 Harness 如何执行模型回合，再给出当前 Worker 或子代理身份、Muster 会话 ID 和目录范围。单根共享目录将源根、工作目录及读写范围合并一行。多根和隔离场景展示各源根、目录权限和映射。其后给出实际注册工具的协作提示和全局行为规约。Pi 加载项目指令时，逐字相同的规约沿用项目指令中的副本。Host 仅在完整说明待投递时给 GUI Harness 提供 `firstPromptPrefix`（沿用字段名），各 driver 用 `<muster_host_context source="automatic">` 与 `</muster_host_context>` 包住说明，再通过 `appendGuiHostContext` 以空行分隔附在用户消息之后，用户正文原样保留。宿主按发送文本末尾的完整说明及引擎回执确认投递，重连和冷启动续聊均跳过完整说明。Pi 系列将原生命令和模板的斜杠输入原样交给引擎，首条说明随下一条普通输入投递。分叉上下文、后台摘要、派活、交接、审批反馈、过期读取提示和交互选择按需沿用同一标记，逐轮记忆召回保持原有位置。回执与恢复规则见 [GUI Harness 接入](gui-harness-integration.md)。
 
-从新建任务直接启动时，完整任务文本走 `AgentSessionHost.send`，和打开空白会话后发送消息共用同一套聊天转写和引擎投递。已注册轮次文件登记工具时，GUI 首条宿主说明提醒 Worker 在审阅可能漏检的文件改动前后登记准确路径，用法见 [轮次文件改动](turn-checkpoint.md)。
+从新建任务直接启动时，派活契约和完整任务文本走 `AgentSessionHost.send`，和打开空白会话后发送消息共用同一套聊天转写和引擎投递。GUI 定时任务同样在首条消息前加契约；空会话及旧首信恢复不追加。已注册轮次文件登记工具时，GUI 首条宿主说明提醒 Worker 在审阅可能漏检的文件改动前后登记准确路径，用法见 [轮次文件改动](turn-checkpoint.md)。
+
+调度直接或经父 Worker 派活时，调度有权调整范围、验收口径及实现细节，任务疑问通过 `host.mail.send` 发给调度或父会话，无需向用户确认这些调整。合入、推送、发布、凭据修改、数据删除和对外发送仍需用户明确批准；现有用户指令和工具权限不因契约改变，隔离树 `requestIntegrate` 仍在用户明确批准后调用。契约以调度派活为条件，因为桌面用户也可直接创建任务；详情见 [Worker 创建与任务投递](worker-inject.md#调度权威与不可逆动作边界)。
 
 已注册 `host.sessions.create` 时，首条宿主说明提示 Worker 可把独立子任务交给子代理，传 `asSubagent: true`、`task` 和显式 `isolation`。可用 `inherit: true` 沿用父会话启动设置，也可传 `target: {targetRef}` 选择具体 Harness 和模型。「完全访问」的 Muster Core 父会话可在当前来源使用精确引用启动跨 Harness 子代理。完整创建用法见 [Worker 创建与任务投递](worker-inject.md)。
 
-宿主说明按实际注册的工具提供状态上报、邮件、隔离交付和记忆等调用提示。项目指令由各 Harness 自己加载，工具参数随注册定义提供。模式 persona 和扩展提示、记忆与模式钩子按各自入口运行。目录快照通过 `cwd` 和源根 ID 引用已列出的路径，可读写范围、额外只读范围及隔离映射各自列出。全局行为规约从设置读取并原样附加。默认聊天气泡显示用户原文。开启 [Harness 透明](trajectory-view.md) 后，用户气泡直接显示 driver 提交的完整文本，图片继续使用附件视图。
+宿主说明按实际注册的工具提供状态上报、邮件、隔离交付和记忆等调用提示。项目指令由各 Harness 自己加载，工具参数随注册定义提供。模式 persona 和扩展提示、记忆与模式钩子按各自入口运行。目录快照通过 `cwd` 和源根 ID 引用已列出的路径，可读写范围、额外只读范围及隔离映射各自列出。全局行为规约从设置读取并原样附加。默认聊天气泡显示发送的正文（任务首信包括派活契约前缀）。开启 [Harness 透明](trajectory-view.md) 后，用户气泡直接显示 driver 提交的完整文本，图片继续使用附件视图。
 
 传统 CLI 随启动简报取得宿主说明，可从原生 MCP 或带会话令牌的本地接口取得工具定义。详见 [Worker 创建与任务投递](worker-inject.md)。
 

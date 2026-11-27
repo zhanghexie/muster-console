@@ -143,9 +143,12 @@ const server = http.createServer(async (req, res) => {
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 try {
-  const config = { llm: { activeProviderId: 'fixture', activeModelId: 'fixture', providers: [{ id: 'fixture', name: 'offline', api: 'openai-completions', baseUrl: `http://127.0.0.1:${server.address().port}`, apiKey: 'fixture-only', models: [{ id: 'fixture', contextWindow: 32000, maxTokens: 2048 }] }] } };
+  const configuredMaxTokens = 16384;
+  const config = { llm: { activeProviderId: 'fixture', activeModelId: 'fixture', providers: [{ id: 'fixture', name: 'offline', api: 'openai-completions', baseUrl: `http://127.0.0.1:${server.address().port}`, apiKey: 'fixture-only', models: [{ id: 'fixture', contextWindow: 32000, maxTokens: configuredMaxTokens }] }] } };
   const reviewer = createSafetyPiReviewer({ config: () => config, directory });
   assert.equal(requests, 0); const result = await reviewer(request, new AbortController().signal); assert.equal(result.verdict, 'allow'); assert.equal(result.requestId, request.requestId);
+  assert.equal(wireBodies[0].max_completion_tokens ?? wireBodies[0].max_tokens, configuredMaxTokens,
+    'the approval request uses the selected model output limit');
   assert.equal(JSON.parse(envelopes.at(-1).content).turnSource, 'system_approval');
   assert.equal(envelopes.at(-1).details.turnSource, 'system_approval');
   assert.equal(fs.existsSync(escaped), false); assert.equal(fs.existsSync(path.join(directory, 'sessions')), false, 'no raw transcripts persisted');

@@ -11,6 +11,7 @@ import { isolationRecommendation } from '../sessions/isolationPolicy';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { effectiveCliLaunchOptions } from '../../shared/cliLaunchOptions';
+import { buildWorkerTaskMessage } from '../../shared/workerBrief';
 import { validateCliModelReasoning } from '../agentSession/cliModelReasoning';
 import { initialGuiWorkerMode } from '../agentSession/host/internal';
 import type { AppContext } from '../context';
@@ -561,7 +562,8 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
         const prepared = input.attachments?.length
           ? await prepareGuiInput(ctx, session, task, input.attachments)
           : { text: task, images: undefined };
-        const sent = await host.send(session.id, prepared.text, prepared.images, {
+        const message = buildWorkerTaskMessage(prepared.text);
+        const sent = await host.send(session.id, message, prepared.images, {
           messageId, steerOnBusy: false,
           ...(!input.desktopUserInstruction ? {
             fromInject: true,
@@ -570,7 +572,7 @@ async function delegateTaskWithSource(ctx: AppContext, input: DelegateTaskInput)
           } : {})
         });
         if (!sent.ok) throw new Error(sent.error ?? 'Could not send the first GUI task message.');
-        return { mode: 'gui-prompt', briefChars: task.length, messageId, ...(sent.queued ? { queued: true } : {}) };
+        return { mode: 'gui-prompt', briefChars: message.length, messageId, ...(sent.queued ? { queued: true } : {}) };
       };
       // A keyed creation can be recovered by a workflow or retried concurrently. Reuse its chat receipt.
       inject = input.creationKey

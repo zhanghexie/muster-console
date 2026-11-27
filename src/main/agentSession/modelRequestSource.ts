@@ -5,16 +5,24 @@ import type { SessionEntry } from '@earendil-works/pi-coding-agent';
 import { sourceText } from '../agent/coreContext';
 import { userDataStorage } from '../runtimeKernel/storageRootResolver';
 import { readCompressionTrace } from './modelRequestStore';
-import { COMPRESSION_SOURCE_PAGE } from '../../shared/modelRequest';
+import { COMPRESSION_SOURCE_PAGE, modelRequestSchedulerWorkspace } from '../../shared/modelRequest';
 
 /** Only sources attributed to this recorded call are addressable by the renderer. */
 export async function readModelRequestSource(root: string, session: string, call: number, source: string, offset: number) {
   const trace = readCompressionTrace(root, session, call);
   if (!trace?.file || !trace.items.some(item => item.sources.some(s => s.id === source))) return null;
-  const directory = userDataStorage(root).resolve('app', 'pi-native-sessions');
-  const file = await fs.promises.realpath(path.resolve(directory, trace.file));
+  const storage = userDataStorage(root);
+  const workspaceId = modelRequestSchedulerWorkspace(session);
+  const base = storage.resolve('app', workspaceId === null ? 'pi-native-sessions' : 'pi-sessions');
+  const candidate = path.resolve(base, trace.file);
+  // An interactive scheduler can also continue a native session opened from its task history.
+  const directory = workspaceId === null ? base : [workspaceId, `${workspaceId}:tasks`]
+    .map(bucket => storage.schedulerPiSessionDir(bucket))
+    .find(bucket => path.relative(bucket, path.dirname(candidate)) === '');
+  if (!directory) return null;
+  const file = await fs.promises.realpath(candidate);
   const rel = path.relative(await fs.promises.realpath(directory), file);
-  if (!rel || rel.startsWith('..' + path.sep) || path.isAbsolute(rel) || !file.endsWith('.jsonl')) return null;
+  if (!rel || rel === '..' || rel.startsWith('..' + path.sep) || path.isAbsolute(rel) || !file.endsWith('.jsonl')) return null;
   const stream = fs.createReadStream(file, { encoding: 'utf8' });
   const lines = createInterface({ input: stream, crlfDelay: Infinity });
   try {

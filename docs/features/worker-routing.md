@@ -6,7 +6,7 @@
 
 保存的分类依次为 `low`、`medium`、`high`、`xhigh` 和 `special`，派活请求使用稳定 `tierId`。宿主读取旧池时仅将唯一的「轻量／Lightweight」归为低、「攻坚／Complex tasks」归为高，冲突和其他旧池留在特殊功能，包括原来叫「极高」的特殊池。读取不写盘，保留 ID、旧名称、候选和后继。每层最多 16 个池，可把特殊池显式分配到空标准档，保留原身份和内容。
 
-调度在现有 Pi 回合里看到当前工作区的档位摘要，按任务要求调用 `host.sessions.create({task,isolation,target:{tierId}})`。用户指定精确型号时，调度直接传 `target:{targetRef}`。没有选择时，调度的普通新任务返回选档和设置入口。内部工作流、手工建空会话和旧会话恢复沿用原合同。模型工具通过档位或引用提交 Harness、runtime、ACP preset、模型及思考等模型参数，内联启动字段由 `additionalProperties:false` 拒绝。新建对话框走独立入口，可传用户选择的原生设置。
+调度在现有 Pi 回合里看到当前工作区的档位摘要，按任务要求调用 `host.sessions.create({task,isolation,target:{tierId}})`。用户指定精确型号时，调度直接传 `target:{targetRef}`。没有选择时，调度的普通新任务返回选档和设置入口。内部工作流可通过 `wf.delegate({task,isolate,tier})` 或 `targetRef` 走同一路由；手工建空会话和旧会话恢复沿用原合同。模型工具通过档位或引用提交 Harness、runtime、ACP preset、模型及思考等模型参数，内联启动字段由 `additionalProperties:false` 拒绝。新建对话框走独立入口，可传用户选择的原生设置。
 
 Worker 用 `asSubagent:true,inherit:true` 继承可信父会话的兼容启动设置。指定子代理的 Harness 或型号时，传 `asSubagent:true,target:{targetRef}`。处于「完全访问」的 Muster Core 父会话可以创建跨 Harness 子代理。宿主核对同一工作区和来源目录，在预检和会话持久化前复核父会话的生效权限。目标使用自己的常规启动权限，父子关系、隔离范围和首条任务沿用统一创建管线。受限 Core 和外部 Harness 的权限继承限兼容运行时及 ACP preset。改 preset 或模型后清除不兼容的旧参数，Pi persona 单独选择。
 
