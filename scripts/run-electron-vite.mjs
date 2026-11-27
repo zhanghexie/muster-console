@@ -62,13 +62,15 @@ function killTree(pid) {
 }
 
 export async function runElectronVite() {
+  // Electron downloads its binary on first require. electron-vite 2 reads path.txt directly.
+  const electronExecPath = process.env.ELECTRON_EXEC_PATH || require('electron');
   freeDevPorts([rendererDevPort()]);
   ensureDevRuntimeBuiltins();
 
   const child = spawn(process.execPath, [cli, 'dev', ...process.argv.slice(2)], {
     stdio: 'inherit',
     cwd: root,
-    env: process.env,
+    env: { ...process.env, ELECTRON_EXEC_PATH: electronExecPath },
     detached: process.platform !== 'win32',
     windowsHide: false
   });
