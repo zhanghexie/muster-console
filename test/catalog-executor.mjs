@@ -54,13 +54,16 @@ try {
   const { runAsAgentWorkspace, runAsSchedulerTool } = await import(pathToFileURL(compile('main/agent/agentScope.ts')));
   const workspace = { id: 'ws', name: 'Workspace', path: tmp, controlRoot: tmp, defaultRootId: 'root', rootsRevision: 1,
     roots: [{ id: 'root', path: tmp }] };
-  const desktopCtx = { ...ctx, config: { get: () => ({ activeWorkspaceId: 'ws', workspaces: [workspace] }) } };
+  const setupNotices = [];
+  const desktopCtx = { ...ctx, config: { get: () => ({ activeWorkspaceId: 'ws', workspaces: [workspace] }) },
+    ui: { ...ctx.ui, showDesktopSetup: issue => setupNotices.push(issue) } };
   const runDesktop = (context, params) => runAsAgentWorkspace('ws', () => runAsSchedulerTool(
     () => executeTool(context, 'desktop.run', JSON.stringify(params))));
   const unavailable = { action: 'look', params: { surfaceId: 'display', ...(process.platform === 'win32' ? { mode: 'semantic', windowId: 'window' } : {}) } };
   const failedLook = await runDesktop(desktopCtx, unavailable);
   assert.equal(failedLook.ok, false, 'unsupported screenshot must fail at the public envelope');
   assert.equal(failedLook.code, 'capability_unsupported');
+  assert.equal(setupNotices.at(-1)?.code, 'capability_unsupported');
   for (const serialized of [serializeResult(failedLook), serializeModelToolResult(failedLook, 'host.desktop.run', unavailable)]) {
     const reply = JSON.parse(serialized);
     assert.equal(reply.ok, false);
@@ -71,12 +74,27 @@ try {
   assert.equal(list.ok, false);
   assert.equal(list.code, 'capability_unsupported');
   if (process.platform === 'darwin') {
-    const screenshot = await runDesktop({ ...desktopCtx, desktopScreen: () => assert.fail('must not capture when permissions are missing'),
-      desktopTurns: () => assert.fail('must not start visible work when permissions are missing'),
+    const macContext = { ...desktopCtx, desktopMetadata: () => assert.fail('must not read metadata for a blocked screenshot'),
+      desktopScreen: () => assert.fail('must not capture when permissions are missing'),
+      desktopTurns: () => assert.fail('must not start visible work when preflight fails'),
+      desktopSemanticControl: () => assert.fail('must not access windows when preflight fails') };
+    const screenshot = await runDesktop({ ...macContext,
       desktopMac: { status: () => ({ permissions: { screenRecording: false, accessibility: true } }) } }, unavailable);
     assert.equal(screenshot.ok, false);
     assert.equal(screenshot.code, 'permission_required');
     assert.deepEqual(screenshot.result.permissions, ['screenRecording']);
+    assert.deepEqual(setupNotices.at(-1), { code: 'permission_required', permissions: ['screenRecording'] });
+    const unavailablePermissions = await runDesktop({ ...macContext,
+      desktopMac: { status: () => ({ permissionError: 'Native read failed' }) } }, unavailable);
+    assert.equal(unavailablePermissions.ok, false);
+    assert.equal(unavailablePermissions.code, 'permission_check_failed');
+    assert.deepEqual(setupNotices.at(-1), { code: 'permission_check_failed', detail: 'Native read failed' });
+    const unavailableDriver = await runDesktop({ ...macContext,
+      desktopMac: { status: () => ({ driverError: 'Missing pinned driver' }) } },
+    { action: 'look', params: { mode: 'both', windowId: 'window' } });
+    assert.equal(unavailableDriver.ok, false);
+    assert.equal(unavailableDriver.code, 'dependency_missing');
+    assert.deepEqual(setupNotices.at(-1), { code: 'dependency_missing', detail: 'Missing pinned driver' });
   }
   console.log('catalog-executor: ok');
 } finally {

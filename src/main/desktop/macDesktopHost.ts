@@ -3,9 +3,9 @@ import { CuaTransport } from './cuaTransport';
 import { DesktopActivityRuntime } from './desktopActivityRuntime';
 import type { createIdempotentDesktopComposition } from './idempotentDesktopComposition';
 import { createLocalDesktopDeliverySelector } from './localDesktopDeliverySelector';
-import { createMacPermissionReader, createMacScreenLockReader } from './macPermissions';
+import { createMacPermissionReader, createMacScreenLockReader, type MacDesktopPermissions } from './macPermissions';
 import { MacTargetRegistry } from './macTargetRegistry';
-import { MacVisibleControl } from './macVisibleControl';
+import { MacVisibleControl, readCuaMacPermissions } from './macVisibleControl';
 import { createMacWindowNative } from './macWindowNative';
 import { PtyDesktopTurns } from './ptyDesktopTurns';
 import type { MacDesktopStatus } from './runtime';
@@ -22,6 +22,8 @@ export function createMacDesktopHost(options: Options) {
   let targets: MacTargetRegistry | undefined;
   let readPermissions: ReturnType<typeof createMacPermissionReader> | undefined;
   let readScreenLock: ReturnType<typeof createMacScreenLockReader> | undefined;
+  let driverPermissionCheck: Promise<MacDesktopPermissions> | undefined;
+  let permissionCleanupUnconfirmed = false;
   let closing: Promise<void> | undefined;
   const permissions = () => (readPermissions ??= createMacPermissionReader())();
   const screenLocked = () => (readScreenLock ??= createMacScreenLockReader())();
@@ -31,6 +33,24 @@ export function createMacDesktopHost(options: Options) {
     return targets ??= new MacTargetRegistry(createMacWindowNative(permissions));
   };
   const connect = () => new CuaTransport(options.driverPath(), process.env, undefined, { embedded: true });
+  async function checkDriverPermissions(): Promise<MacDesktopPermissions> {
+    assertOpen();
+    if (permissionCleanupUnconfirmed) throw new Error('Permission check driver exit is unconfirmed; restart Muster before checking again');
+    return driverPermissionCheck ??= (async () => {
+      const driver = connect();
+      const signal = AbortSignal.timeout(5_000);
+      try {
+        await driver.connect(signal);
+        return await readCuaMacPermissions(driver, signal);
+      } finally {
+        try { await driver.close(); }
+        catch (error) {
+          permissionCleanupUnconfirmed = true;
+          throw error;
+        }
+      }
+    })().finally(() => { driverPermissionCheck = undefined; });
+  }
 
   // Cua owns complete gestures. The seat waits for each provider call and its
   // child-process cleanup before releasing the desktop or hiding the indicator.
@@ -64,6 +84,7 @@ export function createMacDesktopHost(options: Options) {
         return status;
       },
       permissions,
+      checkDriverPermissions,
       screenLocked,
       targets: getTargets,
       control
@@ -73,6 +94,7 @@ export function createMacDesktopHost(options: Options) {
     desktopWindowList: () => { assertOpen(); return cua.windows; },
     close(): Promise<void> {
       return closing ??= (async () => {
+        await driverPermissionCheck?.catch(() => { /* Reported by the status request. */ });
         await activity.dispose();
         await cua.close();
         try { targets?.close(); } finally { await options.composition.close(); }

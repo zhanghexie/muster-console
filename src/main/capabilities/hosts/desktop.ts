@@ -263,7 +263,7 @@ function unsupported(ctx: AppContext, action: string, signal?: AbortSignal, runt
   const scope = uploadScope(ctx, undefined, 'Desktop');
   scope.assertCurrent(); signal?.throwIfAborted();
   return { ...desktopOperationFailure(runtime, action, 'capability_unsupported', ctx.desktopUnavailableReason ??
-    (runtime === 'macos' && ctx.desktopMac ? `The macOS desktop backend does not provide ${action}.` : unavailableDesktopCapabilities(runtime).capture.remediation)),
+    (ctx.desktopTurns ? `The ${runtime} desktop backend does not provide ${action}.` : unavailableDesktopCapabilities(runtime).capture.remediation)),
     capabilities: operationCapabilities(ctx, runtime) };
 }
 
@@ -277,6 +277,7 @@ export async function lookDesktop(ctx: AppContext, args: DesktopLookArgs,
     const { surfaceId } = args;
     if (typeof surfaceId !== 'string' || !surfaceId.trim()) throw new Error('Display surfaceId is required');
     if (args.windowId !== undefined || args.snapshotId !== undefined || args.offset !== undefined) throw new Error('Window parameters require mode=semantic or mode=both');
+    if (!ctx.desktopMetadata || !ctx.desktopScreen) return unsupported(ctx, 'look', signal, runtime);
     const failure = runtime === 'macos' ? macPreflight(ctx, 'look', ['screenRecording'], signal) : undefined;
     if (failure) return failure;
     try { return await withDesktopActivity(ctx, false, signal, (active, lease) => lookDesktopInternal(ctx, { ...args, surfaceId }, active, lease)); }
@@ -391,7 +392,7 @@ export async function controlDesktop(ctx: AppContext, action: 'act' | 'focus' | 
   if (mac) {
     const failure = macPreflight(ctx, action, action === 'launch' ? [] : ['screenRecording', 'accessibility'], signal, true);
     if (failure) return failure;
-  } else if (!semantic && !windowClick && !ctx.desktopControl && !ctx.desktopVisibleControl) throw new Error(ctx.desktopUnavailableReason || 'Windows desktop control backend is unavailable');
+  } else if (!semantic && !windowClick && !ctx.desktopControl && !ctx.desktopVisibleControl) return unsupported(ctx, action, signal, runtime);
   return withDesktopActivity(ctx, true, signal, async (active, lease) => {
     let actor: Awaited<ReturnType<typeof captureIdentity>>;
     try { actor = bindDesktopActorToRun(await captureIdentity(ctx, active), lease); active?.throwIfAborted(); }

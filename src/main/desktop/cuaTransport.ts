@@ -11,7 +11,7 @@ export type CuaTool = typeof CUA_TOOLS[number];
 export type CuaSetValueDelivery = 'mode-parameter' | 'background-only' | 'unavailable';
 
 export interface CuaConnection {
-  connect(): Promise<void>;
+  connect(signal?: AbortSignal): Promise<void>;
   call(name: CuaTool, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
   close(): Promise<void>;
 }
@@ -56,11 +56,11 @@ export class CuaTransport implements CuaConnection {
     this.transport = transport;
   }
 
-  async connect(): Promise<void> {
+  async connect(signal?: AbortSignal): Promise<void> {
     if (this.state !== 'new') throw new Error('Cua driver cannot be connected twice');
     this.state = 'connecting';
     try {
-      await this.client.connect(this.transport);
+      await this.client.connect(this.transport, { signal });
       if ((this.state as string) === 'closed') throw new Error('Cua driver was closed while connecting');
       this.state = 'connected';
     }

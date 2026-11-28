@@ -11,6 +11,7 @@ import { createWin32DesktopHost } from './desktop/win32DesktopHost';
 import { createMacDesktopHost } from './desktop/macDesktopHost';
 import { createLinuxDesktopHost } from './desktop/linuxDesktopHost';
 import { desktopRuntime } from './desktop/runtime';
+import { desktopSetupMacApp } from './desktop/desktopSetup';
 import { createIdempotentDesktopComposition } from './desktop/idempotentDesktopComposition';
 import { DesktopResumeStateLedger } from './desktop/desktopResumeState';
 import { recoverDesktopInitializationFailure } from './desktop/desktopStartupRecovery';
@@ -733,7 +734,8 @@ app.whenReady().then(async () => {
       const pty = new PtyManager(getWindow);
       ptyRef = pty;
       runtimeKernel.scope.add(() => pty.killAllAndWait());
-      const ui = new UiBridge(getWindow, () => config.get().activeWorkspaceId);
+      const ui = new UiBridge(getWindow, () => config.get().activeWorkspaceId,
+        process.platform === 'darwin' ? desktopSetupMacApp(app.isPackaged) : undefined);
       desktopUi = ui;
       const getDesktopSchedulerEpochs = (): SchedulerDesktopEpochRuntime =>
         desktopSchedulerEpochs ??= new SchedulerDesktopEpochRuntime(app.getPath('userData'), ui, desktopHost?.visibilityEpoch);

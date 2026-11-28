@@ -4,6 +4,7 @@ import { decodeDesktopPng } from './desktop/pngDecoder';
 import { requestRendererOnce } from './ipc/rendererRequest';
 import type { AgentStatus } from '../shared/types';
 import type { ConfirmDialogFields, ConfirmResult } from '../shared/confirmDialog';
+import type { DesktopSetupIssue, DesktopSetupStatus } from '../shared/desktopSetup';
 import { parseConfirmIpcPayload } from '../shared/confirmDialog';
 let notifyUnsupportedLogged = false;
 import {
@@ -60,7 +61,8 @@ export class UiBridge {
 
   constructor(
     private getWindow: () => BrowserWindow | null,
-    private getActiveWorkspaceId: () => string | null | undefined
+    private getActiveWorkspaceId: () => string | null | undefined,
+    private desktopSetupMacApp?: DesktopSetupStatus['macApp']
   ) {}
 
   /** 系统 toast 点击：切工作区等副作用（由 registerIpc 注入） */
@@ -78,6 +80,15 @@ export class UiBridge {
       status,
       workspaceId: wsId
     });
+  }
+
+  showDesktopSetup(issue: DesktopSetupIssue): void {
+    try {
+      const win = this.getWindow();
+      if (!win || win.isDestroyed() || win.webContents.isDestroyed()) return;
+      const status: DesktopSetupStatus = { issues: [issue], macApp: this.desktopSetupMacApp };
+      win.webContents.send('ui:desktopSetup', status);
+    } catch (error) { console.error('[desktop setup] could not display setup guide:', error); }
   }
 
   notify(

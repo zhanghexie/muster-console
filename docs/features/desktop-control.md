@@ -6,6 +6,20 @@
 >
 > 同一变更把 `act/focus/launch` 的权限档从 `read` 提到 `edit`，并让工具面审批认桌面回合授权：`turnGrant` 有效（同回合、30 分钟内）时 policy 不再叠加审批卡，只读门（plan/ask）仍直接拒绝。判定点在 `agentSession/tools/policy.ts` 的 `DESKTOP_WRITE_TOOLS` 分支，回归见 `test/desktop-turn-grant-policy.mjs`。
 
+## 电脑操作状态与 macOS 授权
+
+桌面端的「设置 → 通用 → 电脑操作」可主动查询本机状态。「检查电脑操作状态」和「重新检测」都调用 `desktopSetup:status`。`src/main/desktop/desktopSetup.ts` 检查后端接线及固定版 Cua 驱动。macOS 先由 `macDesktopHost.status()` 读取当前进程的屏幕录制与辅助功能授权。两项授权均通过且环境可用时，主进程再用嵌入式 Cua 执行 `check_permissions({ prompt: false })`，读取驱动看到的授权状态。检查跳过系统授权提示和 ScreenCaptureKit 实际采集探测，完成后回收驱动进程。[固定版 Cua 权限检查](https://github.com/trycua/cua/blob/01207bbf0ddcc0f2bb9642322c4e8b4b02319d1b/libs/cua-driver/rust/crates/platform-macos/src/tools/check_permissions.rs#L504-L535)
+
+macOS 显示器截图需要「屏幕与系统音频录制」。窗口截图、语义树和窗口输入还需要「辅助功能」。默认元数据列表和应用发现无需 TCC。申请可操作的窗口引用 `list(view: windows)` 时检查辅助功能授权，整屏截图也可通过 `windowsCode` 报告窗口选择缺少辅助功能。Windows、Linux X11 和原生 Wayland 展示各自的后端和驱动诊断。Wayland 的控制能力取决于合成器及停止控件。[Apple 录屏权限](https://support.apple.com/zh-cn/guide/mac-help/mchld6aa7d23/mac) · [Apple 辅助功能权限](https://support.apple.com/zh-cn/guide/mac-help/mh43185/mac)
+
+桌面工具结果的 `ok: false` 和 `code` 经公共执行器提到外层，`result` 保留结构化详情。`permission_required` 表示 macOS 缺少授权，`permission_check_failed` 表示授权状态无法读取，`capability_unsupported` 表示后端或所请求的动作不可用，`dependency_missing` 表示固定版驱动不可用。执行器经 `UiBridge` 发送 `ui:desktopSetup`，工作台顶部复用设置页的 `DesktopSetupCard` 展示可关闭的引导。
+
+权限按钮只向 `desktopSetup:openSettings` 传递权限名。`src/main/ipc/desktopSetup.ts` 要求调用来自本机主窗口的主 frame，由主进程选择屏幕录制或辅助功能的固定系统设置地址。Web 网关拒绝这两个 IPC 并过滤引导事件。开发版与安装版分别为实际运行的 `Electron.app` 和 `Muster Console.app` 授权。勾选后重新检测，当前进程和 Cua 均看到授权时可以重试。如果系统要求退出，或重检仍有缺项，完全退出并重开对应应用，再检查一次。
+
+安装版开启辅助功能后仍报缺项时，先核对授权条目对应的是当前运行的应用包。若应用在「应用程序」目录，可在系统设置的「+」文件选择器中用 ⌘⇧G 进入 `/Applications`，再选中该目录里的 `Muster Console.app`。旧本地包可能只携带 Electron 链接器签名，此时须重打并安装完整签名的应用，再为该副本授权。[macOS 打包](packaging.md)
+
+`test/desktop-setup.mjs` 模拟各平台的状态和错误分支。`test/e2e/desktop-setup.spec.ts` 使用真实 Electron preload、IPC 与卡片，替换 TCC 状态并截获系统设置链接。macOS 真机验收需从设置检查和桌面工具失败两个入口验证缺项，然后点开深链、手动勾选授权、重检、彻底退出重开再确认。开发版与签名安装版分别验证。Windows、Linux X11 和原生 Wayland 的本次引导仅有代码与模拟验证。
+
 ## 窗口截图与点击
 
 `list(view: "windows")` 从 Cua 的可见窗口签发有界、同回合的选择引用，支持 `windowOffset` 与 `limit`。`look(mode: "both", windowId)` 在私有 Cua 会话里一次读取 PNG 和语义树，返回 `window-pixel-v1` 坐标与 Muster 签发的 `captureId`。`act` 用 `target: { windowId, captureId, x, y }` 点击或双击，底层把该图像对应的私有 Cua 引用交回同一驱动会话。整屏 `look(surfaceId)` 用于观察显示器、选窗以及 Windows 和 macOS 的其他显示器坐标动作。整屏坐标点击返回 `window_capture_required`。
@@ -20,7 +34,7 @@ Windows 的 `look` 在截图后返回有界窗口选择；`windowsComplete=false
 
 在 macOS 上，`macDesktopHost.ts` 复用 `DesktopActivityRuntime`、停止状态账本、共享输入座位和持久 `requestId` 回执。显示器截图沿用 Electron 和截图产物链。`macTargetRegistry.ts` 在截图前保留 `NSRunningApplication` 和精确映射到 `CGWindowID` 的 AX 窗口，截图后复核存活及位置并签发随机窗口 ID。授权、屏幕锁定、窗口身份或几何变化会使派发前校验失败。显示器坐标的拖拽和滚动先换算为系统点位，通过 AX 命中测试或窗口层级确认目标，再按 Cua 窗口比例换算。点击和双击使用同一份 Cua 窗口观测。聚焦可能改变窗口位置，后续坐标操作使用新截图。`macVisibleControl.ts` 通过受监管的 `cua-driver mcp --direct` 发送白名单调用，使用嵌入模式把 macOS 权限归属留在宿主进程链。macOS/Linux 上原生进程组信号派发失败时，关闭返回未确认回收，并保留系统错误原因。聚焦需要 Cua 确认精确窗口，应用启动只接收 bundle identifier。语义操作复用 Cua 的有界树与引用机制。窗口身份校验和系统派发存在时间间隔，未知回执不会自动重放。
 
-工具失败通过执行器把 `ok: false` 和 `code` 提到外层，`result` 仍包含结构化详情。`capability_unsupported` 指构建或动作缺少实现，`dependency_missing` 指固定驱动不可用，`permission_required` 指系统授权缺失，`screen_locked` 指 macOS 会话仍锁定。macOS 截图有权限时可以返回 PNG。窗口选择不可用时通过 `windowsCode` 和 `windowsError` 说明原因。隔离 Electron 夹具在 macOS 27.2.1（26B131）验证了锁屏时保留截图和拒绝窗口操作。升级至 Cua Driver 0.59.4 后，同一夹具在解锁会话中通过了截图、窗口选择、精确聚焦、点击去重、中文输入、Command+A、语义树、应用发现和停止按钮，并核对不存在的 bundle identifier 返回失败。窗口流程已在同一真机验证 Cua 窗口截图、坐标点击、回执重放及窗口移动后的旧图拒绝。Windows、X11 和原生 Wayland 的窗口流程仍待真机验证。实际启动已安装应用、签名安装版、权限撤销、物理 Esc 和多屏仍待验收。
+macOS 锁屏时返回 `screen_locked`。显示器有截图权限时仍可返回 PNG，窗口选择不可用时通过 `windowsCode` 和 `windowsError` 说明原因。隔离 Electron 夹具在 macOS 27.2.1（26B131）验证了锁屏时保留截图和拒绝窗口操作。升级至 Cua Driver 0.59.4 后，同一夹具在解锁会话中通过了截图、窗口选择、精确聚焦、点击去重、中文输入、Command+A、语义树、应用发现和停止按钮，并核对不存在的 bundle identifier 返回失败。窗口流程已在同一真机验证 Cua 窗口截图、坐标点击、回执重放及窗口移动后的旧图拒绝。Windows、X11 和原生 Wayland 的窗口流程仍待真机验证。实际启动已安装应用、签名安装版、权限撤销、物理 Esc 和多屏仍待验收。
 
 Windows 输入经 `TrackedWin32Input` 跟踪本适配器尝试按下的键和鼠标按钮；发生部分派发或释放失败时保留待释放状态，后续清理失败会报告错误。`act` 的 `target.keys` 在现有 Windows 数字虚拟键之外也接受 `Control`、`KeyA`、`ArrowLeft` 等命名按键，由 `win32KeyNames.ts` 在入口转换并拒绝无效名称或重复键；这些名称表示键而非布局相关文本。长文本每 16 个 UTF-16 单元、在完成对应按键释放后让出事件循环，以便处理取消；不能保证单次系统调用被即时中断，也不能保证模拟输入与用户物理按键的系统状态互不影响。隔离 Electron 夹具已验证真实点击、中英文输入以及 `Control+KeyA` 全选并替换；物理 Esc 与生产停止联动尚未验收。
 

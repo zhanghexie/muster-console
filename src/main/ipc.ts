@@ -16,6 +16,7 @@ import { registerGitIpc } from './ipc/git';
 import { registerPrIpc } from './ipc/pr';
 import { registerWorkspaceIpc } from './ipc/workspaces';
 import { registerAppIpc } from './ipc/app';
+import { registerDesktopSetupIpc } from './ipc/desktopSetup';
 import { registerExtensionsExtensionIpc } from './ipc/extensions';
 import { registerAgentAppsIpc } from './ipc/agentApps';
 import { registerSafetyIpc } from './ipc/safety';
@@ -86,6 +87,7 @@ export function registerIpc(
     ['registerGitIpc', () => registerGitIpc(ctx, syncGitWatches)],
     ['registerPrIpc', () => registerPrIpc(ctx)],
     ['registerAppIpc', () => registerAppIpc(ctx)],
+    ['registerDesktopSetupIpc', () => registerDesktopSetupIpc(ctx)],
     ['registerExtensionsExtensionIpc', () => { if (!ctx.extensionSystem) throw new Error('Extension system is not ready'); registerExtensionsExtensionIpc(ctx, ctx.extensionSystem); }],
     ['registerAgentAppsIpc', () => registerAgentAppsIpc(ctx)],
     ['registerMessagingIpc', () => registerMessagingIpc(ctx)],

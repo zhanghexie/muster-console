@@ -39,6 +39,7 @@ import { cliRunsHost } from './hosts/cliRuns';
 import { browserHost } from './hosts/browser';
 import { panelHost } from './hosts/panel';
 import { desktopHost } from './hosts/desktop';
+import { desktopSetupIssue } from '../desktop/desktopSetup';
 import { mcpHost } from './hosts/mcp';
 import { agentAppsHost } from './hosts/agentApps';
 import { uiWidgetsHost } from './hosts/uiWidgets';
@@ -409,6 +410,10 @@ async function executeToolInner(
       return { ok: false, cancelled: true, error: t('已取消') };
     }
     const { result, imagePath } = splitCaptureDisplay(raw);
+    if (dotName.startsWith('desktop.')) {
+      const issue = desktopSetupIssue(result, process.platform);
+      if (issue) ctx.ui.showDesktopSetup(issue);
+    }
     if (dotName.startsWith('desktop.') && result && typeof result === 'object' &&
         'ok' in result && result.ok === false && 'action' in result && typeof result.action === 'string' &&
         'code' in result && typeof result.code === 'string') {

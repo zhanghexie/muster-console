@@ -4,7 +4,7 @@ const WEB_DENIED = new Set([
   'shell:openPath', 'fs:openBrowserPreview',
   'usage:summary', 'usage:llm-call'
 ]);
-const WEB_DENIED_PREFIXES = ['browser:', 'desktopIndicator:', 'messaging:', 'mailPresentation:', 'extensionPublishing:'];
+const WEB_DENIED_PREFIXES = ['browser:', 'desktopIndicator:', 'desktopSetup:', 'messaging:', 'mailPresentation:', 'extensionPublishing:'];
 
 export function isWebIpcAllowed(channel: string, args: readonly unknown[]): boolean {
   const effective = channel === 'git:invokeScoped' && typeof args[1] === 'string' ? `git:${args[1]}` : channel;

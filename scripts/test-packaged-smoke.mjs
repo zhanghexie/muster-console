@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { checkPackagedExtensionWorker } from '../test/helpers/packaged-extension-worker.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const require = createRequire(import.meta.url);
@@ -45,6 +46,9 @@ try {
   const window = await app.firstWindow();
   await window.waitForSelector('.app-shell', { timeout: 60_000 });
   if (await window.locator('body').getAttribute('data-boot-failed')) throw new Error('Packaged app reported boot failure');
+  const resourcesPath = await app.evaluate(() => process.resourcesPath);
+  await checkPackagedExtensionWorker(executable, resourcesPath);
+  console.log('packaged extension worker handshake passed');
   console.log(`packaged smoke passed: ${executable}`);
 } catch (error) {
   failed = true;

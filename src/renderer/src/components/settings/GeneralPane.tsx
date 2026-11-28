@@ -11,6 +11,8 @@ import {
   type ScrollFeel
 } from '../../interactionPreferences';
 import { CustomSelect } from '../CustomSelect';
+import { DesktopSetupCard } from '../DesktopSetupCard';
+import { isWebGateway } from '../../webGatewayEnvironment';
 import { FontSettings } from './FontSettings';
 import { refreshWaitingTips, useWaitingTips } from '../../waitingTips';
 import { SettingsContent } from './SettingsContent';
@@ -32,6 +34,8 @@ export function GeneralPane({
   const { t } = useTranslation();
   const waitingTips = useWaitingTips();
   const [tipsOpen, setTipsOpen] = useState(false);
+  const [desktopSetupOpen, setDesktopSetupOpen] = useState(false);
+  const desktopSetupId = React.useId();
   const tipsTrigger = useRef<HTMLButtonElement>(null);
   const [picking, setPicking] = useState(false);
   const [pickerError, setPickerError] = useState('');
@@ -172,6 +176,18 @@ export function GeneralPane({
 
         </SettingsRows>
       </SettingsSection>
+      {!isWebGateway() && <SettingsSection title={t('电脑操作')} item="desktop-setup">
+        <button
+          type="button"
+          className="btn"
+          aria-expanded={desktopSetupOpen}
+          aria-controls={desktopSetupOpen ? desktopSetupId : undefined}
+          onClick={() => setDesktopSetupOpen(open => !open)}
+        >
+          {desktopSetupOpen ? t('收起检查结果') : t('检查电脑操作状态')}
+        </button>
+        <DesktopSetupCard open={desktopSetupOpen} id={desktopSetupId} />
+      </SettingsSection>}
       <ShellSettings />
     </SettingsContent>
     <WaitingTipsDialog open={tipsOpen} trigger={tipsTrigger.current} tips={waitingTips.tips} loaded={waitingTips.loaded} error={waitingTips.error} path={waitingTips.path}

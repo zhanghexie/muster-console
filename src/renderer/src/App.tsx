@@ -17,6 +17,7 @@ import { GlobalBoard } from './panels/GlobalBoard';
 import { ProcessMonitorPanel } from './panels/ProcessMonitorPanel';
 import { requestMemoryCenterTab } from './memoryCenterRoute';
 import { ChromeBar } from './components/ChromeBar';
+import { DesktopSetupNotice } from './components/DesktopSetupCard';
 import { QuickOpen } from './components/QuickOpen';
 import { prewarmQuickOpenFiles } from './components/useQuickOpenQueries';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -2406,6 +2407,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
         onBackPanelHistory={backPanelHistory}
         onForwardPanelHistory={forwardPanelHistory}
       />
+      {!isWebGateway() && <DesktopSetupNotice />}
 
       {/* 窄屏抽屉遮罩：常挂，is-shown 切 opacity（responsive.css）；点击任意抽屉收起 */}
       <div

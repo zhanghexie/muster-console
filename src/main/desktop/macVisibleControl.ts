@@ -4,7 +4,8 @@ import { isMacBundleId } from './cuaAppDiscovery';
 import { projectCuaActionResult } from './cuaSemanticSession';
 import type { DesktopDeliveryLease } from './desktopTurns';
 import type { TrustedDisplayActor } from './displayService';
-import type { MacDesktopPermission } from './macPermissions';
+import { DESKTOP_SETUP_PERMISSIONS } from '../../shared/desktopSetup';
+import type { MacDesktopPermissions } from './macPermissions';
 import { macCapturePoint, sameMacBounds, type MacTargetRegistry } from './macTargetRegistry';
 import { PreDispatchFailure, PreDispatchRecoveryRequired } from './preDispatchFailure';
 import { desktopOperationFailure, macPermissionMessage, macScreenLockedMessage } from './runtime';
@@ -89,6 +90,14 @@ function structured(raw: unknown): { isError?: boolean; data: Record<string, unk
   return { isError: result.isError, data: result.structuredContent };
 }
 
+export async function readCuaMacPermissions(driver: CuaConnection, signal: AbortSignal): Promise<MacDesktopPermissions> {
+  const { isError, data } = structured(await driver.call('check_permissions', { prompt: false }, signal));
+  if (isError || typeof data.accessibility !== 'boolean' || typeof data.screen_recording !== 'boolean') {
+    throw new Error('Cua returned an invalid macOS permission status');
+  }
+  return { screenRecording: data.screen_recording, accessibility: data.accessibility };
+}
+
 async function frameCall(driver: CuaConnection, call: Call, target: Selection, signal: AbortSignal) {
   const { data, isError } = structured(await driver.call('get_window_state', { pid: target.window.pid, window_id: target.window.windowId,
     include_accessibility_tree: false, include_screenshot: true, max_image_dimension: 0 }, signal));
@@ -155,13 +164,13 @@ export class MacVisibleControl {
       active.throwIfAborted();
       await driver.connect();
       if (request.action !== 'launch') {
-        const permissions = structured(await driver.call('check_permissions', {}, active));
-        if (permissions.isError || typeof permissions.data.accessibility !== 'boolean' || typeof permissions.data.screen_recording !== 'boolean') {
+        let permissions: MacDesktopPermissions;
+        try { permissions = await readCuaMacPermissions(driver, active); }
+        catch {
+          active.throwIfAborted();
           return desktopOperationFailure('macos', request.action, 'permission_check_failed', 'Cua could not check macOS desktop permissions; restart Muster and try again.');
         }
-        const missing: MacDesktopPermission[] = [];
-        if (!permissions.data.screen_recording) missing.push('screenRecording');
-        if (!permissions.data.accessibility) missing.push('accessibility');
+        const missing = DESKTOP_SETUP_PERMISSIONS.filter(permission => !permissions[permission]);
         if (missing.length) return { ...desktopOperationFailure('macos', request.action, 'permission_required', macPermissionMessage(missing)), permissions: missing };
       }
       const scopeCurrent = () => current() && this.visibilityEpoch() === epoch && !this.screenLocked();

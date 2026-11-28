@@ -67,6 +67,7 @@ export type IpcEventMap = {
   'agent:history': AgentHistoryEvent | ChatMessage[];
   'agent:context': AgentContextEvent;
   'ui:bubble': { text: string; status: AgentStatus; workspaceId?: string };
+  'ui:desktopSetup': import('./desktopSetup').DesktopSetupStatus;
   'ui:confirm': {
     requestId: string;
     title: string;
@@ -214,6 +215,7 @@ export const IPC_EVENT_CHANNELS = [
   'agent:history',
   'agent:context',
   'ui:bubble',
+  'ui:desktopSetup',
   'ui:confirm',
   'ui:confirmClosed',
   'ui:dialog',

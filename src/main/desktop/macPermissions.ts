@@ -1,11 +1,8 @@
 import koffi from 'koffi';
+import type { DesktopSetupPermission } from '../../shared/desktopSetup';
 
-export interface MacDesktopPermissions {
-  screenRecording: boolean;
-  accessibility: boolean;
-}
-
-export type MacDesktopPermission = keyof MacDesktopPermissions;
+export type MacDesktopPermission = DesktopSetupPermission;
+export type MacDesktopPermissions = Record<MacDesktopPermission, boolean>;
 
 /** Preflight only. Neither probing nor listing metadata requests permissions. */
 export function createMacPermissionReader(): () => MacDesktopPermissions {
@@ -14,7 +11,14 @@ export function createMacPermissionReader(): () => MacDesktopPermissions {
   const ax = koffi.load('/System/Library/Frameworks/ApplicationServices.framework/ApplicationServices');
   const screen = cg.func('bool CGPreflightScreenCaptureAccess(void)');
   const accessibility = ax.func('bool AXIsProcessTrusted(void)');
-  return () => ({ screenRecording: screen() === true, accessibility: accessibility() === true });
+  return () => {
+    const screenRecording = screen();
+    const accessibilityTrusted = accessibility();
+    if (typeof screenRecording !== 'boolean' || typeof accessibilityTrusted !== 'boolean') {
+      throw new Error('macOS returned an invalid desktop permission status');
+    }
+    return { screenRecording, accessibility: accessibilityTrusted };
+  };
 }
 
 /** The same WindowServer session flag that Cua uses for its locked-screen refusal. */

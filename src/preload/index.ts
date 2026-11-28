@@ -304,6 +304,11 @@ const api = {
     ): Promise<import('../shared/types').SessionMessageIpcResult> =>
       ipcRenderer.invoke('sessions:sendMessage', args),
   },
+  desktopSetup: {
+    status: (): Promise<import('../shared/desktopSetup').DesktopSetupStatus> => ipcRenderer.invoke('desktopSetup:status'),
+    openSettings: (permission: import('../shared/desktopSetup').DesktopSetupPermission):
+      Promise<import('../shared/desktopSetup').DesktopSettingsOpenResult> => ipcRenderer.invoke('desktopSetup:openSettings', permission)
+  },
   shell: {
     listProfiles: (): Promise<ShellProfile[]> => ipcRenderer.invoke('shell:listProfiles'),
     /** 设置页 Shell 区块：本机探测结果 + 手工 Git Bash 路径与存在性 */

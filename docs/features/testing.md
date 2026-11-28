@@ -152,7 +152,7 @@ npm run hooks:uninstall           # 仅卸载指向 scripts/githooks 的本地�
 
 ## GitHub Actions 发布矩阵
 
-`.github/workflows/release-quality.yml` 在 Windows、Ubuntu 和 macOS hosted runners 上执行日常测试、类型检查和构建。打包阶段按目标准备并校验固定版本 Cua 驱动。Windows 打包使用搭载 Visual Studio 2022 的 `windows-2022`，供固定版本的 node-gyp 重建 node-pty；macOS x64 使用 `macos-15-intel`，arm64 使用 `macos-15`。打包生成 Windows NSIS、macOS x64/arm64 DMG、Linux AppImage/deb。CI 将安装器和解包应用一起封装为 tar artifact，保留可执行位和符号链接；冒烟和发布清单阶段先解包再读取对应产物。Linux smoke 分别通过 Xvfb 覆盖 X11，并通过 headless Weston 覆盖 Wayland。`npm run test:packaged-smoke` 使用 Playwright Electron 启动实际产物，检查窗口、IPC、boot failure 和优雅关闭。
+`.github/workflows/release-quality.yml` 在 Windows、Ubuntu 和 macOS hosted runners 上执行日常测试、类型检查和构建。打包阶段按目标准备并校验固定版本 Cua 驱动。Windows 打包使用搭载 Visual Studio 2022 的 `windows-2022`，供固定版本的 node-gyp 重建 node-pty；macOS x64 使用 `macos-15-intel`，arm64 使用 `macos-15`。打包生成 Windows NSIS、macOS x64/arm64 DMG、Linux AppImage/deb。CI 将安装器和解包应用一起封装为 tar artifact，保留可执行位和符号链接；冒烟和发布清单阶段先解包再读取对应产物。Linux smoke 分别通过 Xvfb 覆盖 X11，并通过 headless Weston 覆盖 Wayland。`npm run test:packaged-smoke` 使用 Playwright Electron 启动实际产物，检查窗口、IPC、boot failure 和优雅关闭，并验证解包后的扩展 Worker 能完成启动握手。
 
 PR 和 `main` 推送自动运行质量检查。工作分支通过 PR 触发质量检查，也可以在 Actions → `release-quality` → Run workflow 选中目标分支并勾选 `Run quality checks only`。公开仓的安装包通过手动运行验证。私有维护仓的 `main` 推送在质量检查通过后也会继续打包和冒烟。
 

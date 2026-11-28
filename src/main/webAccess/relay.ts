@@ -14,8 +14,8 @@ export function onWebEventBroadcast(fn: BroadcastFn): () => void {
 }
 
 function broadcast(channel: string, payload: unknown): void {
-  // A local CLI handoff opens the desktop only, not every connected Web client.
-  if (channel === 'cli:openRun') return;
+  // Local handoffs and machine-permission guidance belong to the desktop window.
+  if (channel === 'cli:openRun' || channel === 'ui:desktopSetup') return;
   // Local-only confirmations may contain private desktop evidence and must not
   // be broadcast to connected Web clients. Their replies are source-bound too.
   if (channel === 'ui:confirm' && payload && typeof payload === 'object' &&

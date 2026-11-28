@@ -1,0 +1,48 @@
+.desktop-setup-card {
+  display: grid;
+  gap: 8px;
+  min-inline-size: 0;
+  font-size: var(--font-ui);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.desktop-setup-notice {
+  flex: none;
+  margin: 4px 12px 8px;
+  max-block-size: 50vh;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--surface-raised);
+  color: var(--fg-primary);
+  --fg-primary: var(--raised-fg-primary);
+  --fg-secondary: var(--raised-fg-secondary);
+  --border-focus: var(--raised-border-focus);
+  --interaction-hover: var(--raised-interaction-hover);
+  --interaction-pressed: var(--raised-interaction-pressed);
+  --interaction-selected: var(--raised-interaction-selected);
+  --status-warning-fg: var(--raised-status-warning-fg);
+}
+
+.desktop-setup-card :is(h3, p, ul) { margin: 0; }
+.desktop-setup-card h3 { font-size: inherit; }
+.desktop-setup-card p { color: var(--fg-secondary); }
+.desktop-setup-content,
+.desktop-setup-issue { display: grid; gap: 6px; }
+.desktop-setup-issue > strong { color: var(--status-warning-fg); }
+.desktop-setup-permissions { padding-inline-start: 20px; }
+.desktop-setup-permissions li + li { margin-block-start: 8px; }
+.desktop-setup-permission { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; justify-content: space-between; }
+.desktop-setup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.desktop-setup-card .btn { min-block-size: 28px; max-inline-size: 100%; white-space: normal; }
+
+.desktop-setup-announcement {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

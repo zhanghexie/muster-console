@@ -79,8 +79,7 @@ extraResources:
       - ui/**
 asar: true
 asarUnpack:
-  - out/main/extensions/sdk/extension-background-worker.mjs
-  - out/main/extensions/sdk/v4-runtime-worker.mjs
+  - out/main/extensions/sdk/extension-runtime-worker.mjs
   - out/main/agentSession/drivers/pi/worker.cjs
   - out/main/agentApps/service-worker.cjs
   # 应用自身产物中按真实文件解析的部分：win32 preload + ACP 宿主 MCP shim + 入站 MCP

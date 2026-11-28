@@ -154,7 +154,8 @@ function nodeModuleFilter() {
 }
 
 // ── 4. asarUnpack 整树解包这条不能丢（子进程按真实文件解析，见 packaging.md）──
-assert.ok((config.asarUnpack ?? []).includes('out/main/extensions/sdk/extension-background-worker.mjs'), 'extension 扩展后台入口必须是真实解包文件');
+assert.ok((config.asarUnpack ?? []).includes('out/main/extensions/sdk/extension-runtime-worker.mjs'),
+  'The extension runtime entry must be unpacked for the Electron-as-Node worker');
 {
   const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
   const lock = JSON.parse(fs.readFileSync(path.join(root, 'package-lock.json'), 'utf8'));

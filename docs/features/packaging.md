@@ -67,7 +67,7 @@ Unix 全局 Esc 监听辅助进程由构建插件单独打成 `out/main/desktop/
   - HKLM 残留在时 `/S` 会发 UAC 授权：consent 无人点就**无限期挂起**（外层安装器进程活着、零 CPU、零落盘，无窗口），重启机器前一直等。实测 `/currentuser` + `/D=D:\MetaAgent` 组合可完全绕开 UAC（`D:\MetaAgent` ACL 给 Authenticated Users Modify），`/D` 不被 per-user 默认目录覆盖、不会落到 `%LOCALAPPDATA%\Programs\MusterConsole`，安装 3 分钟内完成；卸载登记会写 HKCU（HKLM 残留条目仍在，两边 DisplayVersion 均为当前版本）。脚本见 `.tmp/install-planb.ps1`。
   - **残留触发提权已在产品层根治（2026-09-13）**：模板 `installer.nsi` install Section 对 `$hasPerMachineInstallation==1 && Silent` 硬编码 `UAC_RunElevated`（模板源码实锤，`/currentuser` 能绕开正因它清零该标志）。`build/installer.nsh`（yml `nsis.include` 引用）的 `customInit` 在 initMultiUser 之后镜像 `/currentuser` 的**完整语义**：无 `/allusers` 且检测到残留时，清零标志并 `setInstallModePerUser` 整体切回 per-user 模式——只清标志不够，initMultiUser 已按残留选定 per-machine 模式（INSTDIR=HKLM 残留路径、Shell 上下文=all），不切模式会以未提权 per-machine 上下文继续安装（HKLM 注册表/全用户快捷方式静默失败）却正常退出。切回后 HKCU 有记录则原位升级，无记录装 `%LOCALAPPDATA%\Programs\MusterConsole`；显式 `/allusers` 仍尊重原语义。已知边界：HKLM 单残留机走交互向导时模式页两侧文案失真（CurrentUser 侧显示「已存在安装()」、AllUsers 侧显示「全新安装」，因模式页读的是已翻转的标志）——不影响实际安装路径（Leave 按所选 radio + 注册表重设模式与 INSTDIR）。注意两点边界：**卸载器拦不到**——un.onInit 的 `initMultiUser` 内部（BUILD_UNINSTALLER 分支）就发 UAC+Quit，在 `customUnInit` 之前，自定义 include 无法干预（真 per-machine 安装的卸载本就需要提权，静默卸载无人点 UAC 仍会挂）；初版 nsh 只清标志未切模式，其「7 秒装完」实测恰逢测试机已有 HKCU 记录走了 per-user 分支，未覆盖 HKLM 单残留状态（2026-09-13 评审补全）。acid test 哈希判定在同内容覆盖时会秒匹配旧文件，必须等安装器进程退出后再拉应用。
 
-扩展后台入口 `out/main/extensions/sdk/extension-background-worker.mjs` 必须 asarUnpack；后台通过 `child_process.fork` 和 `ELECTRON_RUN_AS_NODE` 使用对应 `app.asar.unpacked` 真实路径。electron.vite.config.ts 构建后台入口并复制面板 SDK、主题和独立窗口 preload。源码 Electron 与打包验收的实际范围见 扩展 运行时加固计划。
+顶栏命令、DomainRuntime 和扩展 MCP 共用 `out/main/extensions/sdk/extension-runtime-worker.mjs`。`electron.vite.config.ts` 生成入口，`asarUnpack` 将它落到 `app.asar.unpacked`。安装版用 `ELECTRON_RUN_AS_NODE` 从该真实路径启动 Worker。安装包冒烟测试使用实际产物发起 Worker 身份握手并确认退出，覆盖入口漏解包导致的启动失败。[扩展实例运行时](extension-runtime.md)
 
 ## 验证方法
 
@@ -100,12 +100,13 @@ Unix 全局 Esc 监听辅助进程由构建插件单独打成 `out/main/desktop/
 
 1. `npm install`（Electron 二进制 v42 起无 postinstall，首个 `require('electron')` 时惰性下载并继承 config 镜像，见「国内镜像」节；`npm install` 本身不下载二进制）。
 2. `npm run rebuild`：node-pty 编到**宿主架构**的 Electron ABI（`build/Release` 只能放一个架构；另一架构 dmg 运行时由 `lib/utils.js` 回退到 `prebuilds/darwin-<arch>/` 的 N-API 产物，实测 Electron 43 可加载，prebuilds 里两个 darwin 架构都在、spawn-helper 执行位由 beforePack 补）。
-3. `npm run build:mac`（electron-vite build + electron-builder --mac）：双架构 dmg 一次运行连打，产物 `release/Muster-Console-<version>-{arm64,x64}.dmg`。CLI 的 `--arm64`/`--x64` 与 yml 的 `mac.target.arch` 取并集，不能据此当作单架构构建。CodeGraph 已删除，无需补装平台 bundle；新体积待实际出包核验。
+3. `npm run build:mac` 一次生成双架构 dmg，产物为 `release/Muster-Console-<version>-{arm64,x64}.dmg`。「一键打包」也使用这个脚本。CLI 的 `--arm64`/`--x64` 与 yml 的 `mac.target.arch` 取并集。
 
 已知边界（除上述并集行为外）：
 
 - **node-pty helperPath 双重 unpack（已修，钩子补丁）**：node-pty 1.1.0 unixTerminal 在模块加载时 `helperPath.replace('app.asar', 'app.asar.unpacked')`，假设自己住在 asar 里；本仓 node_modules 整树 asarUnpack，node-pty 从 require 起就在真实 `app.asar.unpacked/` 路径上，被二次拼成 `app.asar.unpacked.unpacked/` → spawn-helper ENOENT → 打包版终端创建即 "posix_spawnp failed."（**dev 路径不含 app.asar 子串，永远复现不了**）。beforePack 把 replace 锚定到 `path.sep` 使其幂等；node-pty 升级后模式未命中会打 warn，需人工核对。Windows 的 conpty 不走 unixTerminal，不受影响。
-- **签名与公证**：日常 CI 生成验证包，macOS 验证包使用临时签名供 runner 启动。仅从 `main` 手动选择 signed release 的 Actions 运行通过 `verify-release-signing-env.mjs` 检查 Windows 证书、macOS Developer ID 和 Apple 公证凭据。electron-builder 强制签名，随后校验 macOS 应用的公证票据。缺少凭据时正式发布构建在打包前失败。
+- 本机 `build:mac` 使用 ad-hoc 签名封装完整的 `Muster Console.app`。macOS 可据此把辅助功能授权归到 `com.zhanghexie.muster.console`。仅有 Electron 链接器签名的旧包会使授权请求落到可执行文件路径，即使系统设置中的应用条目已开启也会报缺授权。可用 `codesign --verify --strict` 校验应用包，并用 `codesign -d --verbose=2` 核对标识。重新打包改变 ad-hoc 签名后，系统可能要求重新授权。[电脑操作状态与 macOS 授权](desktop-control.md#电脑操作状态与-macos-授权)
+- 日常 CI 使用 ad-hoc 签名生成 macOS 验证包。正式发布通过 `main` 的 signed release Actions 检查 Windows 证书、macOS Developer ID 和 Apple 公证凭据，再强制签名并校验公证票据。缺少凭据时发布构建在打包前失败。
 - 出包后 `npm install` 恢复被裁剪的非 darwin 平台目录。
 - 验收口径：两个解包 app 里 `@esbuild`（嵌套 0.28.1 那份）必须是 x64+arm64 双架构；`node-pty/prebuilds/darwin-*/spawn-helper` 带执行位；ELECTRON_RUN_AS_NODE 下对解包 node_modules `require('node-pty')` 并 spawn `/bin/echo` 两架构都要通（x64 在 Rosetta 下测即可）。
 
