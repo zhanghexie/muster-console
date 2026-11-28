@@ -6,6 +6,7 @@
  */
 import { isLocalhostHttpUrl, localFileFromUrl, resolvePathCandidate } from '../../../shared/terminalSelectionText';
 import { parseWorkspaceFileHref } from '../../../shared/linkifyWorkspacePaths';
+import { parsePathLocation } from '../../../shared/terminalScan';
 
 interface FileLinkHost {
   cwd?: string;
@@ -14,30 +15,23 @@ interface FileLinkHost {
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
-/** file:// URI → 本地路径（渲染层无 node:url，Windows 盘符手工剥前导斜杠） */
-function fileUriToPath(uri: string): string | null {
-  try {
-    const u = new URL(uri);
-    if (u.protocol !== 'file:') return null;
-    let p = decodeURIComponent(u.pathname);
-    if (u.hostname && u.hostname !== 'localhost') p = `//${u.hostname}${p}`;
-    else if (/^\/[A-Za-z]:/.test(p)) p = p.slice(1);
-    return p;
-  } catch {
-    return null;
-  }
-}
-
 /** Parse the same file forms for in-app navigation and explicit system actions. */
 export function parseChatFileTarget(href: string): { path: string; line?: number; col?: number } | null {
   if (href.startsWith('muster-file:')) return parseWorkspaceFileHref(href);
-  if (/^file:\/\//i.test(href)) {
-    const path = fileUriToPath(href);
-    return path ? { path } : null;
-  }
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href) && !/^[a-z]:[\\/]/i.test(href)) return null;
   try {
-    return href ? { path: decodeURIComponent(href) } : null;
+    const isFileUri = /^file:\/\//i.test(href);
+    let rawPath = href;
+    if (isFileUri) {
+      const url = new URL(href);
+      rawPath = url.hostname && url.hostname !== 'localhost' ? `//${url.hostname}${url.pathname}` : url.pathname;
+    }
+    // Split the location before decoding so %3A remains part of a literal filename.
+    const location = parsePathLocation(rawPath);
+    const target = location?.pathText ?? rawPath;
+    if (!target || (/^[a-z][a-z0-9+.-]*:/i.test(target) && !/^[a-z]:[\\/]/i.test(target))) return null;
+    let path = decodeURIComponent(target);
+    if (isFileUri && /^\/[A-Za-z]:/.test(path)) path = path.slice(1);
+    return location ? { path, line: location.line, col: location.col } : { path };
   } catch {
     return null;
   }

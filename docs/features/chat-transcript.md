@@ -4,7 +4,11 @@
 
 桌面会话中的 HTTP(S) 链接（包括 localhost）单击进入所属工作区的内置浏览器；文件路径和附件名称进入工作台文件预览。链接右键可选内置浏览器或系统浏览器；文件链接、工具路径、附件名称及有源文件的图片右键可选工作台、系统默认应用或文件管理器。用户消息上的链接右键优先于消息历史菜单。内嵌图片单击仍使用大图查看器；没有文件路径的数据图片不提供文件操作。
 
-`ChatLinkBoundary` 在会话转写范围处理事件，`MarkdownBody`、`ToolTitleTarget`、`ChatAttachmentCard` 及有源路径的图片提供目标标记；其他 Markdown 阅读位置不改变行为。`onFileLink.ts` 统一解析工作区链接、file URI、相对及绝对路径，并保留行列；相对路径按会话 cwd 解析。系统打开经 `shell:openPath` 调 Electron `shell.openPath`，文件管理器沿用 `shell:revealPath`，错误显示原因；后者区分路径不存在与权限等其他访问失败，保留底层诊断。网页访问端没有内置浏览器，HTTP(S) 链接仍由访问设备浏览器打开；网关不允许调用宿主的 `shell:openPath`。`test/unit/chat-link-navigation.spec.tsx` 和 `test/unit/node-main/system-file-open.spec.ts` 覆盖转写交互、路径及失败处理；`test/e2e/chat-link-navigation.spec.ts` 在 Windows 隔离 Electron 验证文件预览、网页加载和系统打开 IPC（系统应用使用替身），macOS/Linux 真机未验收。
+`ChatLinkBoundary` 在会话转写范围处理事件，`MarkdownBody`、`ToolTitleTarget`、`ChatAttachmentCard` 及有源路径的图片提供目标标记。`onFileLink.ts` 统一解析工作区链接、`file://` URI、相对及绝对路径。显式 Markdown 链接的 `:行` 或 `:行:列` 后缀先于路径解码拆出，文件名里的冒号可用 `%3A` 表示。会话中的 `report.md:16` 这类裸文件名链接由 `MarkdownBody` 转成 `muster-file:`。相对路径按会话 cwd 解析，工作台打开后定位到指定行。
+
+系统默认应用和文件管理器只接收解析后的文件路径。系统打开经 `shell:openPath` 调 Electron `shell.openPath`，文件管理器沿用 `shell:revealPath`。失败时显示原因，文件管理器区分路径不存在与权限等其他访问失败并保留底层诊断。网页访问端的 HTTP(S) 链接由访问设备浏览器打开，宿主 `shell:openPath` 只在桌面端开放。
+
+`test/unit/chat-link-navigation.spec.tsx` 覆盖 GUI 和调度会话的点击、右键和 POSIX、Windows 盘符、UNC 路径解析。`test/unit/node-main/system-file-open.spec.ts` 覆盖系统打开失败处理。`test/e2e/chat-link-navigation.spec.ts` 通过隔离 Electron 验证网页加载、文件预览和系统打开 IPC，系统应用使用替身。基础链路曾在 Windows 实测，本次链接定位到第 16 行的回归在 macOS 实测通过。
 
 聊天消息的 Markdown 图片支持 Windows 盘符、Unix 绝对路径、`file://` 和相对会话 cwd 的路径；本地路径经 `buildExternalFileUrl` 和 `filePreviewUrl` 使用既有只读媒体服务，Web 网关走对应 `/media/ext/` 路由。HTTP(S) 图片保持原地址；缺少 cwd、路径无效或图片加载失败时显示提示。图片以紧凑卡片按比例显示，宽度不超过消息区或 320px、高度不超过 220px；卡片展示 Markdown 标题，没有标题时展示替代文字。点击或键盘激活卡片打开 `ImageLightbox`，可缩放、拖动和关闭，点击不会触发消息的其他操作。不会复制或托管原文件，源文件被移走后历史消息无法显示。其他 Markdown 阅读场景保持原有行为。组件回归见 `test/unit/markdown-local-images.spec.tsx`。
 

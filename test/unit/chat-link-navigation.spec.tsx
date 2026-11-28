@@ -76,12 +76,20 @@ describe('文件路径解析', () => {
     ['file:///E:/%E9%A1%B9%E7%9B%AE/%E6%8A%A5%E5%91%8A%20%231.pdf', { path: 'E:/项目/报告 #1.pdf' }],
     ['file://server/share/report%20%231.pdf', { path: '//server/share/report #1.pdf' }],
     ['/home/user/report%20%231.pdf', { path: '/home/user/report #1.pdf' }],
-    ['docs/%E6%8A%A5%E5%91%8A.pdf', { path: 'docs/报告.pdf' }]
+    ['docs/%E6%8A%A5%E5%91%8A.pdf', { path: 'docs/报告.pdf' }],
+    ['/home/user/docs/报告%20%231.md:16:3', { path: '/home/user/docs/报告 #1.md', line: 16, col: 3 }],
+    ['E:\\项目\\report.md:16', { path: 'E:\\项目\\report.md', line: 16 }],
+    ['file:///E:/docs/report%20%231.md:16:3', { path: 'E:/docs/report #1.md', line: 16, col: 3 }],
+    ['file://server/share/report.md:16', { path: '//server/share/report.md', line: 16 }],
+    ['file:///home/user/report.md%3A16', { path: '/home/user/report.md:16' }],
+    ['docs/report.md%3A16', { path: 'docs/report.md:16' }],
+    [buildWorkspaceFileHref('/home/user/report.md:16'), { path: '/home/user/report.md:16' }]
   ])('解析 %s', (input, expected) => expect(parseChatFileTarget(input)).toEqual(expected));
   it('拒绝非法编码及其他协议', () => {
     expect(parseChatFileTarget('docs/%FF')).toBeNull();
     expect(parseChatFileTarget('https://example.com')).toBeNull();
     expect(parseChatFileTarget('mailto:person@example.com')).toBeNull();
+    expect(parseChatFileTarget('javascript:docs/report.md:16')).toBeNull();
   });
   it('POSIX 下保留以单字母目录开头的绝对路径，Windows 仍支持 MSYS 路径', () => {
     expect(resolveChatFilePath('/e/project/report.pdf', '/home/user')).toBe('/e/project/report.pdf');
@@ -198,5 +206,21 @@ describe.each(['gui-session', 'dispatch'] as const)('会话链接 %s', kind => {
     fireEvent.contextMenu(link, { clientX: 80, clientY: 60 });
     fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: '在文件管理器中显示' }));
     await waitFor(() => expect(currentApiMock().mockOf('shell.revealPath')).toHaveBeenCalledWith('E:/workspace\\docs\\report #1.pdf'));
+  });
+
+  it('显式 Markdown 文件链接将行号与文件路径分别传给打开入口', async () => {
+    const path = '/Users/dev/project/docs/features/tool-discovery.md';
+    mount(kind, `[查看第 16 行](${path}:16) [跳到报告](report.md:12:3)`);
+    const lineLink = await screen.findByRole('link', { name: '查看第 16 行' });
+    await waitFor(() => expect(activeWorkspaceId).toBe('ws-1'));
+    fireEvent.click(lineLink);
+    await waitFor(() => expect(openFile).toMatchObject({ path, line: 16 }));
+
+    fireEvent.contextMenu(lineLink);
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: '在系统默认应用中打开' }));
+    await waitFor(() => expect(currentApiMock().mockOf('shell.openPath')).toHaveBeenCalledWith(path));
+
+    fireEvent.click(screen.getByRole('link', { name: '跳到报告' }));
+    await waitFor(() => expect(openFile).toMatchObject({ path: 'E:/workspace\\report.md', line: 12, col: 3 }));
   });
 });

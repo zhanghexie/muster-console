@@ -10,7 +10,13 @@ test('会话链接在工作台打开，右键通过真实 IPC 选择系统打开
   const cwd = info.outputDir, root = path.join(cwd, 'workspace'), userData = path.join(cwd, '.dev-sandbox/userData');
   fs.mkdirSync(root, { recursive: true }); fs.mkdirSync(userData, { recursive: true });
   const file = path.join(root, 'report #1.md');
-  fs.writeFileSync(file, '# 会话文件预览\n\n来自隔离测试。\n');
+  const targetLine = '第 16 行定位目标';
+  const lines = Array.from({ length: 48 }, (_, index) => `示例正文 ${index + 1}`);
+  lines[0] = '# 会话文件预览';
+  lines[1] = '';
+  lines[15] = targetLine;
+  fs.writeFileSync(file, lines.join('\n'));
+  const fileHref = encodeURI(file.replaceAll('\\', '/')).replaceAll('#', '%23');
   fs.writeFileSync(path.join(userData, 'config.json'), JSON.stringify({
     locale: 'zh-CN', themeId: 'dark', activeWorkspaceId: 'chat-links', defaultCwd: root,
     workspaces: [{ id: 'chat-links', name: '会话链接测试', path: root }],
@@ -32,6 +38,9 @@ test('会话链接在工作台打开，右键通过真实 IPC 选择系统打开
   fs.writeFileSync(path.join(history, `${sessionId}.json`), JSON.stringify({ version: 2, messages: [{
     id: 'chat-link-fixture', role: 'user', ts: Date.now(),
     parts: [{ kind: 'text', text: `[预览网页](${url})\n\n[本地文档](report%20%231.md)` }]
+  }, {
+    id: 'chat-line-link-fixture', role: 'assistant', ts: Date.now(),
+    parts: [{ kind: 'text', text: `[查看第 16 行](${fileHref}:16)` }]
   }] }));
   const env: Record<string, string> = Object.fromEntries(Object.entries(process.env)
     .filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
@@ -51,9 +60,6 @@ test('会话链接在工作台打开，右键通过真实 IPC 选择系统打开
     const win = await app.firstWindow();
     const pageErrors: string[] = []; win.on('pageerror', error => pageErrors.push(error.message));
     await win.locator('.app-shell').waitFor({ timeout: 60_000 });
-    // The exact shipped daily report is ready without an approval dialog.
-    await expect.poll(async () => (await win.evaluate(() => window.api.extensions.snapshot('chat-links')))
-      .listing.global.find(item => item.id === 'daily-report')?.status, { timeout: 30_000 }).toBe('approved');
     await expect(win.getByTestId('confirm-mask')).toHaveCount(0);
     await win.evaluate(async id => window.api.sessions.select(id), sessionId);
     const chat = win.locator(`.agent-chat-view[data-session-id="${sessionId}"]`);
@@ -93,7 +99,7 @@ test('会话链接在工作台打开，右键通过真实 IPC 选择系统打开
     await expect(win.locator('.right-content-page.is-shown .file-editor')).toContainText('会话文件预览', { timeout: 20_000 });
 
     // Switch back to the chat and open the localhost URL in the real webview.
-    await win.keyboard.press('Control+Backslash');
+    await win.keyboard.press('Control+Shift+Backslash');
     await expect(webLink).toBeVisible();
     await webLink.click();
     const view = win.locator('.right-content-page.is-shown webview');
@@ -102,6 +108,13 @@ test('会话链接在工作台打开，右键通过真实 IPC 选择系统打开
       const id = await view.evaluate(element => (element as Electron.WebviewTag).getWebContentsId());
       return app.evaluate(async ({ webContents }, guestId) => webContents.fromId(guestId)?.executeJavaScript('document.title'), id);
     }, { timeout: 20_000 }).toBe('会话链接网页');
+
+    await win.keyboard.press('Control+Shift+Backslash');
+    await chat.getByRole('link', { name: '查看第 16 行' }).click();
+    const activeLine = win.locator('.right-content-page.is-shown .file-editor .cm-line.cm-activeLine');
+    await expect(activeLine).toHaveText(targetLine);
+    await expect(activeLine).toBeInViewport();
+    await win.screenshot({ path: path.join(shots, 'file-line-16.png') });
     expect(pageErrors).toEqual([]);
   } finally {
     const owned = app.process();

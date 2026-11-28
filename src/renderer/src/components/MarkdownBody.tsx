@@ -8,6 +8,7 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import {
   WORKSPACE_FILE_LINK_SCHEME,
+  buildWorkspaceFileHref,
   parseWorkspaceFileHref
 } from '../../../shared/linkifyWorkspacePaths';
 import {
@@ -26,6 +27,7 @@ import { FileTypeIcon } from './FileTypeIcon';
 import { IconCopy } from './icons';
 import { ImageLightbox } from './ImageLightbox';
 import { localMarkdownImageUrl } from '../chatSurface/localMarkdownImage';
+import { parseChatFileTarget } from '../chatSurface/onFileLink';
 
 interface Props {
   text: string;
@@ -63,6 +65,14 @@ const URL_TRANSFORM = (url: string): string => {
   if (/^file:\/\//i.test(url)) return url;
   if (/^[A-Za-z]:[\\/]/.test(url)) return url;
   return defaultUrlTransform(url);
+};
+
+const CHAT_FILE_URL_TRANSFORM = (url: string, key: string): string => {
+  const target = URL_TRANSFORM(url);
+  if (target || key !== 'href') return target;
+  // The colon in report.md:16 looks like a scheme to the default transform.
+  const location = parseChatFileTarget(url);
+  return location?.line ? buildWorkspaceFileHref(location.path, location.line, location.col) : '';
 };
 
 function isHttpLink(href: string): boolean {
@@ -340,11 +350,12 @@ const MarkdownContent = memo(function MarkdownContent({ text, onFileLink, localI
   const plugins = React.useMemo(() => displayOnly ? REMARK_PLUGINS : [...REMARK_PLUGINS, [remarkUiArtifacts, { suppressedPaths }]] as Parameters<typeof ReactMarkdown>[0]['remarkPlugins'], [displayOnly, suppressedPaths]);
   const components = React.useMemo(() => displayOnly ? DISPLAY_COMPONENTS : buildComponents(onFileLink, localImages, imageCwd), [displayOnly, onFileLink, localImages, imageCwd]);
   const display = React.useMemo(() => guardInlineMathCurrency(softenCjkMarkdownEmphasis(text)), [text]);
+  const urlTransform = localImages && onFileLink ? CHAT_FILE_URL_TRANSFORM : URL_TRANSFORM;
   return (
     <ReactMarkdown
       remarkPlugins={plugins}
       rehypePlugins={REHYPE_PLUGINS}
-      urlTransform={displayOnly ? defaultUrlTransform : URL_TRANSFORM}
+      urlTransform={displayOnly ? defaultUrlTransform : urlTransform}
       skipHtml={displayOnly}
       components={components}
     >
