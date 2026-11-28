@@ -68,6 +68,27 @@ it('keeps the delete dialog open and reports worktree progress until close resol
   await waitFor(() => expect(screen.queryByRole('dialog', { name: '永久删除' })).toBeNull());
 });
 
+it('confirms the native history scope and keeps a native writer conflict out of the force worktree flow', async () => {
+  const api = currentApiMock();
+  api.override('sessions.deletePreview', async () => ({
+    name: 'Parent', fingerprint: 'scope', descendants: 0, active: 0,
+    worktrees: [{ path: 'task-tree', branch: 'ao/task' }],
+    nativeHistory: [{ provider: 'Codex', count: 3, permanent: true, deletesNativeChildSessions: true }]
+  }));
+  api.override('sessions.close', async () => {
+    throw new Error("Error invoking remote method 'sessions:close': NativeSessionHistoryError: Codex 线程正在使用中");
+  });
+  render(<Harness />);
+  fireEvent.click(screen.getByText('delete parent'));
+  const dialog = await screen.findByRole('dialog', { name: '永久删除' });
+  expect(within(dialog).getByText(/同时永久删除 Codex 中的 3 条会话记录/)).toBeTruthy();
+  expect(within(dialog).getByText(/关联的原生子会话也会删除。/)).toBeTruthy();
+  fireEvent.click(within(dialog).getByRole('button', { name: '永久删除' }));
+  const failure = await screen.findByRole('dialog', { name: '删除失败' });
+  expect(within(failure).getByText(/Codex 线程正在使用中/)).toBeTruthy();
+  expect(within(failure).queryByRole('button', { name: '强制删除 worktree 和分支' })).toBeNull();
+});
+
 it('shows the exact cleanup failure and offers force removal of the worktree and branch', async () => {
   const api = currentApiMock();
   api.override('sessions.deletePreview', async () => ({ name: 'Parent', fingerprint: 'scope', descendants: 0, active: 0,
@@ -82,6 +103,7 @@ it('shows the exact cleanup failure and offers force removal of the worktree and
   fireEvent.click(within(dialog).getByRole('button', { name: '永久删除' }));
   const failure = await screen.findByRole('dialog', { name: '删除失败' });
   expect(within(failure).getByText(/worktree 被进程锁定/)).toBeTruthy();
+  expect(document.activeElement).toBe(within(failure).getAllByRole('button', { name: '关闭' }).at(-1));
   fireEvent.click(within(failure).getByRole('button', { name: '强制删除 worktree 和分支' }));
   await waitFor(() => expect(api.mockOf('sessions.close')).toHaveBeenLastCalledWith('parent', { fingerprint: 'scope', forceWorktrees: true }));
   expect(await screen.findByRole('dialog', { name: '删除结果' })).toBeTruthy();

@@ -46,10 +46,27 @@ import { assertWorkspaceExecutionContextCurrent } from '../../workspaceExecution
 import { classifyWorkerRuntimeFailure, type WorkerRuntimeFailure } from '../../tasks/workerRoutingPolicy';
 import { handleWorkerRouteFailure, rejectWorkerAssignment, type WorkerFailureBoundary } from './workerRoute';
 
-function sendEngineTurn(entry: SessionEntry, conn: GuiRuntimeConnection, text: string, images: GuiSendImage[] | undefined,
+function sendEngineTurn(host: HostCore, entry: SessionEntry, conn: GuiRuntimeConnection, text: string, images: GuiSendImage[] | undefined,
   authority: Parameters<GuiRuntimeConnection['send']>[3]): Promise<void> {
   entry.memoryAuthority?.close();
   entry.memoryAuthority = createPromptAuthorityScope(authority?.userText);
+  if (entry.runtimeId === 'codex-gui' && !entry.forkTranscriptSource && !entry.forkTranscript) {
+    const turnId = entry.activeExecutionTurnId;
+    authority = { ...authority, async commitNativeContinuation(sourceId, continuationId, history) {
+      await host.ctx.sessions.commitRuntimeContinuation(entry.sessionId, sourceId, continuationId, history, () => {
+        if (!turnId || entry.activeExecutionTurnId !== turnId || host.entries.get(entry.sessionId) !== entry ||
+            entry.connection !== conn || !entry.busy || entry.closed || entry.clearing || entry.abortRequested ||
+            forkContextFailure(entry) || (entry.forkGuardInFlight && entry.forkGuardToken !== sourceId)) {
+          throw new Error(t('Codex 会话已变化。本次消息尚未提交。'));
+        }
+        assertWorkspaceExecutionContextCurrent(host.ctx.config.get(), entry.turnWorkspaceContext);
+        assertConnectionConfigurationCurrent(conn);
+      });
+      // The existing in-flight marker still blocks crash recovery until the
+      // guarded turn commits its final snapshot with the continuation ID.
+      if (entry.forkGuardInFlight) entry.forkGuardToken = continuationId;
+    } };
+  }
   return conn.send(text, images, entry.turnModelParameters?.values, authority);
 }
 
@@ -309,7 +326,7 @@ export async function startTurn(
     }
     const engineText = assignment || entry.workerRouteHandoff
       ? prependContext(formatGuiHostContext(assignment?.prefix, entry.workerRouteHandoff, ...context)) : entry.lastSentPayload;
-    void sendEngineTurn(entry, conn, engineText, input.images, {
+    void sendEngineTurn(host, entry, conn, engineText, input.images, {
       userText: originalUserText,
       ...(messagingInput ? { literalText: true } : {}),
       forkIdentity: { userMessageId: input.userMessageId, assistantMessageId: assistant.id }
@@ -554,7 +571,7 @@ export async function resumeFailedTurn(
         ...(resendOwnsAssistant && input?.userMessageId ? { userMessageId: input.userMessageId } : {})
       }
     : undefined;
-  void sendEngineTurn(entry, conn, text, plan.mode === 'resend' ? input?.images : undefined, {
+  void sendEngineTurn(host, entry, conn, text, plan.mode === 'resend' ? input?.images : undefined, {
     userText: plan.mode === 'resend' ? input?.userText : undefined,
     literalText: input?.literalText,
     forkIdentity

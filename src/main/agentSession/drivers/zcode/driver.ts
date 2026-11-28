@@ -15,6 +15,7 @@ import type { JsonRpcId, JsonRpcMessage } from '../acp/jsonRpc';
 import { createPromptAuthorityScope } from '../../../agent/turnScope';
 import { startMuseHostMcp, type MuseTurnAuthority } from '../muse/hostMcp';
 import { asZCodeRecord as object, assertZCodeDefaultUnambiguous, listZCodeModels, resolveZCodeExecutable, respondZCodeRuntimePreferences, selectZCodeModel, startZCodeProcess, zcodeSnapshotModels, zcodeString as string, zcodeWorkspace } from './process';
+import { ZCodeNativeHistory, zcodeHistoryStorageKey } from './nativeHistory';
 import { formatZCodeQuestionnaireAnswer, parseZCodeQuestionnaire } from './questions';
 
 type ZCodeTool = { name: string; input: Record<string, unknown>; started: boolean; ended: boolean };
@@ -29,6 +30,7 @@ const clean = (message: string): string => redactSafetyText(message, collectEnvS
 
 /** One ZCode process and one host MCP credential are scoped to one turn. */
 export class ZCodeRuntimeDriver implements GuiRuntimeDriver {
+  readonly nativeHistory = new ZCodeNativeHistory(() => this.configuredExecutable());
   readonly runtimeId = 'zcode-gui';
   readonly permissionStrategyHot = true;
   readonly supportsImages = false;
@@ -656,7 +658,7 @@ export class ZCodeRuntimeDriver implements GuiRuntimeDriver {
         observeSettings(changed.settings, changed.stateRevision);
       }
       await timeout(rpc.request('session/subscribe', { sessionId, deliveryKind: 'desktop-continuous' }), 'ZCode 会话订阅');
-      queue.push({ type: 'resume-token', token: sessionId });
+      queue.push({ type: 'resume-token', token: sessionId, historyStorageKey: zcodeHistoryStorageKey(), historyCwd: input.cwd });
       const connection: GuiRuntimeConnection = {
         events: queue,
         getNativeConfig: () => nativeState,

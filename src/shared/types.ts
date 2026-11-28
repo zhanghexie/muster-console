@@ -348,6 +348,14 @@ export interface SessionMeta {
   nativeConfig?: import('./nativeSessionConfig').NativeConfigIntent;
   /** GUI 会话续聊令牌（Pi session id；禁止存绝对路径） */
   runtimeResumeToken?: string;
+  /** Storage profile that issued the current native GUI history handle. */
+  nativeHistoryStorageKey?: string;
+  /** Directory supplied to the engine when it issued the history handle. */
+  nativeHistoryCwd?: string;
+  /** Confirmed native deletion of a bound history, retained until the local row is removed. */
+  nativeHistoryDeleteReceipt?: string;
+  /** History still owned by this row after Codex changes its resume handle. */
+  codexContinuationHistory?: Array<{ sourceId: string; stagingId?: string }>;
   /** Pi GUI 会话的自定义模式（内置 creator/用户自建 id；空串=标准无模式；产生内容后不可换） */
   piModeId?: string;
   /** 会话级模型覆盖（Pi GUI 会话；不设=跟随全局默认。设置页改默认模型不影响已覆盖的会话） */

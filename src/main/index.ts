@@ -1113,7 +1113,8 @@ app.whenReady().then(async () => {
           // close/release 必须交回 Promise：有 worktree 时 sessions 会 await 后再删目录
           close: (id, opts) => agentSessions.close(id, opts),
           refresh: (id) => void agentSessions.refresh(id),
-          release: (id) => agentSessions.release(id)
+          release: (id) => agentSessions.release(id),
+          nativeHistory: (s) => s.runtime ? agentSessions.drivers.get(s.runtime)?.nativeHistory : undefined
         });
         agentSessions.onPush((p) => {
           if (p.kind !== 'busy' || p.busy !== false) return;

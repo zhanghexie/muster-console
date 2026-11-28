@@ -1,10 +1,18 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SessionDeletePreview } from '../../../shared/sessionLifecycle';
+import { NATIVE_SESSION_HISTORY_ERROR_NAME, type SessionDeletePreview } from '../../../shared/sessionLifecycle';
 import { AppConfirmDialog } from './AppConfirmDialog';
 import { IconSpinner } from './icons';
 
-type DeleteFailure = { id: string; fingerprint: string; name: string; message: string };
+type DeleteFailure = { id: string; fingerprint: string; name: string; message: string; canForce: boolean };
+
+function deleteFailureDetail(error: unknown): { message: string; native: boolean } {
+  const prefix = NATIVE_SESSION_HISTORY_ERROR_NAME + ': ';
+  const message = (error instanceof Error ? error.message : String(error))
+    .replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/, '');
+  const native = message.startsWith(prefix);
+  return { message: native ? message.slice(prefix.length) : message, native };
+}
 
 export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, intent?: 'delete') => void): {
   requestDelete: (ids: string[]) => void; deleteFlowNode: React.JSX.Element;
@@ -33,14 +41,17 @@ export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, in
 
   const applyForce = useCallback((): void => {
     const target = failure;
-    if (!target || inFlight.current) return;
+    if (!target?.canForce || inFlight.current) return;
     inFlight.current = true; setDeleting(true);
     void window.api.sessions.close(target.id, { fingerprint: target.fingerprint, forceWorktrees: true })
       .then(() => {
         setFailure(null);
         setResults([t('已删除「{{name}}」，worktree 和分支已强制清理', { name: target.name })]);
       })
-      .catch(error => setFailure(current => current ? { ...current, message: error instanceof Error ? error.message : String(error) } : current))
+      .catch(error => {
+        const { message, native } = deleteFailureDetail(error);
+        setFailure(current => current ? { ...current, message, canForce: current.canForce && !native } : current);
+      })
       .finally(() => { setDeleting(false); inFlight.current = false; });
   }, [failure, t]);
 
@@ -55,9 +66,11 @@ export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, in
           await window.api.sessions.close(target.id, { fingerprint: target.fingerprint, keepWorktrees });
           report.push(t('已删除「{{name}}」', { name: target.name }));
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          if (targets.length === 1 && !keepWorktrees) {
-            setPending(null); setFailure({ id: target.id, fingerprint: target.fingerprint, name: target.name, message });
+          const { message, native } = deleteFailureDetail(error);
+          if (targets.length === 1 && (!keepWorktrees || native)) {
+            setPending(null);
+            setFailure({ id: target.id, fingerprint: target.fingerprint, name: target.name, message,
+              canForce: !native && !!target.worktrees?.some(tree => !tree.borrowed) });
           } else if (targets.length === 1) {
             onFailure(error, target.id, 'delete');
           } else {
@@ -66,7 +79,7 @@ export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, in
         }
       }
       setPending(null);
-      if (targets.length > 1 || keepWorktrees) setResults(report);
+      if (report.length && (targets.length > 1 || keepWorktrees)) setResults(report);
     })().finally(() => { setDeleting(false); inFlight.current = false; });
   }
 
@@ -82,6 +95,12 @@ export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, in
   const detail = pending?.flatMap(target => [
     t('「{{name}}」，包含 {{n}} 个子会话', { name: target.name, n: target.descendants }),
     ...(target.active ? [t('将中断 {{n}} 个正在执行的会话。', { n: target.active })] : []),
+    ...(target.nativeHistory ?? []).flatMap(scope => [
+      scope.permanent
+        ? t('同时永久删除 {{provider}} 中的 {{n}} 条会话记录。', { provider: scope.provider, n: scope.count })
+        : t('同时从 {{provider}} 的列表移除 {{n}} 条会话记录。', { provider: scope.provider, n: scope.count }),
+      ...(scope.deletesNativeChildSessions ? [t('关联的原生子会话也会删除。')] : [])
+    ]),
     ...(target.worktrees ?? []).map(tree => `${tree.path}${tree.branch ? ` (${tree.branch})` : ''} · ${disposition(tree)}`)
   ]).join('\n');
   const hasOwnedTrees = pending?.some(target => (target.worktrees ?? []).some(tree => !tree.borrowed));
@@ -99,11 +118,13 @@ export function useSessionDeleteFlow(onFailure: (error: unknown, id?: string, in
       content={deleting ? busyContent(t('正在删除会话并清理 worktree，请等待…')) : undefined}
       alternate={!deleting && hasOwnedTrees ? { label: t('删除会话，保留 worktree'), onClick: () => apply(true) } : undefined}
       onCancel={() => { if (!deleting) setPending(null); }} onConfirm={() => apply(false)} />
-    <AppConfirmDialog open={!!failure} title={t('删除失败')} className="session-delete-confirm" danger busy={deleting}
-      detail={failure ? [t('「{{name}}」没有删除成功。', { name: failure.name }), failure.message, t('可以强制删除 worktree 和分支。此操作会永久删除目录、未提交改动和未合入提交。')].join('\n\n') : undefined}
-      confirmLabel={t('强制删除 worktree 和分支')} cancelLabel={t('关闭')}
+    <AppConfirmDialog open={!!failure} title={t('删除失败')} className="session-delete-confirm" danger={failure?.canForce}
+      focusCancel={failure?.canForce} busy={deleting}
+      detail={failure ? [t('「{{name}}」没有删除成功。', { name: failure.name }), failure.message,
+        ...(failure.canForce ? [t('可以强制删除 worktree 和分支。此操作会永久删除目录、未提交改动和未合入提交。')] : [])].join('\n\n') : undefined}
+      confirmLabel={failure?.canForce ? t('强制删除 worktree 和分支') : t('知道了')} cancelLabel={t('关闭')} hideCancel={!failure?.canForce}
       content={deleting ? busyContent(t('正在强制删除 worktree 和分支，请等待…')) : undefined}
-      onCancel={() => { if (!deleting) setFailure(null); }} onConfirm={applyForce} />
+      onCancel={() => { if (!deleting) setFailure(null); }} onConfirm={failure?.canForce ? applyForce : () => setFailure(null)} />
     <AppConfirmDialog open={!!results} title={t('删除结果')} detail={results?.join('\n')}
       confirmLabel={t('知道了')} hideCancel onConfirm={() => setResults(null)} onCancel={() => setResults(null)} />
   </> };

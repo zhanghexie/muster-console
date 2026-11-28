@@ -65,7 +65,11 @@ export async function forkSession(
     if(!selected||cut<0)return {ok:false,error:t(uptoMessageId?'fork 点不存在（消息可能已被清空）':'会话还没有消息，直接发消息即可')};
     let native:{status:'forked';token:string;preservesPointIds?:boolean}|undefined;
     const sourceToken=src.runtimeResumeToken;
-    const point=getDriver(host,src.runtime)?.supportsNativeFork===false?undefined:host.store.loadForkPoint(sessionId,selected.id);
+    const storedPoint=getDriver(host,src.runtime)?.supportsNativeFork===false?undefined:host.store.loadForkPoint(sessionId,selected.id);
+    // Codex attached continuations hide inherited turns from the history RPC.
+    // Keep the original recorded token available for verifying those points.
+    const point=src.runtime==='codex-gui'&&sourceToken&&storedPoint?.engine==='codex'
+      ? {...storedPoint,sessionToken:sourceToken} : storedPoint;
     const attachmentPath=attachmentDir(app.getPath('userData'),`gui:${sessionId}`);
     let hasAttachments=false;
     if(fs.existsSync(attachmentPath)){const dir=fs.opendirSync(attachmentPath);try{hasAttachments=!!dir.readSync();}finally{dir.closeSync();}}
@@ -91,7 +95,11 @@ export async function forkSession(
         const conn=await ensureConnection(host,sourceEntry);
         expected=version();
         assertCurrent();
-        if(conn.nativeFork){const result=await conn.nativeFork(point);if(result.status==='forked'){native=result;nativeCreatedToken=result.token;}}
+        if(conn.nativeFork){
+          const recordedToken=storedPoint?.sessionToken!==point.sessionToken?storedPoint?.sessionToken:undefined;
+          const result=await conn.nativeFork(point,recordedToken);
+          if(result.status==='forked'){native=result;nativeCreatedToken=result.token;}
+        }
       }catch(error){
         if(error instanceof ConnectionCleanupError){sourceEntry.forkPendingError=t('无法确认分叉进程已回收：{{detail}}', { detail: (error as Error).message });markRetirementFailure(host,sessionId,error);retireConnection(host,sourceEntry);}
         throw error;
@@ -118,7 +126,12 @@ export async function forkSession(
           assertCurrent();host.store.beginForkPreparation(session.id);owned=true;
           let remap:(text:string)=>string;
           try{remap=forkAttachments(app.getPath('userData'),`gui:${sessionId}`,`gui:${session.id}`);}catch(error){throw new Error(t('分叉附件复制失败：{{detail}}', { detail: (error as Error).message }));}
-          if(native){session.externalSessionId=native.token;session.runtimeResumeToken=native.token;}
+          if(native){
+            session.externalSessionId=native.token;
+            session.runtimeResumeToken=native.token;
+            session.nativeHistoryStorageKey=src.nativeHistoryStorageKey;
+            session.nativeHistoryCwd=src.nativeHistoryCwd;
+          }
           function* messages():IterableIterator<GuiChatMessage>{
             for(const message of prefix()){
               const clone=structuredClone(message);

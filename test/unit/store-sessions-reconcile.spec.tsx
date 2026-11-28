@@ -74,6 +74,10 @@ const BASE: Required<SessionMeta> = {
   permissionMode: 'acceptEdits',
   guiMode: 'auto',
   runtimeResumeToken: 'resume-1',
+  nativeHistoryStorageKey: 'codex:fixture',
+  nativeHistoryCwd: 'E:/demo',
+  nativeHistoryDeleteReceipt: '["codex:fixture",["resume-1"]]',
+  codexContinuationHistory: [{ sourceId: 'previous', stagingId: 'staging' }],
   piModeId: '',
   modelOverride: {
     providerId: 'p',

@@ -125,7 +125,7 @@ export type GuiDriverStreamEvent =
       /** 工具执行时长（driver 起止打点；Pi 透明模式计量用） */
       durationMs?: number;
     }
-  | { type: 'resume-token'; token: string; }
+  | { type: 'resume-token'; token: string; historyStorageKey?: string; historyCwd?: string; }
   | { type: 'context-usage'; usage: GuiContextUsage | null }
   | {
       type: 'available-commands';
@@ -206,6 +206,8 @@ export interface GuiInputAuthority {
   userText?: string;
   forkIdentity?: GuiForkIdentity;
   literalText?: boolean;
+  /** Bind a verified native continuation to this GUI session before submitting the input. */
+  commitNativeContinuation?(sourceId: string, continuationId: string, history: { storageKey: string; stagingId?: string }): Promise<void>;
 }
 
 export interface GuiDriverConnectInput {
@@ -443,7 +445,7 @@ export interface GuiRuntimeConnection {
   /** 发起一轮用户消息；完成以 turn-complete / error 事件为准（send 本身先返回） */
   send(text: string, images?: GuiSendImage[], parameters?: import('../../shared/modelParameters').ModelParameterValues, authority?: GuiInputAuthority): Promise<void>;
   /** Fork without changing the source connection. Unsupported must have no side effects. */
-  nativeFork?(point: GuiNativeForkPoint): Promise<{ status: 'forked'; token: string; preservesPointIds?: boolean } | { status: 'unsupported' }>;
+  nativeFork?(point: GuiNativeForkPoint, recordedSessionToken?: string): Promise<{ status: 'forked'; token: string; preservesPointIds?: boolean } | { status: 'unsupported' }>;
   /** 回合中续发（steer）；返回 false 表示不支持/未注入，Host 改入队 */
   redirect?(text: string): boolean;
   /** Optional native delivery while a turn is active; idle turns use send().
@@ -554,6 +556,14 @@ export interface GuiRuntimeDriver {
    * 无需活连接也可调用（归档已久/重启后的会话）；幂等、best-effort，失败只 log。
    */
   purge?(input: GuiDriverPurgeInput): Promise<void>;
+  /** Explicit native history operations are separate from local clear/orphan cleanup. */
+  readonly nativeHistory?: {
+    /** Discover optional protocol capabilities before taking a local snapshot of the operation scope. */
+    prepare?(session: Readonly<SessionMeta>, action: import('../../shared/sessionLifecycle').NativeSessionHistoryAction): Promise<void>;
+    describe(session: Readonly<SessionMeta>): import('../../shared/sessionLifecycle').NativeSessionHistoryTarget | undefined;
+    update(session: Readonly<SessionMeta>, action: import('../../shared/sessionLifecycle').NativeSessionHistoryAction,
+      otherSessionIds?: ReadonlySet<string>): Promise<void>;
+  };
   /**
    * 启动孤儿清扫：删除引擎侧已无对应会话的存量数据（早期版本删除不清理的
    * 遗留、异常路径孤儿）。keep 由宿主按当前注册表（含运行中的 hidden 会话）

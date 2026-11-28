@@ -218,7 +218,7 @@ GUI 每次开始回合同步捕获 `WorkspaceExecutionContext`：工作区 ID/�
 - **回合中拆连接兜底**：busy 中切模式/切模型会 close driver——事件源消失后 `turn-complete` 永远不来，`consumeEvents` 的 finally 对「连接已为 null 且 busy」强制收口（标错误 + finishTurn），否则 busy 永久卡死（后续消息只进队列、abort 变 no-op）。下轮 send 重连接力。
 - `clear`（/new、/clear）：停回合 + 拆连接 + 清历史与续聊令牌 + 清 fork 种子，下轮新引擎会话；模式保留。旧引擎会话数据随之作废清理（见下）。
 - **落盘生命周期**：`persistEntry` 同步从已有内存消息更新会话元数据的看板末句预览，正常加载旧会话时按需补齐，清空会话时移除；详见 [全局看板](global-board.md)。`persistEntry` 在回合结束等时机写入 `userData/agent-sessions/<id>.json`；`closeAll` / 应用退出 / 切走会话只 `persistEntry` + 释放 driver，**不**删 json；左栏删除会话 `close({ purgeHistory: true })` 才删文件；`getHistory` 在 entry 未 open 时仍可读 store（重启首屏竞态兜底）。
-- **引擎侧数据清理**：Pi 的 `GuiRuntimeDriver.purge` 清理工作台管理的转录与 trim-cache，启动时按有效会话清理孤儿；启动延迟任务归Runtime scope，退出取消尚未执行的计时器和busy错峰等待，已经进入driver的清扫等待实际完成后才释放，不继续调用下一driver。渲染草稿按会话差集清理。Cursor ACP 的原生会话由 Cursor CLI 管理，删除工作台聊天不会清理 CLI 侧历史；旧 SDK 存储不再由工作台读取或清扫。
+- **引擎侧数据清理**：Pi 的 `GuiRuntimeDriver.purge` 清理工作台管理的转录与 trim-cache，启动时按有效会话清理孤儿；启动延迟任务归Runtime scope，退出取消尚未执行的计时器和busy错峰等待，已经进入driver的清扫等待实际完成后才释放，不继续调用下一driver。渲染草稿按会话差集清理。Codex GUI 的显式归档、恢复和永久删除通过 [原生会话历史接口](gui-harness-integration.md#原生会话归档恢复和永久删除) 同步。Cursor ACP 的原生历史仍由 Cursor CLI 管理。
 - 看板映射（无 pty 刮屏）：回合开始 → activity=active（Host 记 `turnStartedAt`）；等待审批 → blocked；回合结束 → idle（不自动 phase=done）。`setStatus` 写入 `needs_you` 时 Host 做 P5/P11 校验：回合开始 60s 内且无 `reason` → warning+回注；隔离树 dirty → 回注提醒（不撤销看板、不替 Worker 写 commit）。`requestIntegrate` 时若仍脏则兜底提交并标注 `[host] P11`。合入隔离 worktree 见 [isolate-worktree.md](isolate-worktree.md)。Worker→调度提问见 [session-mailbox.md](session-mailbox.md)。
 
 ## 消息渲染（v2：交错 + 去噪）
@@ -528,7 +528,7 @@ test/e2e/codex-model-menu.spec.ts     Electron/preload/IPC/app-server 全链路
 
 | 项 | 行为 |
 | --- | --- |
-| 回合模型 | 每次 send 启动受管 app-server 并恢复线程。resumeToken 是原生 thread ID |
+| 回合模型 | 每次 send 启动受管 app-server 并恢复线程。resumeToken 是当前原生 thread ID。外部进程持锁时可在原聊天窗口自动续聊 |
 | 中途插话 | `redirect` 恒 false（stdin 已结束）→ Host 入队 |
 | 停止 | 向独立 worker 发送取消，由公开 AbortSignal 取消 SDK；外层独立清空资源容器，不依赖事件流返回。Windows Job 与 worker 退出均确认后才能续发 |
 | 政策层 | 会话首条适用输入前缀，恢复同一会话时沿用投递状态 |
@@ -540,7 +540,15 @@ test/e2e/codex-model-menu.spec.ts     Electron/preload/IPC/app-server 全链路
 | 图片 | 支持：base64 落临时文件后走 SDK `local_image` path |
 | 引擎侧数据 | 不 purge：`~/.codex/sessions` 是用户自己的 transcript |
 
-回合终态在该轮 worker 及资源容器确认释放后发给 Host。`turn.completed` / `turn.failed` / `error` 只记录单轮结果，正文与工具结果仍实时投递。进程监督器确认 worker 退出及整轮资源容器清空后，driver 才清理资源、释放 writer 并允许 Host 派发下一条。每轮独立持有流去重状态、AbortController、结果与收尾 Promise，退出尾部错误只归属本轮。`abort()` 等待本次回收尝试结束（成功或明确失败），`close()` 仍等待资源实际释放，关闭期间拒绝新 send。跨连接 writer 由进程内 `Codex home + thread ID` 互斥表协调，覆盖 Host fire-and-forget 重建。等待者可单独停止，不同 home/线程保持独立。app-server 档只处理能绑定到当前会话和回合的审批及问卷，无法确认归属的子线程请求保守拒绝。外部应用占用线程时保留原生 ID 并返回实际错误。原始复现见 Codex 专项核查。
+回合终态在该轮 worker 及资源容器确认释放后发给 Host。`turn.completed` / `turn.failed` / `error` 只记录单轮结果，正文与工具结果仍实时投递。进程监督器确认 worker 退出及整轮资源容器清空后，driver 才清理资源、释放 writer 并允许 Host 派发下一条。每轮独立持有流去重状态、AbortController、结果与收尾 Promise，退出尾部错误只归属本轮。`abort()` 等待本次回收尝试结束（成功或明确失败），`close()` 仍等待资源实际释放，关闭期间拒绝新 send。跨连接 writer 由进程内 `Codex home + thread ID` 互斥表协调，覆盖 Host fire-and-forget 重建。等待者可单独停止，不同 home/线程保持独立。app-server 档只处理能绑定到当前会话和回合的审批及问卷，无法确认归属的子线程请求保守拒绝。
+
+另一个 Codex 客户端在共享 `CODEX_HOME` 恢复同一线程时，即使只是打开界面，也能持有独占写入权。只有 `thread/resume` 明确返回目标线程的写入冲突时，集序才走自动续聊。适配器用 `thread/turns/list` 读取最新已保存回合，通过带 `lastTurnId` 的 `thread/fork` 创建临时分叉并延后自动目标续作，再校验来源、持久线程标识和复制后的回合。 [Codex App Server](https://learn.chatgpt.com/docs/app-server)
+
+支持附属线程的 paginated 历史在确认无原生目标后，集序用 `attachToSource` 把续聊线程附到自己刚创建的临时分叉，并核对父子标识。官方默认列表隐藏附属线程。集序归档临时父线程，原线程仍留在默认列表。附属线程可按 ID 恢复，继续使用当前 Codex 登录和配置。旧历史格式、不支持附属线程、有原生目标或未确认成功创建附属线程时继续使用可用的原生分叉，因此默认列表可能多出一条。归档未确认时使用已确认的附属线程并记录原因。 [Codex 附属线程协议](https://github.com/openai/codex/blob/main/codex-rs/app-server-protocol/src/protocol/v2/thread.rs)
+
+完成权限和 MCP 检查后，宿主将新原生标识严格写入同一个集序会话，再发送 `turn/start`。读取到原线程仍有进行中回合时，集序提示该回合结束后重试。原生接口拒绝初始分叉、历史核验失败、会话切换或严格写入失败时，消息保持未提交。绑定提交前，集序仍指向原线程。若在提交绑定前取消或失败，集序回收本轮进程后尝试归档已核验来源的临时分叉，并记录未能归档的原因。`turn/start` 之后沿用已有的投递状态判断。旧消息的原生分叉截点在当前线程中核验，附属线程隐藏的旧截点按原记录的线程 ID 复核。原记录已归档或缺失时沿用转写回退。
+
+`test/codex-driver-lifecycle.mjs` 覆盖占用时自动续聊、附属线程与归档失败回退、下一轮恢复新标识、待完成回合，以及历史校验失败、提交绑定时取消、注册表写入失败时保留原绑定并归档临时分叉。`test/e2e/codex-execution-lifecycle.spec.ts` 用真实 Electron 和协议夹具验证继续使用同一聊天，在归档临时父线程并持久化新标识后再发送。macOS 随附 Codex `0.171.0-alpha.13.2` 使用真实 app-server 和回环模型验证了分页历史的默认列表只留原会话，原线程持续被占用时仍能续聊、继承原上下文并在重新启动后恢复。Windows、Linux 真机及官方客户端侧栏刷新待验证。
 
 工作台直接启动选中的 Codex app-server 并执行 RPC，校验 `codexHome`、线程标识和实际权限。测试中的陌生版本与缺失 `userAgent` 响应都可继续发送，原生请求失败时显示其错误。此前在 Windows 使用实际 Codex `0.167.1`，经工作台受管传输完成了真实握手、权限生效确认和两轮发送。第二轮恢复原生线程并携带首轮上下文。测试使用隔离 Codex home、回环模型和 MCP 替身。远端模型、安装包及 macOS/Linux 真机待验。 [OpenAI Docs](https://learn.chatgpt.com/docs/app-server#message-schema)
 

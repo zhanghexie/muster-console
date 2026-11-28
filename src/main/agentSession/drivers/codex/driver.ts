@@ -7,6 +7,7 @@ import type { AppContext } from '../../../context';
 import type {
   GuiDriverConnectInput,
   GuiDriverStreamEvent,
+  GuiInputAuthority,
   GuiRuntimeConnection,
   GuiRuntimeDriver,
   GuiSendImage
@@ -15,8 +16,10 @@ import { GuiDeliveryError } from '../../types';
 import { AsyncEventQueue } from '../eventQueue';
 import { resolveCodexExecutable, resolveUserCodexExecutable } from './executable';
 import type { CodexClientHandle, CodexThreadEvent, CodexThreadHandle, CodexThreadOptions } from './protocol';
-import { createCodexAppServerClient, sameCodexHome, type CodexAppServerClientOptions } from './appServerTransport';
+import { createCodexAppServerClient, type CodexAppServerClientOptions } from './appServerTransport';
+import { codexHomeOf, sameCodexHome } from './nativeRpc';
 import { forkCodexTurn } from './nativeFork';
+import { codexHistoryStorageKey, describeCodexHistory, updateCodexHistory } from './nativeHistory';
 import { normalizeContextUsage } from '../../../../shared/guiContextUsage';
 import { ConnectionCleanupError } from '../../host/retirement';
 import { scrubCodexSpawnEnv } from './env';
@@ -60,12 +63,6 @@ const threadWriters = new Map<string, CodexTurn>();
 // A failed helper reclamation leaves the source thread's writer unknown.
 // Keep that thread unavailable across connections until the app is restarted.
 const blockedThreadWriters = new Map<string, string>();
-
-function codexHomeOf(env: Record<string, string>): string {
-  let home = path.resolve(env.CODEX_HOME || path.join(os.homedir(), '.codex'));
-  try { home = fs.realpathSync.native(home); } catch { /* Codex may create the home later */ }
-  return process.platform === 'win32' ? home.toLowerCase() : home;
-}
 
 async function acquireThreadWriter(key: string, turn: CodexTurn): Promise<boolean> {
   while (!turn.controller.signal.aborted) {
@@ -137,6 +134,14 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
   readonly supportsSeed = false;
   readonly modelOverridePolicy = 'reconnect' as const;
   readonly thinkingPolicy = 'unsupported' as const;
+  readonly nativeHistory: NonNullable<GuiRuntimeDriver['nativeHistory']> = {
+    describe: session => describeCodexHistory(session, scrubCodexSpawnEnv(process.env)),
+    update: async (session, action) => {
+      const executable = (await (this.deps.resolveExecutable ?? resolveCodexExecutable)()).executable;
+      if (!executable) throw new Error(t('未找到 Codex CLI，无法同步会话历史。'));
+      await updateCodexHistory(session, action, executable, scrubCodexSpawnEnv(process.env));
+    }
+  };
 
   constructor(
     private ctx: AppContext,
@@ -261,6 +266,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
     }
     const queue = new AsyncEventQueue<GuiDriverStreamEvent>();
     const codexHome = codexHomeOf(spawnEnv);
+    const historyStorageKey = codexHistoryStorageKey(spawnEnv);
     const writerKey = (id: string): string => JSON.stringify([codexHome, id]);
     let threadId: string | null = input.resumeToken?.trim() || null;
     let lastResumeToken: string | null = threadId;
@@ -286,7 +292,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
       if (t !== lastResumeToken) {
         lastResumeToken = t;
         threadId = t;
-        queue.push({ type: 'resume-token', token: t });
+        queue.push({ type: 'resume-token', token: t, historyStorageKey });
       }
     };
 
@@ -373,7 +379,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
         if (option.currentValue === value) nativeSelections.delete(id);
         else nativeSelections.set(id, value);
       },
-      async send(text: string, images?: GuiSendImage[], parameters?: ModelParameterValues, authority?: { userText?: string; forkIdentity?: import('../../types').GuiForkIdentity }): Promise<void> {
+      async send(text: string, images?: GuiSendImage[], parameters?: ModelParameterValues, authority?: GuiInputAuthority): Promise<void> {
         if (closed) throw new Error('codex 连接已中断，请重发消息（将自动重连恢复）');
         if (activeTurn) throw new Error('Codex 本回合尚未结束');
         const img = writeTempImages(images);
@@ -415,6 +421,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
           // connection. Late HTTP requests from a retired process cannot borrow
           // the next instruction even if their headers arrive after it starts.
           hostMcp?.rotateTurn();
+          const commitContinuation = authority?.commitNativeContinuation;
           let selectedClient: CodexClientHandle;
           if (injectedTestClient) selectedClient = injectedTestClient;
           else {
@@ -424,6 +431,14 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
               nativeSelections: workerPermission ? input.nativeConfig?.selections : automaticPermissions(input)
                 ? [] : [...nativeSelections].map(([id, value]) => ({ id, value })),
               workerPermission,
+              onThreadRecovered: commitContinuation && (async (sourceId, continuationId, stagingId) => {
+                if (threadId !== sourceId || closed || !await acquireThreadWriter(writerKey(continuationId), turn)) {
+                  throw new Error(t('Codex 会话已变化。本次消息尚未提交。'));
+                }
+                await commitContinuation(sourceId, continuationId, { storageKey: historyStorageKey, stagingId });
+                emitResumeToken(turn, continuationId);
+                log('info', `Codex continued from occupied thread ${sourceId} on ${continuationId}`);
+              }),
               onNativeConfig: state => {
                 if (activeTurn !== turn || closed || turn.controller.signal.aborted) return;
                 nativeState = state;
@@ -515,7 +530,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
           }
         }
       },
-      async nativeFork(point) {
+      async nativeFork(point, recordedSessionToken) {
         if (closed || activeTurn) throw new Error('Codex 会话忙碌或已关闭，无法分叉');
         if (point.engine !== 'codex' || point.role !== 'assistant' || !exeInfo.executable)
           return { status: 'unsupported' };
@@ -527,7 +542,7 @@ export class CodexRuntimeDriver implements GuiRuntimeDriver {
         try {
           if (!await acquireThreadWriter(writerKey(point.sessionToken), lease)) throw new Error('Codex 会话写入锁不可用');
           if (closed || activeTurn || threadId !== point.sessionToken) throw new Error('Codex 会话在分叉期间发生变化');
-          return await forkCodexTurn(point, input.cwd, exeInfo.executable, spawnEnv);
+          return await forkCodexTurn(point, input.cwd, exeInfo.executable, spawnEnv, recordedSessionToken);
         } catch (error) {
           if (error instanceof ConnectionCleanupError) {
             for (const key of lease.writerKeys) blockedThreadWriters.set(key, error.message);

@@ -23,6 +23,10 @@ src/main/agentSession/drivers/acp/
   agents.ts          目录驱动的内置预设；PATH、常用安装目录与 Windows shim 解析
   cursor.ts          Cursor 模式协商、原生提问和计划请求映射
   models.ts          无推理的模型发现、认证和进程回收
+  nativeHistory.ts   协商删除、归档和恢复能力，校验会话 ID、历史配置与回执
+  grokHistory.ts     Grok Build 的精确 CLI 删除与回执核对
+  opencodeHistory.ts OpenCode V2 原生历史操作与状态回读
+  opencodeServer.ts  OpenCode 分叉和历史操作共用的受管本机 HTTP 服务
   dshModelDiscovery.ts DeepSeek 探测临时存储覆盖、运行时校验与清理
   modelOptions.ts    解析会话声明的模型及设置选项
   launchPolicy.ts    OpenCode/Kilo/MiMo Code/DSH 的进程级模式配置及 DSH 恢复令牌
@@ -55,6 +59,7 @@ test/acp-driver-smoke.mjs                EXCLUDE；要本机 CLI
 | 宿主续接 | 空闲时沿同一 `send` 开下一轮，无需能力声明；忙时等回合边界，不声明 `interject` 或快照抢占，详见 [会话续接](resume-wait.md) |
 | 停止 | `session/cancel` |
 | 续聊 | 原生 token 只用于引擎声明的 `session/resume` 或 `session/load`。不支持、恢复失败或 ID 不匹配时报错。旧 DeepSeek 包装令牌提取原始 session ID 后交给原生协议 |
+| 原生会话历史 | 删除、归档和恢复复用集序会话生命周期，由 `nativeHistory.ts` 协商可选能力并对已绑定会话执行 |
 | fork | OpenCode 在 ACP 回合提供原生消息 ID 时使用其 v1 HTTP 分叉接口并校验截点；ACP 通用 `session/fork` 无标准消息截点参数，其他 ACP 引擎及无可靠映射的消息继续用 Host transcript 前缀，详见 [GUI Harness 接入](gui-harness-integration.md) |
 | 权限 | 「配置权限」默认关闭；优先选择目录中已核实的原生免审批值，收到 `session/request_permission` 时自动返回引擎提供的允许 optionId。开启后展示原生选择，包括持久允许或拒绝。取消返回 cancelled；过期回合不自动授权。实际宿主工具由独立网关校验身份、目录、用户规则和业务授权 |
 | MCP | `session/new.mcpServers`：只注入宿主工具 stdio server `muster`（与 pty 共用 `inboundMcp/stdioEntry.mjs`；preset `acp-subset` + catalog JSON；短命 `MUSTER_HOST_TOOLS_TOKEN` 回打 `hostToolGateway`）。B2 起用户配置的 MCP 不再按 `acp:<presetId>` 过滤注入——第三方工具经宿主中转 `mcp.search`/`mcp.call`；initialize 的 `mcpCapabilities.http` 协商与「占用 muster 名」防护随注入面收窄一并退役（无用户 server 即无冲突面） |
@@ -101,6 +106,16 @@ Windows 本机 CLI 的 initialize、新会话、模型目录、三种模式协�
 - ACP 关闭权限配置时，只在真实目录声明了已核实的免审批值时调用原生 setter；否则由宿主自动响应后续有效权限申请。开启后恢复被自动覆盖的原生值并使用人工审批；在线切换保持 ACP 连接，避免无 `load` 能力时丢失上下文。不会用统一 GUI 档或批量环境变量覆盖 DSH 沙箱、MiMo 权限、OpenCode 工具权限。
 - `test/acp-executable-discovery.mjs` 覆盖旧 PATH 与安装目录兜底、带空格 `.cmd` 真执行；Windows spawn 仍使用 `windowsVerbatimArguments` 保留 cmd.exe 命令行。
 - Gemini 官方 flag 以 `--acp` 探测；内置预设由代码目录维护，CLI 二进制由用户维护。
+
+## 原生会话历史
+
+`GuiRuntimeDriver.nativeHistory` 由会话服务通过聊天桥调用。预览删除和同步归档或恢复前，驱动复用当前安装版本及历史配置的能力记录，必要时启动独立的受管 ACP 进程执行 `initialize`。探测无需创建或加载会话。执行时重新握手或确认已探测的可执行文件版本，沿已记录的原生 ID、工作目录与配置操作。Windows 复用受管进程回收层，macOS 和 Linux 复用受控进程组。
+
+ACP v1 的 `session/delete` 依赖 `sessionCapabilities.delete`。成功表示从原生列表移除，底层记录是否保留由引擎决定。标准 `ResourceNotFound`（`-32002`）按已删除处理。归档和取消归档目前用可选预览接口 `session/archive`、`session/unarchive`，同时要求 `sessionCapabilities.archive` 和 `list`。未声明对应能力时使用集序自己的列表状态。[ACP 会话删除](https://agentclientprotocol.com/protocol/v1/session-delete) · [ACP 归档 schema](https://github.com/agentclientprotocol/agent-client-protocol/pull/2736)
+
+Qwen Code 未声明标准删除时，已验证版本的 `qwen-code` 身份可以按原工作目录调用 `deleteSession` 扩展，要求返回 `success: true`。Grok Build 未声明标准删除时，查询同一个 CLI 的删除帮助，再使用完整 UUID 调用 `sessions delete`，只接受包含确切 ID 的退出回执。Kimi Code CLI 将未知 ID 报为 `-32602`，仅当错误数据及消息确切点名目标时按已删除处理。
+
+OpenCode V2 使用相同可执行文件启动独立服务，只监听 loopback 并使用随机密码。读取 `/api/info` 识别 V2，通过 `/api/session/:id` 归档、取消归档或删除，按相同 ID 读回验证。删除前按 `parentID` 检查原生子会话，防止连带删除其他集序会话使用的记录。OpenCode 旧 HTTP 接口继续用于现有的原生分叉。各产品支持范围与验收情况见 [GUI Harness 接入](gui-harness-integration.md#原生会话归档恢复和永久删除)。
 
 ## 设计初衷（2026-10-26 与用户定稿）
 

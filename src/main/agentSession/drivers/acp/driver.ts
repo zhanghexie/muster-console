@@ -62,7 +62,8 @@ import { forkOpenCode } from './opencodeFork';
 import { cursorPlanQuestion, cursorPlanResponse, cursorQuestionResponse, parseCursorQuestions } from './cursor';
 import { additionalExecutionDirectories } from '../../../workspaceExecutionContext';
 import { applyNativePermissionStrategy, automaticAcpPermissions, automaticPermissions, restoreNativePermissions } from '../nativePermissionPolicy';
-import { acpConfigCapabilities, acpNativeConfig, acpNativeId, acpNativeSelection } from './nativeConfig';
+import { acpNativeConfig, acpNativeId, acpNativeSelection } from './nativeConfig';
+import { AcpNativeHistory, acpHistoryStorageKey, acpInitializeParams } from './nativeHistory';
 import type { NativeConfigState, NativeConfigValue } from '../../../../shared/nativeSessionConfig';
 import { nativeExecutableVersion } from '../nativeExecutableVersion';
 
@@ -195,6 +196,7 @@ export class AcpRuntimeDriver implements GuiRuntimeDriver {
   readonly thinkingPolicy = 'unsupported' as const;
 
   private userDataDir: string;
+  readonly nativeHistory: AcpNativeHistory;
 
   constructor(
     // Product-level launch preferences use the host config; MCP still uses the session gateway.
@@ -204,6 +206,15 @@ export class AcpRuntimeDriver implements GuiRuntimeDriver {
   ) {
     // Keep the user-data root for model catalog files; presets come from the built-in catalogue.
     this.userDataDir = _opts.userDataDir;
+    this.nativeHistory = new AcpNativeHistory({
+      label: id => this.presets.find(preset => preset.id === id)?.name,
+      resolve: id => {
+        const launch = (this.deps.resolveLaunch ?? ((agentId: string) => resolveAcpLaunch(agentId, undefined, this.presets)))(id);
+        return 'error' in launch ? undefined : launch;
+      },
+      spawn: this.deps.spawnAgent,
+      timeout: this.deps.rpcTimeoutMs
+    });
   }
 
   private get presets(): AcpAgentPreset[] {
@@ -389,8 +400,9 @@ export class AcpRuntimeDriver implements GuiRuntimeDriver {
 
     let mcpServers: AcpMcpServer[];
     let transport: AcpTransport;
+    const env = acpLaunchEnvironment(agentId, process.env);
+    const historyStorageKey = acpHistoryStorageKey(agentId, env);
     try {
-      const env = acpLaunchEnvironment(agentId, process.env);
       const command = { command: launch.command, args: launch.args, cwd: input.cwd, env };
       transport = this.deps.spawnAgent
         ? this.deps.spawnAgent(command)
@@ -493,7 +505,7 @@ export class AcpRuntimeDriver implements GuiRuntimeDriver {
       if (t && t !== lastResume) {
         lastResume = t;
         acpSessionId = t;
-        queue.push({ type: 'resume-token', token: t });
+        queue.push({ type: 'resume-token', token: t, historyStorageKey, historyCwd: input.cwd });
       }
     };
 
@@ -706,14 +718,11 @@ export class AcpRuntimeDriver implements GuiRuntimeDriver {
       if (transport.waitReady) await withTimeout(transport.waitReady(), rpcTimeoutMs, 'ACP 进程启动');
       // P1-3：握手/会话建立 RPC 必须有期限——agent spawn 成功但挂死时 connect 永久悬挂
       init = (await withTimeout(
-        rpc.request('initialize', {
-          protocolVersion: 1,
-          clientInfo: { name: 'muster-workbench', version: '0.1' },
-          clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false, session: acpConfigCapabilities }
-        }),
+        rpc.request('initialize', acpInitializeParams),
         rpcTimeoutMs,
         'ACP initialize'
       )) as Record<string, unknown>;
+      this.nativeHistory.observe(agentId, launch, env, init);
       await authenticateAcpIfNeeded(agentId, init, rpc, rpcTimeoutMs);
 
       // authMethods 是「可用登录方式」广告，不代表未登录（N-2：已登录的 agent 也会返回）；

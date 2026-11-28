@@ -12,6 +12,8 @@ const compiled = path.join(tmp, 'compiled');
 const compile = createSharedCompiler(root, compiled);
 const { createCodexAppServerClient } = await import(pathToFileURL(compile('main/agentSession/drivers/codex/appServerTransport.ts')).href);
 const { forkCodexTurn } = await import(pathToFileURL(compile('main/agentSession/drivers/codex/nativeFork.ts')).href);
+const { codexHistoryStorageKey, describeCodexHistory, updateCodexHistory } =
+  await import(pathToFileURL(compile('main/agentSession/drivers/codex/nativeHistory.ts')).href);
 const { createCodexStreamState, mapCodexReviewEvent } = await import(pathToFileURL(compile('main/agentSession/drivers/codex/streamMap.ts')).href);
 const { captureWorkspaceExecutionContext, additionalExecutionDirectories, assertWorkspaceExecutionContextCurrent, pathWritableInContext } =
   await import(pathToFileURL(compile('main/workspaceExecutionContext.ts')).href);
@@ -20,6 +22,7 @@ const transcript = path.join(tmp, 'requests.jsonl');
 fs.writeFileSync(worker, `
 import readline from 'node:readline';
 import fs from 'node:fs';
+import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 let cwd;
 const send = value => console.log(JSON.stringify(value));
@@ -49,8 +52,25 @@ readline.createInterface({input:process.stdin}).on('line', line => {
     approvalsReviewer:'user',activePermissionProfile:{id:fs.existsSync(${JSON.stringify(path.join(tmp, 'bad-policy'))})?':read-only':':workspace'},
     sandbox:{type:'workspaceWrite'}, ...(q.method==='thread/resume'?{collaborationMode:{mode:'default'}}:{})};
   if(q.method==='mcpServerStatus/list') result={data:[{name:'muster',runtimeStatus:'connected',tools:{}}]};
-  if(q.method==='thread/turns/list') result={data:[{id:'turn-1',status:'completed'}]};
-  if(q.method==='thread/fork') result={thread:{id:'fork-1',forkedFromId:q.params.threadId}};
+  if(q.method==='thread/turns/list') result={data:q.params.threadId==='attached-continuation'?[]:[{id:'turn-1',status:'completed'}]};
+  if(q.method==='thread/read' && q.params.threadId==='attached-continuation') {
+    result={thread:{id:'attached-continuation',attachedToThreadId:'staging-thread',forkedFromId:'staging-thread'}};
+  }
+  if(q.method==='thread/fork') {
+    if(q.params.threadId==='archived-original') return rpc({id:q.id,error:{code:-32600,message:'session archived-original is archived.'}});
+    result={thread:{id:'fork-1',forkedFromId:q.params.threadId}};
+  }
+  if(q.method==='thread/delete' && q.params.threadId==='unsupported-delete')
+    return rpc({id:q.id,error:{code:-32601,message:'method not found'}});
+  if(q.method==='thread/delete' && q.params.threadId==='already-deleted')
+    return rpc({id:q.id,error:{code:-32600,message:'no rollout found for thread id already-deleted'}});
+  if(q.method==='thread/read' && q.params.threadId==='already-deleted')
+    return rpc({id:q.id,error:{code:-32600,message:'thread not loaded: already-deleted'}});
+  if(q.method==='thread/read' && ['already-active','still-archived'].includes(q.params.threadId))
+    result={thread:{id:q.params.threadId,path:path.join(${JSON.stringify(path.join(tmp, 'home'))},q.params.threadId==='already-active'?'sessions':'archived_sessions','rollout.jsonl')}};
+  if(q.method==='thread/unarchive' && ['already-deleted','already-active','still-archived'].includes(q.params.threadId))
+    return rpc({id:q.id,error:{code:-32600,message:'no archived rollout found for thread id '+q.params.threadId}});
+  if(q.method==='thread/unarchive') result={thread:{id:q.params.threadId==='bad-receipt'?'other':q.params.threadId}};
   if(q.method==='turn/start') {
     if(fs.existsSync(${JSON.stringify(path.join(tmp, 'write-from-turn'))})) {
       execFileSync(process.execPath, ['-e', "require('node:fs').writeFileSync('generated.txt', process.cwd())"], {cwd: q.params.cwd ?? cwd});
@@ -114,6 +134,33 @@ const fork = await forkCodexTurn({ engine: 'codex', sessionToken: 'thread-1', en
 assert.deepEqual(fork, { status: 'forked', token: 'fork-1' });
 const forkRequest = fs.readFileSync(transcript, 'utf8').trim().split('\n').map(JSON.parse).find(q => q.method === 'thread/fork');
 assert.equal(forkRequest.params.lastTurnId, 'turn-1');
+const fromInherited = await forkCodexTurn({ engine: 'codex', sessionToken: 'attached-continuation', entryId: 'turn-1', role: 'assistant' },
+  tmp, opts.executable, opts.env, 'thread-1');
+assert.deepEqual(fromInherited, { status: 'forked', token: 'fork-1' });
+const inheritedForkRequest = fs.readFileSync(transcript, 'utf8').trim().split('\n').map(JSON.parse).filter(q => q.method === 'thread/fork').at(-1);
+assert.equal(inheritedForkRequest.params.threadId, 'thread-1', 'verify and fork an inherited checkpoint from its recorded Codex thread');
+assert.deepEqual(await forkCodexTurn({ engine: 'codex', sessionToken: 'attached-continuation', entryId: 'turn-1', role: 'assistant' },
+  tmp, opts.executable, opts.env, 'archived-original'), { status: 'unsupported' });
+const nativeRow = { cwd: tmp, runtimeResumeToken: 'attached-continuation', nativeHistoryStorageKey: codexHistoryStorageKey(opts.env),
+  codexContinuationHistory: [{ sourceId: 'already-deleted' }, { sourceId: 'fallback-fork', stagingId: 'staging-thread' }] };
+assert.deepEqual(describeCodexHistory(nativeRow, opts.env)?.ids, ['already-deleted', 'fallback-fork', 'staging-thread', 'attached-continuation']);
+const requestCount = () => fs.readFileSync(transcript, 'utf8').trim().split('\n').length;
+const beforeWrongHome = requestCount();
+await assert.rejects(updateCodexHistory(nativeRow, 'delete', opts.executable, { ...opts.env, CODEX_HOME: path.join(tmp, 'different-profile') }), /另一个历史目录/);
+assert.equal(requestCount(), beforeWrongHome, 'profile mismatch must stop before launching a native request');
+await assert.rejects(updateCodexHistory({ ...nativeRow, nativeHistoryStorageKey: undefined }, 'delete', opts.executable,
+  { ...opts.env, CODEX_HOME: path.join(tmp, 'different-profile') }), /存储位置不一致/);
+assert.equal(fs.readFileSync(transcript, 'utf8').trim().split('\n').map(JSON.parse).at(-1).method, 'initialize');
+await assert.rejects(updateCodexHistory({ cwd: tmp, runtimeResumeToken: 'unsupported-delete' }, 'delete', opts.executable, opts.env), /不支持这项历史操作/);
+await assert.rejects(updateCodexHistory({ cwd: tmp, runtimeResumeToken: 'bad-receipt' }, 'unarchive', opts.executable, opts.env), /未确认原生会话操作/);
+await updateCodexHistory(nativeRow, 'unarchive', opts.executable, opts.env);
+await updateCodexHistory({ cwd: tmp, runtimeResumeToken: 'already-active' }, 'unarchive', opts.executable, opts.env);
+await assert.rejects(updateCodexHistory({ cwd: tmp, runtimeResumeToken: 'still-archived' }, 'unarchive', opts.executable, opts.env), /no archived rollout/);
+await assert.rejects(updateCodexHistory({ cwd: tmp, runtimeResumeToken: 'already-deleted' }, 'unarchive', opts.executable, opts.env), /thread not loaded/);
+await updateCodexHistory(nativeRow, 'delete', opts.executable, opts.env);
+const deletedIds = fs.readFileSync(transcript, 'utf8').trim().split('\n').map(JSON.parse)
+  .filter(q => q.method === 'thread/delete').slice(-4).map(q => q.params.threadId);
+assert.deepEqual(deletedIds, ['attached-continuation', 'staging-thread', 'fallback-fork', 'already-deleted'], 'delete the Codex lineage newest first');
 fs.writeFileSync(path.join(tmp, 'omit-user-agent'), '1');
 const resumed = client.resumeThread('thread-1', {workingDirectory:tmp});
 const next = await resumed.runStreamed('resume');

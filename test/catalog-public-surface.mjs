@@ -69,16 +69,17 @@ try {
     resolveSessionRef:({sessionId})=>{if(sessionId==='bad')throw Error('missing');return {id:sessionId};},
     get:(id)=>sessions.find(s=>s.id===id),
     setArchived:(id,value)=>{changes.push([id,value]);return {id,archived:value};},
+    restoreArchived:async id=>{changes.push([id,false]);return {id,archived:false};},
     markProcessed:(id)=>changes.push([id,'processed'])
   }};
   sessionsHost['sessions.completeAndArchive'](ctx,{sessionIds:['s1']});
   assert.deepEqual(changes,[['s1','processed']],'only explicit target completed');
   changes.length=0;
-  const archived=sessionsHost['sessions.setArchived'](ctx,{sessionIds:['s1','bad','s2'],archived:false});
+  const archived=await sessionsHost['sessions.setArchived'](ctx,{sessionIds:['s1','bad','s2'],archived:false});
   assert.deepEqual(changes,[['s1',false],['s2',false]]);
   assert.equal(archived.failed.length,1);
-  assert.throws(()=>sessionsHost['sessions.setArchived'](ctx,{sessionIds:[],archived:true}),/non-empty/);
-  assert.throws(()=>sessionsHost['sessions.setArchived'](ctx,{sessionId:'s1',archived:true}),/non-empty/);
+  await assert.rejects(sessionsHost['sessions.setArchived'](ctx,{sessionIds:[],archived:true}),/non-empty/);
+  await assert.rejects(sessionsHost['sessions.setArchived'](ctx,{sessionId:'s1',archived:true}),/non-empty/);
 
   // The handler requires a concrete choice; dirty status cannot override it.
   const created=[];

@@ -359,7 +359,9 @@ export function handleEvent(host: HostCore, entry: SessionEntry, ev: GuiDriverSt
       }
       host.ctx.sessions.updateRuntimeHandle(entry.sessionId, {
         externalSessionId: ev.token,
-        runtimeResumeToken: ev.token
+        runtimeResumeToken: ev.token,
+        ...(ev.historyStorageKey ? { nativeHistoryStorageKey: ev.historyStorageKey } : {}),
+        ...(ev.historyCwd ? { nativeHistoryCwd: ev.historyCwd } : {})
       });
       if(entry.forkSeed&&!entry.closed&&!entry.clearing){
         try{

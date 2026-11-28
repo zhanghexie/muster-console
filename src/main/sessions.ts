@@ -2,7 +2,10 @@ import { userDataStorage } from './runtimeKernel/storageRootResolver';
 import { attachTaskWorktrees } from './git/worktreeAttach';
 import { randomUUID } from 'node:crypto';
 import { sessionSubtreePostOrder } from '../shared/sessionTree';
-import { archiveAffectedSessions, sessionMayInterrupt, type SessionDeleteOptions, type SessionDeletePreview } from '../shared/sessionLifecycle';
+import {
+  archiveAffectedSessions, NativeSessionHistoryError, sessionMayInterrupt, type NativeSessionHistoryAction,
+  type NativeSessionHistoryTarget, type SessionDeleteOptions, type SessionDeletePreview
+} from '../shared/sessionLifecycle';
 import type { SafetyGitEvidence } from '../shared/safety';
 import { createSafetyGitEvidenceCollector, type GitEvidenceContents } from './safety/evidence';
 import { resolveRepoIdentity } from './git/repoIdentity';
@@ -177,6 +180,7 @@ export interface ChatSessionBridge {
    * 必须可 await——删 worktree 前要等 GUI 子进程释放目录锁（见 releaseThenCleanup）。
    */
   release(id: string): void | Promise<void>;
+  nativeHistory?(s: Readonly<SessionMeta>): import('./agentSession/types').GuiRuntimeDriver['nativeHistory'];
 }
 
 /**
@@ -507,6 +511,59 @@ export class SessionsService {
     return session.archiveTerminalText ?? plainTextFromPtyBuffer(this.ptyMgr.getBufferTail(id, 24_000) ?? '').text;
   }
 
+  private nativeHistoryTarget(row: SessionMeta, action?: NativeSessionHistoryAction): NativeSessionHistoryTarget | undefined {
+    const target = this.chatBridge?.nativeHistory?.(row)?.describe(row);
+    if (!target || !action) return target;
+    if (target.actions.includes(action) && row.nativeHistoryDeleteReceipt !== this.nativeHistoryReceipt(target)) return target;
+  }
+
+  private nativeHistoryReceipt(target: NativeSessionHistoryTarget): string {
+    return JSON.stringify([target.storageKey, [...target.ids].sort()]);
+  }
+
+  private async prepareNativeHistory(row: SessionMeta, history: NonNullable<import('./agentSession/types').GuiRuntimeDriver['nativeHistory']>,
+    action: NativeSessionHistoryAction): Promise<void> {
+    try { await history.prepare?.(row, action); }
+    catch (error) { throw new NativeSessionHistoryError(errorMessage(error)); }
+    if (this.peek(row.id) !== row) throw new Error(t('会话状态已变化，请重新扫描。'));
+  }
+
+  private async syncNativeHistory(row: SessionMeta, action: NativeSessionHistoryAction, target: NativeSessionHistoryTarget): Promise<void> {
+    try {
+      const driver = this.chatBridge?.nativeHistory?.(row);
+      if (this.peek(row.id) !== row || !row.archived || !driver || !target.actions.includes(action) ||
+          JSON.stringify(driver.describe(row)) !== JSON.stringify(target)) {
+        throw new Error(t('会话状态已变化，请重新扫描。'));
+      }
+      const ids = new Set(target.ids);
+      const otherSessionIds = new Set<string>();
+      for (const other of this.sessions) {
+        if (other === row) continue;
+        const shared = this.nativeHistoryTarget(other);
+        if (shared?.storageKey !== target.storageKey) continue;
+        for (const id of shared.ids) {
+          if (ids.has(id)) throw new Error(t('关联的原生会话还被另一条集序会话使用。'));
+          otherSessionIds.add(id);
+        }
+      }
+      await driver.update(row, action, otherSessionIds);
+      if (action === 'delete') {
+        const receipt = this.nativeHistoryReceipt(target);
+        const assertBinding = () => {
+          const current = driver.describe(row);
+          if (this.peek(row.id) !== row || !row.archived || !current || this.nativeHistoryReceipt(current) !== receipt) {
+            throw new Error(t('会话状态已变化，请重新扫描。'));
+          }
+        };
+        assertBinding();
+        row.nativeHistoryDeleteReceipt = receipt;
+        await this.persister.flushStrict(assertBinding);
+      }
+    } catch (error) {
+      throw new NativeSessionHistoryError(errorMessage(error));
+    }
+  }
+
   deletePreview(id: string): SessionDeletePreview {
     const root = this.peek(id);
     if (!root?.archived || root.type !== 'terminal') throw new Error(t('会话尚未归档：请先归档再删除（删除仅对已归档会话开放）'));
@@ -519,11 +576,35 @@ export class SessionsService {
       ]) ?? (row.worktreePath ? [{ path: row.worktreePath, branch: row.worktreeBranch, borrowed: false }] : []);
     });
     const active = rows.filter(row => this.isExecuting(row)).map(row => row.id);
+    const nativeTargets = rows.map(row => this.nativeHistoryTarget(row, 'delete'));
+    const providers = new Map<string, { ids: Set<string>; permanent: boolean; deletesNativeChildSessions: boolean }>();
+    for (const target of nativeTargets) {
+      if (!target) continue;
+      const scope = providers.get(target.provider) ?? { ids: new Set<string>(), permanent: true, deletesNativeChildSessions: false };
+      for (const id of target.ids) scope.ids.add(JSON.stringify([target.storageKey, id]));
+      scope.permanent &&= target.permanentDelete === true;
+      scope.deletesNativeChildSessions ||= target.deletesNativeChildSessions === true;
+      providers.set(target.provider, scope);
+    }
     return { name: root.name, descendants: rows.length - 1, active: active.length, worktrees,
-      fingerprint: JSON.stringify([rows.map(row => [row.id, row.archived, taskWorktreeOwnership(row)]), active]) };
+      ...(providers.size ? { nativeHistory: [...providers].map(([provider, scope]) => ({
+        provider, count: scope.ids.size, permanent: scope.permanent, deletesNativeChildSessions: scope.deletesNativeChildSessions
+      })) } : {}),
+      fingerprint: JSON.stringify([rows.map((row, i) => [row.id, row.archived, taskWorktreeOwnership(row), nativeTargets[i]]), active]) };
   }
 
   async previewPermanentDeletion(id: string): Promise<SessionDeletePreview> {
+    const root = this.peek(id);
+    if (root?.archived && root.type === 'terminal') {
+      const rows = sessionSubtreePostOrder(this.sessions, id);
+      for (const row of rows) {
+        const history = this.chatBridge?.nativeHistory?.(row);
+        const target = row.nativeHistoryDeleteReceipt ? history?.describe(row) : undefined;
+        if (history?.prepare && (!target || row.nativeHistoryDeleteReceipt !== this.nativeHistoryReceipt(target))) {
+          await this.prepareNativeHistory(row, history, 'delete');
+        }
+      }
+    }
     const preview = this.deletePreview(id);
     if (!this.git) return preview;
     for (const row of sessionSubtreePostOrder(this.sessions, id)) {
@@ -568,6 +649,12 @@ export class SessionsService {
     for (const id of targets) {
       if (covered.has(id)) continue;
       const rows = sessionSubtreePostOrder(this.sessions, id);
+      const assertSameSubtree = () => {
+        const current = sessionSubtreePostOrder(this.sessions, id);
+        if (current.length !== rows.length || current.some((row, index) => row !== rows[index])) {
+          throw new Error(t('会话状态已变化，请重新扫描。'));
+        }
+      };
       const deleting = this.deletingSessions ??= new Set<string>();
       for (const row of rows) {
         if (row.type === 'scheduled') throw new Error(t('scheduled 会话由服务管理，请使用 automations.delete 删除服务'));
@@ -577,45 +664,69 @@ export class SessionsService {
       }
       this.assertArchiveAllowed(rows);
       const active = new Set(rows.filter(row => this.isExecuting(row)).map(row => row.id));
+      // This scope is presented by the desktop's permanent-delete confirmation.
+      const nativeHistory = new Map<SessionMeta, NativeSessionHistoryTarget>();
+      if (initiatedBy === 'human') {
+        for (const row of rows) {
+          const target = this.nativeHistoryTarget(row, 'delete');
+          if (target) {
+            if (!options) throw new Error(t('会话状态已变化，请重新扫描。'));
+            nativeHistory.set(row, target);
+          }
+        }
+      }
       for (const row of rows) { deleting.add(row.id); this.markArchived(row); }
       try {
-        const needsRelease = rows.filter(row => options?.keepWorktrees || active.has(row.id) || !!row.worktreePath || usesTaskWorktreeLifecycle(row));
+        const needsRelease = rows.filter(row => nativeHistory.has(row) || options?.keepWorktrees || active.has(row.id) ||
+          !!row.worktreePath || usesTaskWorktreeLifecycle(row));
         const releases = await Promise.allSettled(needsRelease.map(row => this.releaseTaskWorktreeSession(row)));
-        const failure = releases.find(result => result.status === 'rejected');
-        if (failure?.status === 'rejected' && !options?.forceWorktrees) throw failure.reason;
-        if (options?.keepWorktrees) {
-          await this.deleteKeepingWorktrees(rows);
-          continue;
+        for (const [i, result] of releases.entries()) {
+          if (result.status !== 'rejected') continue;
+          if (nativeHistory.has(needsRelease[i])) throw new NativeSessionHistoryError(errorMessage(result.reason));
+          if (!options?.forceWorktrees) throw result.reason;
         }
-        // Child ownership is resolved before a parent can remove the referenced checkout.
-        for (const row of needsRelease) {
-          if (usesTaskWorktreeLifecycle(row)) {
-            const result = options?.forceWorktrees
-              ? await cleanupTaskWorktrees(this.worktreeCtx(), row, 'discard', { forceBranches: true })
-              : await cleanupTaskWorktrees(this.worktreeCtx(), row, 'close');
-            if (!result.ok) throw new Error(result.message);
-          } else if (row.worktreePath) {
-            if (options?.forceWorktrees) {
-              const result = await discardSessionWorktree(this.worktreeCtx(), row.id, { forceBranch: true });
-              if (!result.ok) {
-                row.meta = { ...row.meta, orphanWorktree: 'locked', worktreeCleanupIssue: result.message ?? t('worktree 强制清理失败') };
-                this.persist(); this.broadcast();
-                throw new Error(result.message || t('worktree 强制清理失败'));
-              }
-            } else {
-              const lease = beginTaskWorktreeOperation(this.config, row.id, 'cleanup');
-              try {
-                if (this.worktreeReferencedByOtherSession(row) || !await cleanupSessionWorktreeOnClose(this.worktreeCtx(), row)) {
-                  row.meta = { ...row.meta, orphanWorktree: 'locked' };
+        // Confirm the engine accepts archiving before removing its checkout.
+        for (const [row, target] of nativeHistory) {
+          assertSameSubtree();
+          if (target.actions.includes('archive')) await this.syncNativeHistory(row, 'archive', target);
+        }
+        if (!options?.keepWorktrees) {
+          // Child ownership is resolved before a parent can remove the referenced checkout.
+          for (const row of needsRelease) {
+            if (usesTaskWorktreeLifecycle(row)) {
+              const result = options?.forceWorktrees
+                ? await cleanupTaskWorktrees(this.worktreeCtx(), row, 'discard', { forceBranches: true })
+                : await cleanupTaskWorktrees(this.worktreeCtx(), row, 'close');
+              if (!result.ok) throw new Error(result.message);
+            } else if (row.worktreePath) {
+              if (options?.forceWorktrees) {
+                const result = await discardSessionWorktree(this.worktreeCtx(), row.id, { forceBranch: true });
+                if (!result.ok) {
+                  row.meta = { ...row.meta, orphanWorktree: 'locked', worktreeCleanupIssue: result.message ?? t('worktree 强制清理失败') };
                   this.persist(); this.broadcast();
-                  throw new Error(row.meta.worktreeCleanupIssue || t('未通过 worktree 安全检查，已保留。'));
+                  throw new Error(result.message || t('worktree 强制清理失败'));
                 }
-                clearSessionWorktreeMetadata(row);
-              } finally { lease.release(); }
+              } else {
+                const lease = beginTaskWorktreeOperation(this.config, row.id, 'cleanup');
+                try {
+                  if (this.worktreeReferencedByOtherSession(row) || !await cleanupSessionWorktreeOnClose(this.worktreeCtx(), row)) {
+                    row.meta = { ...row.meta, orphanWorktree: 'locked' };
+                    this.persist(); this.broadcast();
+                    throw new Error(row.meta.worktreeCleanupIssue || t('未通过 worktree 安全检查，已保留。'));
+                  }
+                  clearSessionWorktreeMetadata(row);
+                } finally { lease.release(); }
+              }
             }
           }
         }
-        this.close(id);
+        for (const [row, target] of nativeHistory) {
+          assertSameSubtree();
+          await this.syncNativeHistory(row, 'delete', target);
+        }
+        assertSameSubtree();
+        if (options?.keepWorktrees) await this.deleteKeepingWorktrees(rows, assertSameSubtree);
+        else this.close(id);
       } finally {
         for (const row of rows) deleting.delete(row.id);
         this.broadcast();
@@ -1792,6 +1903,28 @@ export class SessionsService {
     return this.get(id)!;
   }
 
+  async restoreArchived(id: string): Promise<SessionMeta> {
+    const session = this.peek(id);
+    if (session?.archived && session.nativeHistoryDeleteReceipt) throw new Error(t('原生会话已删除，集序记录仍可在归档中查看。'));
+    const history = session?.archived ? this.chatBridge?.nativeHistory?.(session) : undefined;
+    if (session && history && (history.prepare || this.nativeHistoryTarget(session, 'unarchive'))) {
+      if (this.archiveCleanupPending?.has(id) || this.deletingSessions?.has(id)) throw new Error(t('会话正在归档，请等待资源清理完成'));
+      assertTaskWorktreeOperationIdle(this.config, id);
+      this.archiveCleanupPending.add(id);
+      this.broadcast();
+      try {
+        if (history.prepare) await this.prepareNativeHistory(session, history, 'unarchive');
+        const target = this.nativeHistoryTarget(session, 'unarchive');
+        if (target) await this.syncNativeHistory(session, 'unarchive', target);
+      } finally {
+        this.archiveCleanupPending.delete(id);
+        this.broadcast();
+      }
+      if (this.peek(id) !== session || !session.archived) throw new Error(t('会话状态已变化，请重新扫描。'));
+    }
+    return this.setArchived(id, false);
+  }
+
   async continueArchived(id: string): Promise<SessionMeta> {
     const session = this.peek(id);
     if (!session?.archived) throw new Error(t('会话状态已变化，请重新扫描。'));
@@ -1802,12 +1935,19 @@ export class SessionsService {
     await resolveSessionTarget(this.config.get(), { workspaceId: session.workspaceId, cwd: session.cwd, capturedSource: session.sourceRoot },
       registeredWorktreeSession(this.sessions, session.cwd, session.workspaceId) ?? session);
     if (this.peek(id) !== session || !session.archived || taskWorktreeOwnership(session) !== identity) throw new Error(t('会话状态已变化，请重新扫描。'));
-    this.setArchived(id, false);
+    await this.restoreArchived(id);
     try { return await this.select(id); }
     catch (error) {
       if (this.peek(id) === session && !session.archived) {
         this.markArchived(session);
         this.persist(); this.broadcast();
+        const target = this.nativeHistoryTarget(session, 'archive');
+        if (target) {
+          this.archiveCleanupPending.add(id);
+          try { await this.syncNativeHistory(session, 'archive', target); }
+          catch (restoreError) { throw new AggregateError([error, restoreError], `${errorMessage(error)} · ${errorMessage(restoreError)}`); }
+          finally { this.archiveCleanupPending.delete(id); this.broadcast(); }
+        }
       }
       throw error;
     }
@@ -2239,6 +2379,7 @@ export class SessionsService {
     const phase = original.phase;
     const changes: Partial<SessionMeta> = { workerRouting: structuredClone(next), ...(replacement ? {
       runtime: replacement.runtime, runtimeResumeToken: undefined, externalSessionId: undefined, cliLaunchOptions: undefined,
+      nativeHistoryStorageKey: undefined, nativeHistoryCwd: undefined, nativeHistoryDeleteReceipt: undefined, codexContinuationHistory: undefined,
       piModeId: replacement.meta.piModeId, modelOverride: replacement.meta.modelOverride, modelParameters: replacement.meta.modelParameters,
       thinkingLevel: replacement.meta.thinkingLevel, guiMode: replacement.meta.guiMode,
       configurePermissions: replacement.meta.configurePermissions ?? session.configurePermissions,
@@ -2270,7 +2411,7 @@ export class SessionsService {
 
   updateRuntimeHandle(
     id: string,
-    handle: { externalSessionId?: string; runtimeResumeToken?: string }
+    handle: { externalSessionId?: string; runtimeResumeToken?: string; nativeHistoryStorageKey?: string; nativeHistoryCwd?: string }
   ): void {
     const s = this.sessions.find((x) => x.id === id);
     if (!s) return;
@@ -2281,9 +2422,39 @@ export class SessionsService {
     }
     if (handle.runtimeResumeToken && s.runtimeResumeToken !== handle.runtimeResumeToken) {
       s.runtimeResumeToken = handle.runtimeResumeToken;
+      delete s.nativeHistoryDeleteReceipt;
+      changed = true;
+    }
+    if (handle.nativeHistoryStorageKey && !s.nativeHistoryStorageKey) {
+      s.nativeHistoryStorageKey = handle.nativeHistoryStorageKey;
+      changed = true;
+    }
+    if (handle.nativeHistoryCwd && !s.nativeHistoryCwd) {
+      s.nativeHistoryCwd = handle.nativeHistoryCwd;
       changed = true;
     }
     if (changed) this.persist();
+  }
+
+  /** A replacement native thread must be recoverable before its first user input. */
+  async commitRuntimeContinuation(id: string, sourceId: string, continuationId: string,
+    history: { storageKey: string; stagingId?: string }, validate: () => void): Promise<void> {
+    const session = this.peek(id);
+    if (!session) throw new Error(t('Codex 会话已变化。本次消息尚未提交。'));
+    const handle = { externalSessionId: continuationId, runtimeResumeToken: continuationId, nativeHistoryStorageKey: history.storageKey,
+      nativeHistoryDeleteReceipt: undefined,
+      codexContinuationHistory: [...(session.codexContinuationHistory ?? []), {
+        sourceId, ...(history.stagingId ? { stagingId: history.stagingId } : {})
+      }] };
+    await this.persister.flushStrict(() => {
+      if (this.peek(id) !== session || session.archived || session.runtimeResumeToken !== sourceId ||
+          (session.nativeHistoryStorageKey && session.nativeHistoryStorageKey !== history.storageKey)) {
+        throw new Error(t('Codex 会话已变化。本次消息尚未提交。'));
+      }
+      validate();
+    }, rows => rows.map(row => row === session ? { ...row, ...handle } : row), () => {
+      Object.assign(session, handle);
+    });
   }
 
   async updateConfigurePermissions(id: string, enabled: boolean, validate: () => void, commit: () => void,
@@ -2334,9 +2505,14 @@ export class SessionsService {
   resetRuntimeHandle(id: string): void {
     const s = this.sessions.find((x) => x.id === id);
     if (!s) return;
-    if (s.externalSessionId === undefined && s.runtimeResumeToken === undefined) return;
+    if (s.externalSessionId === undefined && s.runtimeResumeToken === undefined && !s.nativeHistoryStorageKey && !s.nativeHistoryCwd &&
+        !s.nativeHistoryDeleteReceipt && !s.codexContinuationHistory) return;
     s.externalSessionId = undefined;
     s.runtimeResumeToken = undefined;
+    delete s.nativeHistoryStorageKey;
+    delete s.nativeHistoryCwd;
+    delete s.nativeHistoryDeleteReceipt;
+    delete s.codexContinuationHistory;
     this.persist();
   }
 
@@ -2349,6 +2525,10 @@ export class SessionsService {
     try {
       s.externalSessionId = undefined;
       s.runtimeResumeToken = undefined;
+      delete s.nativeHistoryStorageKey;
+      delete s.nativeHistoryCwd;
+      delete s.nativeHistoryDeleteReceipt;
+      delete s.codexContinuationHistory;
       await this.persister.flushStrict(() => {
         validate?.();
         if (!this.sessions.includes(s) || s.externalSessionId || s.runtimeResumeToken) {
@@ -2593,7 +2773,8 @@ export class SessionsService {
     // 清理可能因脏文件保留树；用户处理完脏状态后再次归档应重跑安全清理收尾，
     // 而不是静默无操作（回归见 test/e2e/task-worktree-gui-lifecycle.spec.ts）。
     const self = rows.find(row => row.id === id);
-    if (self?.archived && !targets.includes(self) && usesTaskWorktreeLifecycle(self)) {
+    if (self?.archived && !targets.includes(self) && (usesTaskWorktreeLifecycle(self) || this.nativeHistoryTarget(self, 'archive') ||
+      this.chatBridge?.nativeHistory?.(self)?.prepare)) {
       assertTaskWorktreeOperationIdle(this.config, id);
       if (this.archiveCleanupPending?.has(id)) throw new Error(t('会话正在归档，请等待资源清理完成'));
       this.startArchiveCleanup([self]);
@@ -2646,12 +2827,14 @@ export class SessionsService {
           }
         }
         catch (error) {
-          if (row.worktreePath || row.worktreeGroups?.groups.length) {
+          if (!(error instanceof NativeSessionHistoryError) && (row.worktreePath || row.worktreeGroups?.groups.length)) {
             row.meta = { ...row.meta, orphanWorktree: 'locked', worktreeCleanupIssue: errorMessage(error) };
             this.persist();
           }
           this.notify.push({ workspaceId: row.workspaceId || this.config.get().activeWorkspaceId || 'app', sessionId: row.id,
-            sessionName: row.name || row.id, kind: 'error', toast: true, text: t('归档清理失败：{{error}}', { error: errorMessage(error) }) });
+            sessionName: row.name || row.id, kind: 'error', toast: true, text: error instanceof NativeSessionHistoryError
+              ? t('集序已归档，原生会话同步失败。{{error}}', { error: errorMessage(error) })
+              : t('归档清理失败：{{error}}', { error: errorMessage(error) }) });
         } finally {
           pending.delete(row.id);
           this.broadcast();
@@ -2665,12 +2848,25 @@ export class SessionsService {
    * 无 worktree 时仍 release（拆连接）；无 GUI 则只走清理。
    */
   private async archiveReleaseThenCleanup(s: SessionMeta): Promise<{ ok: boolean; message: string } | undefined> {
+    const history = this.chatBridge?.nativeHistory?.(s);
+    let released = false;
+    if (history?.prepare) {
+      await this.releaseTaskWorktreeSession(s);
+      released = true;
+      await this.prepareNativeHistory(s, history, 'archive');
+    }
+    const target = this.nativeHistoryTarget(s, 'archive');
+    if (target) {
+      if (!released) await this.releaseTaskWorktreeSession(s);
+      released = true;
+      await this.syncNativeHistory(s, 'archive', target);
+    }
     if (!this.isChatRuntime(s.runtime)) await this.ptyMgr.killAndWait(s.id);
     if (usesTaskWorktreeLifecycle(s)) {
-      return cleanupTaskWorktrees(this.worktreeCtx(), s, 'archive', { release: () => this.releaseTaskWorktreeSession(s) });
+      return cleanupTaskWorktrees(this.worktreeCtx(), s, 'archive', released ? undefined : { release: () => this.releaseTaskWorktreeSession(s) });
     }
     const bridge = this.chatBridge;
-    const needRelease = this.isChatRuntime(s.runtime) && !!bridge;
+    const needRelease = !released && this.isChatRuntime(s.runtime) && !!bridge;
     if (!needRelease && !s.worktreePath) return;
     const operation = s.worktreePath ? beginTaskWorktreeOperation(this.config, s.id, 'cleanup') : undefined;
     let releaseSource: () => void = () => {};

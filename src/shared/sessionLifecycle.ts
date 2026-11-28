@@ -14,11 +14,29 @@ export function archiveAffectedSessions(sessions: readonly SessionMeta[], id: st
   return sessionSubtreePostOrder(sessions, id).filter(session => !session.archived);
 }
 
+export type NativeSessionHistoryAction = 'archive' | 'unarchive' | 'delete';
+
+export interface NativeSessionHistoryTarget {
+  provider: string;
+  storageKey: string;
+  ids: readonly string[];
+  actions: readonly NativeSessionHistoryAction[];
+  permanentDelete?: boolean;
+  deletesNativeChildSessions?: boolean;
+}
+
+// Electron preserves the error name inside the invoke rejection message.
+export const NATIVE_SESSION_HISTORY_ERROR_NAME = 'NativeSessionHistoryError';
+export class NativeSessionHistoryError extends Error {
+  override name = NATIVE_SESSION_HISTORY_ERROR_NAME;
+}
+
 export interface SessionDeletePreview {
   fingerprint: string;
   name: string;
   descendants: number;
   active: number;
+  nativeHistory?: Array<{ provider: string; count: number; permanent: boolean; deletesNativeChildSessions?: boolean }>;
   worktrees: Array<{ path: string; branch?: string; borrowed?: boolean;
     disposition?: 'keep' | 'remove-directory' | 'remove-directory-and-branch' | 'verify' }>;
 }

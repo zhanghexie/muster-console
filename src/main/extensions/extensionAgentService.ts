@@ -164,7 +164,7 @@ export class ExtensionAgentService {
             const binding = { sessionId, runtime, manifest: structuredClone(manifest), identity: structuredClone(identity) };
             this.extensionBindings.set(key, binding);
             this.extensionSessions.set(sessionId, { runtime, manifest: structuredClone(manifest), identity: structuredClone(identity) });
-            const reopened = current.archived ? this.ctx.sessions.setArchived(sessionId, false) : current;
+            const reopened = current.archived ? await this.ctx.sessions.restoreArchived(sessionId) : current;
             if (reopened.archived) throw new Error('Extension Agent Session could not be reopened');
             this.ctx.agentSessions.open(reopened);
             await this.waitForAgentSessionOpen(sessionId);
@@ -179,7 +179,7 @@ export class ExtensionAgentService {
           }
         } else {
           await this.extensionMcp.open({ sessionId, identity, manifest, packageRoot, resources: existing.runtime.agentResourceMount() });
-          const reopened = current.archived ? this.ctx.sessions.setArchived(sessionId, false) : current;
+          const reopened = current.archived ? await this.ctx.sessions.restoreArchived(sessionId) : current;
           if (reopened.archived) throw new Error('Extension Agent Session could not be reopened');
           this.ctx.agentSessions.open(reopened);
           await this.waitForAgentSessionOpen(sessionId);

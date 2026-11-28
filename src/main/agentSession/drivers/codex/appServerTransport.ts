@@ -1,6 +1,5 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
 import { createInterface, type Interface as ReadlineInterface } from 'node:readline';
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -8,6 +7,7 @@ import type { GuiDriverConnectInput, GuiUserQuestionRequest } from '../../types'
 import type { CodexClientHandle, CodexInput, CodexThreadHandle, CodexThreadOptions, CodexTurnOptions } from './protocol';
 import { challengeCodexWorker, codexWorkerAsset, type CodexWorkerLimits } from './workerProcess';
 import { CodexProcessSupervisor } from './processSupervisor';
+import { CodexRpcError, sameCodexHome, withCodexNativeRpc } from './nativeRpc';
 import { spawnOwnedProcess } from '../../process/owner';
 import { boundedAcpRequest } from '../../processReclamation';
 import { genericWorkerEnvironment } from '../../process/workerEnvironment';
@@ -22,10 +22,12 @@ import { codexNativeApproval, codexNativeConfig, codexNativeStartOverrides, code
 import type { NativeConfigState, NativeConfigValue } from '../../../../shared/nativeSessionConfig';
 import { assertWorktreeExecutionCurrent } from '../../../workspaceExecutionContext';
 import { pathKey } from '../../../pathKey';
+import { t } from '../../../../shared/i18n';
 
 type Obj = Record<string, unknown>;
 type RpcId = string | number;
-type ServerMessage = { id?: RpcId | null; method?: string; params?: unknown; result?: unknown; error?: { message?: string } };
+type CodexRpcRequest = (method: string, params: Obj, timeoutMs?: number) => Promise<unknown>;
+type ServerMessage = { id?: RpcId | null; method?: string; params?: unknown; result?: unknown; error?: { code?: number; message?: string } };
 type Interaction = { id: RpcId; method: string; params: Obj; hostTurn: string; controller: AbortController; settled: boolean };
 const obj = (v: unknown): Obj => v && typeof v === 'object' && !Array.isArray(v) ? v as Obj : {};
 const str = (v: unknown): string => typeof v === 'string' ? v : '';
@@ -45,16 +47,60 @@ export interface CodexAppServerClientOptions {
   nativeSelections?: Array<{ id: string; value: NativeConfigValue }>;
   workerPermission?: GuiDriverConnectInput['workerPermission'];
   onNativeConfig?(state: NativeConfigState, catalog: CodexConfigCatalog): void;
+  /** Bind the verified continuation to the workbench session before sending input. */
+  onThreadRecovered?(sourceId: string, continuationId: string, stagingId?: string): Promise<void>;
 }
 
-export function sameCodexHome(actual: unknown, env: Record<string, string>): boolean {
-  if (typeof actual !== 'string' || !actual.trim()) return false;
-  const normalize = (value: string): string => {
-    let result = path.resolve(value);
-    try { result = fs.realpathSync.native(result); } catch { /* a new home may not exist yet */ }
-    return process.platform === 'win32' ? result.toLowerCase() : result;
+async function forkLockedThread(request: CodexRpcRequest, sourceId: string, settings: Obj,
+  created: (threadId: string) => void, warn: (error: unknown) => void): Promise<{ result: Obj; stagingId?: string }> {
+  const latestTurn = async (threadId: string): Promise<Obj> => {
+    const result = obj(await request('thread/turns/list', { threadId, limit: 1, sortDirection: 'desc', itemsView: 'notLoaded' }));
+    return Array.isArray(result.data) ? obj(result.data[0]) : {};
   };
-  return normalize(actual) === normalize(env.CODEX_HOME || path.join(os.homedir(), '.codex'));
+  const savedTurn = await latestTurn(sourceId);
+  if (savedTurn.status === 'inProgress') {
+    throw new Error(t('Codex 正在处理原会话的回合。请等这轮结束后在集序重试。'));
+  }
+  const historyError = () => new Error(t('Codex 无法确认续聊线程的历史。请在集序重试。'));
+  const lastTurnId = str(savedTurn.id);
+  if (!lastTurnId || !['completed', 'failed', 'interrupted'].includes(str(savedTurn.status))) throw historyError();
+  const result = obj(await request('thread/fork', {
+    ...settings, threadId: sourceId, lastTurnId, excludeTurns: true, deferGoalContinuation: true
+  }));
+  const fork = obj(result.thread);
+  const forkId = str(fork.id);
+  if (!forkId || forkId === sourceId || fork.forkedFromId !== sourceId || fork.ephemeral !== false) throw historyError();
+  created(forkId);
+  const copied = await latestTurn(forkId);
+  if (copied.id !== lastTurnId || copied.status !== savedTurn.status) throw historyError();
+  if (fork.historyMode !== 'paginated' || fork.attachedToThreadId !== null) return { result };
+
+  // Attaching requires writer ownership of the parent. Use the fork this
+  // app-server just created, so the original can stay open in another client.
+  let continuation: Obj;
+  try {
+    const goal = obj(await request('thread/goal/get', { threadId: forkId }, 5000));
+    // Attached forks cannot defer automatic goal continuation.
+    if (goal.goal !== null) return { result };
+    continuation = obj(await request('thread/fork', {
+      ...settings, threadId: forkId, lastTurnId, excludeTurns: true, attachToSource: true
+    }, 10000));
+  } catch (error) {
+    warn(error);
+    return { result };
+  }
+  const attached = obj(continuation.thread);
+  const attachedId = str(attached.id);
+  if (!attachedId || attachedId === sourceId || attachedId === forkId || attached.ephemeral !== false ||
+      attached.forkedFromId !== forkId || attached.attachedToThreadId !== forkId) {
+    warn('Codex did not confirm the attached continuation.');
+    return { result };
+  }
+  created(attachedId);
+  // Archiving the staging fork leaves its attached thread active in Codex.
+  try { await request('thread/archive', { threadId: forkId }, 10000); }
+  catch (error) { warn(error); }
+  return { result: continuation, stagingId: forkId };
 }
 
 function translateInputs(input: CodexInput): Obj[] {
@@ -89,13 +135,14 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
   const secrets = [...collectEnvSecrets(options.env), ...collectEnvSecrets(mcpEnv)];
   const clean = (value: unknown): string => redactSafetyText(value instanceof Error ? value.message : String(value), secrets).slice(0, 1600);
   const thread = (initialId: string | null, settings: CodexThreadOptions = {}): CodexThreadHandle => {
-    let id = initialId;
+    let boundId = initialId;
     let supervisor: CodexProcessSupervisor | undefined;
     return {
-      get id() { return id; },
+      get id() { return boundId; },
       stop() { return supervisor?.stop() ?? Promise.resolve(); },
       async runStreamed(input: CodexInput, turn: CodexTurnOptions = {}) {
         return { events: (async function* () {
+          let id = boundId;
           turn.signal?.throwIfAborted();
           const isolated = options.host.workspaceContext?.worktreeExecution;
           const assertIsolatedCwd = (value: unknown): void => {
@@ -146,17 +193,20 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
           let draining = false, finished = false, submitted = false, turnId = '', hostTurn = '';
           let nextId = 1, earlyBytes = 0;
           const early: ServerMessage[] = [];
+          let bootstrap: Promise<void> | undefined;
           let bootstrapFailure: Error | undefined;
           let flushingEarly: Promise<void> | undefined;
           let configCatalog: CodexConfigCatalog | undefined;
           let nativeSettings: Obj = {};
+          let unboundSource: string | undefined;
+          const unboundForks: string[] = [];
           let configConfirmation: { matches(state: NativeConfigState): boolean; confirm(): void } | undefined;
           const observeSettings = (settings: Obj) => {
             nativeSettings = settings.runtimeWorkspaceRoots === undefined && nativeSettings.runtimeWorkspaceRoots !== undefined
               ? { ...settings, runtimeWorkspaceRoots: nativeSettings.runtimeWorkspaceRoots } : settings;
             if (!configCatalog) return;
             const state = codexNativeConfig(configCatalog, settings);
-            options.onNativeConfig?.(state, configCatalog);
+            if (!unboundSource) options.onNativeConfig?.(state, configCatalog);
             if (configConfirmation?.matches(state)) configConfirmation.confirm();
           };
 
@@ -393,7 +443,7 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
             if (turn.signal?.aborted || owner.state !== 'ready') throw new Error('Codex 工作进程已停止');
             assertWorktreeExecutionCurrent(isolated);
             child.stdin.write(JSON.stringify({ type: 'run-app-server', executable: options.executable, cwd: settings.workingDirectory, env: options.env }) + '\n');
-            const bootstrap = (async () => {
+            bootstrap = (async () => {
               const init = obj(await request('initialize', { clientInfo: { name: 'muster_workbench', title: 'muster Workbench', version: '0.1.31' },
                 capabilities: { experimentalApi: true } }));
               if (!sameCodexHome(init.codexHome, options.env)) throw new Error('Codex 会话存储位置不一致，无法安全恢复');
@@ -406,13 +456,29 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
               const nativeOverrides = codexNativeStartOverrides(configCatalog, selections);
               const base: Obj = { cwd: settings.workingDirectory, config, ...(id && options.workerPermission ? {} : nativeOverrides),
                 ...(settings.model ? { model: settings.model } : {}) };
-              const threadResult = obj(await request(id ? 'thread/resume' : 'thread/start', id ? { ...base, threadId: id, excludeTurns: true }
-                : { ...base, ...(options.ephemeral ? { ephemeral: true } : {}) }));
+              const sourceId = id;
+              const commitRecovery = options.onThreadRecovered;
+              let threadResult: Obj;
+              let stagingId: string | undefined;
+              try {
+                threadResult = obj(await request(sourceId ? 'thread/resume' : 'thread/start', sourceId ? { ...base, threadId: sourceId, excludeTurns: true }
+                  : { ...base, ...(options.ephemeral ? { ephemeral: true } : {}) }));
+              } catch (error) {
+                if (!sourceId || !commitRecovery || !(error instanceof CodexRpcError) || error.code !== -32600 ||
+                    !error.message.endsWith(`thread ${sourceId} already has an active writer`)) throw error;
+                const recovery = await forkLockedThread(request, sourceId, base,
+                  threadId => unboundForks.push(threadId),
+                  error => options.host.log('warn', `Codex continuation visibility could not be confirmed: ${clean(error)}`));
+                threadResult = recovery.result;
+                stagingId = recovery.stagingId;
+                unboundSource = sourceId;
+              }
               const remote = str(obj(threadResult.thread).id);
-              if (!remote || (id && remote !== id)) throw new Error('Codex 恢复返回了不匹配的会话标识');
+              if (!remote || (sourceId && remote !== sourceId && !unboundSource)) throw new Error('Codex 恢复返回了不匹配的会话标识');
               assertIsolatedCwd(threadResult.cwd);
               id = remote;
-              if (!options.workerPermission) events.push({ type: 'thread.started', thread_id: remote });
+              if (!unboundSource) boundId = remote;
+              if (!options.workerPermission && !unboundSource) events.push({ type: 'thread.started', thread_id: remote });
               observeSettings(threadResult);
               const collaboration = selections.find(selection => selection.id === 'collaborationMode')?.value;
               if (typeof collaboration === 'string' && !obj(nativeSettings.collaborationMode).mode) {
@@ -480,9 +546,18 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
               hostTurn = options.host.getTurnId?.() ?? '';
               if (!hostTurn || turn.signal?.aborted) throw new Error('Codex 回合已取消');
               const nativeInput = translateInputs(input);
+              const recoveredSource = unboundSource;
+              if (recoveredSource && commitRecovery) {
+                await commitRecovery(recoveredSource, remote, stagingId);
+                boundId = remote;
+                unboundForks.length = 0;
+                if (finished || turn.signal?.aborted || options.host.getTurnId?.() !== hostTurn) throw new Error('Codex 回合已取消');
+                unboundSource = undefined;
+                observeSettings(nativeSettings);
+              }
               confirmWorkerPermission();
               assertWorktreeExecutionCurrent(isolated);
-              if (options.workerPermission) events.push({ type: 'thread.started', thread_id: remote });
+              if (options.workerPermission || recoveredSource) events.push({ type: 'thread.started', thread_id: remote });
               options.desktopDelivery?.begin(hostTurn, turn.signal);
               submitted = true;
               const startRequest = request('turn/start', { threadId: id, input: nativeInput,
@@ -520,7 +595,7 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
                   const pending = requests.get(message.id);
                   if (!pending) continue;
                   requests.delete(message.id);
-                  if (message.error) pending.reject(new Error(str(message.error.message) || 'Codex 请求失败'));
+                  if (message.error) pending.reject(new CodexRpcError(str(message.error.message) || 'Codex 请求失败', message.error.code));
                   else pending.resolve(message.result);
                 }
                 if (!finished && !turn.signal?.aborted) throw new Error('Codex app-server 输出提前结束');
@@ -537,8 +612,27 @@ export function createCodexAppServerClient(options: CodexAppServerClientOptions,
             for (const pending of requests.values()) pending.reject(new Error('Codex 连接已关闭'));
             requests.clear();
             turn.signal?.removeEventListener('abort', abort);
-            await owned.release();
-            reader.close();
+            try { await owned.release(); }
+            finally { reader.close(); }
+            // An EOF may end the event stream while the registry write is
+            // still in flight. Its outcome decides whether the fork is ours
+            // to archive or has become the current binding.
+            await bootstrap;
+            if (unboundForks.length) {
+              // The original writer belongs to another client. Only archive
+              // new forks whose ancestry we verified and never bound locally.
+              try {
+                await withCodexNativeRpc(settings.workingDirectory ?? options.host.cwd, options.executable, options.env, async request => {
+                  for (const threadId of unboundForks.reverse()) {
+                    try {
+                      const result = await request('thread/archive', { threadId });
+                      if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('invalid archive receipt');
+                    }
+                    catch (error) { options.host.log('warn', `Could not archive unused Codex continuation ${threadId}: ${clean(error)}`); }
+                  }
+                }, { workerPath, jobPath: limits.jobPath, timeoutMs: 5_000 });
+              } catch (error) { options.host.log('warn', `Could not clean up unused Codex continuations: ${clean(error)}`); }
+            }
           }
         })() };
       }

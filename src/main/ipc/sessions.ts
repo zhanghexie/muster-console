@@ -208,7 +208,7 @@ export function registerSessionIpc(ctx: AppContext): void {
     if (active.some(sessionId => !Array.isArray(confirmed) || !confirmed.includes(sessionId))) return { archiveConfirmation: active };
   };
   handle('sessions:setArchived', (_e, id: string, archived: boolean, selectionHint?: import('../../shared/workspaceActiveSession').ArchiveSelectionHint, confirmed?: string[]) =>
-    (archived ? archiveConfirmation(id, confirmed) : undefined) ?? ctx.sessions.setArchived(id, archived, selectionHint));
+    archived ? archiveConfirmation(id, confirmed) ?? ctx.sessions.setArchived(id, true, selectionHint) : ctx.sessions.restoreArchived(id));
   // 用户手动标记看板三档（source=user，粘性：model/llm 不得回退）
   handle('sessions:setPhase', (_e, id: string, phase: { value: string }) => {
     const value = phase?.value;

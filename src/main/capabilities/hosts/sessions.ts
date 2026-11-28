@@ -393,7 +393,7 @@ export const sessionsHost = {
   'sessions.setPinned': (ctx: AppContext, args: { sessionId: string; pinned: boolean }) =>
     ctx.sessions.setPinned(resolveHostSessionId(ctx, args.sessionId), !!args.pinned),
 
-  'sessions.setArchived': (ctx: AppContext, args: { sessionIds: string[]; archived: boolean; __actorSessionId?: string }) => {
+  'sessions.setArchived': async (ctx: AppContext, args: { sessionIds: string[]; archived: boolean; __actorSessionId?: string }) => {
     if (typeof args?.archived !== 'boolean') throw new Error('archived must be a boolean');
     if (
       !Array.isArray(args.sessionIds) || !args.sessionIds.length ||
@@ -408,7 +408,8 @@ export const sessionsHost = {
         const resolved = resolveHostSessionId(ctx, id);
         if (args.__actorSessionId && ctx.sessions.get(resolved)?.parentSessionId !== args.__actorSessionId)
           throw new Error('a parent session can only archive or restore its own direct child sessions');
-        ctx.sessions.setArchived(resolved, args.archived);
+        if (args.archived) ctx.sessions.setArchived(resolved, true);
+        else await ctx.sessions.restoreArchived(resolved);
         updated.push(resolved);
       } catch (e) {
         failed.push({ id, error: e instanceof Error ? e.message : String(e) });

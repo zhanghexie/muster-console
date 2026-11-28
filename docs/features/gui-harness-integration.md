@@ -14,7 +14,7 @@
 | Pi、Oh My Pi | `pi-external` / `omp`，`drivers/externalPi/` | 用户安装的 RPC 程序、凭据、模型及配置，与内置 Pi 分开；支持手动绝对路径或自动发现；临时扩展桥接宿主工具。外部 Pi 的 GUI 会话和模型目录发现暂不自动加载扩展，保留显式宿主桥接；部分 Pi 版本的内置 MCP 等扩展也受影响。GUI 活跃回合消息使用宿主队列 |
 | Claude Code | `claude`，Claude Agent SDK | 使用本机 Claude 登录和配置，不消费工作台全局模型；模型及思考强度依 SDK 实际目录选择，切换后经原生会话恢复；宿主工具走进程内 MCP，原生权限只覆盖 SDK 实际回调，真实运行待用户验收 |
 | MiMo Code | `acp` + `mimo-code` 预设，原生 `mimo acp` | MiMo Desktop 的核心引擎，直接使用 MiMo Code 自己的配置和登录，不经 Claude Code。先运行 `mimo` 完成配置；不保证桌面账号与独立 CLI 自动共用 |
-| Codex | `codex-gui`，受管 worker 与原生 app-server | 启动、原生设置和分叉使用 app-server 的 RPC，校验会话和权限回执。聊天和原生终端共用 [本机 Codex CLI 发现](gui-worker-session.md#打包)，可以从受支持的桌面安装找到随附 CLI。 |
+| Codex | `codex-gui`，受管 worker 与原生 app-server | 启动、原生设置和分叉使用 app-server 的 RPC，校验会话和权限回执。写入冲突时在原集序聊天续聊，支持附属线程且无原生目标时让 Codex 默认列表只保留原线程。聊天和原生终端共用 [本机 Codex CLI 发现](gui-worker-session.md#打包)，可以从受支持的桌面安装找到随附 CLI。 |
 | Cursor | `acp`，预设 `cursor`，启动 `cursor-agent acp` | 使用 Cursor CLI 登录与原生配置；协商模型和 agent/plan/ask 模式，权限和恢复取决于 CLI 实际实现 |
 | Antigravity | `acp`，预设 `antigravity`，优先启动官方 `agy acp` | 使用 Antigravity CLI 登录与原生配置。安装后可从 GUI Harness 选择器使用。查找顺序、旧服务兼容和登录方法见 [ACP driver](acp-gui-driver.md#antigravity) |
 | CodeBuddy Code | `acp` + `codebuddy-cli`，由 Manifest 声明 `codebuddy --acp` | 与原生终端共用产品。Windows 本机 2.182.0 通过 ACP v1 握手和空会话，返回 17 个模型。Windows 非沙盒已验真实读取、写入审批及关闭配置后继续；其他平台真机待验 |
@@ -133,6 +133,38 @@ Catalog 工具使用 `execute-result-json` 声明结果信封，网关依据其 
 队列仍是现有通用的内存队列，工作台重启时不会重建；恢复消息会去掉 `queued` 标记，因此异常退出前尚未发送的排队消息可能以普通消息显示，不能仅凭消息显示认定引擎已经收到。严格历史提交不改变这一队列恢复边界。
 
 清空会话先同步写入清空标记，再等待旧历史写入结束并删除应用侧数据，最后严格写入会话注册表中的空引擎标识，成功后才移除标记。不同会话的注册表严格写入会依次执行并各自校验，失败时重新安排写入最新完整注册表。失败或异常退出后保留标记并阻止续写，可检查历史后重新清空；与永久删除并发时也保留标记，等后续启动确认注册表无此会话后才由孤儿清扫回收。无法读取或解析的保护记录会保留，删除仍尝试其余历史、附件和引擎清理，并向用户提示错误；引擎进程未确认回收时不会强行清理或删除 worktree，已确认回收后若数据清理失败则仍尝试 worktree 收尾并合并报告。引擎侧 `purge` 仍是各驱动尽力清理，部分驱动不提供清理、部分内部错误只记日志，不能据此宣称原生历史已销毁。普通删除仍沿用注册表异步落盘：历史删除先于注册表完成时异常退出可能复现旧会话或标识。清空和删除均不提供断电持久性保证。
+
+### 原生会话归档、恢复和永久删除
+
+`GuiRuntimeDriver.nativeHistory` 为会话提供可选操作、原生记录 ID 与存储范围。归档、取消归档和删除分别检查能力。删除预览列出适用的 Harness 和记录数量。只有桌面用户确认了此范围，永久删除才调用原生删除接口。后台注册表收尾、清空和孤儿回收沿用各自的本地数据清理。
+
+Codex GUI 通过受管 app-server 的 `thread/archive`、`thread/unarchive`、`thread/delete` 同步历史。归档先标记集序列表，等待本轮进程退出后同步。原生写锁导致同步失败时保留原生记录，并提示集序已归档。恢复先确认关联记录可用，再打开集序会话。正在其他客户端使用且已处于活动列表中的记录可以继续用于原有续聊流程。
+
+自动续聊换绑时，会话注册表在提交下一条消息前一起保存原会话、当前续聊和经过核对的中间线程。恢复时中间线程保留归档。普通分叉和附属线程都可能引用先前历史，永久删除从最新续聊沿换绑记录逆序执行。独立分叉由各自的会话管理，Codex 可能拒绝删除它们仍在引用的原记录。升级前未记录的换绑关系只处理当前已保存的原生 ID。原生操作使用对应的 Codex 历史目录，配置不匹配或关联 ID 被其他集序会话引用时拒绝操作。永久删除先确认可以归档，再执行 worktree 清理和原生删除。原生删除失败时保留集序会话，已移除的原生记录在重试时视为完成。Codex 会一并删除目标线程启动的原生子代理历史。其他 Codex 客户端刷新会话列表时读取新状态。[Codex App Server](https://learn.chatgpt.com/docs/app-server#delete-a-thread)
+
+下表覆盖集序聊天当前登记的 Harness。恢复指取消归档。未同步的操作仅影响集序，按握手表示该安装版本在 ACP 中声明对应能力时由集序同步。删除确认文案区分原生永久删除和从原生列表移除。
+
+| Harness | 删除 | 归档 | 恢复 | 原生接口与边界 |
+|---|---|---|---|---|
+| Muster Core | 集序 | 集序 | 集序 | 转录由集序维护，无独立客户端同步 |
+| Codex | 永久删除 | 同步 | 同步 | app-server，含已记录的自动续聊线程 |
+| Claude Code | 永久删除 | 仅集序 | 仅集序 | Agent SDK 删除本机转录及其子代理转录。[SDK 会话接口](https://platform.claude.com/cookbook/claude-agent-sdk-05-building-a-session-browser) |
+| OpenCode | V2 永久删除，其他版本按握手 | V2 同步，其他版本按握手 | V2 同步，其他版本按握手 | V2 按会话 ID 读回状态。删除会连带清理原生子会话。若子会话绑定另一条集序聊天，则拒绝删除。[OpenCode API](https://opencode.ai/docs/api) |
+| Qwen Code | 移出列表 | 按握手 | 按握手 | 优先采用 ACP 声明。已验证 0.28.7 的 `deleteSession` 扩展，按原工作目录和会话 ID 操作。[官方编辑器接入](https://github.com/QwenLM/qwen-code/blob/main/packages/vscode-ide-companion/src/services/acpConnection.ts) |
+| Kimi Code | 已声明能力的新 CLI 永久删除 | 按握手 | 按握手 | 2.8.1 通过 `session/delete` 删除本机原生会话。新进程可读回更新后的列表。[Kimi ACP](https://www.kimi.com/code/docs/en/kimi-code-cli/reference/kimi-acp.html#session-agent-side-ide-agent-11-11) |
+| Grok Build | 永久删除 | 按握手 | 按握手 | 官方 `sessions delete` 接受 ACP 会话的完整 UUID。1.0.94 验证本机删除及精确回执。[Grok 会话说明](https://docs.x.ai/build/features/sessions#housekeeping) |
+| ZCode | 移出列表 | 仅集序 | 仅集序 | 检测到 V4 `historyFirst` 后调用 `deleteSession`，读取原生列表确认。桌面归档和物理数据清理有独立的状态及接口。[ZCode V4](https://github.com/zai-org/ZCode/blob/main/docs/zcode-protocol.md) |
+| Gemini CLI | 按握手 | 按握手 | 按握手 | 独立 CLI 的删除命令在 UUID 找不到时会回退到列表序号，无法保证删除对象。[Gemini 会话解析](https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/utils/sessions.ts) |
+| GitHub Copilot CLI | 按握手 | 按握手 | 按握手 | 独立 SDK 提供删除，当前 ACP 连接未接入该 SDK。[Copilot ACP](https://docs.github.com/en/copilot/reference/copilot-cli-reference/acp-server) |
+| Antigravity、DeepSeek、Hermes Agent | 按握手 | 按握手 | 按握手 | 本机 Antigravity 1.5.16 未声明这三项。DeepSeek 和 Hermes 其他客户端功能需要独立验证 |
+| Cursor、CodeBuddy Code、Command Code、Cline、Kilo Code、Devin CLI、MiMo Code | 按握手 | 按握手 | 按握手 | 当前接入只使用安装版本声明的 ACP 会话历史能力 |
+| Pi、Oh My Pi、Muse Code | 仅集序 | 仅集序 | 仅集序 | 当前 RPC / MSP 连接没有已确认的精确历史写入路径 |
+
+原生操作使用保存的原生会话 ID、历史配置和工作目录。集序回收自己持有的连接后执行操作。原生端拒绝写入或回执无效时显示失败，删除与恢复保留集序记录。删除子树时，每条已确认的原生记录会先保存删除回执，重试时继续处理尚未确认的记录，即使集序已经重启。已删除原生历史的会话仍可从归档阅读集序转录。若集序已经归档，归档同步失败会明确提示。ACP 能力、专用接口和数据流见 [ACP GUI 驱动](acp-gui-driver.md#原生会话历史)。
+
+回归入口包括 `test/acp-native-history.mjs`、`test/claude-native-history.mjs`、`test/runtime-native-history.mjs`、`test/codex-context-app-server.mjs`、`test/e2e/acp-native-history.spec.ts` 和 `test/e2e/codex-execution-lifecycle.spec.ts`。macOS 隔离验证涵盖 Codex 0.171.0-alpha.13.2 的写锁和续聊生命周期、OpenCode 2.4.2 的三项操作、Claude Agent SDK 0.3.272、Kimi Code 2.8.1、Qwen Code 0.28.7、Grok Build 1.0.94 的删除，以及带真实转录的 ZCode V4 列表移除。Electron 以模拟 Harness 验证桌面交互和 IPC。Windows 与 Linux 尚未进行真机验收。
+
+### 其他 Harness 的原生分叉
 
 OpenCode 的 ACP 事件如带原生 assistant 消息 ID，回合结束记录首尾 ID 和发送内容哈希；用户发起分叉时才启动仅监听本机且有随机密码的短命 OpenCode HTTP 服务，校验源消息与用户输入，利用 v1 API 的排他 `messageID` 截点创建分支，再核对复制后的原生历史。ID 缺失、不能确认对应关系或接口格式不匹配时回退；请求已创建分支但校验失败时报告会话 ID，不自动重试。尚未接入不同结构的 OpenCode v2 原生 HTTP 路径。
 

@@ -20,8 +20,7 @@ import { userDataStorage } from '../../../runtimeKernel/storageRootResolver';
  * - 待投递的宿主说明（firstPromptPrefix）随首条用户消息发送；模式与扩展提示仍可随连接输入发送；
  * - fork：Claude SDK 目前无法保证压缩后的历史引用在分叉时正确重映射，
  *   暂停原生 fork，由 Host 使用 transcript 前缀；
- * - purge/sweepOrphans：共享 ~/.claude 时宿主无权删用户 transcript；隔离目录落地后
- *   仍未做引擎侧清扫（设置开隔离只换目录，删会话不扫隔离树）。
+ * - 原生永久删除：在指定历史目录内调用 SDK 的单会话删除，保留对其他历史的作用域隔离。
  */
 import type { AppContext } from '../../../context';
 import { randomUUID } from 'node:crypto';
@@ -70,6 +69,7 @@ import type { TurnChangeTracker } from '../../../turnChanges/service';
 import { automaticPermissions } from '../nativePermissionPolicy';
 import { claudeNativeConfig, isClaudePermissionMode } from './nativeConfig';
 import { nativeExecutableVersion } from '../nativeExecutableVersion';
+import { claudeHistoryStorageKey, deleteClaudeHistory, describeClaudeHistory } from './nativeHistory';
 
 /** 可注入缝（假 SDK 回放测试用；缺省走真 SDK） */
 export interface ClaudeDriverDeps {
@@ -126,6 +126,13 @@ export class ClaudeRuntimeDriver implements GuiRuntimeDriver {
   readonly modeSwitchReconnects = false;
   readonly modelOverridePolicy = 'reconnect' as const;
   readonly thinkingPolicy = 'unsupported' as const;
+  readonly nativeHistory: NonNullable<GuiRuntimeDriver['nativeHistory']> = {
+    describe: session => describeClaudeHistory(session, this.configDirectory(session.nativeHistoryCwd ?? session.cwd)),
+    update: async (session, action) => {
+      if (action !== 'delete') throw new Error(t('{{provider}} 当前版本未声明此会话历史能力。', { provider: 'Claude Code' }));
+      await deleteClaudeHistory(session, this.configDirectory(session.nativeHistoryCwd ?? session.cwd));
+    }
+  };
 
   constructor(
     private ctx: AppContext,
@@ -142,6 +149,18 @@ export class ClaudeRuntimeDriver implements GuiRuntimeDriver {
 
   private isolatedConfig(): boolean {
     try { return this.ctx.config?.get()?.claude?.isolateConfig === true; } catch { return false; }
+  }
+
+  private configDirectory(cwd = process.cwd()): string {
+    const isolate = this.isolatedConfig();
+    return path.resolve(cwd, resolveClaudeConfigDir({
+      isolate,
+      isolatedConfigDir: isolate ? userDataStorage(this.opts.userDataDir).resolve('app', 'claude-gui-home') : undefined,
+      userDataDir: this.opts.userDataDir,
+      homedir: os.homedir(),
+      envConfigDir: process.env.CLAUDE_CONFIG_DIR,
+      join: path.join
+    }));
   }
 
   async validateModelOverride(input: { cwd: string; model: NonNullable<GuiDriverConnectInput['modelOverride']> }): Promise<void> {
@@ -259,7 +278,7 @@ export class ClaudeRuntimeDriver implements GuiRuntimeDriver {
       const t = typeof token === 'string' ? token.trim() : '';
       if (t && t !== lastResumeToken) {
         lastResumeToken = t;
-        queue.push({ type: 'resume-token', token: t });
+        queue.push({ type: 'resume-token', token: t, historyStorageKey, historyCwd: input.cwd });
       }
     };
 
@@ -393,22 +412,9 @@ export class ClaudeRuntimeDriver implements GuiRuntimeDriver {
       requestApproval: input.requestApproval,
       timeoutMs: this.deps.approvalTimeoutMs ?? CLAUDE_APPROVAL_TIMEOUT_MS
     });
-    const isolate = (() => {
-      try {
-        return this.ctx.config?.get()?.claude?.isolateConfig === true;
-      } catch {
-        return false;
-      }
-    })();
-    const configDir = resolveClaudeConfigDir({
-      isolate,
-      isolatedConfigDir: isolate ? userDataStorage(this.opts.userDataDir).resolve('app', 'claude-gui-home') : undefined,
-      userDataDir: this.opts.userDataDir,
-      homedir: os.homedir(),
-      envConfigDir: process.env.CLAUDE_CONFIG_DIR,
-      join: path.join
-    });
-    if (isolate) {
+    const configDir = this.configDirectory(input.cwd);
+    const historyStorageKey = claudeHistoryStorageKey(configDir);
+    if (this.isolatedConfig()) {
       try {
         fs.mkdirSync(configDir, { recursive: true });
       } catch (e) {

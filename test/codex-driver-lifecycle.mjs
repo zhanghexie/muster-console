@@ -50,7 +50,7 @@ function collect(conn, onEvent) {
   void (async () => { for await (const event of conn.events) { events.push(event); onEvent?.(event); } })();
   return events;
 }
-function send(conn, text) { const promise = conn.send(text); sends.push(promise); return promise; }
+function send(conn, text, authority) { const promise = conn.send(text, undefined, undefined, authority); sends.push(promise); return promise; }
 const flag = (id, n, kind) => path.join(tmp, `${kind}-${id}-${n}`);
 const release = (id, n) => fs.writeFileSync(flag(id, n, 'release'), 'ok');
 const pidOf = (id, n) => Number(fs.readFileSync(flag(id, n, 'pid'), 'utf8'));
@@ -91,6 +91,10 @@ const n = Number(fs.existsSync(countFile) ? fs.readFileSync(countFile, 'utf8') :
 fs.writeFileSync(countFile, String(n));
 fs.writeFileSync('pid-' + id + '-' + n, String(process.pid));
 const threadId = 'thread-' + id;
+const continuationId = threadId + '-continuation';
+const recovering = id.startsWith('writer-recovery');
+const supportsAttachment = id.startsWith('writer-recovery-hidden');
+const stagingId = supportsAttachment ? threadId + '-staging' : continuationId;
 const turnId = 'turn-' + n;
 const writer = 'writer-' + id;
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
@@ -102,23 +106,55 @@ rl.on('line', line => {
   const { method, params } = request;
   if (request.id == null) return;
   const answer = result => emit({ id: request.id, result });
-  const error = message => emit({ id: request.id, error: { code: -32603, message } });
+  const error = (message, code = -32603) => emit({ id: request.id, error: { code, message } });
   if (method === 'initialize') return answer({ codexHome: process.env.CODEX_HOME });
   if (method === 'permissionProfile/list') return answer({ data: [], nextCursor: null });
+  const configure = () => { tools = Object.fromEntries((params.config['mcp_servers.muster'].enabled_tools ?? []).map(name => [name, {}])); };
   if (method === 'thread/start' || method === 'thread/resume') {
     fs.writeFileSync('resume-' + id + '-' + n, params.threadId ?? '<new>');
     if (id === 'external-busy') return error('thread-store conflict: thread ' + threadId + ' already has an active writer');
+    if (recovering && params.threadId === threadId) {
+      return error('thread-store conflict: thread ' + threadId + ' already has an active writer', -32600);
+    }
+    if (recovering && [continuationId, stagingId].includes(params.threadId)) {
+      configure();
+      return answer({ thread: { id: params.threadId }, cwd: params.cwd });
+    }
     if (fs.existsSync(writer) && !alive(Number(fs.readFileSync(writer, 'utf8')))) fs.unlinkSync(writer);
     try { fs.writeFileSync(writer, String(process.pid), { flag: 'wx' }); }
     catch { return error('thread-store conflict: thread ' + threadId + ' already has an active writer'); }
-    tools = Object.fromEntries((params.config['mcp_servers.muster'].enabled_tools ?? []).map(name => [name, {}]));
+    configure();
     return answer({ thread: { id: threadId }, cwd: params.cwd });
+  }
+  if (recovering && method === 'thread/turns/list') {
+    const status = id === 'writer-recovery-running' ? 'inProgress' : 'completed';
+    const checkpoint = id === 'writer-recovery-wrong-history' && params.threadId === continuationId ? 'wrong-turn' : 'saved-turn';
+    return answer({ data: [{ id: checkpoint, status }] });
+  }
+  if (recovering && method === 'thread/fork') {
+    if (params.attachToSource) {
+      fs.writeFileSync('attached-' + id + '-' + n, JSON.stringify({ threadId: params.threadId, lastTurnId: params.lastTurnId }));
+      if (id === 'writer-recovery-hidden-attachment-refused') return error('fixture attachment unavailable', -32600);
+      return answer({ thread: { id: continuationId, forkedFromId: stagingId, attachedToThreadId: stagingId, ephemeral: false }, cwd: params.cwd });
+    }
+    fs.writeFileSync('fork-' + id + '-' + n, JSON.stringify(params));
+    configure();
+    return answer({ thread: { id: stagingId, forkedFromId: threadId, ephemeral: false,
+      ...(supportsAttachment ? { historyMode: 'paginated', attachedToThreadId: null } : {}) }, cwd: params.cwd });
+  }
+  if (supportsAttachment && method === 'thread/goal/get') return answer({ goal: id === 'writer-recovery-hidden-goal' ? { status: 'active' } : null });
+  if (recovering && method === 'thread/archive') {
+    fs.appendFileSync('archive-' + id + '-' + n, params.threadId + '\\n');
+    if (id === 'writer-recovery-hidden-archive-refused') return error('fixture archive denied', -32600);
+    return answer({});
   }
   if (method === 'mcpServerStatus/list') return answer({ data: [{ name: 'muster', runtimeStatus: 'connected', tools }] });
   if (method !== 'turn/start') return answer({});
+  fs.writeFileSync('submitted-' + id + '-' + n, JSON.stringify(params));
+  const actualThread = params.threadId;
   answer({ turn: { id: turnId } });
   if (id.startsWith('tree-') && n === 1) require('node:child_process').spawn(process.execPath, ['tree-child.cjs'], { stdio: 'inherit', windowsHide: true });
-  emit({ method: 'item/completed', params: { threadId, turnId, item: { id: 'a', type: 'agentMessage', text: 'stream-' + n } } });
+  emit({ method: 'item/completed', params: { threadId: actualThread, turnId, item: { id: 'a', type: 'agentMessage', text: 'stream-' + n } } });
   fs.writeFileSync('terminal-' + id + '-' + n, 'ok');
   if (n === 1 && ['tail-error', 'tree-crash', 'eof-stuck', 'abort-stuck'].includes(id)) {
     if (id === 'abort-stuck') process.on('SIGTERM', () => {});
@@ -133,7 +169,7 @@ rl.on('line', line => {
     return;
   }
   const failed = id === 'failed-event';
-  emit({ method: 'turn/completed', params: { threadId, turn: { id: turnId,
+  emit({ method: 'turn/completed', params: { threadId: actualThread, turn: { id: turnId,
     status: failed ? 'failed' : 'completed', ...(failed ? { error: { message: 'fixture turn failed' } } : {}) } } });
 });
 `);
@@ -456,6 +492,129 @@ while ($null -ne ($command = [Console]::In.ReadLine())) {
     }
     assert.ok(events.filter(e => e.type === 'resume-token').length === 0, 'external conflict never clears/replaces resume token');
     assert.equal(fs.readFileSync(flag(id, 2, 'resume'), 'utf8'), 'thread-external-busy', 'second attempt keeps the original resume ID');
+  },
+  async writer_recovery() {
+    const id = 'writer-recovery';
+    const source = 'thread-' + id, target = source + '-continuation';
+    const { conn, events } = await realConnection(id);
+    const commits = [];
+    await send(conn, 'continue here', { async commitNativeContinuation(from, to) {
+      assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false, 'persist the new binding before turn/start');
+      commits.push([from, to]);
+    } });
+    const fork = JSON.parse(fs.readFileSync(flag(id, 1, 'fork'), 'utf8'));
+    assert.equal(fork.threadId, source);
+    assert.equal(fork.lastTurnId, 'saved-turn');
+    assert.equal(fork.deferGoalContinuation, true);
+    assert.deepEqual(commits, [[source, target]]);
+    const submitted = JSON.parse(fs.readFileSync(flag(id, 1, 'submitted'), 'utf8'));
+    assert.equal(submitted.threadId, target);
+    assert.equal(submitted.input[0].text, 'continue here');
+    assert.ok(events.some(event => event.type === 'text-delta' && event.delta === 'stream-1'));
+    await send(conn, 'follow-up');
+    assert.equal(fs.readFileSync(flag(id, 2, 'resume'), 'utf8'), target);
+    assert.equal(fs.existsSync(flag(id, 2, 'fork')), false);
+  },
+  async writer_recovery_rejects_unconfirmed_history() {
+    for (const name of ['running', 'wrong-history']) {
+      const id = 'writer-recovery-' + name;
+      const { conn, events } = await realConnection(id);
+      let committed = false;
+      await assert.rejects(send(conn, 'hold this message', {
+        async commitNativeContinuation() { committed = true; }
+      }), { delivery: 'not-submitted' });
+      assert.equal(committed, false);
+      assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false);
+      assert.equal(events.some(event => event.type === 'resume-token'), false);
+      assert.equal(fs.existsSync(flag(id, 1, 'fork')), name === 'wrong-history');
+      if (name === 'wrong-history') assert.equal(fs.readFileSync(flag(id, 2, 'archive'), 'utf8').trim(), 'thread-' + id + '-continuation');
+    }
+  },
+  async writer_recovery_hides_continuation() {
+    const id = 'writer-recovery-hidden';
+    const source = 'thread-' + id;
+    const { conn } = await realConnection(id);
+    const commits = [];
+    await send(conn, 'continue here', { async commitNativeContinuation(from, to) {
+      assert.equal(fs.readFileSync(flag(id, 1, 'archive'), 'utf8').trim(), source + '-staging');
+      assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false);
+      commits.push([from, to]);
+    } });
+    assert.deepEqual(commits, [[source, source + '-continuation']]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(flag(id, 1, 'attached'), 'utf8')), { threadId: source + '-staging', lastTurnId: 'saved-turn' });
+    assert.equal(JSON.parse(fs.readFileSync(flag(id, 1, 'submitted'), 'utf8')).threadId, source + '-continuation');
+    await send(conn, 'follow-up');
+    assert.equal(fs.readFileSync(flag(id, 2, 'resume'), 'utf8'), source + '-continuation');
+  },
+  async writer_recovery_preserves_delivery_when_hiding_unavailable() {
+    for (const scenario of ['goal', 'attachment-refused', 'archive-refused']) {
+      const id = 'writer-recovery-hidden-' + scenario;
+      const source = 'thread-' + id;
+      const { conn } = await realConnection(id);
+      const expected = source + (scenario === 'archive-refused' ? '-continuation' : '-staging');
+      const commits = [];
+      await send(conn, 'continue safely', { async commitNativeContinuation(from, to) { commits.push([from, to]); } });
+      assert.deepEqual(commits, [[source, expected]]);
+      assert.equal(fs.existsSync(flag(id, 1, 'attached')), scenario !== 'goal');
+      assert.equal(fs.existsSync(flag(id, 1, 'archive')), scenario === 'archive-refused');
+      assert.equal(JSON.parse(fs.readFileSync(flag(id, 1, 'submitted'), 'utf8')).threadId, expected);
+    }
+  },
+  async writer_recovery_requires_durable_binding() {
+    const id = 'writer-recovery-commit-failed';
+    const { conn, events } = await realConnection(id);
+    await assert.rejects(send(conn, 'hold this message', {
+      async commitNativeContinuation() { throw new Error('fixture registry write failed'); }
+    }), { message: /fixture registry write failed/, delivery: 'not-submitted' });
+    assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false);
+    assert.equal(events.some(event => event.type === 'resume-token'), false);
+    assert.equal(fs.readFileSync(flag(id, 2, 'archive'), 'utf8').trim(), 'thread-' + id + '-continuation');
+    await assert.rejects(send(conn, 'try the same original thread'), { message: /active writer/, delivery: 'not-submitted' });
+    assert.equal(fs.readFileSync(flag(id, 3, 'resume'), 'utf8'), 'thread-' + id);
+  },
+  async writer_recovery_cancel_keeps_original_binding() {
+    const id = 'writer-recovery-cancelled-bind';
+    const { conn, events } = await realConnection(id);
+    const committing = deferred(), cancelCommit = deferred();
+    const attempt = send(conn, 'cancel before the new binding is saved', {
+      async commitNativeContinuation() {
+        committing.resolve();
+        await cancelCommit.promise;
+        throw new Error('fixture binding cancelled');
+      }
+    });
+    await committing.promise;
+    const cancellation = conn.abort();
+    cancelCommit.resolve();
+    await Promise.all([attempt, cancellation]);
+    assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false);
+    assert.equal(events.some(event => event.type === 'resume-token'), false, 'an aborted unbound fork cannot replace the original ID');
+    assert.equal(fs.readFileSync(flag(id, 2, 'archive'), 'utf8').trim(), 'thread-' + id + '-continuation');
+    await assert.rejects(send(conn, 'retry the original'), { message: /active writer/, delivery: 'not-submitted' });
+    assert.equal(fs.readFileSync(flag(id, 3, 'resume'), 'utf8'), 'thread-' + id);
+  },
+  async writer_recovery_exit_waits_for_binding() {
+    const id = 'writer-recovery-process-exit';
+    const continuation = 'thread-' + id + '-continuation';
+    const { conn, events } = await realConnection(id);
+    const committing = deferred(), finishCommit = deferred();
+    const attempt = assert.rejects(send(conn, 'the native process stops during the registry write', {
+      async commitNativeContinuation() {
+        committing.resolve();
+        await finishCommit.promise;
+      }
+    }), { delivery: 'not-submitted' });
+    await committing.promise;
+    try {
+      process.kill(pidOf(id, 1), 'SIGKILL');
+      await until(() => events.some(event => event.type === 'execution' && event.state.process === 'released'), 'owner released');
+      assert.equal(fs.existsSync(flag(id, 2, 'archive')), false);
+    } finally { finishCommit.resolve(); }
+    await attempt;
+    assert.equal(fs.existsSync(flag(id, 2, 'archive')), false, 'the durable continuation must stay available');
+    assert.equal(fs.existsSync(flag(id, 1, 'submitted')), false);
+    await send(conn, 'resume the new binding');
+    assert.equal(fs.readFileSync(flag(id, 2, 'resume'), 'utf8'), continuation);
   }
 };
 

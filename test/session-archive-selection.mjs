@@ -39,6 +39,43 @@ try {
   }
 
   {
+    const { SessionPersister } = require(path.join(root, 'src/main/sessions/persister.ts'));
+    const parent = row('parent', 1, { archived: true, runtimeResumeToken: 'parent-native' });
+    const child = row('qwen-child', 2, { archived: true, parentSessionId: parent.id, runtimeResumeToken: 'child-native' });
+    const deletes = [];
+    let persisted;
+    let parentBlocked = true;
+    function bind(service) {
+      service.chatBridge = { release: async () => {}, nativeHistory: () => ({
+        describe: (session) => ({ provider: 'Qwen Code', storageKey: 'same-profile', ids: [session.runtimeResumeToken], actions: ['delete'] }),
+        update: async (session, action) => {
+          assert.equal(action, 'delete');
+          if (session.id === parent.id && parentBlocked) throw new Error('parent still in use');
+          assert.ok(!deletes.includes(session.id), 'the engine rejects a second deletion of the same record');
+          deletes.push(session.id);
+        }
+      }) };
+      service.persister = new SessionPersister({ async saveSessionsStrict(snapshot) { persisted = structuredClone(snapshot()); } }, () => service.sessions);
+      service.close = () => { service.sessions = []; };
+      return service;
+    }
+    const first = bind(setup([parent, child], null));
+    const before = await first.previewPermanentDeletion(parent.id);
+    assert.equal(before.nativeHistory[0].count, 2);
+    await assert.rejects(first.deletePermanently([parent.id], 'human', { fingerprint: before.fingerprint }), /parent still in use/);
+    assert.deepEqual(deletes, [child.id]);
+    assert.ok(persisted.find(session => session.id === child.id).nativeHistoryDeleteReceipt, 'the first deletion is persisted before trying another engine record');
+    const restarted = bind(setup(persisted, null));
+    await assert.rejects(restarted.restoreArchived(child.id), /原生会话已删除/);
+    const retry = await restarted.previewPermanentDeletion(parent.id);
+    assert.equal(retry.nativeHistory[0].count, 1);
+    parentBlocked = false;
+    await restarted.deletePermanently([parent.id], 'human', { fingerprint: retry.fingerprint });
+    assert.deepEqual(deletes, [child.id, parent.id]);
+    assert.deepEqual(restarted.sessions, []);
+  }
+
+  {
     const parent = row('parent', 1, { phase: { value: 'done', source: 'user', ts: 1 } });
     const child = row('child', 2, { parentSessionId: 'parent', lifecycle: 'working', activity: { kind: 'active', guiTurn: true, ts: Date.now() } });
     const service = setup([parent, child], 'parent');
