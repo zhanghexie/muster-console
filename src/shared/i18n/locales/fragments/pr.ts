@@ -147,6 +147,7 @@ export const frag: Record<string, string> = {
   'CI 检查': 'CI checks',
   '其余检查可在 GitHub 查看': 'View the remaining checks on GitHub',
   '变更文件': 'Changed files',
+  '没有变更文件': 'No changed files',
   '选择行号可添加行内评论': 'Select a line number to add an inline comment',
   '加载更多文件': 'Load more files',
   '讨论与评审': 'Discussion and reviews',
@@ -162,6 +163,9 @@ export const frag: Record<string, string> = {
   '评审结果': 'Review verdict',
   '评审正文': 'Review body',
   '发布评审…': 'Publish review…',
+  '批准…': 'Approve…',
+  '你可以评论自己的 PR。批准和要求修改由其他评审人提交。': 'You can comment on your own pull request. Other reviewers can approve it or request changes.',
+  '请填写或删除空白的行内评论。': 'Complete or remove empty inline comments.',
   '发布评审': 'Publish review',
   '发布 GitHub 评审': 'Publish GitHub review',
   '以 {{login}} 向 {{repository}}#{{number}} 发布「{{decision}}」评审及 {{count}} 条行内评论。提交 {{sha}}。':

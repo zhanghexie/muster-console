@@ -48,7 +48,6 @@ export type GitRepoDataApi = {
   diffStaged: boolean;
   setDiffStaged: React.Dispatch<React.SetStateAction<boolean>>;
   diffText: string;
-  setDiffText: React.Dispatch<React.SetStateAction<string>>;
   diffLoading: boolean;
   setStatus: React.Dispatch<React.SetStateAction<GitRepoStatus | null>>;
   setStatusLoading: React.Dispatch<React.SetStateAction<boolean>>;
@@ -123,12 +122,9 @@ export function useGitRepoData({
   const [statusRead, setStatusRead] = useState<{ scope: string; repo: string | null; error: string | null; at: number | null }>({ scope, repo: selectedPath, error: null, at: null });
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [diffStaged, setDiffStaged] = useState(false);
-  const [diffSnapshot, setDiffSnapshot] = useState({ scope, repo: selectedPath, value: '' });
-  const setDiffText = useCallback<React.Dispatch<React.SetStateAction<string>>>(action => {
-    setDiffSnapshot(prev => ({ scope, repo: selectedRef.current, value: typeof action === 'function'
-      ? action(prev.scope === scope && prev.repo === selectedRef.current ? prev.value : '') : action }));
-  }, [scope]);
-  const diffText = diffSnapshot.scope === scope && diffSnapshot.repo === selectedPath ? diffSnapshot.value : '';
+  const diffSelection = JSON.stringify([selectedPath, selectedFile, diffStaged]);
+  const [diffSnapshot, setDiffSnapshot] = useState<{ scope: string; selection: string; value: string } | null>(null);
+  const visibleDiff = diffSnapshot?.scope === scope && diffSnapshot.selection === diffSelection ? diffSnapshot : null;
   const [diffLoading, setDiffLoading] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const windowFocused = useRef(true);
@@ -149,7 +145,6 @@ export function useGitRepoData({
     listGenRef.current++; statusGenRef.current++; diffGenRef.current++;
   }
   const selectionRef = useRef(selectedPath);
-  const diffSelection = JSON.stringify([selectedPath, selectedFile, diffStaged]);
   const diffSelectionRef = useRef(diffSelection);
   if (selectionRef.current !== selectedPath) { selectionRef.current = selectedPath; statusGenRef.current++; }
   if (diffSelectionRef.current !== diffSelection) { diffSelectionRef.current = diffSelection; diffGenRef.current++; }
@@ -372,20 +367,21 @@ export function useGitRepoData({
     async (repoPath: string, filePath: string, staged: boolean, untracked?: boolean) => {
       if (!mounted.current || !activeRef.current || scopeRef.current !== scope) return;
       const gen = ++diffGenRef.current;
+      const selection = diffSelectionRef.current;
       setDiffLoading(true);
       try {
         const res = await git.diff(repoPath, filePath, staged, untracked);
         if (diffGenRef.current !== gen || !activeRef.current) return;
-        setDiffText(res.diff);
+        setDiffSnapshot({ scope, selection, value: res.diff });
       } catch (err) {
         if (diffGenRef.current !== gen || !activeRef.current) return;
-        setDiffText('');
+        setDiffSnapshot(null);
         setError(String(err));
       } finally {
         if (diffGenRef.current === gen) setDiffLoading(false);
       }
     },
-    [git, scope, setDiffText, setError]
+    [git, scope, setError]
   );
 
   const onSelectFile = useCallback((f: GitFileChange, zone: 'unstaged' | 'staged') => {
@@ -411,7 +407,7 @@ export function useGitRepoData({
       const identity = JSON.stringify([scope, selectedPath]);
       if (selectionBaseline.current !== identity) {
         selectionBaseline.current = identity;
-        setSelectedFile(null); setDiffText(''); setBranchPopOpen(false); setStatus(null);
+        setSelectedFile(null); setDiffSnapshot(null); setBranchPopOpen(false); setStatus(null);
       }
       // 立即丢弃旧仓 status：分支条先用列表摘要（branch/dirty 徽标）乐观垫上，status 回来再校正
       setStatusLoading(true);
@@ -421,14 +417,14 @@ export function useGitRepoData({
       }, PATCH_REPO_DEBOUNCE_MS);
       return () => window.clearTimeout(timer);
     }
-    setStatus(null); setStatusLoading(false); setDiffText(''); setDiffLoading(false); setSelectedFile(null);
+    setStatus(null); setStatusLoading(false); setDiffSnapshot(null); setDiffLoading(false); setSelectedFile(null);
     if (selectedPath) return;
     savedRepoRef.current = null;
     const timer = window.setTimeout(() => {
       if (prefsAppliedRef.current && !fixedRepoPath) void patch({ git: { selectedRepo: null } });
     }, PATCH_REPO_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [active, prefsReady, selectedPath, selectionAllowed, refreshStatus, patch, savedRepoRef, setSelectedFile, setDiffText, setStatus, setStatusLoading, setBranchPopOpen, prefsAppliedRef, scope, fixedRepoPath]);
+  }, [active, prefsReady, selectedPath, selectionAllowed, refreshStatus, patch, savedRepoRef, setStatus, setBranchPopOpen, prefsAppliedRef, scope, fixedRepoPath]);
 
   // Publish membership/selection before starting the background queue. The tree
   // remains usable while any status request is unresolved.
@@ -439,25 +435,24 @@ export function useGitRepoData({
   // 选中文件 → diff
   useEffect(() => {
     if (!active) return;
-    if (!selectedPath || !selectedFile || !status) {
-      setDiffText('');
-      return;
-    }
-    const file = status.files.find((f) => f.path === selectedFile);
-    if (!file) {
-      setDiffText('');
+    const file = status?.files.find((f) => f.path === selectedFile);
+    if (!selectedPath || !file) {
+      diffGenRef.current++;
+      setDiffSnapshot(null);
+      setDiffLoading(false);
       return;
     }
     const staged = diffStaged && isStaged(file);
     // 渲染层已持有 status，直接判断未跟踪传给主进程，避免主进程再跑一次 status
     const untracked = file.index === '?' || file.working_dir === '?';
-    void loadDiff(selectedPath, selectedFile, staged, untracked);
-  }, [active, selectedPath, selectedFile, diffStaged, status, loadDiff, setDiffText]);
+    void loadDiff(selectedPath, file.path, staged, untracked);
+  }, [active, selectedPath, selectedFile, diffStaged, status, loadDiff]);
 
   // 切回 Git 先刷选中仓再分批更新；磁盘变更按已有防抖策略刷新。
   useEffect(() => {
     if (active && !prevActive.current) {
-      void refreshBackground();
+      // The selection effect already refreshes the selected repository on activation.
+      void refreshBackground(false);
     }
     prevActive.current = active;
     if (!active) return;
@@ -556,9 +551,8 @@ export function useGitRepoData({
     setSelectedFile,
     diffStaged,
     setDiffStaged,
-    diffText: selectionAllowed ? diffText : '',
-    setDiffText,
-    diffLoading: selectionAllowed && diffLoading,
+    diffText: selectionAllowed ? visibleDiff?.value ?? '' : '',
+    diffLoading: selectionAllowed && diffLoading && !visibleDiff,
     setStatus,
     setStatusLoading,
     pendingChangeRelRef,

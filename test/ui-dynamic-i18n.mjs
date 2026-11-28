@@ -35,7 +35,7 @@ try {
     assert.ok(values.length >= min, `${name}: expected the production label initializer`);
     assert.ok(source.includes(consumer), `${name}: labels must be translated at display`);
     if (variable === 'MANUAL_FIELDS') assert.match(source, /fieldCaption\s*=\s*\(label:[\s\S]*?\{t\(label\)\}/, `${name}: field captions must translate their label`);
-    if (variable === 'REVIEW_EVENTS') assert.match(source, /Object\.entries\(REVIEW_EVENTS\)[\s\S]*?\{t\(label\)\}/, `${name}: review options must translate their label`);
+    if (variable === 'REVIEW_EVENTS') assert.match(source, /TEXT_REVIEW_EVENTS\.map[\s\S]*?\{t\(REVIEW_EVENTS\[event\]\)\}/, `${name}: review options must translate their label`);
     assert.deepEqual(values.filter(value => !Object.hasOwn(en, value)), [], `${name}: missing English labels`);
   }
   for (const key of ['审查完成，结果待核对', '当前引擎不支持此权限模式。', '类型', '反馈正文', '标题']) assert.ok(Object.hasOwn(en, key), `missing English label: ${key}`);

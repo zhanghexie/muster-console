@@ -34,7 +34,9 @@ GitPanel 将发现的源仓和包含源仓的目录按实际路径组成树。�
 
 ## 从 Git 工具栏切换 Worktree
 
-Git 详情工具栏在分支按钮右边显示 **Worktree**，用 `CustomSelect` 列出检出并指明当前项。选项包括当前会话的有效任务组成员、当前仓库的已登记检出（含工作区内的主检出），以及目录快照已发现的其他 linked checkout。路径用于区分同名成员。展开时调用 `git:listRepoLocations` 与当前仓的 scoped `worktreeList`。本地目录新增的发现沿用手动刷新，重新展开会重读当前仓的 Git 注册记录。
+Git 详情工具栏用同一个按钮显示当前分支和打开分支选择。**Worktree** 紧邻分支按钮，两者使用同款底色、箭头和焦点样式。内容栏宽度不超过 470px 时，Worktree 以图标显示，原生和回退选择器都保留「切换 Worktree」名称。完整检出路径可从 Git 标签提示或操作详情查看，上游分支在操作详情中显示。
+
+Worktree 用 `CustomSelect` 列出检出并指明当前项。选项包括当前会话的有效任务组成员、当前仓库的已登记检出（含工作区内的主检出），以及目录快照已发现的其他 linked checkout。路径用于区分同名成员。展开时调用 `git:listRepoLocations` 与当前仓的 scoped `worktreeList`。本地目录新增的发现沿用手动刷新，重新展开会重读当前仓的 Git 注册记录。
 
 选择后通过 `listRepoLocations(false, workspaceId, [path])` 复核该确切路径和源根版本，成功后打开或激活对应 Git 标签。暂存、提交、分支和审阅操作使用该检出的实际路径。失效检出提供反馈，过期范围请求取消导航。
 

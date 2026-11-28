@@ -1,5 +1,5 @@
 import React from 'react';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithAppTips as render } from './helpers/app-tips';
@@ -26,8 +26,12 @@ const pr: PrDetail = {
   threadCursor: null
 };
 
+function panel(active: boolean) {
+  return <GitWorkspaceProvider scope={scope}><PrPanel repoPath="/workspace/repo" active={active} /></GitWorkspaceProvider>;
+}
+
 function renderPanel(active = true) {
-  return render(<GitWorkspaceProvider scope={scope}><PrPanel repoPath="/workspace/repo" active={active} /></GitWorkspaceProvider>);
+  return render(panel(active));
 }
 
 function connected() {
@@ -44,6 +48,43 @@ describe('GitHub PR panel', () => {
     const mock = connected();
     renderPanel(false);
     expect(mock.mockOf('pr.connection')).not.toHaveBeenCalled();
+  });
+
+  it('keeps the PR detail and draft while inactive, then refreshes into the same view', async () => {
+    const mock = connected();
+    const view = renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Fix a missing state transition/ }));
+    const draft = await screen.findByRole<HTMLTextAreaElement>('textbox', { name: '评审正文' });
+    const scroll = draft.closest<HTMLElement>('.pr-review-scroll')!;
+    await user.type(draft, 'Keep this draft');
+    scroll.scrollTop = 80;
+
+    const connection = mock.mockOf('pr.connection');
+    const detail = mock.mockOf('pr.detail');
+    connection.mockClear();
+    detail.mockClear();
+    view.rerender(panel(false));
+    fireEvent.focus(window);
+    expect(draft.isConnected).toBe(true);
+    expect(scroll.scrollTop).toBe(80);
+    expect(screen.queryByRole('textbox', { name: '评审正文' })).toBeNull();
+    expect(connection).not.toHaveBeenCalled();
+    expect(detail).not.toHaveBeenCalled();
+
+    let finish!: () => void;
+    detail.mockImplementationOnce(() => new Promise(resolve => {
+      finish = () => resolve({ ok: true, value: { ...pr, body: 'Refreshed PR description' } });
+    }));
+    view.rerender(panel(true));
+    await waitFor(() => expect(detail).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('textbox', { name: '评审正文' })).toBe(draft);
+    expect(draft.value).toBe('Keep this draft');
+    expect(scroll.scrollTop).toBe(80);
+    expect(screen.getByText(pr.body)).toBeTruthy();
+    await act(async () => finish());
+    expect(await screen.findByText('Refreshed PR description')).toBeTruthy();
+    expect(draft.value).toBe('Keep this draft');
   });
 
   it('configures a public App from the PR tab and starts device authorization', async () => {
@@ -168,8 +209,51 @@ describe('GitHub PR panel', () => {
     expect(await screen.findByText('state tests')).toBeTruthy();
     expect(screen.getByText('Reconnect should be idempotent.')).toBeTruthy();
     expect(mock.mockOf('shell.openExternal')).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('button', { name: '刷新' })).toHaveLength(1);
+    const external = screen.getByRole('button', { name: '在 GitHub 打开' });
+    expect(external.textContent).toBe('');
+    await user.click(external);
+    expect(mock.mockOf('shell.openExternal')).toHaveBeenCalledExactlyOnceWith(pr.url);
     await user.click(screen.getByRole('button', { name: '返回 PR 列表' }));
     await waitFor(() => expect(screen.getByRole('button', { name: /Fix a missing state transition/ })).toBe(document.activeElement));
+  });
+
+  it('previews one file at a time and preserves the selection when more files load', async () => {
+    const mock = connected();
+    const notes = { path: 'docs/notes.md', status: 'added', additions: 1, deletions: 0, truncated: false,
+      patch: '@@ -0,0 +1 @@\n+Review notes' };
+    const image = { path: 'assets/banner.png', status: 'modified', additions: 0, deletions: 0, truncated: false, patch: null };
+    mock.override('pr.detail', () => ({ ok: true, value: { ...pr, files: [...pr.files, notes], filesHaveMore: true } }));
+    mock.override('pr.files', () => ({ ok: true, value: { files: [image], filesHaveMore: false } }));
+    const view = renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Fix a missing state transition/ }));
+    const files = within(await screen.findByRole('list', { name: '变更文件' }));
+    expect(files.getByRole('button', { name: 'src/state.ts' }).getAttribute('aria-current')).toBe('true');
+    expect(screen.getByRole('region', { name: 'src/state.ts' }).textContent).toContain('+newValue()');
+
+    const notesButton = files.getByRole('button', { name: notes.path });
+    notesButton.focus();
+    await user.keyboard('{Enter}');
+    expect(notesButton.getAttribute('aria-current')).toBe('true');
+    expect(screen.queryByRole('region', { name: 'src/state.ts' })).toBeNull();
+    expect(screen.getByRole('region', { name: notes.path }).textContent).toContain('+Review notes');
+
+    await user.click(files.getByRole('button', { name: '加载更多文件' }));
+    const imageButton = await files.findByRole('button', { name: image.path });
+    expect(notesButton.getAttribute('aria-current')).toBe('true');
+    expect(mock.mockOf('pr.files')).toHaveBeenCalledWith({ ...scope, repoPath: '/workspace/repo' }, {
+      repository: pr.repository, number: pr.number, headSha: pr.headSha, baseSha: pr.baseSha
+    }, 2);
+    await user.click(imageButton);
+    expect(screen.getByText('GitHub 未提供此文件的文本补丁')).toBeTruthy();
+    expect(screen.queryByRole('region', { name: notes.path })).toBeNull();
+    mock.mockOf('pr.detail').mockClear();
+    view.rerender(panel(false));
+    view.rerender(panel(true));
+    expect(files.getByRole('button', { name: image.path })).toBe(imageButton);
+    expect(imageButton.getAttribute('aria-current')).toBe('true');
+    expect(mock.mockOf('pr.detail')).not.toHaveBeenCalled();
   });
 
   it('marks the first discussion as unread after viewing a PR with no prior discussion', async () => {
@@ -184,7 +268,7 @@ describe('GitHub PR panel', () => {
     await user.click(screen.getByRole('button', { name: '返回 PR 列表' }));
     snapshot = { ...snapshot, latestDiscussionAt: '2026-11-24T01:00:00Z' };
     await user.click(await screen.findByRole('button', { name: '刷新' }));
-    expect(await screen.findByText('新讨论')).toBeTruthy();
+    expect(await screen.findByRole('img', { name: '新讨论' })).toBeTruthy();
   });
 
   it('forwards selected threads to the Worker using the displayed revision', async () => {
@@ -201,21 +285,67 @@ describe('GitHub PR panel', () => {
     }, ['THREAD_1']);
   });
 
-  it('requires confirmation before publishing a summary and an inline review comment', async () => {
+  it('opens confirmation directly for an approval without review text', async () => {
     const mock = connected();
     mock.override('pr.publish', () => ({ ok: true, value: { url: pr.url } }));
     renderPanel();
     const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: '待我审' }));
     await user.click(await screen.findByRole('button', { name: /Fix a missing state transition/ }));
-    await user.click(await screen.findByText('src/state.ts', { exact: true }));
+    const approve = await screen.findByRole('button', { name: /^批准(?:…)?$/ });
+    await user.click(approve);
+    const dialog = await screen.findByRole('dialog', { name: '发布 GitHub 评审' });
+    expect(dialog.textContent).toContain('「批准」');
+    expect(mock.mockOf('pr.publish')).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: '取消' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '发布 GitHub 评审' })).toBeNull());
+    expect(mock.mockOf('pr.publish')).not.toHaveBeenCalled();
+
+    await user.click(approve);
+    await user.click(within(await screen.findByRole('dialog', { name: '发布 GitHub 评审' }))
+      .getByRole('button', { name: /^发布$/ }));
+    expect(await screen.findByText('评审已发布到 GitHub')).toBeTruthy();
+    expect(mock.mockOf('pr.publish')).toHaveBeenCalledExactlyOnceWith({ ...scope, repoPath: '/workspace/repo' }, {
+      version: { repository: pr.repository, number: pr.number, headSha: pr.headSha, baseSha: pr.baseSha },
+      event: 'APPROVE', body: '', comments: []
+    });
+  });
+
+  it('explains why the author cannot approve their own pull request', async () => {
+    const mock = connected();
+    mock.override('pr.detail', () => ({ ok: true, value: { ...pr, author: 'Developer' } }));
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Fix a missing state transition/ }));
+    const approve = await screen.findByRole<HTMLButtonElement>('button', { name: /^批准(?:…)?$/ });
+    expect(approve.disabled).toBe(true);
+    expect(screen.getByText('你可以评论自己的 PR。批准和要求修改由其他评审人提交。')).toBeTruthy();
+  });
+
+  it('requires confirmation before publishing a summary and an inline review comment', async () => {
+    const mock = connected();
+    mock.override('pr.publish', () => ({ ok: true, value: { url: pr.url } }));
+    mock.override('pr.detail', () => ({ ok: true, value: { ...pr, files: [...pr.files, {
+      path: 'README.md', status: 'added', additions: 1, deletions: 0, truncated: false, patch: '@@ -0,0 +1 @@\n+# Notes'
+    }] } }));
+    renderPanel();
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: /Fix a missing state transition/ }));
     const lines = await screen.findAllByRole('button', { name: '评论第 8 行' });
     await user.click(lines[1]!);
     const inlineEditor = screen.getByLabelText('src/state.ts:8 · RIGHT');
     expect(document.activeElement).toBe(inlineEditor);
+    const approve = screen.getByRole<HTMLButtonElement>('button', { name: /^批准(?:…)?$/ });
+    expect(approve.disabled).toBe(true);
+    expect(screen.getByText('请填写或删除空白的行内评论。')).toBeTruthy();
     await user.click(lines[1]!);
     expect(screen.getAllByLabelText('src/state.ts:8 · RIGHT')).toEqual([inlineEditor]);
     expect(document.activeElement).toBe(inlineEditor);
     await user.type(inlineEditor, 'Guard reconnects.');
+    expect(approve.disabled).toBe(false);
+    expect(screen.queryByText('请填写或删除空白的行内评论。')).toBeNull();
+    await user.click(within(screen.getByRole('list', { name: '变更文件' })).getByRole('button', { name: 'README.md' }));
+    expect(screen.getByLabelText<HTMLTextAreaElement>('src/state.ts:8 · RIGHT').value).toBe('Guard reconnects.');
     await user.type(screen.getByLabelText('评审正文'), 'Please fix the reconnect case.');
     await user.click(screen.getByRole('button', { name: '发布评审…' }));
     const dialog = screen.getByRole('dialog', { name: '发布 GitHub 评审' });

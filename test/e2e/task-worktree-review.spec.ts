@@ -75,7 +75,8 @@ test('恢复多组任务后可审阅第二组及同名嵌套仓并只采纳到�
     await win.screenshot({ path: path.join(screenshots, 'worktree-toolbar.png'), animations: 'disabled' });
     await win.getByRole('option', { name: desired, exact: true }).click();
     const detail = right.locator('.right-content-page.is-shown .git-detail');
-    await expect.poll(async () => pathKey(await location.locator('.right-full-path').innerText())).toBe(pathKey(selectedTree));
+    const selectedTab = right.getByRole('tablist', { name: '内容标签页' }).getByRole('tab', { selected: true });
+    await expect.poll(async () => pathKey((await selectedTab.getAttribute('title')) ?? '')).toBe(pathKey(selectedTree));
     await expect(location.locator('.git-branch-name')).toHaveText(branch);
     await expect(tree).toBeVisible();
     await expect(tree.getByRole('treeitem', { selected: true })).toHaveCount(0);

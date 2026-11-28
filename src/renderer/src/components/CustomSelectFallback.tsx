@@ -27,6 +27,7 @@ export function CustomSelectFallback({
   ariaDescribedBy,
   placeholder,
   triggerLabel,
+  triggerIcon,
   className,
   menuClassName,
   detailsAsTooltip,
@@ -179,6 +180,7 @@ export function CustomSelectFallback({
         aria-expanded={open}
         aria-controls={open && menuPresence.mounted && menuPos ? listboxId : undefined}
         aria-label={ariaLabel}
+        title={triggerIcon ? ariaLabel : undefined}
         aria-invalid={ariaInvalid || undefined}
         aria-describedby={ariaDescribedBy}
         onClick={() => {
@@ -186,6 +188,7 @@ export function CustomSelectFallback({
         }}
         onKeyDown={onTriggerKeyDown}
       >
+        {triggerIcon ? <span className="c-select-trigger-icon" aria-hidden="true">{triggerIcon}</span> : null}
         {selected?.icon ? <span className="c-select-option-icon" aria-hidden="true">{selected.icon}</span> : null}
         <span className={`c-select-value${selected || triggerLabel ? '' : ' is-placeholder'}`}>
           {triggerLabel ?? selected?.label ?? placeholder ?? t('请选择')}

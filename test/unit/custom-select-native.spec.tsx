@@ -49,6 +49,18 @@ describe('CustomSelect customizable picker wiring', () => {
     expect(container.querySelector('.c-select-menu')).toBeNull();
   });
 
+  it.each(['combobox', 'button'] as const)('keeps the fixed trigger icon decorative in the %s', (role) => {
+    vi.stubGlobal('CSS', { supports: () => role === 'combobox' });
+    render(<CustomSelect {...defaults} triggerLabel="Fixed label" triggerIcon={<span>Fixed icon</span>} />);
+
+    const trigger = screen.getByRole(role, { name: 'Endpoint' });
+    const triggerIcon = trigger.querySelector('.c-select-trigger-icon');
+    expect(triggerIcon?.textContent).toBe('Fixed icon');
+    expect(triggerIcon?.getAttribute('aria-hidden')).toBe('true');
+    expect(trigger.getAttribute('title')).toBe('Endpoint');
+    expect(trigger.querySelector('.c-select-value')?.textContent).toBe('Fixed label');
+  });
+
   it('reports a valid choice once, preserves controlled values, and rejects disabled choices', () => {
     const changed = vi.fn();
     const view = render(<CustomSelect {...defaults} onChange={changed} />);

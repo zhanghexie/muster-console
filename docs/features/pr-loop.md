@@ -1,6 +1,6 @@
 # GitHub PR 创建与审查
 
-入口是 Git 页的 PR 标签。连接 GitHub 后可看「我发起的」和「待我审」，打开 PR 详情读变更、CI、评审结论和行内讨论。隔离 worktree 的 Git 工具栏提供「开 PR」。本地工作区 Diff 仍可添加意见并通过会话邮箱交给 Worker。开源选型见 [GitHub PR 审查调研](../research/github-pr-review-integrations-2026-11-24.md)。
+入口是 Git 工具栏里的拉取请求图标。连接 GitHub 后可看「我发起的」和「待我审」，打开 PR 详情读变更、CI、评审结论和行内讨论。隔离 worktree 的 Git 工具栏提供加号按钮「开 PR」。本地工作区 Diff 仍可添加意见并通过会话邮箱交给 Worker。开源选型见 [GitHub PR 审查调研](../research/github-pr-review-integrations-2026-11-24.md)。
 
 ## 连接 GitHub 与仓库授权
 
@@ -30,9 +30,9 @@ GitHub HTTP 和现有 Git 推送接口在 Windows、macOS、Linux 通用。Git �
 ## 桌面工作流
 
 1. **开 PR。** 主进程从当前检出解析 GitHub `origin` 和实际 push URL。fork 使用 GitHub 返回的父仓作为目标，界面展示两端仓库及分支。主进程核对 worktree、当前分支、提交和远端，先走原有 Git 推送，再通过 REST 创建。已有相同来源分支和目标的开放 PR 会复用。推送已完成而创建失败时明确告知。
-2. **看评审。** GraphQL 查询分页列表及 PR 详情。CI 检查链接、审批状态、评审正文和已解决或陈旧的讨论独立显示。文件补丁经 REST 分页，取回前后核对 base 和 head SHA。列表按可见性轮询，单飞，每页 25 条。已打开过的 PR 在发现较新讨论时显示本机未读标记。
+2. **看评审。** GraphQL 查询分页列表及 PR 详情。列表和详情各用一行图标工具栏，CI 状态和新讨论用有可访问名称的图标表示。变更文件使用与本地 Git 共用的分隔条，默认显示首个文件的 Diff，窄面板把列表排在预览上方。文件补丁经 REST 分页，取回前后核对 base 和 head SHA。追加文件会保留当前选中项，切换文件会保留已编辑的行内评论。CI 检查链接、审批状态、评审正文和已解决或陈旧的讨论独立显示。PR 列表按可见性轮询，单飞，每页 25 条。切离 Git 或 PR 页签时暂停读取，保留页面、滚动位置和未发布评审，收起弹窗。返回后用已有内容承接刷新，已翻页的列表和详情保留到手动刷新。提交版本变化时重新建立评审草稿。
 3. **发给 Worker。** 用户选中 GitHub 讨论串后，宿主核对讨论所属 PR、提交版本，以及当前工作区唯一匹配的隔离 Worker。意见作为引用资料经现有邮箱送达。本人发起的 PR 被合并后，已有收口提醒沿用 API 复核。
-4. **发布评审。** 用户可以在 Diff 行上留言，写评审正文并选择评论、批准或要求修改。确认框显示账号、仓库和提交。主进程提交前复核 PR 仍开放且 base/head 仍一致，并将 `commit_id` 显式交给 GitHub。可选「生成审查草稿」会使用已配置的文本模型读取该版本的有界 Diff，结果可以编辑后提交。 [GitHub 评审接口](https://docs.github.com/en/rest/pulls/reviews#create-a-review-for-a-pull-request)
+4. **发布评审。** 用户可在 Diff 行上留言并填写评审正文。「发布评审…」用于发表评论或要求修改。「批准…」直接打开发布确认框，评审正文可以留空。发布前须填写或删除空白的行内评论。自己发起的 PR 可以评论，批准和要求修改由其他评审人提交。确认框显示账号、仓库和提交。主进程提交前复核 PR 仍开放且 base/head 仍一致，并将 `commit_id` 显式交给 GitHub。可选「生成审查草稿」会使用已配置的文本模型读取该版本的有界 Diff，结果可以编辑后提交。 [GitHub 评审接口](https://docs.github.com/en/rest/pulls/reviews#create-a-review-for-a-pull-request)
 
 ## Agent 调用
 
@@ -53,7 +53,7 @@ GitHub HTTP 和现有 Git 推送接口在 Windows、macOS、Linux 通用。Git �
 | `src/main/git/githubAppConfig.ts`、`githubAppAuth.ts`、`githubPrStorage.ts` | App 链接解析、公开配置查询、设备授权、令牌轮转与配置持久化，存储位于已登记的 `github-pr` 目录。 |
 | `src/main/git/githubPrClient.ts`、`githubPrService.ts` | REST/GraphQL、Git 远端核对、版本一致性和用户操作。 |
 | `src/main/capabilities/catalog/github.ts`、`src/main/capabilities/hosts/github.ts`、`resources/skills/github/SKILL.md` | Agent 动作、调用身份、结果预算、逐次确认和参数文档。GUI 和 Shell API 经统一宿主执行器调用 PR 服务。 |
-| `PrPanel.tsx`、`GitHubAppSetupDialog.tsx`、`PrReviewPanel.tsx`、`PrCreateDialog.tsx` | 生产 Git 页 UI，沿用现有 presence、确认框和工作区作用域。 |
+| `PrPanel.tsx`、`GitHubAppSetupDialog.tsx`、`PrReviewPanel.tsx`、`PrChangedFiles.tsx`、`PrCreateDialog.tsx` | 生产 Git 页 UI，复用现有分栏、presence、确认框和工作区作用域。变更预览保留补丁行号、GitHub LEFT/RIGHT 批注坐标和截断提示。 |
 | `src/shared/webhookPayload.ts`、`src/main/webAccess/hookRoute.ts` | PR、Review 和 CI 事件归一化，要求 GitHub 签名。 |
 
 日常验证覆盖 `test/git-pr.mjs`、`test/hook-route.mjs`、`test/unit/node-main/github-pr.spec.ts`、`test/unit/pr-panel.spec.tsx`、`test/unit/pr-create-dialog.spec.tsx` 和 `test/e2e/github-pr.spec.ts`。Electron 验证使用真实工作台、Git 和 IPC，GitHub 及凭据加密由夹具提供。生产验收需要在已安装 App 的测试仓分别验证设备授权、fork 推送与创建、CI、意见回传、评审提交和签名事件，Windows、macOS、Linux 分别记录实机结果。

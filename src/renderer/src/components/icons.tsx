@@ -30,6 +30,7 @@ export function IconDiff(p: IconProps): React.JSX.Element { return <svg {...base
 
 export function IconSave(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="M2 2h10l2 2v10H2zM5 2v4h6V2M5 10h6v4H5z"/></svg>; }
 export function IconExternalLink(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="M9 2h5v5M14 2 7 9M6 3H2v11h11v-4"/></svg>; }
+export function IconUnlink(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="m10 6 1-1a2.1 2.1 0 0 0-3-3L6 4M6 10l-1 1a2.1 2.1 0 0 0 3 3l2-2M2 2l12 12"/></svg>; }
 export function IconDownload(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="M8 2v9m-4-4 4 4 4-4M2 11v3h12v-3"/></svg>; }
 export function IconUpload(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="M8 11V2m-4 4 4-4 4 4M2 11v3h12v-3"/></svg>; }
 export function IconStar(p: IconProps): React.JSX.Element { return <svg {...base(p)}><path d="m8 1.5 2 4.2 4.6.7-3.3 3.2.8 4.6L8 12l-4.1 2.2.8-4.6L1.4 6.4 6 5.7z"/></svg>; }
@@ -423,6 +424,17 @@ export function IconBranch(props: IconProps): React.JSX.Element {
       <circle cx="11.5" cy="3.5" r="1.6" />
       <path d="M4.5 5.1v5.8" />
       <path d="M11.5 5.1v.9c0 2.6-2.2 3.5-5 3.5" />
+    </svg>
+  );
+}
+
+export function IconPullRequest(props: IconProps): React.JSX.Element {
+  return (
+    <svg {...base(props)}>
+      <circle cx="3.5" cy="3.5" r="1.5" />
+      <circle cx="3.5" cy="12.5" r="1.5" />
+      <circle cx="12.5" cy="12.5" r="1.5" />
+      <path d="M3.5 5v6m9 0V7a3 3 0 0 0-3-3h-2m2-2-2 2 2 2" />
     </svg>
   );
 }

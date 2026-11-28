@@ -2,17 +2,18 @@ import { OperationButton } from '../../components/OperationButton';
 import { useScopedGit } from './GitWorkspaceScope';
 /**
  * GitPanel 详情顶部条（2026-09-26 GitPanel.tsx → gitpanel/ 拆分，原样迁出）：
- * 分支切换按钮（GitBranchPopover）、tracking/ahead-behind 徽标、work/history/pr 页签、
+ * 当前分支与 Worktree 入口、work/history/pr 页签、
  * Fetch/Pull/Push 与开 PR。无 memo：重渲时机与原整面板渲染保持一致。
  */
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useRightWorkspace } from '../../rightWorkspace';
-import { IconBranch, IconClock, IconDiff, IconRefresh, IconDownload, IconUpload, IconFetch, IconEye } from '../../components/icons';
+import { IconBranch, IconChevronDown, IconClock, IconDiff, IconRefresh, IconDownload, IconUpload, IconFetch, IconEye, IconPlus, IconPullRequest } from '../../components/icons';
 import { useSessionStore, useRuntimesStore } from '../../store';
 import { useTranslation } from 'react-i18next';
 import type { GitRepoStatus, GitRepoSummary } from '../../../../shared/types';
 import { GitBranchPopover } from '../GitBranchPopover';
+import { GitRemoteFeedback } from './GitRemoteFeedback';
 import type { DetailTab } from './gitPanelPure';
 import type { GitRemoteApi } from './useGitRemote';
 import type { RemoteKind } from './gitRemoteState';
@@ -30,11 +31,13 @@ function TurnReviewButton({ repoPath }: { repoPath: string }) {
 }
 
 export function GitDetailTopBar({
+  active = true,
   branchPopOpen,
   toolbarHost,
   worktreeSwitcher,
   setBranchPopOpen,
   status,
+  statusError,
   selectedSummary,
   busy,
   selectedPath,
@@ -50,11 +53,13 @@ export function GitDetailTopBar({
   onCheckoutWarning,
   remote
 }: {
+  active?: boolean;
   branchPopOpen: boolean;
   toolbarHost?: HTMLElement | null;
   worktreeSwitcher?: React.ReactNode;
   setBranchPopOpen: React.Dispatch<React.SetStateAction<boolean>>;
   status: GitRepoStatus | null;
+  statusError?: string | null;
   selectedSummary: GitRepoSummary | null;
   busy: boolean;
   selectedPath: string;
@@ -73,28 +78,31 @@ export function GitDetailTopBar({
   const { t } = useTranslation();
   const git = useScopedGit();
   const bridge = useRightWorkspace();
-  const runRemote = (kind: RemoteKind) => remote ? remote.run(kind) : runAction(() => git[kind](selectedPath));
+  const branchName = status?.branch ?? selectedSummary?.branch ?? '…';
+  const runRemote = (kind: RemoteKind) => runAction(() => git[kind](selectedPath));
+  const remoteControls = remote ? (
+    <GitRemoteFeedback remote={remote} repoPath={selectedPath} status={statusError ? null : status} active={active} busy={busy} />
+  ) : <>
+    <button type="button" className="right-icon" title={t('检查远端（Fetch）')} aria-label="Fetch" disabled={busy} onClick={() => void runRemote('fetch')}><IconFetch size={14}/></button>
+    <button type="button" className="right-icon" title={t('拉取（Pull）')} aria-label="Pull" disabled={busy} onClick={() => void runRemote('pull')}><IconDownload size={14}/></button>
+    <button type="button" className="right-icon" title={t('推送（Push）')} aria-label="Push" disabled={busy} onClick={() => void runRemote('push')}><IconUpload size={14}/></button>
+  </>;
   const branchInfo = (
       <div className="git-branch-info">
         <button
           type="button"
-          className={`git-branch-name-btn${branchPopOpen ? ' is-open' : ''}`}
+          className="git-branch-name-btn"
           title={t('点击切换 / 新建分支')}
+          aria-label={t('切换分支 · {{branch}}', { branch: branchName })}
           disabled={!status?.branch || busy}
+          aria-expanded={branchPopOpen}
           onClick={() => setBranchPopOpen((v) => !v)}
         >
-          {/* status 未回时先用列表摘要垫上（乐观切换），回来再校正 */}
-          <span className="git-branch-name">
-            {status?.branch ?? selectedSummary?.branch ?? '…'}
-          </span>
-          <span className="git-branch-caret" aria-hidden>
-            ▾
-          </span>
+          <IconBranch size={13} className="git-branch-icon" />
+          <span className="git-branch-name" title={branchName}>{branchName}</span>
+          <IconChevronDown size={12} className={`c-select-caret${branchPopOpen ? ' is-open' : ''}`} />
         </button>
         {worktreeSwitcher}
-        {status?.tracking ? (
-          <span className="git-tracking">{status.tracking}</span>
-        ) : null}
         {!remote && status ? (
           <span className="git-ab">
             ↑{status.ahead} ↓{status.behind}
@@ -126,25 +134,28 @@ export function GitDetailTopBar({
       </div>
   );
   if (bridge) return <>
-    {toolbarHost && bridge.location ? createPortal(<div className="right-git-location"><IconBranch size={14}/><span className="right-full-path" title={selectedPath}>{selectedPath}</span>{branchInfo}</div>, bridge.location) : null}
+    {toolbarHost && bridge.location ? createPortal(<div className="right-git-location">{branchInfo}</div>, bridge.location) : null}
     {toolbarHost ? createPortal(<>
-      <div className="right-tool-group right-mode-tools">
-        {(['work', 'history', 'pr'] as DetailTab[]).map(tab => { const Icon = tab === 'work' ? IconDiff : tab === 'history' ? IconClock : IconBranch; const label = tab === 'work' ? t('工作区') : tab === 'history' ? t('历史') : 'PR'; return <button type="button" key={tab} className={`right-icon${detailTab === tab ? ' is-on' : ''}`} title={label} aria-label={label} aria-pressed={detailTab === tab} onClick={() => setDetailTab(tab)}><Icon size={14}/></button>; })}
+      <div className="right-tool-group right-mode-tools git-topbar-group">
+        {(['work', 'history', 'pr'] as DetailTab[]).map(tab => {
+          const Icon = tab === 'work' ? IconDiff : tab === 'history' ? IconClock : IconPullRequest;
+          const label = tab === 'work' ? t('工作区') : tab === 'history' ? t('历史') : 'PR';
+          return <button type="button" key={tab} className={`right-icon${detailTab === tab ? ' is-on' : ''}`}
+            title={label} aria-label={label} aria-pressed={detailTab === tab} onClick={() => setDetailTab(tab)}><Icon size={14} /></button>;
+        })}
         <TurnReviewButton repoPath={selectedPath}/>
       </div>
-      <div className="right-tool-group">
+      <div className="right-tool-group git-topbar-group">
         <OperationButton type="button" iconOnly className="right-icon" title={t('刷新本地状态')} aria-label={t('刷新本地状态')} disabled={busy} onAction={() => refreshStatus(selectedPath)}><IconRefresh size={14}/></OperationButton>
-        <button type="button" className="right-icon" title={t('检查远端（Fetch）')} aria-label="Fetch" disabled={busy} onClick={() => void runRemote('fetch')}><IconFetch size={14}/></button>
-        <button type="button" className="right-icon" title={t('拉取（Pull）')} aria-label="Pull" disabled={busy} onClick={() => void runRemote('pull')}><IconDownload size={14}/></button>
-        <button type="button" className="right-icon" title={t('推送（Push）')} aria-label="Push" disabled={busy} onClick={() => void runRemote('push')}><IconUpload size={14}/></button>
-        {selectedIsWorktree ? <button type="button" className="right-icon" title={t('开 PR')} aria-label={t('开 PR')} disabled={busy || prDetecting} onClick={openPrFlow}><IconBranch size={14}/></button> : null}
+        {remoteControls}
+        {selectedIsWorktree ? <button type="button" className="right-icon" title={t('开 PR')} aria-label={t('开 PR')} disabled={busy || prDetecting} onClick={openPrFlow}><IconPlus size={14} /></button> : null}
       </div>
     </>, toolbarHost) : null}
   </>;
   return (
     <div className="git-branch-bar">
       {branchInfo}
-<div className="git-remote-actions">
+      <div className="git-remote-actions">
         <div className="git-detail-tabs">
           <button
             type="button"
@@ -168,36 +179,7 @@ export function GitDetailTopBar({
             {t('PR')}
           </button>
         </div>
-        <button
-          type="button"
-          className="git-btn"
-          disabled={busy}
-          onClick={() =>
-            void runRemote('fetch')
-          }
-        >
-          {t('检查远端')}
-        </button>
-        <button
-          type="button"
-          className="git-btn"
-          disabled={busy}
-          onClick={() =>
-            void runRemote('pull')
-          }
-        >
-          Pull
-        </button>
-        <button
-          type="button"
-          className="git-btn"
-          disabled={busy}
-          onClick={() =>
-            void runRemote('push')
-          }
-        >
-          Push
-        </button>
+        {remoteControls}
         {/* 创建 PR 的入口对应独立 worktree 分支。 */}
         {selectedIsWorktree ? (
           <button

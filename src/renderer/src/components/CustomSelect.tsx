@@ -38,6 +38,8 @@ export interface CustomSelectProps {
   placeholder?: string;
   /** Keep a fixed visible label on the trigger while the picker shows the selected option. */
   triggerLabel?: string;
+  /** Add a fixed trigger icon without changing the icons in the picker. */
+  triggerIcon?: React.ReactNode;
   /** 触发器附加类名（对齐既有输入栅格，如 .task-settings-grid 的宽度规则） */
   className?: string;
   /** Optional scope for menus that display paths over multiple lines. */
@@ -86,7 +88,7 @@ function RichOption({ option, descriptionId, compact }: {
 }
 
 function NativeSelect({ id, value, onChange, onOpen, options, disabled, menuEnabled = true,
-  ariaLabel, ariaInvalid, ariaDescribedBy, placeholder, triggerLabel, className, menuClassName,
+  ariaLabel, ariaInvalid, ariaDescribedBy, placeholder, triggerLabel, triggerIcon, className, menuClassName,
   detailsAsTooltip, placement, testId }: CustomSelectProps): React.JSX.Element {
   const { t } = useTranslation();
   const uid = React.useId();
@@ -141,6 +143,7 @@ function NativeSelect({ id, value, onChange, onOpen, options, disabled, menuEnab
       disabled={!enabled} data-placement={placement} data-testid={testId} data-overlay-root=""
       className={`c-select-trigger c-select-native${className ? ` ${className}` : ''}${menuClassName ? ` ${menuClassName}` : ''}${detailsAsTooltip ? ' c-select-compact-details' : ''}`}
       aria-label={ariaLabel} aria-invalid={ariaInvalid || undefined} aria-describedby={ariaDescribedBy}
+      title={triggerIcon ? ariaLabel : undefined}
       onFocus={syncOpen} onBlur={event => {
         const destination = event.relatedTarget;
         queueMicrotask(() => {
@@ -202,6 +205,7 @@ function NativeSelect({ id, value, onChange, onOpen, options, disabled, menuEnab
       })}
     </select>
     {createPortal(<>
+      {triggerIcon ? <span className="c-select-trigger-icon" aria-hidden="true">{triggerIcon}</span> : null}
       {selected?.icon ? <span className="c-select-option-icon" aria-hidden="true">{selected.icon}</span> : null}
       <span className={`c-select-value${selected || triggerLabel ? '' : ' is-placeholder'}`}>{triggerLabel ?? selected?.label ?? placeholder ?? t('请选择')}</span>
       {selected?.badge ? <span className="s-tag c-select-badge" aria-hidden="true">{selected.badge}</span> : null}

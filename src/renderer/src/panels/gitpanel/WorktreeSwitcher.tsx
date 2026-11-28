@@ -4,6 +4,7 @@ import type { GitRepoLocation, GitWorktreeInfo, SessionMeta } from '../../../../
 import { pathKey } from '../../../../shared/pathKey';
 import { sessionWorktreeReviewRepos } from '../../../../shared/sessionWorktreeReview';
 import { CustomSelect, type SelectOption } from '../../components/CustomSelect';
+import { IconFork } from '../../components/icons';
 import { useScopedGit } from './GitWorkspaceScope';
 
 type WorktreeChoice = SelectOption & { repoPath: string };
@@ -110,7 +111,7 @@ export function WorktreeSwitcher({ workspaceId, rootsRevision, session, repoPath
     }
   };
 
-  return <CustomSelect ariaLabel={t('切换 Worktree')} triggerLabel="Worktree" className="git-worktree-picker"
+  return <CustomSelect ariaLabel={t('切换 Worktree')} triggerLabel="Worktree" triggerIcon={<IconFork size={13} />} className="git-worktree-picker"
     menuClassName="git-worktree-menu" detailsAsTooltip value={pathKey(repoPath)} options={options.rows}
     disabled={!enabled} menuEnabled={enabled} onOpen={refresh} onChange={value => void switchCheckout(value)} />;
 }

@@ -72,6 +72,30 @@ it('已有快照读取失败保留文件并标明旧数据', async () => {
   expect(screen.queryByText('工作区干净')).toBeNull();
 });
 
+it('切回 Git 后直接沿用同一文件的 Diff，等后台读取完成再更新', async () => {
+  const changes = { ...clean, files: [{ path: 'same.txt', index: ' ', working_dir: 'M' }] };
+  const mock = configure(async (_scope, method) => method === 'status' ? changes : { ok: true });
+  const diff = (text: string) => ({ diff: `diff --git a/same.txt b/same.txt\n--- a/same.txt\n+++ b/same.txt\n@@ -1 +1 @@\n-old\n+${text}\n` });
+  let resolveRefresh: (result: ReturnType<typeof diff>) => void = () => {};
+  let warm = false;
+  const readDiff = vi.fn(() => warm ? new Promise<ReturnType<typeof diff>>(resolve => { resolveRefresh = resolve; }) : Promise.resolve(diff('saved preview')));
+  mock.override('git.invokeScoped', async (_scope, method) => method === 'diff' ? readDiff() : method === 'status' ? changes : { ok: true });
+  const view = render(panel());
+  fireEvent.click(await screen.findByText('same.txt'));
+  const row = await screen.findByText('saved preview');
+  warm = true;
+  readDiff.mockClear();
+  view.rerender(panel(false));
+  expect(screen.getByText('saved preview')).toBe(row);
+  expect(readDiff).not.toHaveBeenCalled();
+  view.rerender(panel());
+  await waitFor(() => expect(readDiff).toHaveBeenCalled());
+  expect(screen.getByText('saved preview')).toBe(row);
+  expect(screen.queryByText('正在读取 Diff…')).toBeNull();
+  await act(async () => resolveRefresh(diff('updated preview')));
+  expect(await screen.findByText('updated preview')).toBeTruthy();
+});
+
 it.each(['unstaged', 'staged'] as const)('%s 分区丢弃的名称、确认范围和 IPC 一致', async zone => {
   const mock = configure(async (_scope, method) => method === 'status' ? { ...clean, files: [{ path: 'same.txt', index: 'M', working_dir: 'M' }] } : { ok: true });
   render(panel()); await ready();

@@ -24,7 +24,6 @@ import { GitDetailTopBar } from './GitDetailTopBar';
 import { isStaged, isUnstaged, stagedBadge, unstagedBadge, type DetailTab } from './gitPanelPure';
 import type { GitAdoptCommentsApi } from './useGitAdoptComments';
 import type { GitRepoDataApi } from './useGitRepoData';
-import { GitRemoteFeedback } from './GitRemoteFeedback';
 import type { GitRemoteApi } from './useGitRemote';
 
 export function DetailPane({
@@ -135,11 +134,13 @@ export function DetailPane({
       ) : (
         <>
           <GitDetailTopBar
+            active={active}
             toolbarHost={toolbarHost}
             worktreeSwitcher={worktreeSwitcher}
             branchPopOpen={branchPopOpen}
             setBranchPopOpen={setBranchPopOpen}
             status={status}
+            statusError={statusError}
             selectedSummary={selectedSummary}
             busy={busy}
             selectedPath={selectedPath}
@@ -157,7 +158,6 @@ export function DetailPane({
           />
 
           {statusLoading && !status ? <BrandLoading>{t('正在读取仓库状态…')}</BrandLoading> : null}
-          <GitRemoteFeedback remote={remote} repoPath={selectedPath} status={statusError ? null : status} active={active}/>
 
           {statusError ? <div className="git-status-warning" role="status">
             <span>{status && statusUpdatedAt

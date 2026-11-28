@@ -24,7 +24,7 @@
 | Diff / 采纳 Diff / 回合 Diff | FileDiffView / AdoptDiffView / TurnDiffView 的读取状态 | 一个中号标记，替换多行闪动骨架 |
 | 聊天历史首次读取 | 两种 surface 的历史 IPC；成功或失败停止，已有正文的后台同步不转 | 转录上方一处，错误保留 |
 | Git 列表 / 状态 / 历史 | RepoListPane / DetailPane / GitHistory | 刷新入口或区域顶部一处 |
-| Git Fetch / Pull / Push | GitRemoteFeedback 的 snapshot.running | 共用同步反馈行，结果回执保留 |
+| Git Fetch / Pull / Push | GitRemoteFeedback 的 snapshot.running | 对应工具栏按钮显示加载，结果回执可在详情查看 |
 | 分支切换 / worktree | GitBranchPopover 的 busy / wtBusy | 分支菜单内一处 |
 | Git 提交 | CommitBar 的实际 onCommit Promise | 提交按钮；共享 busy 禁用不产生假动效 |
 | 模型目录刷新 | ComposerModelCluster → surface → catalog IPC 的 Promise | 被点击的刷新按钮 |

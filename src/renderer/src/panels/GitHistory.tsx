@@ -1,6 +1,6 @@
 import { ErrorTip } from '../components/ErrorTip';
 import { BrandLoading } from '../components/BrandLoader';
-import { useScopedGit } from './gitpanel/GitWorkspaceScope';
+import { useGitWorkspaceScope, useScopedGit } from './gitpanel/GitWorkspaceScope';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GitFileChange, GitGraphBranch, GitGraphCommit } from '../../../shared/types';
@@ -172,6 +172,7 @@ export function GitHistory({
 }): React.JSX.Element {
   const { t } = useTranslation();
   const git = useScopedGit();
+  const { workspaceId, rootsRevision } = useGitWorkspaceScope();
   const [commits, setCommits] = useState<GitGraphCommit[]>([]);
   const [branchHeads, setBranchHeads] = useState<GitGraphBranch[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -192,14 +193,26 @@ export function GitHistory({
   /** 虚拟滚动可见行范围 [visibleStart, visibleEnd) */
   const [visibleStart, setVisibleStart] = useState(0);
   const [visibleEnd, setVisibleEnd] = useState(PAGE);
-  const loadingMore = useRef(false);
-  const repoRef = useRef(repoPath);
-  const scopeRef = useRef(scope);
+  const loadingMore = useRef<number | null>(null);
+  const refreshingHistory = useRef<number | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scopeMenuRef = useRef<HTMLDivElement | null>(null);
   const filesGen = useRef(0);
   const diffGen = useRef(0);
   const historyGen = useRef(0);
+  const historyKey = JSON.stringify([workspaceId, rootsRevision, repoPath, scope]);
+  const filesKey = JSON.stringify([workspaceId, rootsRevision, repoPath, selected]);
+  const diffKey = JSON.stringify([filesKey, selectedFile]);
+  const current = useRef({ active, historyKey, filesKey, diffKey, commits, selected });
+  current.current = { active, historyKey, filesKey, diffKey, commits, selected };
+  const loadedHistory = useRef<string>();
+  const loadedFiles = useRef<string>();
+  const loadedDiff = useRef<string>();
+
+  // 翻页复用最后一行的 lanes。历史前缀变化后才重算整张图。
+  const [graphRows, setGraphRows] = useState<GraphRow[]>([]);
+  const [graphColumns, setGraphColumns] = useState(0);
+  const graphStateRef = useRef<GraphIncrementalState>(emptyGraphState());
 
   /** 根据 scrollTop / clientHeight 更新可见行范围（虚拟滚动） */
   const updateVisibleRange = useCallback((el: HTMLElement) => {
@@ -221,92 +234,89 @@ export function GitHistory({
   }, [commits.length, updateVisibleRange]);
 
   const clearDetail = useCallback(() => {
+    loadedFiles.current = undefined;
+    loadedDiff.current = undefined;
     setFiles([]);
     setFilesError(null);
     setFilesLoading(false);
     setSelectedFile(null);
     setDiffText('');
     setDiffError(null);
+    setDiffLoading(false);
+  }, []);
+
+  const replaceHistory = useCallback((next: GitGraphCommit[]) => {
+    setCommits(next);
+    const { newRows, state } = appendCommits(next.map(commit => ({
+      hash: commit.sha,
+      parents: commit.parents.map(parent => parent.sha)
+    })), emptyGraphState());
+    graphStateRef.current = state;
+    setGraphRows(newRows);
+    setGraphColumns(computeMaxColumns(newRows));
   }, []);
 
   useEffect(() => {
-    scopeRef.current = scope;
-  }, [scope]);
-
-  const loadBranches = useCallback(async (path: string) => {
-    try {
-      const list = await git.listBranches(path);
-      setLocalBranches(list.local.map((b) => b.name));
-    } catch {
-      setLocalBranches([]);
-    }
-  }, [git]);
-
-  const loadInitial = useCallback(async (path: string, ref: HistScope) => {
-    const request = ++historyGen.current;
-    setLoading(true);
-    setError(null);
-    setSelected(null);
-    try {
-      const page = await git.log(path, 0, PAGE, ref);
-      if (request !== historyGen.current) return;
-      setCommits(page.commits);
-      setBranchHeads(page.branchHeads);
-      setHasMore(page.hasMore);
-      // 初始化 graph：用 appendCommits 从空 state 累积，同时拿到 rows 和 lanes 末态
-      const { newRows, state } = appendCommits(
-        page.commits.map((c) => ({
-          hash: c.sha,
-          parents: c.parents.map((p) => p.sha)
-        })),
-        emptyGraphState()
-      );
-      graphStateRef.current = state;
-      setGraphRows(newRows);
-      setGraphColumns(computeMaxColumns(newRows));
-    } catch (err) {
-      if (request !== historyGen.current) return;
-      setCommits([]);
-      setBranchHeads([]);
-      setHasMore(false);
-      setError(String(err));
-      graphStateRef.current = emptyGraphState();
-      setGraphRows([]);
-      setGraphColumns(0);
-    } finally {
-      if (request === historyGen.current) setLoading(false);
-    }
-  }, [git]);
-
-  useEffect(() => {
-    repoRef.current = repoPath;
     setScope('HEAD');
     setScopeOpen(false);
     setScopeQuery('');
-    setSelected(null);
-    clearDetail();
-    // 重置增量 graph 状态，避免上次仓的 lanes 污染新仓
-    graphStateRef.current = emptyGraphState();
-    setGraphRows([]);
-    setGraphColumns(0);
-    setVisibleStart(0);
-    setVisibleEnd(PAGE);
-  }, [repoPath, clearDetail]);
+    setLocalBranches([]);
+  }, [workspaceId, rootsRevision, repoPath]);
 
   useEffect(() => {
     if (!active) {
-      setSelected(null);
-      setError(null);
-      clearDetail();
+      setScopeOpen(false);
+      setScopeQuery('');
+      setLoading(false);
       return;
     }
-    void loadBranches(repoPath);
-    void loadInitial(repoPath, scope);
+    const request = ++historyGen.current;
+    const warm = loadedHistory.current === historyKey;
+    const valid = () => historyGen.current === request && current.current.active && current.current.historyKey === historyKey;
+    refreshingHistory.current = request;
+    setLoading(!warm);
+    setError(null);
+    if (!warm) {
+      loadedHistory.current = undefined;
+      setSelected(null);
+      clearDetail();
+      setBranchHeads([]);
+      setHasMore(false);
+      replaceHistory([]);
+    }
+    void git.listBranches(repoPath).then(list => {
+      if (valid()) setLocalBranches(list.local.map(branch => branch.name));
+    }).catch(() => {
+      if (valid() && !warm) setLocalBranches([]);
+    });
+    void git.log(repoPath, 0, PAGE, scope).then(page => {
+      if (!valid()) return;
+      loadedHistory.current = historyKey;
+      setBranchHeads(page.branchHeads);
+      const previous = current.current.commits;
+      const samePrefix = warm && (page.hasMore || previous.length === page.commits.length)
+        && page.commits.every((commit, index) => previous[index]?.sha === commit.sha);
+      if (samePrefix && previous.length > page.commits.length) return;
+      setHasMore(page.hasMore);
+      if (samePrefix) return;
+      replaceHistory(page.commits);
+      const selectedCommit = current.current.selected;
+      if (selectedCommit && !page.commits.some(commit => commit.sha === selectedCommit)) {
+        setSelected(null);
+        clearDetail();
+      }
+    }).catch(err => {
+      if (valid()) setError(String(err));
+    }).finally(() => {
+      if (refreshingHistory.current === request) refreshingHistory.current = null;
+      if (valid()) setLoading(false);
+    });
     return () => { historyGen.current += 1; };
-  }, [repoPath, active, scope, loadInitial, loadBranches, clearDetail]);
+  }, [repoPath, active, scope, git, historyKey, replaceHistory, clearDetail]);
 
   useEffect(() => {
-    if (!active || !selected) return;
+    if (!active) { setFilesLoading(false); return; }
+    if (!selected || loadedHistory.current !== historyKey || loadedFiles.current === filesKey) return;
     const commitFiles = git?.commitFiles;
     if (typeof commitFiles !== 'function') {
       setFilesError(t('Git API 未就绪，请重启应用'));
@@ -314,61 +324,61 @@ export function GitHistory({
       return;
     }
     const gen = ++filesGen.current;
+    const valid = () => filesGen.current === gen && current.current.active && current.current.filesKey === filesKey;
+    clearDetail();
     setFilesLoading(true);
-    setFilesError(null);
-    setFiles([]);
-    setSelectedFile(null);
-    setDiffText('');
-    setDiffError(null);
     void commitFiles(repoPath, selected)
       .then((res) => {
-        if (filesGen.current !== gen) return;
+        if (!valid()) return;
         const mapped: GitFileChange[] = (res.files ?? []).map((f) => ({
           path: f.path,
           index: (f.status && f.status[0]) || 'M',
           working_dir: ' '
         }));
+        loadedFiles.current = filesKey;
         setFiles(mapped);
         setSelectedFile(mapped[0]?.path ?? null);
       })
       .catch((err) => {
-        if (filesGen.current !== gen) return;
+        if (!valid()) return;
         setFiles([]);
         setFilesError(String(err));
       })
       .finally(() => {
-        if (filesGen.current === gen) setFilesLoading(false);
+        if (valid()) setFilesLoading(false);
       });
-  }, [git, active, selected, repoPath]);
+    return () => { filesGen.current += 1; };
+  }, [git, active, selected, repoPath, historyKey, filesKey, clearDetail, t]);
 
   useEffect(() => {
-    if (!active || !selected || !selectedFile) {
-      setDiffText('');
-      setDiffError(null);
-      setDiffLoading(false);
-      return;
-    }
+    if (!active) { setDiffLoading(false); return; }
+    if (!selected || !selectedFile || loadedFiles.current !== filesKey || loadedDiff.current === diffKey) return;
     const commitDiff = git?.commitDiff;
     if (typeof commitDiff !== 'function') {
       setDiffError(t('Git API 未就绪，请重启应用'));
       return;
     }
     const gen = ++diffGen.current;
+    const valid = () => diffGen.current === gen && current.current.active && current.current.diffKey === diffKey;
+    loadedDiff.current = undefined;
+    setDiffText('');
     setDiffError(null);
     setDiffLoading(true);
     void commitDiff(repoPath, selected, selectedFile)
       .then((res) => {
-        if (diffGen.current !== gen) return;
+        if (!valid()) return;
+        loadedDiff.current = diffKey;
         setDiffText(res.diff ?? '');
         setDiffLoading(false);
       })
       .catch((err) => {
-        if (diffGen.current !== gen) return;
+        if (!valid()) return;
         setDiffText('');
         setDiffError(String(err));
         setDiffLoading(false);
       });
-  }, [git, active, selected, selectedFile, repoPath]);
+    return () => { diffGen.current += 1; };
+  }, [git, active, selected, selectedFile, repoPath, filesKey, diffKey, t]);
 
   useEffect(() => {
     if (!scopeOpen) return;
@@ -409,23 +419,16 @@ export function GitHistory({
       onSelect: setSelected
     });
 
-  // 增量 graph 状态：保留 lanes，翻页时只对新 commit 生成新行，避免全量重算。
-  // 切仓 / 切 scope 时重置为空，由 loadInitial 重新填充。
-  const [graphRows, setGraphRows] = useState<GraphRow[]>([]);
-  const [graphColumns, setGraphColumns] = useState(0);
-  const graphStateRef = useRef<GraphIncrementalState>(emptyGraphState());
-
   const loadMore = useCallback(() => {
-    if (!active || loadingMore.current || !hasMore) return;
-    loadingMore.current = true;
-    const path = repoRef.current;
-    const ref = scopeRef.current;
     const request = historyGen.current;
+    if (!active || loadingMore.current === request || refreshingHistory.current === request || !hasMore) return;
+    const valid = () => historyGen.current === request && current.current.active && current.current.historyKey === historyKey;
+    loadingMore.current = request;
     const skip = commits.length;
     void git
-      .log(path, skip, PAGE, ref)
+      .log(repoPath, skip, PAGE, scope)
       .then((page) => {
-        if (historyGen.current !== request || repoRef.current !== path || scopeRef.current !== ref) return;
+        if (!valid()) return;
         setCommits((prev) => {
           const seen = new Set(prev.map((c) => c.sha));
           const fresh = page.commits.filter((c) => !seen.has(c.sha));
@@ -450,11 +453,11 @@ export function GitHistory({
         setBranchHeads(page.branchHeads);
         setHasMore(page.hasMore);
       })
-      .catch((err) => { if (historyGen.current === request) setError(String(err)); })
+      .catch((err) => { if (valid()) setError(String(err)); })
       .finally(() => {
-        loadingMore.current = false;
+        if (loadingMore.current === request) loadingMore.current = null;
       });
-  }, [git, active, hasMore, commits.length]);
+  }, [git, active, hasMore, commits.length, historyKey, repoPath, scope]);
 
   const onScroll = useCallback(() => {
     const el = scrollRef.current;
@@ -481,7 +484,7 @@ export function GitHistory({
   );
   const selectedMsg = selectedCommit?.commit.message.split('\n')[0] || '';
 
-  if (!active) return <div className="git-history-pane" />;
+  if (!active && loadedHistory.current !== historyKey) return <div className="git-history-pane" />;
 
   const scopeLabel =
     scope === 'HEAD'
@@ -620,7 +623,7 @@ export function GitHistory({
           {filesLoading ? (
             <div className="empty-hint"><BrandLoading>{t('加载变更…')}</BrandLoading></div>
           ) : filesError ? (
-            <ErrorTip message={filesError} />
+            <ErrorTip active={active} message={filesError} />
           ) : (
             <GitChangeTree
               files={files}
@@ -638,7 +641,7 @@ export function GitHistory({
         </div>
         <div className="git-hist-diff">
           {diffError ? (
-            <ErrorTip message={diffError} />
+            <ErrorTip active={active} message={diffError} />
           ) : (
             <div className="git-diff-scroll">
               <ErrorBoundary label="Commit Diff">
@@ -652,7 +655,7 @@ export function GitHistory({
   ) : null;
 
   return (
-    <div className={`git-history-pane${selected ? ' has-detail' : ''}`}>
+    <div className={`git-history-pane${selected ? ' has-detail' : ''}`} {...(!active ? { inert: '', 'aria-hidden': true } : {})}>
       <div className="git-hist-toolbar">
         <span className="git-hist-scope-label">{t('范围')}</span>
         <div className="git-hist-scope-wrap" ref={scopeMenuRef}>
@@ -667,7 +670,7 @@ export function GitHistory({
               ▾
             </span>
           </button>
-          {scopeOpen ? (
+          {scopeOpen && active ? (
             <div className="git-hist-scope-menu">
               <button
                 type="button"
@@ -722,7 +725,7 @@ export function GitHistory({
           ) : null}
         </div>
       </div>
-      {error ? <ErrorTip message={error} /> : null}
+      {error ? <ErrorTip active={active} message={error} /> : null}
       {selected && commitDetail ? (
         <SplitPane
           axis="column"
