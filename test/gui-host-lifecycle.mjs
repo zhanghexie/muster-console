@@ -2355,6 +2355,40 @@ async function testEditQueuedPreservesImages() {
   assert.equal(state.sentImages.at(-1)?.text, '看图（改）');
 }
 
+async function testLargeImageBatchCanSendAndRetry() {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-host-images-'));
+  const { host } = makeHost(tmp);
+  const { driver, state } = makeFakeDriver('codex-gui');
+  const row = session('large-image-batch', { runtime: 'codex-gui' });
+  // The four images fit once, but accepting the message and starting the turn
+  // both enqueue the image data before the event log can flush.
+  const images = [2_073_928, 1_520_200, 2_022_280, 1_370_016].map(bytes => ({
+    data: 'A'.repeat(bytes), mimeType: 'image/png'
+  }));
+  driver.supportsImages = true;
+  host.modelAdmission.catalog = async () => ({ items: [], defaultModel: undefined });
+  host.registerDriver(driver);
+  openExecution(host, row);
+  try {
+    assert.equal((await host.send(row.id, '看这四张图', images)).ok, true);
+    await waitUntil('image turn connection', () => state.resolveConnect || !host.isBusy(row.id));
+    assert.ok(state.resolveConnect, host.getHistory(row.id).messages.at(-1)?.error);
+    state.resolveConnect();
+    await waitUntil('image delivery', () => state.sentImages.length === 1);
+    assert.deepEqual(state.sentImages[0].images, images);
+
+    state.queue.push({ type: 'error', message: 'fixture response failure' });
+    await waitUntil('image turn settlement', () => !host.isBusy(row.id));
+    assert.equal(host.retry(row.id).ok, true);
+    await waitUntil('image retry delivery', () => state.sentImages.length === 2);
+    assert.deepEqual(state.sentImages[1].images, images);
+    assert.deepEqual(host.getHistory(row.id).messages.map(message => message.role), ['user', 'assistant']);
+  } finally {
+    await host.close(row.id);
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 async function testRejectImagesWhenOverrideLacksSupport() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gui-host-'));
   const { driver, state } = makeFakeDriver();
@@ -4023,6 +4057,7 @@ const tests = [
   ['非多模态模型带图拒绝且文案正确', testRejectImagesWhenModelLacksSupport],
   ['会话覆盖到非多模态后带图拒绝', testRejectImagesWhenOverrideLacksSupport],
   ['行内编辑保留随文图片并出队透传', testEditQueuedPreservesImages],
+  ['四张大图可发送并原样重试', testLargeImageBatchCanSendAndRetry],
   ['插话注入失败回队并在回合结束送达（M-7）', testSteeringFailedRequeue],
   ['插话失败回队遇队列满：error 回执可见（F-02）', testSteeringFailedQueueFullErrorReceipt],
   ['手动重试复用用户消息、替换失败 assistant', testManualRetryReusesUserMessage],

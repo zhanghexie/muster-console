@@ -11,7 +11,7 @@ import {
 const WRITE_BEHIND_MS = 200;
 const MAX_RANGE_LIMIT = 1000;
 const MAX_RECENT_EVENT_IDS = 4096;
-const DEFAULT_MAX_PENDING_BYTES = 8 * 1024 * 1024;
+const DEFAULT_MAX_PENDING_BYTES = 128 * 1024 * 1024;
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]+$/;
 const OFFSET_INDEX_SUFFIX = '.index.json';
 

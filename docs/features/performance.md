@@ -75,7 +75,7 @@
 
 **实测**：稳态（空闲）4 个 electron 进程 30s 平均 CPU **0–0.7%**；pty 合流 200 行突发输出零丢失零乱序（E2E 验证）。
 
-本轮运行时收口还把 `SessionEventLog` 和 driver queue 的 pending 队列统一增加 8 MiB 默认字节上限，入队时只序列化一次并记录 flush 延迟、pending bytes 和降级原因；Git discovery 按物理根分 lane，同根 single-flight、不同根可并行。当前仓库只完成静态和离线回归，尚未用真实 1/4/8 流式会话及慢盘采集 event-loop delay、IPC p95/p99、renderer frame gap 等发布指标。
+`SessionEventLog` 的待写队列默认上限为每会话 128 MiB，driver queue 的默认上限为 8 MiB。事件入队时只序列化一次，诊断记录 flush 延迟、待写字节数和降级原因。Git discovery 按物理根划分队列，同根请求共用一次扫描，不同根可并行。当前仓库只完成静态和离线回归，尚未用真实 1/4/8 流式会话及慢盘采集 event-loop delay、IPC p95/p99、renderer frame gap 等发布指标。
 
 ## 4. 渲染层全局重渲染
 

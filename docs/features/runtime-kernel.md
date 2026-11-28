@@ -44,7 +44,7 @@ IPC域在注册资源前建立accepted-call owner，停止时撤销所有同域�
 
 ## 事实日志、投影与范围读取
 
-FileSessionManager按resolver派生的namespace打开writer。create独占创建，旧handle释放后拒绝写入；flush失败不伪报释放完成。写入采用write-behind和显式flush，不声称每个token都fsync。异步提交期间pending仍保留到文件提交完成，范围查询合并磁盘前缀与待写事件，避免中途漏批次。
+FileSessionManager按resolver派生的namespace打开writer。create独占创建，旧handle释放后拒绝写入；flush失败不伪报释放完成。写入采用write-behind和显式flush，不声称每个token都fsync。每条会话日志的待写队列默认上限为 128 MiB，按序列化后的 UTF-8 字节计入事件及换行。异步提交期间pending仍保留到文件提交完成，范围查询合并磁盘前缀与待写事件，避免中途漏批次。
 
 SessionEventLog支持按seq批读、固定seq边界fork、最终无换行有效JSON修复。带换行坏记录或seq间隙fail-closed。偏移sidecar和有限近期event ID带完整性校验，坏加速索引从事实日志重建；不能把sidecar当事实源。
 
