@@ -20,6 +20,9 @@ playwright-report/
 /test/screenshot.png
 /test/ui-check.png
 
+# 歸藏设计生成的项目作品
+/歸藏作品/
+
 .superpowers/
 
 .worktrees/
