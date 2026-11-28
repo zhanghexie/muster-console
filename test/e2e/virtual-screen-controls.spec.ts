@@ -1,8 +1,8 @@
-import { test, expect, _electron } from '@playwright/test';
+import { test, expect, _electron, type Page, type TestInfo } from '@playwright/test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-test('virtual-screen grip lets a mode preview turn into a resize and keeps the capsule visible', async ({}, info) => {
+async function launchControlDemo(info: TestInfo) {
   const project = path.resolve(__dirname, '../..');
   const workspace = path.join(info.outputDir, 'workspace');
   const userData = path.join(info.outputDir, '.dev-sandbox/userData');
@@ -18,7 +18,28 @@ test('virtual-screen grip lets a mode preview turn into a resize and keeps the c
   for (const key of ['ELECTRON_RUN_AS_NODE', 'ELECTRON_RENDERER_URL', 'MUSTER_NO_SANDBOX', 'MUSTER_DEVTOOLS_PORT', 'MUSTER_WEB_PORT']) {
     delete (env as NodeJS.ProcessEnv)[key];
   }
-  const app = await _electron.launch({ executablePath: require('electron'), args: [project, '--disable-gpu'], cwd: info.outputDir, env });
+  return _electron.launch({ executablePath: require('electron'), args: [project, '--disable-gpu'], cwd: info.outputDir, env });
+}
+
+async function holdGrip(page: Page, along: number) {
+  const seam = page.locator('.pane-split-hit');
+  const grip = page.getByRole('button', { name: '虚拟屏操作' });
+  const box = (await seam.boundingBox())!;
+  await seam.hover({ position: { x: box.width / 2, y: box.height * along } });
+  await expect(grip.locator('.split-expand-grip')).toHaveAttribute('data-mp-stage', 'in');
+  const button = (await grip.boundingBox())!;
+  const x = button.x + button.width / 2;
+  const y = button.y + button.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  const menu = page.locator('.split-mode-menu');
+  await expect(menu).toHaveAttribute('data-mp-stage', 'in');
+  await expect(menu).toHaveCSS('opacity', '1');
+  return { x, y };
+}
+
+test('virtual-screen grip lets a mode preview turn into a resize and keeps the capsule visible', async ({}, info) => {
+  const app = await launchControlDemo(info);
   try {
     const page = await app.firstWindow();
     await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -34,19 +55,7 @@ test('virtual-screen grip lets a mode preview turn into a resize and keeps the c
         await Promise.allSettled(animations.map(animation => animation.finished));
       });
     };
-    const hold = async (along: number) => {
-      const box = (await seam.boundingBox())!;
-      await seam.hover({ position: { x: box.width / 2, y: box.height * along } });
-      await expect(grip.locator('.split-expand-grip')).toHaveAttribute('data-mp-stage', 'in');
-      const button = (await grip.boundingBox())!;
-      const x = button.x + button.width / 2;
-      const y = button.y + button.height / 2;
-      await page.mouse.move(x, y);
-      await page.mouse.down();
-      await expect(menu).toHaveAttribute('data-mp-stage', 'in');
-      await expect(menu).toHaveCSS('opacity', '1');
-      return { x, y };
-    };
+    const hold = (along: number) => holdGrip(page, along);
 
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1250, 760));
     await page.locator('.app-shell').waitFor();
@@ -197,6 +206,78 @@ test('virtual-screen grip lets a mode preview turn into a resize and keeps the c
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(800, 680));
     await expect(html).toHaveClass(/is-narrow/);
     await expect(grip).toHaveCount(0);
+  } finally {
+    await app.close();
+  }
+});
+
+test('switching mode reopens virtual screen after folding the right sidebar in the two-pane layout', async ({}, info) => {
+  const app = await launchControlDemo(info);
+  try {
+    const page = await app.firstWindow();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1250, 760));
+    const main = page.locator('.main-view');
+    const rightToggle = page.locator('.chrome-right-toggle');
+    const grip = page.getByRole('button', { name: '虚拟屏操作' });
+    const menu = page.getByRole('menu', { name: '虚拟屏操作' });
+    const readLayout = () => page.evaluate(async () => (await window.api.workspaceFile.get()).config);
+    const chooseMode = async (name: string) => {
+      await grip.press('Enter');
+      await menu.getByRole('menuitemradio', { name, exact: true }).click();
+    };
+
+    await rightToggle.click();
+    await expect(main).toHaveClass(/\bh-vs-on\b/);
+    await chooseMode('关闭虚拟屏');
+    await expect(main).toHaveClass(/\bis-focus\b/);
+
+    const foldAndReopen = async () => {
+      await rightToggle.click();
+      await expect(rightToggle).toHaveAttribute('aria-pressed', 'false');
+      await expect.poll(readLayout).toMatchObject({ focusMode: false, hVirtualScreen: false });
+      await rightToggle.click();
+      await expect(main).toHaveClass(/\bis-focus\b/);
+      await expect.poll(readLayout).toMatchObject({ focusMode: true, hVirtualScreen: false });
+    };
+    await foldAndReopen();
+
+    const initialRatio = (await readLayout()).focusRatio;
+    const { x, y } = await holdGrip(page, .5);
+    await page.mouse.move(x + 65, y, { steps: 4 });
+    await expect(main).toHaveClass(/\bis-reshaping\b/);
+    await page.mouse.up();
+    await expect.poll(async () => (await readLayout()).focusRatio).not.toBe(initialRatio);
+    const resizedRatio = (await readLayout()).focusRatio;
+    await page.screenshot({ path: info.outputPath('two-pane-reopened.png') });
+
+    await chooseMode('鼠标点击切屏');
+    await expect(main).toHaveClass(/\bh-vs-on\b/);
+    await expect(main).not.toHaveClass(/\bis-focus\b/);
+    await expect(rightToggle).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(readLayout).toMatchObject({ focusMode: false, hVirtualScreen: true, focusRatio: resizedRatio });
+    await page.screenshot({ path: info.outputPath('virtual-screen-resumed.png') });
+
+    await chooseMode('关闭虚拟屏');
+    await expect(main).toHaveClass(/\bis-focus\b/);
+    await foldAndReopen();
+    await page.reload();
+    await expect(main).toHaveClass(/\bis-focus\b/);
+    await page.evaluate(() => window.api.themes.activate('light'));
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+    const hold = await holdGrip(page, .5);
+    const hover = page.locator('.split-mode-menu [data-mode="hover"]');
+    const row = (await hover.boundingBox())!;
+    await page.mouse.move(hold.x, row.y + row.height / 2, { steps: 4 });
+    await expect(hover).toHaveClass(/is-armed/);
+    await page.mouse.up();
+    await expect(main).toHaveClass(/\bh-vs-on\b/);
+    await expect(rightToggle).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(readLayout).toMatchObject({ focusMode: false, hVirtualScreen: true });
+    await page.screenshot({ path: info.outputPath('virtual-screen-resumed-after-reload.png') });
+    await grip.focus();
+    await grip.press('Enter');
+    await expect(menu.getByRole('menuitemradio', { name: '鼠标悬浮切屏' })).toHaveAttribute('aria-checked', 'true');
   } finally {
     await app.close();
   }

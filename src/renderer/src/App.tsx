@@ -561,10 +561,9 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
   /** 专注模式：藏左栏会话列，会话与 Git 页并肩恒满全宽（虚拟屏临时退出） */
   const [focusMode, setFocusMode] = useState(false);
   const [focusRatio, setFocusRatio] = useState(FOCUS_RATIO_DEFAULT);
-  /** 进入专注前的布局快照（内存级，不落盘）：退出专注原样恢复；跨工作区切换即失效
+  /** 进入专注前的虚拟屏页位和占比（内存级，不落盘）：重新启用虚拟屏时恢复；跨工作区切换即失效
    *  （各工作区布局以各自 workspace.json 为准，专注期间从不改写它们） */
   const focusRestoreRef = useRef<{
-    hVs: boolean;
     hDock: HDock;
     termRatio: number;
     gitRatio: number;
@@ -674,7 +673,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
 
   useEffect(() => {
     if (!wsFileReady) return;
-    // 专注期间虚拟屏强制视觉退出：cfg 里 hVirtualScreen 原值保留给退出恢复用
+    // 专注期间虚拟屏仅视觉退出，工作区配置仍保留进入前的开关值。
     setHVs(cfg.focusMode ? false : !!cfg.hVirtualScreen);
   }, [wsFileReady, cfg.hVirtualScreen, cfg.focusMode]);
 
@@ -845,56 +844,47 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     setHSplitHot(false);
   }, [clearHTimer, pulseHStripBusy, saveWorkspacePage, patchWsFile]);
 
-  /** 进入专注：布局快照只存内存（专注期间从不改写 hVirtualScreen/占比），
-   *  退出专注原样恢复；专注自身状态落 workspace.json（重启保持）。入口：把手
-   *  长按菜单「关闭虚拟屏」落点（2026-10-10 由「专注」仅改名、行为不变）+
-   *  右栏开关的「恢复专注」 */
+  /** 把手菜单「关闭虚拟屏」与右栏开关「恢复专注」共用同一入口。
+   *  页位与占比快照留在内存，工作区配置只保存专注标记。 */
   const enterFocus = useCallback(() => {
-    focusRestoreRef.current = { hVs, hDock, termRatio, gitRatio };
+    focusRestoreRef.current = { hDock, termRatio, gitRatio };
     pulseHStripBusy(450);
     clearHTimer();
     onExpandBtnRef.current = false;
     setFocusMode(true);
     // 与侧边栏显隐解耦：不动 sessionsOpen/速览态——专注中会话栏照常可开合
-    // 仅视觉退出虚拟屏，不写 hVirtualScreen——快照负责恢复
     setHVs(false);
     setHDock('terminal');
     setHSplitHot(false);
     void patchWsFile({ focusMode: true });
-  }, [hVs, hDock, termRatio, gitRatio, clearHTimer, pulseHStripBusy, patchWsFile]);
+  }, [hDock, termRatio, gitRatio, clearHTimer, pulseHStripBusy, patchWsFile]);
 
-  const exitFocus = useCallback(() => {
+  const resumeVirtualScreen = useCallback(() => {
     pulseHStripBusy(450);
     clearHTimer();
     onExpandBtnRef.current = false;
-    setFocusMode(false);
     const snap = focusRestoreRef.current;
     focusRestoreRef.current = null;
-    if (!snap) {
-      void patchWsFile({ focusMode: false });
-      return;
+    const dock = snap?.hDock ?? loadVirtualScreenPage(wsFileWorkspaceId, cfg.hDock);
+    setFocusMode(false);
+    setHVs(true);
+    setHDock(dock);
+    saveWorkspacePage(dock);
+    setHSplitHot(false);
+    if (snap) {
+      setTermRatio(snap.termRatio);
+      setGitRatio(snap.gitRatio);
     }
-    setHVs(snap.hVs);
-    setHDock(snap.hDock);
-    saveWorkspacePage(snap.hDock);
-    setTermRatio(snap.termRatio);
-    setGitRatio(snap.gitRatio);
-    // focusMode 与恢复布局必须单条补丁原子落盘：拆两条会有「focusMode 已 false 而
-    // hVirtualScreen 还是盘上进入前旧值」的中间 cfg，回流被 hVs 同步 effect 按旧值
-    // 复活虚拟屏（右栏开关收起时曾据此闪回悬浮/点击模式）
+    // 选切屏方式显式开启虚拟屏；收起再展开右栏后，工作区配置中的开关可能仍为 false。
+    // 将退出专注和开启虚拟屏一起保存，让布局回读直接得到目标状态。
     void patchWsFile({
       focusMode: false,
-      hVirtualScreen: snap.hVs,
-      hTerminalRatio: snap.termRatio,
-      hGitRatio: snap.gitRatio,
+      hVirtualScreen: true,
+      ...(snap ? { hTerminalRatio: snap.termRatio, hGitRatio: snap.gitRatio } : {})
     });
-  }, [pulseHStripBusy, clearHTimer, saveWorkspacePage, patchWsFile]);
+  }, [pulseHStripBusy, clearHTimer, wsFileWorkspaceId, cfg.hDock, setHDock, saveWorkspacePage, patchWsFile]);
 
-  /** 右上角开关「收起」专用（专注布局下）：一步退专注+关 VS，单条补丁原子落盘。
-   *  不能走 exitFocus（会把快照里的 hVirtualScreen 原值写回——收起语义是右栏连同
-   *  Git 页一起消失、落回普通全宽）；也不能 exitFocus+disableHVs 叠两条补丁
-   *  （focusMode 先 false 而 hVirtualScreen 还是盘上旧值的中间 cfg，会被 hVs 同步
-   *  effect 复活成虚拟屏）。占比照快照恢复，hVirtualScreen 强制 false */
+  /** 专注布局下收起右栏：一步退专注并关闭虚拟屏，占比从快照恢复。 */
   const collapseRightPanel = useCallback(() => {
     pulseHStripBusy(450);
     clearHTimer();
@@ -922,22 +912,13 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
     });
   }, [pulseHStripBusy, clearHTimer, saveWorkspacePage, patchWsFile]);
 
-  /** 把手长按菜单选切页：专注下拖到悬浮/点击 = 一步「退出专注（恢复进专注前快照）
-   *  + 应用切屏方式」——专注与悬浮/点击是互斥模式，切换即退出，不必先退再切 */
   const applySwitchModeFromMenu = useCallback(
     (mode: HSwitchMode) => {
       applySwitchMode(mode);
-      if (focusMode) exitFocus();
+      if (focusMode) resumeVirtualScreen();
     },
-    [applySwitchMode, exitFocus, focusMode]
+    [applySwitchMode, focusMode, resumeVirtualScreen]
   );
-
-  /** 把手长按菜单「关闭虚拟屏」落点（原「专注」，仅改名）：切换双栏全屏态
-   *  （focusMode）；已在该态时空操作 */
-  const toggleFocus = useCallback((): void => {
-    if (focusMode) exitFocus();
-    else enterFocus();
-  }, [focusMode, exitFocus, enterFocus]);
 
   // ---- 会话栏折叠/展开：折叠态左缘热区划开工作面，露出下方左栏 ----
   const peekCloseTimerRef = useRef<number | null>(null);
@@ -2161,7 +2142,7 @@ export function App({ onWorkspaceClosePendingChange, setup }: {
         visible={hSplitHot}
         onAlong={setHBtnAlong}
         onHotChange={setHSplitHot}
-        onToggleFocus={toggleFocus}
+        onToggleFocus={enterFocus}
         onSwitchMode={applySwitchModeFromMenu}
         barX={
           hVs || focusLayout

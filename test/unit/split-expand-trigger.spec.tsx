@@ -301,6 +301,23 @@ describe('把手长按菜单落点', () => {
   });
 
   it.each([
+    ['click', 236],
+    ['hover', 268]
+  ] as const)('双栏布局拖选 %s 后提交切屏方式', (mode, targetY) => {
+    const events = renderHarness(false, 'click', true);
+    reveal();
+    const button = btn()!;
+    enterPick(button);
+    fireEvent.pointerMove(button, { clientX: 14, clientY: targetY, buttons: 1, pointerId: 1 });
+    flushFrame();
+    expect(drops().find(row => row.dataset.mode === mode)?.classList.contains('is-armed')).toBe(true);
+    fireEvent.pointerUp(button, { clientX: 14, clientY: targetY, pointerId: 1 });
+    expect(events.switchModes).toEqual([mode]);
+    expect(events.focusToggles).toBe(0);
+    expect(events.resizeStarts).toBe(0);
+  });
+
+  it.each([
     [268, 'hover', 26, 'right'],
     [332, 'focus', -26, 'left']
   ] as const)('从%s这一行回到加减号时可以直接改为调宽', (rowY, mode, dx, direction) => {
