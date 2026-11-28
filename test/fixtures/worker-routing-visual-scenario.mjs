@@ -15,7 +15,7 @@ export default async function ({ page, capture, assert, theme, width }) {
   await dialog.waitFor();
   await dialog.getByRole('tab', { name: 'Muster Core' }).focus();
   await page.keyboard.press('ArrowRight');
-  const model = dialog.getByRole('option', { name: '团队服务 · Deep Model' });
+  const model = dialog.getByRole('group', { name: '团队服务' }).getByRole('option', { name: 'Deep Model' });
   await model.click();
   await page.keyboard.press('ArrowRight');
   const high = dialog.getByRole('radio', { name: '高', exact: true });
@@ -23,7 +23,7 @@ export default async function ({ page, capture, assert, theme, width }) {
   await high.click();
   await capture('picker');
   await dialog.getByRole('button', { name: '插入引用' }).click();
-  const chip = editor.getByRole('button', { name: /团队服务 · Deep Model · 高/ });
+  const chip = editor.getByRole('button', { name: /Deep Model · 高/ });
   await chip.waitFor();
   await capture('harness-reference');
   await page.keyboard.press('Control+z');
@@ -33,12 +33,12 @@ export default async function ({ page, capture, assert, theme, width }) {
   await chip.waitFor();
   await page.keyboard.type('for the next task');
   await page.keyboard.press('Control+z');
-  assert.match(await editor.innerText(), /团队服务 · Deep Model/);
+  assert.match(await editor.innerText(), /Deep Model/);
   await page.keyboard.press('Control+y');
   assert.match(await editor.innerText(), /for the next task/);
   await page.evaluate(() => { window.__uiFixture.expire = true; });
   await page.keyboard.press('Enter');
-  await page.getByRole('alert').filter({ hasText: '已失效' }).waitFor();
+  await page.getByRole('status').filter({ hasText: '已失效' }).waitFor();
   await capture('expired');
   assert.equal(await page.evaluate(() => window.__uiFixture.sent.length), 0);
   await chip.focus();
@@ -54,7 +54,7 @@ export default async function ({ page, capture, assert, theme, width }) {
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.__uiFixture.sent.length === 1);
   const sent = await page.evaluate(() => window.__uiFixture.sent[0]);
-  assert.match(sent, /Use \[@model:wr1\.[\w-]{32}:"Muster Core · GUI · 团队服务 · Deep Model · 高"\] for the next task/);
+  assert.match(sent, /Use \[@model:wr1\.[\w-]{32}:"Muster Core · GUI · Deep Model · 高"\] for the next task/);
 
   await page.getByRole('button', { name: '自动派活设置' }).click();
   const light = page.getByRole('group', { name: '低' });

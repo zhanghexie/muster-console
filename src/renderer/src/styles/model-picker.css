@@ -4,17 +4,20 @@
 .model-picker-option:hover:not(:disabled) { background: var(--interaction-hover); color: var(--fg-primary); }
 .model-picker-option[aria-checked='true'] { background: var(--interaction-selected); color: var(--fg-selected-primary); }
 .model-picker-option:disabled { color: var(--fg-disabled); cursor: default; }
-.model-picker-search { flex: none; width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--border-subtle); padding: 11px 12px; outline: none; background: transparent; color: var(--fg-primary); font: inherit; }
+.model-picker-search { flex: none; width: 100%; box-sizing: border-box; border: 0; border-bottom: 1px solid var(--model-picker-divider); padding: 11px 12px; outline: none; background: transparent; color: var(--fg-primary); font: inherit; }
 .model-picker-search:focus-visible { outline: none; border-bottom-color: var(--border-focus); }
 .agent-composer-model-menu.model-picker-popup { position: fixed; left: auto; right: auto; bottom: auto; z-index: calc(var(--z-menu) + 1); display: flex; flex-direction: column; min-width: 0; max-height: none; overflow: hidden; padding: 0; }
 
-.harness-picker { display: flex; flex-direction: column; min-width: 0; min-height: 0; container: harness-picker / inline-size; }
+.harness-picker {
+  --model-picker-divider: color-mix(in srgb, var(--divider-rest) 80%, transparent);
+  display: flex; flex-direction: column; min-width: 0; min-height: 0; container: harness-picker / inline-size;
+}
 .harness-picker-columns { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
 .harness-picker-columns[data-columns='harness models'] { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
 .harness-picker-columns[data-columns='models parameters'] { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
 .harness-picker-columns[data-columns='harness models parameters'] { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) minmax(0, 2fr); }
 .harness-picker-column { min-width: 0; min-height: 0; max-height: min(52dvh, 340px); overflow: auto; overscroll-behavior: contain; padding: 6px; }
-.harness-picker-column + .harness-picker-column { border-left: 1px solid var(--border-subtle); }
+.harness-picker-column + .harness-picker-column { border-left: 1px solid var(--model-picker-divider); }
 .harness-picker-column > p, .harness-picker-column [role='tablist'] > p, .harness-picker-error {
   margin: 0; padding: 8px; color: var(--fg-secondary); font-size: var(--font-caption); overflow-wrap: anywhere;
 }
@@ -29,6 +32,37 @@
 .harness-picker-option[aria-selected='true'] { background: var(--interaction-selected); color: var(--fg-selected-primary); }
 .harness-picker-option[aria-selected='true'] > small { color: var(--fg-selected-secondary); }
 .model-catalog-group-heading { padding: 12px 8px 4px; color: var(--fg-secondary); font-size: var(--font-caption); font-weight: 500; overflow-wrap: anywhere; }
+.harness-picker-model-list > [role='group']:not(:first-child) { margin-block-start: 16px; }
+.harness-picker-model-list .model-catalog-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline: 8px;
+  margin-block-end: 2px;
+  padding: 0 0 4px;
+  color: var(--fg-muted);
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+}
+.harness-picker-model-list .model-catalog-group-heading > span:last-child { min-inline-size: 0; }
+.harness-picker-model-list .model-catalog-group-heading::after {
+  content: '';
+  flex: 1 0 12px;
+  border-block-start: 1px solid var(--model-picker-divider);
+}
+.model-catalog-group-initial {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 1.4em;
+  aspect-ratio: 1;
+  border: 1px solid var(--status-neutral-border);
+  border-radius: var(--radius-small);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-fg);
+  line-height: 1;
+  letter-spacing: normal;
+}
 .model-catalog-entry, .harness-picker-option.harness-picker-model-option { display: flex; align-items: baseline; flex-wrap: nowrap; gap: 8px; min-width: 0; }
 .model-catalog-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .model-catalog-entry > .model-catalog-detail, .harness-picker-model-option > .model-catalog-detail {
@@ -37,14 +71,14 @@
 .harness-picker-option:disabled { cursor: default; }
 .harness-picker [data-picker-choice]:focus-visible { outline: 1px solid var(--border-focus); outline-offset: -1px; }
 .harness-picker-refresh { margin: 6px 2px; }
-.harness-picker-actions { display: flex; justify-content: flex-end; flex: none; gap: 8px; padding: 8px; border-top: 1px solid var(--border-subtle); }
+.harness-picker-actions { display: flex; justify-content: flex-end; flex: none; gap: 8px; padding: 8px; border-top: 1px solid var(--model-picker-divider); }
 .harness-picker-manual { display: grid; gap: 4px; padding: 6px; color: var(--fg-secondary); font-size: var(--font-caption); }
 .harness-picker-manual input { min-width: 0; width: 100%; box-sizing: border-box; }
 .harness-picker-stages, .harness-picker-narrow-summary { display: none; }
 @container harness-picker (max-width: 480px) {
-  .harness-picker-stages { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 4px; padding: 5px; border-bottom: 1px solid var(--border-subtle); }
+  .harness-picker-stages { display: flex; flex: none; align-items: center; flex-wrap: wrap; gap: 4px; padding: 5px; border-bottom: 1px solid var(--model-picker-divider); }
   .harness-picker-stages [aria-current='step'] { background: var(--interaction-selected); color: var(--fg-selected-primary); }
-  .harness-picker-narrow-summary { display: block; flex: none; margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle);
+  .harness-picker-narrow-summary { display: block; flex: none; margin: 0; padding: 8px 12px; border-bottom: 1px solid var(--model-picker-divider);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-secondary); font-size: var(--font-caption); }
   .harness-picker-columns[data-columns] { grid-template-columns: minmax(0, 1fr); }
   .harness-picker-column + .harness-picker-column { border-left: 0; }

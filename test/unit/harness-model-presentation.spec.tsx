@@ -26,6 +26,11 @@ function picker(models: HarnessPickerModel[]) {
 it('groups Core models, searches the provider and submits the original identity', async () => {
   const { confirm } = picker(coreModels);
   const account = await screen.findByRole('group', { name: 'Account b' });
+  const label = within(account).getByText('Account b');
+  expect(label.id).toBeTruthy();
+  expect(account.getAttribute('aria-labelledby')).toBe(label.id);
+  expect(within(account).getByText('A', { exact: true }).closest('[aria-hidden="true"]')).toBeTruthy();
+  expect(within(account).queryByRole('option', { name: 'Account b' })).toBeNull();
   const model = within(account).getByRole('option', { name: 'Same model' });
   expect(model.querySelector('small')).toBeNull();
   await userEvent.click(model);

@@ -50,7 +50,7 @@ function readPicker(request: HarnessPickerRequest): HarnessPickerResult {
   if (Object.keys(harness).some(key => !['harnessId', 'runtimeId', 'surface', 'acpPresetId'].includes(key)) ||
     request.model && Object.keys(request.model).sort().join() !== 'modelId,providerId') throw new Error('Unexpected picker request fields');
   const models = harness.runtimeId === 'pi' ? config.llm.providers.flatMap(provider => provider.models.map(model => ({
-    providerId: provider.id, modelId: model.id, label: `${provider.name} · ${model.name}`
+    providerId: provider.id, modelId: model.id, label: model.name, group: { id: provider.id, label: provider.name }
   }))) : fixture.delayedCodexPreview && harness.runtimeId === 'codex-gui' ? Array.from({ length: 18 }, (_, index) => ({
     providerId: 'codex-gui', modelId: `codex-model-${index + 1}`, label: `Codex model ${index + 1}`
   })) : [];

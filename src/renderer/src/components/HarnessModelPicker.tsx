@@ -9,6 +9,7 @@ import type { ModelParameterValues } from '../../../shared/modelParameters';
 import { randomUuid } from '../../../shared/randomUuid';
 import { localizeGuiHostError } from '../../../shared/guiHostError';
 import { HARNESS_CATALOG } from '../../../shared/harnessCatalog';
+import { firstGrapheme } from '../../../shared/userAvatar';
 import { HarnessIcon } from './HarnessIcon';
 import { ModelPickerLayout, ModelPickerParameterFields } from './ModelPickerLayout';
 import { OperationButton } from './OperationButton';
@@ -96,6 +97,7 @@ function LaunchPicker(props: Props & { target: { source: Source; surface: Harnes
 
 function HarnessPickerDraft({ target, initial, exact, disabled, active = true, confirmLabel, defaultLabel, manualModel, validate, onCancel, onConfirm }: Props) {
   const { t } = useTranslation();
+  const groupLabelPrefix = React.useId();
   const sourceTarget = 'source' in target ? target : undefined;
   const [availability, setAvailability] = useState<{ choices: HarnessPickerChoice[]; error?: string }>();
   const [draft, setDraft] = useState<PickerInitialSelection>(() => initial ?? {});
@@ -296,17 +298,24 @@ function HarnessPickerDraft({ target, initial, exact, disabled, active = true, c
     id: 'models', label: t('模型'), selectable: !optionsLocked && showModels && (defaultVisible || visibleModels.length > 0),
     content: <>
       {fixedHarness ? <div className="model-picker-heading"><HarnessIcon harnessId={fixedHarness.harnessId} size={18} /><strong>{harnessLabel}</strong></div> : null}
-      {showModels && (defaultVisible || visibleModels.length) ? <div role="listbox" aria-label={t('模型')}>
+      {showModels && (defaultVisible || visibleModels.length) ? <div className="harness-picker-model-list" role="listbox" aria-label={t('模型')}>
         {defaultVisible ? <button type="button" role="option" data-picker-choice="default" className="harness-picker-option" disabled={optionsLocked}
           aria-selected={draft.model === null && !draft.nativeLaunchModel} onClick={() => selectModel(null)}>{follows}</button> : null}
-        {pickerModelGroups(visibleModels).map(section => <div key={section.group?.id ?? ''} role={section.group ? 'group' : 'presentation'} aria-label={section.label}>
-          {section.group ? <div className="model-catalog-group-heading" role="presentation">{section.label}</div> : null}
-          {section.items.map(row => <button key={modelKey(row)} type="button" role="option" data-picker-choice={modelKey(row)}
-            className="harness-picker-option harness-picker-model-option" disabled={optionsLocked}
-            aria-selected={modelKey(row) === modelKey(chosenModel)} title={pickerModelTitle(row)} onClick={() => selectModel(row)}>
-            <span className="model-catalog-name">{row.label}</span>{row.detail ? <> <small className="model-catalog-detail">{row.detail}</small></> : null}
-          </button>)}
-        </div>)}
+        {pickerModelGroups(visibleModels).map((section, index) => {
+          const labelId = section.group ? `${groupLabelPrefix}-${index}` : undefined;
+          const initial = firstGrapheme(section.label?.toUpperCase() ?? '');
+          return <div key={section.group?.id ?? ''} role={section.group ? 'group' : 'presentation'} aria-labelledby={labelId}>
+            {labelId ? <div className="model-catalog-group-heading" aria-hidden="true">
+              {initial ? <span className="model-catalog-group-initial">{initial}</span> : null}
+              <span id={labelId}>{section.label}</span>
+            </div> : null}
+            {section.items.map(row => <button key={modelKey(row)} type="button" role="option" data-picker-choice={modelKey(row)}
+              className="harness-picker-option harness-picker-model-option" disabled={optionsLocked}
+              aria-selected={modelKey(row) === modelKey(chosenModel)} title={pickerModelTitle(row)} onClick={() => selectModel(row)}>
+              <span className="model-catalog-name">{row.label}</span>{row.detail ? <> <small className="model-catalog-detail">{row.detail}</small></> : null}
+            </button>)}
+          </div>;
+        })}
       </div> : null}
       {loading && !catalog ? <p role="status">{t('正在读取模型目录…')}</p> : search && !visibleModels.length && !defaultVisible ? <p>{t('没有匹配的已读取模型')}</p> : null}
       {!sourceTarget && !loading && modelEditable && draft.model && !chosenModel ? <p role="status">{t('当前模型 {{model}} 不在可选目录中。', { model: draft.model.modelId })}</p> : null}
