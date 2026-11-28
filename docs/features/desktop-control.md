@@ -1,6 +1,6 @@
 # 桌面控制基础设施（开发中）
 
-`host.desktop.list` 提供只读元数据。Windows、macOS、Linux X11 和满足合成器依赖的原生 Wayland 在主入口装配可见桌面运行时，共用 Cua 窗口选择、截图、语义读取和点击。Windows 和 macOS 还支持聚焦、启动与显示器坐标下的拖拽、滚动和键盘输入。显示器截图由 Electron 提供，Linux 需要能唯一匹配显示器的截图源。窗口观察 ID 仅供观察。实施计划
+`host.desktop.list` 提供只读元数据。Windows、macOS、Linux X11 和满足合成器依赖的原生 Wayland 在主入口装配可见桌面运行时，共用 Cua 窗口选择、截图、语义读取和点击。Windows 和 macOS 还支持聚焦、启动与显示器坐标下的拖拽、滚动和键盘输入。显示器截图由 Electron 提供，Linux 需要能唯一匹配显示器的截图源。默认元数据里的窗口观察 ID 仅供观察。
 
 > 2026-11-12 披露形态变更：模型面只剩 `host.desktop.run({action, params})` 一个入口（action 为 `list/look/act/focus/launch`），五个 `host.desktop.*` 直调名仍作为内部真源与权限档来源存在，参数细节见 `~/.muster/skills/desktop/SKILL.md`。本文其余段落沿用内部名描述实现，不代表模型可直接调用这些名字。
 >
@@ -12,17 +12,21 @@
 
 macOS 显示器截图需要「屏幕与系统音频录制」。窗口截图、语义树和窗口输入还需要「辅助功能」。默认元数据列表和应用发现无需 TCC。申请可操作的窗口引用 `list(view: windows)` 时检查辅助功能授权，整屏截图也可通过 `windowsCode` 报告窗口选择缺少辅助功能。Windows、Linux X11 和原生 Wayland 展示各自的后端和驱动诊断。Wayland 的控制能力取决于合成器及停止控件。[Apple 录屏权限](https://support.apple.com/zh-cn/guide/mac-help/mchld6aa7d23/mac) · [Apple 辅助功能权限](https://support.apple.com/zh-cn/guide/mac-help/mh43185/mac)
 
-桌面工具结果的 `ok: false` 和 `code` 经公共执行器提到外层，`result` 保留结构化详情。`permission_required` 表示 macOS 缺少授权，`permission_check_failed` 表示授权状态无法读取，`capability_unsupported` 表示后端或所请求的动作不可用，`dependency_missing` 表示固定版驱动不可用。执行器经 `UiBridge` 发送 `ui:desktopSetup`，工作台顶部复用设置页的 `DesktopSetupCard` 展示可关闭的引导。
+桌面工具结果的 `ok: false` 和 `code` 经公共执行器提到外层，`result` 保留结构化详情。`permission_required` 表示 macOS 缺少授权，`permission_check_failed` 表示授权状态无法读取，两者以 `source: host | driver` 标出检查来源。两种来源都应核对实际运行的应用包。进程独立签名不能单独证明系统把它识别为独立授权主体。默认元数据列表对 Cua 能力进行无提示权限复检，驱动结果未知时保留未知授权状态。`capabilities.foregroundInput.displayActions` 报告各项显示器输入的后端支持，其中 macOS 的 `move` 和 `hover` 均为 `false`。`capability_unsupported` 表示后端或所请求的动作不可用，`dependency_missing` 表示固定版驱动不可用。执行器经 `UiBridge` 发送 `ui:desktopSetup`，工作台顶部复用设置页的 `DesktopSetupCard` 展示可关闭的引导。动作本身受平台限制时返回 `reason: unsupported_action`，授权引导只在有设置或后端诊断需要处理时出现。
 
-权限按钮只向 `desktopSetup:openSettings` 传递权限名。`src/main/ipc/desktopSetup.ts` 要求调用来自本机主窗口的主 frame，由主进程选择屏幕录制或辅助功能的固定系统设置地址。Web 网关拒绝这两个 IPC 并过滤引导事件。开发版与安装版分别为实际运行的 `Electron.app` 和 `Muster Console.app` 授权。勾选后重新检测，当前进程和 Cua 均看到授权时可以重试。如果系统要求退出，或重检仍有缺项，完全退出并重开对应应用，再检查一次。
+本机主窗口主 frame 可调用 `desktopSetup:requestPermission`，传入屏幕录制或辅助功能的固定枚举。只有用户点击「申请系统授权」才调用 Electron 的 `isTrustedAccessibilityClient(true)` 或系统的 `CGRequestScreenCaptureAccess`。系统可异步提示，应用仍需重检授权。`desktopSetup:openSettings` 只接受相同枚举并使用固定深链。`desktopSetup:revealApp` 不接收路径，在 Finder 显示当前可执行文件所在的 `.app`。Web 网关拒绝这些 IPC 并过滤引导事件。开发版与安装版分别为实际运行的 `Electron.app` 和 `Muster Console.app` 授权。勾选后重新检测，当前进程和 Cua 均看到授权时可以重试。如果系统要求退出，或重检仍有缺项，完全退出并重开对应应用，再检查一次。
 
-安装版开启辅助功能后仍报缺项时，先核对授权条目对应的是当前运行的应用包。若应用在「应用程序」目录，可在系统设置的「+」文件选择器中用 ⌘⇧G 进入 `/Applications`，再选中该目录里的 `Muster Console.app`。旧本地包可能只携带 Electron 链接器签名，此时须重打并安装完整签名的应用，再为该副本授权。[macOS 打包](packaging.md)
+替换 ad-hoc 构建后，即使旧条目仍打开，系统也可能要求重新授权。可用 Finder 定位当前副本，在支持手动添加的系统面板移除失效条目并重新添加。跨构建保留授权依赖兼容的代码签名要求，打包流程可使用稳定的 Developer ID 身份。[macOS 打包](packaging.md)
+
+macOS 检测到 Secure Input 时，输入和聚焦返回 `secure_input_active`，指引用户处理完系统提示，再重新观察。屏幕观察可按原有权限继续。该状态通过系统接口判断，与辅助功能授权分开，期间全局 Esc 监听可能停用，仍可通过指示窗的 Stop 停止。
 
 `test/desktop-setup.mjs` 模拟各平台的状态和错误分支。`test/e2e/desktop-setup.spec.ts` 使用真实 Electron preload、IPC 与卡片，替换 TCC 状态并截获系统设置链接。macOS 真机验收需从设置检查和桌面工具失败两个入口验证缺项，然后点开深链、手动勾选授权、重检、彻底退出重开再确认。开发版与签名安装版分别验证。Windows、Linux X11 和原生 Wayland 的本次引导仅有代码与模拟验证。
 
 ## 窗口截图与点击
 
-`list(view: "windows")` 从 Cua 的可见窗口签发有界、同回合的选择引用，支持 `windowOffset` 与 `limit`。`look(mode: "both", windowId)` 在私有 Cua 会话里一次读取 PNG 和语义树，返回 `window-pixel-v1` 坐标与 Muster 签发的 `captureId`。`act` 用 `target: { windowId, captureId, x, y }` 点击或双击，底层把该图像对应的私有 Cua 引用交回同一驱动会话。整屏 `look(surfaceId)` 用于观察显示器、选窗以及 Windows 和 macOS 的其他显示器坐标动作。整屏坐标点击返回 `window_capture_required`。
+`list(view: "windows")` 从 Cua 的可见窗口签发有界、同回合的选择引用，支持 `windowOffset` 与 `limit`。`look(mode: "both", windowId)` 在私有 Cua 会话里一次读取 PNG 和语义树，返回 `window-pixel-v1` 坐标与 Muster 签发的 `captureId`。`act` 用 `target: { windowId, captureId, x, y }` 点击或双击，底层把该图像对应的私有 Cua 引用交回同一驱动会话。Windows 和 macOS 的聚焦与显示器坐标输入使用显示器 `look` 的窗口 ID，传入 Cua 列表的 ID 时返回 `display_window_required`。滚动和拖拽的 `params.surfaceId` 与 `params.target` 同级。`target.x/y` 从返回图像左上角计像素，裁剪后仍以裁剪图像为原点。整屏坐标点击返回 `window_capture_required`。
+
+可见指示窗隐藏、最小化或崩溃会使当前回合的租约失效。同一窗口故障只登记一次停止，并等待本轮后端清理。已经排队的调用在派发前再次检查指示窗的原生可见性。用户核对在途结果、将应用切到前台并发出新指令后，宿主可创建全新的指示窗并恢复操作。支持全局 Esc 的环境会等待旧监听退出，再为新的活动回合启动监听。旧动作不重派。指示条优先显示会话名，调度回合显示工作区名，缺省时显示本地化的会话或调度名称。
 
 `cuaDesktopBackend.ts` 统一 Cua 会话、发现、停止和释放。`cuaWindowList.ts` 保留同回合的可见窗口身份及几何，读取前后和派发前在驱动上核对。`cuaSemanticRuntime.ts` 绑定可信任务、目标、快照、动作去重和会话生命周期。点击前验证像素边界，派发后消耗观测。同一可验证请求的重试返回回执。窗口移动、停止、过期或重新观察使旧图失效。`screenRuntime.ts` 校验实际 PNG 并写入任务所属的产物存储和截图审计。可点击的截图要求驱动提供明确的窗口绑定，未绑定时返回 `window_capture_unavailable`，语义树可另行查询。驱动只返回有效 PNG 时，`semanticStatus` 为 `unsupported`，窗口坐标仍可用。X11 的被动 Esc 与原生 Wayland 的 Stop helper 分开配置。Windows、macOS、X11、Wayland 的合同模拟测试共用 `test/desktop-cua-window-control.mjs`。
 
@@ -32,7 +36,7 @@ macOS 显示器截图需要「屏幕与系统音频录制」。窗口截图、�
 
 Windows 的 `look` 在截图后返回有界窗口选择；`windowsComplete=false` 表示有遗漏，窗口枚举失败时 `windowsError` 给出原因，`windowsUnavailable` 统计本页无法设置身份标记的窗口。动作引用绑定会话、截图、显示器、窗口进程和窗口属性代次，调用前重新核对；[SetPropW 受 Windows 完整性级别限制](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setpropw)，系统拒绝设置属性时不签发该窗口引用。正常退出或后续调用触发过期清理时尽力移除属性，异常退出时外部窗口可能暂留标记。坐标是返回图像的像素，裁剪偏移换算后再转换为系统坐标。`act` 经截图证据及 `DesktopActionGate` 派发，`focus` 使用同一窗口引用，`launch` 仅接受存在的绝对 `.exe` 路径。会话中首次桌面写操作要求用户确认；允许后同一用户回合的桌面操作跨应用复用内存授权，最长 30 分钟。下一条用户消息使授权失效；用户插话投递期间暂停发放授权，Pi 消费排队消息时再次撤销；在途确认或操作也必须重新检查回合与有效期。窗口不可用、确认中断或用户拒绝的回合确认在审计中记录有界原因；中断不区分超时和窗口生命周期变化，旧记录不能补全原因。非用户拒绝的确认失败返回明确错误。既有拒绝记录仅在有效回合授权期间被跳过，授权失效后继续生效；截图读取仍遵循原有授权。CLI 原生终端的回车无法总是区分消息提交和交互确认，可能提前撤销授权。各动作需传入稳定 `requestId`；同会话同任务内以相同参数重试返回持久回执，参数不同则拒绝，派发前的校验或确认失败不写入 pending，同 ID 可重试；进入派发后的未完成记录返回未知且不重新派发；如无法确认任务日志已清理，也按未知处理；换新 ID 不具备去重保证。Windows 隔离 Electron 和 PTY Worker 测试覆盖真实截图、焦点、点击、Unicode 输入和进程启动。混合 DPI、多显示器坐标与提权应用尚未验收。按本任务裁决未接入物理接管检测或看门狗，动作期间用户物理输入可能穿插；窗口属性可能被目标进程移除或干扰，前台遮挡仍有残余风险，派发成功不代表目标业务操作成功。浏览器、扩展和 CDP 尚未接入统一权限门。
 
-在 macOS 上，`macDesktopHost.ts` 复用 `DesktopActivityRuntime`、停止状态账本、共享输入座位和持久 `requestId` 回执。显示器截图沿用 Electron 和截图产物链。`macTargetRegistry.ts` 在截图前保留 `NSRunningApplication` 和精确映射到 `CGWindowID` 的 AX 窗口，截图后复核存活及位置并签发随机窗口 ID。授权、屏幕锁定、窗口身份或几何变化会使派发前校验失败。显示器坐标的拖拽和滚动先换算为系统点位，通过 AX 命中测试或窗口层级确认目标，再按 Cua 窗口比例换算。点击和双击使用同一份 Cua 窗口观测。聚焦可能改变窗口位置，后续坐标操作使用新截图。`macVisibleControl.ts` 通过受监管的 `cua-driver mcp --direct` 发送白名单调用，使用嵌入模式把 macOS 权限归属留在宿主进程链。macOS/Linux 上原生进程组信号派发失败时，关闭返回未确认回收，并保留系统错误原因。聚焦需要 Cua 确认精确窗口，应用启动只接收 bundle identifier。语义操作复用 Cua 的有界树与引用机制。窗口身份校验和系统派发存在时间间隔，未知回执不会自动重放。
+在 macOS 上，`macDesktopHost.ts` 复用 `DesktopActivityRuntime`、停止状态账本、共享输入座位和持久 `requestId` 回执。显示器截图沿用 Electron 和截图产物链。`macTargetRegistry.ts` 在截图前保留 `NSRunningApplication` 和精确映射到 `CGWindowID` 的 AX 窗口，截图后复核存活及位置并签发随机窗口 ID。授权、屏幕锁定、窗口身份或几何变化会使派发前校验失败。显示器坐标的拖拽和滚动先换算为系统点位，通过 AX 命中测试或窗口层级确认目标，再按 Cua 窗口比例换算。点击和双击使用同一份 Cua 窗口观测。聚焦可能改变窗口位置，后续坐标操作使用新截图。`macVisibleControl.ts` 通过受监管的 `cua-driver mcp --direct` 发送白名单调用，使用嵌入模式把 macOS 权限归属留在宿主进程链。macOS/Linux 上原生进程组信号派发失败时，关闭返回未确认回收，并保留系统错误原因。聚焦需要 Cua 确认精确窗口。应用启动只接收 bundle identifier，由 AppKit 核对 Cua 返回的进程，`launch.status` 区分 `started`、`already_running` 和 `unknown`。`launch.active` 报告当时是否位于前台，未能核实时为 `null`。启动不请求置前，原请求重试返回已记录的同一观察。语义操作复用 Cua 的有界树与引用机制。窗口身份校验和系统派发存在时间间隔，未知回执不会自动重放。
 
 macOS 锁屏时返回 `screen_locked`。显示器有截图权限时仍可返回 PNG，窗口选择不可用时通过 `windowsCode` 和 `windowsError` 说明原因。隔离 Electron 夹具在 macOS 27.2.1（26B131）验证了锁屏时保留截图和拒绝窗口操作。升级至 Cua Driver 0.59.4 后，同一夹具在解锁会话中通过了截图、窗口选择、精确聚焦、点击去重、中文输入、Command+A、语义树、应用发现和停止按钮，并核对不存在的 bundle identifier 返回失败。窗口流程已在同一真机验证 Cua 窗口截图、坐标点击、回执重放及窗口移动后的旧图拒绝。Windows、X11 和原生 Wayland 的窗口流程仍待真机验证。实际启动已安装应用、签名安装版、权限撤销、物理 Esc 和多屏仍待验收。
 

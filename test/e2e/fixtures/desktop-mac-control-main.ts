@@ -104,8 +104,9 @@ async function main(userData: string) {
     await other.loadURL('about:blank');
     other.show(); other.focus();
     const status = host.desktopMac.status();
-    assert.deepEqual(status, { permissions: { accessibility: true, screenRecording: true }, screenLocked: status.screenLocked },
-      `The real Electron process needs the pinned driver and macOS grants. ${JSON.stringify(status)}`);
+    const setupMessage = `The real Electron process needs the pinned driver and macOS grants. ${JSON.stringify(status)}`;
+    assert.deepEqual(status.permissions, { accessibility: true, screenRecording: true }, setupMessage);
+    assert.ok(!status.driverError && !status.targetError && !status.sessionError, setupMessage);
     const observed = readMacWindow(nativeId);
     assert.ok(observed?.onScreen, 'The native window inventory must include the fixture');
     let canResolveWindow = true;

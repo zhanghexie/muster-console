@@ -8,7 +8,8 @@ import { MacTargetRegistry } from './macTargetRegistry';
 import { MacVisibleControl, readCuaMacPermissions } from './macVisibleControl';
 import { createMacWindowNative } from './macWindowNative';
 import { PtyDesktopTurns } from './ptyDesktopTurns';
-import type { MacDesktopStatus } from './runtime';
+import { MacSecureInputActiveError, type MacDesktopStatus } from './runtime';
+import { createMacSecureInputReader } from './unixEscapeNativeMac';
 
 type ActivityOptions = ConstructorParameters<typeof DesktopActivityRuntime>[0];
 interface Options extends Pick<ActivityOptions, 'labels' | 'theme' | 'createIndicator' | 'createEscapeMonitor' | 'resumeState' | 'reportMonitorFailure'> {
@@ -22,11 +23,22 @@ export function createMacDesktopHost(options: Options) {
   let targets: MacTargetRegistry | undefined;
   let readPermissions: ReturnType<typeof createMacPermissionReader> | undefined;
   let readScreenLock: ReturnType<typeof createMacScreenLockReader> | undefined;
+  let readSecureInput: ReturnType<typeof createMacSecureInputReader> | null | undefined;
   let driverPermissionCheck: Promise<MacDesktopPermissions> | undefined;
   let permissionCleanupUnconfirmed = false;
   let closing: Promise<void> | undefined;
   const permissions = () => (readPermissions ??= createMacPermissionReader())();
   const screenLocked = () => (readScreenLock ??= createMacScreenLockReader())();
+  const secureInput = () => {
+    if (readSecureInput === undefined) {
+      try { readSecureInput = createMacSecureInputReader(); }
+      catch (error) {
+        readSecureInput = null;
+        console.warn('[desktop] macOS Secure Input status unavailable:', error);
+      }
+    }
+    return readSecureInput?.();
+  };
   const assertOpen = () => { if (closing) throw new Error('macOS desktop host is closed'); };
   const getTargets = () => {
     assertOpen();
@@ -56,9 +68,10 @@ export function createMacDesktopHost(options: Options) {
   // child-process cleanup before releasing the desktop or hiding the indicator.
   const activity = new DesktopActivityRuntime({ ...options, releaseAll: async (): Promise<void> => { control.assertClean(); }, stopBackend: () => cua.stop() });
   const visibilityEpoch = () => activity.visibilityEpoch();
-  const control = new MacVisibleControl(getTargets, connect, visibilityEpoch, options.composition.dispatcher, screenLocked);
+  const control = new MacVisibleControl(getTargets, connect, visibilityEpoch, options.composition.dispatcher, screenLocked, secureInput);
   const ptyTurns = new PtyDesktopTurns(activity.turns);
   const cua = createCuaDesktopBackend({ ...options, platform: 'darwin', activity, dispatcher: options.composition.dispatcher,
+    assertInputAllowed: () => { if (secureInput() === true) throw new MacSecureInputActiveError(); },
     selector: createLocalDesktopDeliverySelector(), createConnection: connect, resolveDisplayWindow: (actor, id) => {
       const target = getTargets().resolve(actor, id);
       return { surfaceId: target.frame.surfaceId, pid: target.window.pid, windowId: target.window.windowId,
@@ -77,6 +90,7 @@ export function createMacDesktopHost(options: Options) {
         catch { status.permissionError = 'Could not check macOS desktop permissions; restart Muster and try again.'; }
         try { status.screenLocked = screenLocked(); }
         catch (error) { status.sessionError = error instanceof Error ? error.message : 'macOS desktop session status is unavailable.'; }
+        status.secureInput = secureInput();
         try { options.driverPath(); }
         catch (error) { status.driverError = error instanceof Error ? error.message : 'The pinned desktop driver is unavailable.'; }
         try { getTargets(); }
@@ -86,6 +100,7 @@ export function createMacDesktopHost(options: Options) {
       permissions,
       checkDriverPermissions,
       screenLocked,
+      secureInput,
       targets: getTargets,
       control
     },

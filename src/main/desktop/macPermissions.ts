@@ -21,6 +21,19 @@ export function createMacPermissionReader(): () => MacDesktopPermissions {
   };
 }
 
+/** Called only from the explicit local workbench permission action. */
+export function requestMacScreenRecording(): Promise<boolean> {
+  if (process.platform !== 'darwin') throw new Error('macOS desktop permissions require macOS');
+  const cg = koffi.load('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics');
+  const request = cg.func('bool CGRequestScreenCaptureAccess(void)');
+  return new Promise((resolve, reject) => {
+    request.async((error: Error | null, granted: boolean) => {
+      if (error) reject(error);
+      else resolve(granted);
+    });
+  });
+}
+
 /** The same WindowServer session flag that Cua uses for its locked-screen refusal. */
 export function createMacScreenLockReader(): () => boolean {
   if (process.platform !== 'darwin') throw new Error('macOS desktop session state requires macOS');

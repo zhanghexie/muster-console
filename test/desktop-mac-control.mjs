@@ -41,6 +41,7 @@ try {
 
   const calls = [];
   let driverAccessibility = true, uncertain = false, closeCount = 0, frameMatches = true, relocateOnFocus = false;
+  let runningApps = [], observeLaunch = true;
   const driver = () => ({ async connect() {}, async close() { closeCount++; },
     async call(name, args) {
       calls.push([name, args]);
@@ -52,12 +53,24 @@ try {
         if (relocateOnFocus) currentWindow = { ...window, bounds: { ...window.bounds, x: -350 } };
         return { structuredContent: { pid: 23, window_id: 19, activated: true, status: 'activated' } };
       }
-      if (name === 'launch_app') return { structuredContent: { pid: 42, bundle_id: args.bundle_id, launch_state: { process_running: true } } };
+      if (name === 'launch_app') {
+        if (args.bundle_id === 'com.example.Missing') return { isError: true, structuredContent: { error: 'APP_NOT_INSTALLED', bundle_id: args.bundle_id } };
+        if (!runningApps.length) runningApps = [{ pid: 42, launchDate: 700, active: false }];
+        return { structuredContent: { pid: 42, bundle_id: args.bundle_id, launch_state: { process_running: true } } };
+      }
       return { structuredContent: { effect: uncertain ? 'partial' : 'unverifiable' } };
     } });
   try {
-    let locked = false;
-    const mac = new MacVisibleControl(() => targets, driver, () => 1, composition.dispatcher, () => locked);
+    let locked = false, secureInput = false, pauseBeforeDispatch = false;
+    const dispatcher = { run(...args) {
+      if (pauseBeforeDispatch) secureInput = true;
+      return composition.dispatcher.run(...args);
+    } };
+    const mac = new MacVisibleControl(() => targets, driver, () => 1, dispatcher, () => locked, () => secureInput,
+      bundleId => {
+        if (!observeLaunch) throw new Error('AppKit observation failed');
+        return bundleId === 'com.example.App' ? runningApps : [];
+      });
     const run = (request, id) => mac.execute(actor, lease, request, id);
     const drag = { action: 'drag', displayId: 'display', windowId, target: { windowId, x: 20, y: 12, toX: 30, toY: 16 } };
     locked = true;
@@ -81,17 +94,48 @@ try {
     frameMatches = true;
     await assert.rejects(run({ ...drag, displayId: 'other' }, 'wrong-display'), /another display/);
     driverAccessibility = false;
-    assert.deepEqual((await run(drag, 'grant')).permissions, ['accessibility']);
+    const missing = await run(drag, 'grant');
+    assert.deepEqual(missing.permissions, ['accessibility']);
+    assert.equal(missing.source, 'driver');
+    secureInput = true;
+    const beforeSecureInput = calls.length;
+    assert.equal((await run({ action: 'focus', windowId: 'stale' }, 'secure-input')).code, 'secure_input_active');
+    assert.equal(calls.length, beforeSecureInput, 'protected input must be reported before querying the driver or stale selection');
+    secureInput = false;
     driverAccessibility = true;
     assert.equal((await run(drag, 'grant')).outcome, 'dispatched', 'a permission refusal does not reserve a request ID');
     const focus = await run({ action: 'focus', windowId }, 'focus');
     assert.equal(focus.effect, 'confirmed');
     const key = { ...drag, action: 'key', target: { keys: ['Command', 'KeyA'] } };
+    pauseBeforeDispatch = true;
+    assert.equal((await run(key, 'key')).code, 'secure_input_active');
+    assert.equal(calls.filter(([name]) => name === 'hotkey').length, 0, 'a protected input transition during dispatch preparation must not reach the driver');
+    pauseBeforeDispatch = false;
+    secureInput = false;
     assert.equal((await run(key, 'key')).outcome, 'dispatched');
     assert.deepEqual(calls.at(-1), ['hotkey', { pid: 23, window_id: 19, delivery_mode: 'foreground', keys: ['cmd', 'a'] }]);
     await assert.rejects(run({ ...key, target: { keys: ['a', 'cmd'] } }, 'wrong-key'), /distinct modifiers/);
     await assert.rejects(run({ ...key, target: { keys: [65] } }, 'integer-key'), /named keys/);
-    assert.equal((await run({ action: 'launch', appId: 'com.example.App' }, 'launch')).effect, 'confirmed');
+    const scroll = { ...drag, action: 'scroll', target: { windowId, delta: -120 } };
+    await assert.rejects(run(scroll, 'scroll'), /target\.x and target\.y.*returned display image/);
+    await assert.rejects(run({ ...scroll, target: { ...scroll.target, x: 320, y: 52 } }, 'scroll'), /top-left.*300×120.*cropped/);
+    assert.equal((await run({ ...scroll, target: { ...scroll.target, x: 20, y: 12 } }, 'scroll')).outcome, 'dispatched');
+    assert.deepEqual(calls.at(-1), ['scroll', { pid: 23, window_id: 19, delivery_mode: 'foreground', direction: 'down', amount: 1, x: 20, y: 12 }]);
+    const launch = { action: 'launch', appId: 'com.example.App' };
+    const coldLaunch = await run(launch, 'launch');
+    assert.equal(coldLaunch.effect, 'confirmed');
+    assert.equal(coldLaunch.verification, 'not_performed');
+    assert.deepEqual(coldLaunch.launch, { status: 'started', active: false });
+    runningApps = [{ ...runningApps[0], active: true }];
+    assert.deepEqual((await run(launch, 'warm-launch')).launch, { status: 'already_running', active: true });
+    assert.deepEqual(await run(launch, 'launch'), coldLaunch, 'a duplicate request returns the original launch observation');
+    assert.equal(calls.filter(([name]) => name === 'launch_app').length, 2);
+    observeLaunch = false;
+    const unobservedLaunch = await run(launch, 'unobserved-launch');
+    assert.equal(unobservedLaunch.effect, 'unverifiable');
+    assert.deepEqual(unobservedLaunch.launch, { status: 'unknown', active: null });
+    observeLaunch = true;
+    assert.equal((await run({ ...launch, appId: 'com.example.Missing' }, 'missing-app')).code, 'app_not_installed');
     await assert.rejects(run({ action: 'launch', appId: '/Applications/Example.app' }, 'wrong-app'), /bundle identifier/);
 
     uncertain = true;

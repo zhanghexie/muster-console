@@ -62,7 +62,14 @@ export class IdempotentVisibleDispatcher implements Pick<VisibleActionDispatcher
             if (!current()) return { outcome: 'unknown', invocationId, reason: 'current-changed' };
             if (classified.outcome !== 'known') return { outcome: 'unknown', invocationId, reason: 'backend-uncertain' };
             return { outcome: 'dispatched', invocationId, value: boundedVisibleActionResult(classified.value) };
-          } catch { return { outcome: 'unknown', invocationId, reason: 'backend-failed' }; }
+          } catch (error) {
+            if (error instanceof PreDispatchFailure) {
+              // The trusted backend wrapper proved its native call never started.
+              entered = false;
+              throw error;
+            }
+            return { outcome: 'unknown', invocationId, reason: 'backend-failed' };
+          }
         }, context.signal);
     } catch (error) {
       if (entered) return { reply: { outcome: 'unknown', reason: 'dispatch-or-persistence-failed' } };

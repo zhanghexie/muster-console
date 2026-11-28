@@ -83,12 +83,12 @@ try {
     assert.equal(screenshot.ok, false);
     assert.equal(screenshot.code, 'permission_required');
     assert.deepEqual(screenshot.result.permissions, ['screenRecording']);
-    assert.deepEqual(setupNotices.at(-1), { code: 'permission_required', permissions: ['screenRecording'] });
+    assert.deepEqual(setupNotices.at(-1), { code: 'permission_required', permissions: ['screenRecording'], source: 'host' });
     const unavailablePermissions = await runDesktop({ ...macContext,
       desktopMac: { status: () => ({ permissionError: 'Native read failed' }) } }, unavailable);
     assert.equal(unavailablePermissions.ok, false);
     assert.equal(unavailablePermissions.code, 'permission_check_failed');
-    assert.deepEqual(setupNotices.at(-1), { code: 'permission_check_failed', detail: 'Native read failed' });
+    assert.deepEqual(setupNotices.at(-1), { code: 'permission_check_failed', detail: 'Native read failed', source: 'host' });
     const unavailableDriver = await runDesktop({ ...macContext,
       desktopMac: { status: () => ({ driverError: 'Missing pinned driver' }) } },
     { action: 'look', params: { mode: 'both', windowId: 'window' } });

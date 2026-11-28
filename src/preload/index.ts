@@ -307,7 +307,10 @@ const api = {
   desktopSetup: {
     status: (): Promise<import('../shared/desktopSetup').DesktopSetupStatus> => ipcRenderer.invoke('desktopSetup:status'),
     openSettings: (permission: import('../shared/desktopSetup').DesktopSetupPermission):
-      Promise<import('../shared/desktopSetup').DesktopSettingsOpenResult> => ipcRenderer.invoke('desktopSetup:openSettings', permission)
+      Promise<import('../shared/desktopSetup').DesktopSettingsOpenResult> => ipcRenderer.invoke('desktopSetup:openSettings', permission),
+    requestPermission: (permission: import('../shared/desktopSetup').DesktopSetupPermission):
+      Promise<import('../shared/desktopSetup').DesktopPermissionRequestResult> => ipcRenderer.invoke('desktopSetup:requestPermission', permission),
+    revealApp: (): Promise<import('../shared/desktopSetup').DesktopAppRevealResult> => ipcRenderer.invoke('desktopSetup:revealApp')
   },
   shell: {
     listProfiles: (): Promise<ShellProfile[]> => ipcRenderer.invoke('shell:listProfiles'),

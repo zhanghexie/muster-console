@@ -6,9 +6,9 @@ import { handle } from '../ipc/handle';
 /** Host-only indicator: the untrusted renderer can request stop, never choose its target. */
 export class DesktopIndicatorWindow {
   private window: BrowserWindow | undefined;
+  private mountedWindow: BrowserWindow | undefined;
   private snapshot: DesktopIndicatorSnapshot | undefined;
   private ready: { revision: number; resolve(): void; reject(error: Error): void; timer: NodeJS.Timeout } | undefined;
-  private readonly closing = new WeakSet<BrowserWindow>();
 
   constructor(private readonly stop: () => Promise<void>, private readonly unavailable: (reason: string) => void,
     private readonly preloadPath: string, private readonly rendererPath: string, private readonly rendererUrl?: string) {}
@@ -16,18 +16,22 @@ export class DesktopIndicatorWindow {
   registerIpc(): void {
     handle('desktopIndicator:connect', event => { this.assertSender(event); return this.current(); });
     handle('desktopIndicator:ready', (event, revision: number) => {
-      this.assertSender(event);
+      const win = this.assertSender(event);
       if (!this.ready || this.ready.revision !== revision || this.current().revision !== revision) throw new Error('Desktop indicator revision changed');
       const pending = this.ready;
       this.ready = undefined;
       clearTimeout(pending.timer);
       try {
-        this.window!.showInactive();
-        if (!this.window!.isVisible()) throw new Error('Desktop indicator is not visible');
+        // Status updates arrive while the window is already showing. Do not
+        // ask Electron to show it again or silently revive a hidden window.
+        if (this.mountedWindow !== win) win.showInactive();
+        if (this.window !== win || !win.isVisible() || win.isMinimized()) throw new Error('Desktop indicator is not visible');
+        this.mountedWindow = win;
         pending.resolve();
       } catch (error) {
         const failure = error instanceof Error ? error : new Error(String(error));
-        try { this.unavailable(failure.message); } finally { pending.reject(failure); }
+        pending.reject(failure);
+        this.failWindow(win, failure);
       }
     });
     handle('desktopIndicator:stop', async (event, revision: number) => {
@@ -49,25 +53,49 @@ export class DesktopIndicatorWindow {
     if (this.ready) { clearTimeout(this.ready.timer); this.ready.reject(new Error('Desktop indicator state superseded')); }
     const mounted = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
-        if (this.ready?.revision === snapshot.revision) this.ready = undefined;
-        this.unavailable('Desktop indicator did not become ready');
-        reject(new Error('Desktop indicator did not become ready'));
+        if (this.ready?.revision === snapshot.revision) this.failWindow(win, new Error('Desktop indicator did not become ready'));
       }, 5000);
       timer.unref?.();
       this.ready = { revision: snapshot.revision, resolve, reject, timer };
     });
-    if (win.webContents.isLoading()) {
-      // The renderer subscribes before requesting its initial snapshot.
-    } else win.webContents.send('desktopIndicator:changed', snapshot);
+    // The renderer subscribes before requesting its initial snapshot.
+    try {
+      if (!win.webContents.isLoading()) win.webContents.send('desktopIndicator:changed', snapshot);
+    } catch (error) {
+      this.failWindow(win, error instanceof Error ? error : new Error(String(error)));
+    }
     return mounted;
   }
 
+  isCurrent(): boolean {
+    const win = this.window;
+    return !!win && this.mountedWindow === win && !win.isDestroyed() && win.isVisible() && !win.isMinimized();
+  }
+
   close(): void {
-    if (this.ready) { clearTimeout(this.ready.timer); this.ready.reject(new Error('Desktop indicator closed')); this.ready = undefined; }
+    this.rejectPending(new Error('Desktop indicator closed'));
     const win = this.window;
     this.window = undefined;
+    this.mountedWindow = undefined;
     this.snapshot = undefined;
-    if (win && !win.isDestroyed()) { this.closing.add(win); win.destroy(); }
+    if (win && !win.isDestroyed()) win.destroy();
+  }
+
+  private rejectPending(error: Error): void {
+    const pending = this.ready;
+    if (!pending) return;
+    this.ready = undefined;
+    clearTimeout(pending.timer);
+    pending.reject(error);
+  }
+
+  private failWindow(win: BrowserWindow, error: Error): void {
+    if (this.window !== win) return;
+    this.window = undefined;
+    this.mountedWindow = undefined;
+    this.rejectPending(error);
+    try { this.unavailable(error.message); }
+    finally { if (!win.isDestroyed()) win.destroy(); }
   }
 
   private current(): DesktopIndicatorSnapshot {
@@ -75,11 +103,12 @@ export class DesktopIndicatorWindow {
     return this.snapshot;
   }
 
-  private assertSender(event: IpcMainInvokeEvent): void {
+  private assertSender(event: IpcMainInvokeEvent): BrowserWindow {
     const win = this.window;
     if (!win || win.isDestroyed() || !event?.sender || event.sender !== win.webContents || event.senderFrame !== win.webContents.mainFrame) {
       throw new Error('Desktop indicator is unavailable');
     }
+    return win;
   }
 
   private createWindow(): BrowserWindow {
@@ -94,18 +123,14 @@ export class DesktopIndicatorWindow {
       resizable: false, alwaysOnTop: true, skipTaskbar: true,
       webPreferences: { preload: this.preloadPath, sandbox: true, contextIsolation: true, nodeIntegration: false } });
     this.window = win;
-    const failed = (reason: string) => {
-      if (this.closing.has(win)) return;
-      if (this.ready) { clearTimeout(this.ready.timer); this.ready.reject(new Error(reason)); this.ready = undefined; }
-      this.unavailable(reason);
-    };
+    const failed = (reason: string) => this.failWindow(win, new Error(reason));
     win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     win.webContents.on('will-navigate', event => event.preventDefault());
     win.webContents.on('render-process-gone', () => failed('Desktop indicator renderer exited'));
     win.webContents.on('did-fail-load', () => failed('Desktop indicator failed to load'));
     win.on('hide', () => failed('Desktop indicator window hidden'));
     win.on('minimize', () => failed('Desktop indicator window minimized'));
-    win.on('closed', () => { if (this.window === win) this.window = undefined; failed('Desktop indicator window closed'); });
+    win.on('closed', () => failed('Desktop indicator window closed'));
     const load = this.rendererUrl
       ? win.loadURL(new URL('desktop-indicator.html', this.rendererUrl.endsWith('/') ? this.rendererUrl : `${this.rendererUrl}/`).toString())
       : win.loadFile(path.join(this.rendererPath, 'desktop-indicator.html'));

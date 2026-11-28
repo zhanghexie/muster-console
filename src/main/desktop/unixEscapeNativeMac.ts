@@ -11,13 +11,20 @@ export interface MacEscapeBackend {
   close(): void;
 }
 
+const hiToolboxPath = '/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/HIToolbox';
+
+export function createMacSecureInputReader(hi = koffi.load(hiToolboxPath)): () => boolean {
+  const secureInput = hi.func('uint8_t IsSecureEventInputEnabled(void)');
+  return () => secureInput() !== 0;
+}
+
 export function loadMacEscapeLibraries(load: typeof koffi.load = koffi.load.bind(koffi)): {
   cg: ReturnType<typeof koffi.load>; cf: ReturnType<typeof koffi.load>; hi: ReturnType<typeof koffi.load>;
 } {
   try {
     return { cg: load('/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics'),
       cf: load('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation'),
-      hi: load('/System/Library/Frameworks/Carbon.framework/Versions/A/Frameworks/HIToolbox.framework/Versions/A/HIToolbox') };
+      hi: load(hiToolboxPath) };
   } catch { throw new Error('macOS Escape listener frameworks are unavailable; use the visible Stop button'); }
 }
 
@@ -53,7 +60,7 @@ export function openMacEscapeNative(): UnixEscapeNative {
   const { cg, cf, hi } = loadMacEscapeLibraries();
   const cbType = koffi.pointer(koffi.proto('void *', ['void *', 'uint32_t', 'void *', 'void *']));
   const preflight = cg.func('bool CGPreflightListenEventAccess(void)');
-  const secureInput = hi.func('uint8_t IsSecureEventInputEnabled(void)');
+  const secureInput = createMacSecureInputReader(hi);
   const tapCreate = cg.func('CGEventTapCreate', 'void *', ['uint32_t', 'uint32_t', 'uint32_t', 'uint64_t', cbType, 'void *']);
   const tapEnabled = cg.func('bool CGEventTapIsEnabled(void *tap)');
   const tapEnable = cg.func('void CGEventTapEnable(void *tap, bool enabled)');
@@ -69,7 +76,7 @@ export function openMacEscapeNative(): UnixEscapeNative {
   let cb: bigint | undefined, tap: unknown, source: unknown, mode: unknown, loop: unknown, added = false;
   const backend: MacEscapeBackend = {
     permission: () => preflight() === true,
-    secureInput: () => secureInput() !== 0,
+    secureInput,
     start(deliver) {
       cb = koffi.register((_proxy: unknown, type: number, event: unknown) => {
         try {

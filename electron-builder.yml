@@ -171,7 +171,7 @@ nsis:
 #   注意 CLI 的 --arm64/--x64 是与 yml arch 列表**取并集**不是覆盖，不能用来做单架构构建。
 # 分发需 Developer ID 签名 + 公证：main 手动 signed release workflow 通过 Actions secrets 注入
 # CSC_LINK / CSC_KEY_PASSWORD / APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID，electron-builder 自动签名公证。
-# 本地和日常 CI 验证包不注入发布证书，用于构建与 packaged smoke。
+# 日常 CI 验证包用 ad-hoc；本地 build:mac 优先使用可用的 Developer ID，不自动公证或发布。
 mac:
   icon: build/icon.png # ≥512px png，electron-builder 自动转 icns；要更精细可换成 build/icon.icns
   category: public.app-category.developer-tools

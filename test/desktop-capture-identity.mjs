@@ -11,7 +11,8 @@ try {
   const compile = createSharedCompiler(process.cwd(), path.join(temp, 'compiled'));
   const load = p => import(pathToFileURL(compile(p)).href);
   const { captureIdentity } = await load('main/desktop/captureIdentity.ts');
-  const { lookDesktopInternal, lookDesktop, controlDesktop, desktopHost } = await load('main/capabilities/hosts/desktop.ts');
+  const { lookDesktopInternal, lookDesktop, controlDesktop, listDesktop, desktopHost } = await load('main/capabilities/hosts/desktop.ts');
+  const { desktopSetupIssue } = await load('main/desktop/desktopSetup.ts');
   const { WorkerDesktopEpochRuntime } = await load('main/desktop/workerEpochRuntime.ts');
   const { SchedulerDesktopEpochRuntime } = await load('main/desktop/schedulerEpochRuntime.ts');
   const { runAsAgentSession, runAsAgentWorkspace, runAsSchedulerTool, runAsGuiExecutionTurn } = await load('main/agent/agentScope.ts');
@@ -134,6 +135,12 @@ try {
   assert.equal(visibleCalls.length, callCount, 'invalid key names must not reach the desktop backend');
   await visibleCall('focus', { requestId: 'new-2', surfaceId: 'window' });
   assert.equal(visibleCalls.at(-1).request.action, 'focus');
+  const visibleCount = visibleCalls.length;
+  assert.equal((await visibleCall('focus', { requestId: 'wrong-window-kind', surfaceId: 'cua-window:test' })).code, 'display_window_required');
+  assert.equal((await visibleCall('act', { ...visibleArgs, target: { ...visibleArgs.target, windowId: 'cua-window:test' } })).code,
+    'display_window_required');
+  await assert.rejects(visibleCall('act', { ...visibleArgs, surfaceId: undefined }), /params\.surfaceId alongside params\.target/);
+  assert.equal(visibleCalls.length, visibleCount);
   await visibleCall('launch', { requestId: 'new-3', appId: 'C:\\app.exe' });
   assert.equal(visibleCalls.at(-1).appId, 'C:\\app.exe');
   const originalVisible = ctx.desktopVisibleControl;
@@ -176,6 +183,28 @@ try {
   delete ctx.desktopControl;
   await visibleCall('focus', { requestId: 'visible-without-legacy', surfaceId: 'window' });
   assert.equal(visibleCalls.at(-1).request.action, 'focus', 'visible execution does not require constructing the legacy writer');
+  if (process.platform === 'darwin') {
+    let driverGranted = false, secureInput = false, checks = 0;
+    const permissions = { accessibility: true, screenRecording: true };
+    ctx.desktopMac = { status: () => ({ permissions, secureInput }),
+      checkDriverPermissions: async () => { checks++; return { ...permissions, accessibility: driverGranted }; },
+      control: { execute: () => assert.fail('Secure Input must short-circuit the control path') } };
+    ctx.desktopMetadata = () => ({ list: async () => ({ displays: { surfaces: [], omitted: 0 }, windows: { ok: false, error: 'fixture' } }) });
+    const macList = () => runAsAgentSession('worker', () => runAsGuiExecutionTurn(gui, () => listDesktop(ctx)));
+    const missing = await macList();
+    assert.equal(missing.capabilities.capture.grant, 'granted');
+    assert.equal(missing.capabilities.foregroundInput.grant, 'required');
+    assert.equal(missing.capabilities.foregroundInput.source, 'driver');
+    driverGranted = true;
+    assert.equal((await macList()).capabilities.foregroundInput.available, true);
+    assert.equal(checks, 2, 'public list refreshes embedded driver permissions');
+    const move = await runAsAgentSession('worker', () => controlDesktop(ctx, 'act', visibleArgs, undefined, 'macos'));
+    assert.equal(move.code, 'capability_unsupported');
+    assert.equal(desktopSetupIssue(move, 'darwin'), undefined, 'a supported backend without move does not need setup');
+    secureInput = true;
+    assert.equal((await runAsAgentSession('worker', () => controlDesktop(ctx, 'focus',
+      { requestId: 'secure-input', surfaceId: 'active-window' }, undefined, 'macos'))).code, 'secure_input_active');
+  }
   controller.abort();
   assert.equal(visibleCalls.at(-1).actor.isCurrent(), false, 'stop invalidates the host actor');
   assert.equal(legacyCalls, 0);

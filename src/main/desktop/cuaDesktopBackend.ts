@@ -21,6 +21,7 @@ export function createCuaDesktopBackend(options: {
   selector: ReturnType<typeof createDesktopDeliverySelector>;
   resolveDisplayWindow?(actor: CuaSemanticActor, id: string): ResolvedTarget;
   reportStopError(error: unknown): void;
+  assertInputAllowed?(): void;
   createConnection?: () => CuaSemanticConnection;
   env?: NodeJS.ProcessEnv;
 }) {
@@ -55,7 +56,8 @@ export function createCuaDesktopBackend(options: {
       if (bridge) return bridge;
       runtime = new CuaSemanticRuntime({ platform: options.platform, createConnection: connect, resolveTarget: resolve,
         onCleanupError: options.reportStopError,
-        runPersistedAction: createCuaVisibleAction(options.dispatcher, request => captureInvocationCuaSlot(options.selector, request)) });
+        runPersistedAction: createCuaVisibleAction(options.dispatcher, request => captureInvocationCuaSlot(options.selector, request),
+          options.assertInputAllowed) });
       return bridge = new CuaVisibleBridge({ runtime, activity: options.activity, resolveTarget: resolve, reportStopError: options.reportStopError });
     },
     appDiscovery() {

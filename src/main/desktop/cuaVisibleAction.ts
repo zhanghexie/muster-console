@@ -23,7 +23,8 @@ export interface CuaHostDeliverySlot {
 
 /** Host-only bridge; a model cannot supply its delivery slot or native target proof. */
 export function createCuaVisibleAction(dispatcher: Pick<VisibleActionDispatcher, 'run'>,
-  captureSlot: (request: Parameters<CuaPersistedAction>[0]) => CuaHostDeliverySlot): CuaPersistedAction {
+  captureSlot: (request: Parameters<CuaPersistedAction>[0]) => CuaHostDeliverySlot,
+  assertInputAllowed?: () => void): CuaPersistedAction {
   if (typeof dispatcher?.run !== 'function' || typeof captureSlot !== 'function') throw new Error('Cua visible action dependencies are required');
   return async (request, dispatch, semanticSignal) => {
     let slot: CuaHostDeliverySlot;
@@ -50,11 +51,13 @@ export function createCuaVisibleAction(dispatcher: Pick<VisibleActionDispatcher,
         isIndicatorCurrent: indicatorCurrent, signal: leaseSignal },
       request.requestId, request.fingerprint, signal => {
         const combined = signal && semanticSignal ? AbortSignal.any([signal, semanticSignal]) : signal ?? semanticSignal;
+        assertInputAllowed?.();
         return dispatch(combined);
       });
     } catch (error) {
       if (error instanceof VisibleActionPreDispatchFailure) {
         if (error.recoveryRequired) throw new PreDispatchRecoveryRequired(error);
+        if (error.cause instanceof PreDispatchFailure) throw error.cause;
         throw new PreDispatchFailure(error);
       }
       throw error;

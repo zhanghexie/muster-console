@@ -40,6 +40,7 @@ try {
   const visible = desktopOperationCapabilities('windows', { capture: true, control: true, visible: true, semantic: true });
   assert.equal(visible.capture.grant, 'not-required');
   assert.equal(visible.foregroundInput.grant, 'not-required');
+  assert.equal(visible.foregroundInput.displayActions.hover, true);
   assert.equal(visible.semanticRead.backend, 'cua-driver');
   assert.equal(visible.semanticAct.available, true);
   assert.equal(desktopOperationCapabilities('windows', { capture: false, control: true, visible: true, semantic: true }).semanticRead.available, false);
@@ -49,6 +50,7 @@ try {
     assert.equal(linux.windowCapture.backend, 'cua-driver');
     assert.equal(linux.windowCapture.grant, 'unknown');
     assert.equal(linux.foregroundInput.limitation, 'capture_bound_click_only');
+    assert.equal(linux.foregroundInput.displayActions.scroll, false);
     assert.equal(linux.activate.available, false);
   }
   const mac = (status) => desktopOperationCapabilities('macos', { capture: true, control: true, semantic: true, mac: status });
@@ -61,7 +63,17 @@ try {
   assert.equal(screenshotOnly.semanticRead.limitation, 'permission_required');
   assert.match(screenshotOnly.activate.remediation, /Accessibility/);
   const permissions = { screenRecording: true, accessibility: true };
-  assert.equal(mac({ permissions }).foregroundInput.available, true);
+  assert.equal(mac({ permissions }).foregroundInput.grant, 'unknown');
+  const granted = mac({ permissions, driverPermissions: permissions });
+  assert.equal(granted.foregroundInput.available, true);
+  assert.deepEqual(granted.foregroundInput.displayActions, { type: true, key: true, scroll: true, drag: true, move: false, hover: false });
+  const driverMissing = mac({ permissions, driverPermissions: { ...permissions, accessibility: false } });
+  assert.equal(driverMissing.capture.available, true);
+  assert.equal(driverMissing.foregroundInput.grant, 'required');
+  assert.equal(driverMissing.foregroundInput.source, 'driver');
+  assert.equal(mac({ permissions, driverPermissionError: 'Driver read failed' }).foregroundInput.limitation, 'permission_check_failed');
+  assert.equal(mac({ permissions, driverPermissions: permissions, secureInput: true }).foregroundInput.limitation, 'secure_input_active');
+  assert.equal(mac({ permissions, driverPermissions: permissions, secureInput: true }).capture.available, true);
   assert.equal(mac({ permissions, screenLocked: true }).foregroundInput.limitation, 'screen_locked');
   assert.equal(mac({ permissions, screenLocked: true }).capture.available, true);
   assert.equal(mac({ permissions, driverError: 'Prepare the pinned driver' }).foregroundInput.limitation, 'dependency_missing');

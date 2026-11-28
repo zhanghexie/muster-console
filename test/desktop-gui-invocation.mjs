@@ -63,15 +63,18 @@ try {
   await assert.rejects(runAsGuiExecutionTurn(scope, () => withDesktopActivity(ctx, true, undefined, async () => ({ outcome: 'unknown' }))), /outcome is unknown/);
   await assert.rejects(runAsGuiExecutionTurn(scope, () => withDesktopActivity(ctx, true, undefined, async () => ({ outcome: 'dispatched' }))));
 
-  const schedulerActivity = new DesktopActivity({ show: async () => {}, close: () => {} }, async () => {}, labels);
+  const schedulerSnapshots = [];
+  const schedulerActivity = new DesktopActivity({ show: async snapshot => { schedulerSnapshots.push(snapshot); }, close: () => {} }, async () => {}, labels);
   const schedulerTurns = new DesktopTurns(schedulerActivity), owner = 'orchestrator:ws';
-  const schedulerCtx = { desktopTurns: () => schedulerTurns, sessions: { get: () => undefined } };
+  const schedulerCtx = { desktopTurns: () => schedulerTurns, sessions: { get: () => undefined },
+    workspaces: { list: () => [{ id: 'unrelated', name: 'Other' }, { id: 'ws', name: '桌面测试' }] } };
   schedulerTurns.begin(owner, 'scheduler-turn', () => true);
   let current = true;
   const source = () => ({ sessionId: owner, desktopTurnId: 'scheduler-turn', isDesktopCurrent: () => current });
   const schedulerCall = fn => runAsAgentWorkspace('ws', () => runWithSchedulerDesktopTurnSource(source, () =>
     runAsCapturedSchedulerDesktopTurn(() => runAsSchedulerTool(fn))));
   assert.equal(await schedulerCall(() => withDesktopActivity(schedulerCtx, false, undefined, async () => 9)), 9);
+  assert.equal(schedulerSnapshots.at(-1).target, '调度 · 桌面测试', 'show the scheduler workspace name instead of its synthetic owner ID');
   await assert.rejects(schedulerCall(() => runAsAgentSession('worker', () => withDesktopActivity(schedulerCtx, false, undefined, async () => 1))), /execution context/,
     'a nested worker may not borrow the scheduler identity');
   current = false;

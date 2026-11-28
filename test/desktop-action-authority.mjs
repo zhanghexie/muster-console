@@ -31,6 +31,13 @@ try {
   }
   assert.equal(classifyDesktopActionResult({ ...request, action: 'cua.click' }, { ...cua, ok: false }).outcome, 'unknown');
   assert.equal(classifyDesktopActionResult({ ...request, action: 'cua.click' }, { ...cua, code: '../private' }).outcome, 'unknown');
+  const macLaunch = { ...request, action: 'macos.launch' };
+  assert.equal(classifyDesktopActionResult(macLaunch, cua).outcome, 'known', 'legacy launch receipts are still readable');
+  assert.equal(classifyDesktopActionResult(macLaunch, { ...cua, launch: { status: 'already_running', active: false } }).outcome, 'known');
+  assert.equal(classifyDesktopActionResult(macLaunch, { ...cua, launch: { status: 'started', active: null } }).outcome, 'unknown');
+  assert.equal(classifyDesktopActionResult(macLaunch, { ...cua, launch: { status: 'already_running', active: true, pid: 2 } }).outcome, 'unknown');
+  assert.equal(classifyDesktopActionResult({ ...request, action: 'macos.focus' },
+    { ...cua, launch: { status: 'already_running', active: true } }).outcome, 'unknown');
   const accessor = { ...windows, get extra() { throw new Error('must not read'); } };
   assert.equal(classifyDesktopActionResult(request, accessor).outcome, 'unknown');
   assert.equal(desktopLogicalOperationId(request), desktopLogicalOperationId({ ...request }));

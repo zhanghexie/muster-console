@@ -36,20 +36,22 @@ try {
   await assert.rejects(readCuaMacPermissions({ async call() {
     return { structuredContent: { screen_recording: 'unknown', accessibility: false } };
   } }, signal), /invalid macOS permission status/);
-  assert.deepEqual(await probe(), { macApp: 'electron', issues: [missing('screenRecording', 'accessibility')] });
+  assert.deepEqual(await probe(), { macApp: 'electron', issues: [{ ...missing('screenRecording', 'accessibility'), source: 'host' }] });
   assert.equal(checks, 0);
   native = { permissions: { screenRecording: true, accessibility: false }, driverError: 'Missing pinned Cua driver' };
   assert.deepEqual(await probe(mac, true), { macApp: 'muster', issues: [
-    { code: 'dependency_missing', detail: 'Missing pinned Cua driver' }, missing('accessibility')
+    { code: 'dependency_missing', detail: 'Missing pinned Cua driver' }, { ...missing('accessibility'), source: 'host' }
   ] });
   native = { permissionError: 'Native read failed' };
-  assert.deepEqual((await probe()).issues, [{ code: 'permission_check_failed', detail: 'Native read failed' }]);
+  assert.deepEqual((await probe()).issues, [{ code: 'permission_check_failed', source: 'host', detail: 'Native read failed' }]);
   native = { permissions: { screenRecording: true, accessibility: true } };
   driver = { screenRecording: true, accessibility: false };
-  assert.deepEqual((await probe()).issues, [missing('accessibility')], 'the embedded driver can still report a missing grant');
+  assert.deepEqual((await probe()).issues, [{ ...missing('accessibility'), source: 'driver' }], 'the embedded driver can still report a missing grant');
   driver.accessibility = true;
   assert.deepEqual((await probe()).issues, [], 'refresh must query grants again instead of trusting the prior result');
   assert.equal(checks, 2);
+  native.secureInput = true;
+  assert.deepEqual((await probe()).issues, [{ code: 'secure_input_active' }]);
   assert.equal((await probe({ ...wired })).issues[0].code, 'capability_unsupported');
 
   for (const [platform, env] of [['win32', {}], ['linux', { DISPLAY: ':0' }], ['linux', { WAYLAND_DISPLAY: 'wayland-0' }]]) {
@@ -63,7 +65,9 @@ try {
   }
   assert.equal((await readDesktopSetup({}, desktopRuntime('linux', {}), false, noOperation)).issues[0].code, 'capability_unsupported');
   assert.deepEqual(desktopSetupIssue({ ok: false, ...missing('accessibility', 'accessibility', 'unknown') }, 'darwin'), missing('accessibility'));
-  assert.deepEqual(desktopSetupIssue({ ok: true, windowsCode: 'permission_required' }, 'darwin'), missing('accessibility'));
+  assert.deepEqual(desktopSetupIssue({ ok: true, windowsCode: 'permission_required' }, 'darwin'), { ...missing('accessibility'), source: 'host' });
+  assert.deepEqual(desktopSetupIssue({ ok: false, ...missing('accessibility'), source: 'driver' }, 'darwin'), { ...missing('accessibility'), source: 'driver' });
+  assert.equal(desktopSetupIssue({ ok: false, code: 'secure_input_active' }, 'darwin').code, 'secure_input_active');
   assert.equal(desktopSetupIssue({ ok: true, capabilities: { capture: missing('screenRecording') } }, 'darwin'), undefined);
   assert.deepEqual(desktopSetupIssue({ ok: false, code: 'permission_check_failed', message: 'Read failed' }, 'darwin'),
     { code: 'permission_check_failed', detail: 'Read failed' });
@@ -82,6 +86,8 @@ try {
   ]);
   assert.equal(isWebIpcAllowed('desktopSetup:status', []), false);
   assert.equal(isWebIpcAllowed('desktopSetup:openSettings', ['accessibility']), false);
+  assert.equal(isWebIpcAllowed('desktopSetup:requestPermission', ['accessibility']), false);
+  assert.equal(isWebIpcAllowed('desktopSetup:revealApp', []), false);
   const local = [], web = [];
   const win = { webContents: { send: (...message) => local.push(message) } };
   attachEventRelay(win);

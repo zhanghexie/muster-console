@@ -2,8 +2,9 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { AppContext } from '../../context';
 import { currentAgentSessionId } from '../../agent/agentScope';
 import { uploadScope } from '../../browser/uploadScope';
-import { desktopRuntime, desktopOperationCapabilities, desktopOperationFailure, macPermissionMessage, macScreenLockedMessage,
-  unavailableDesktopCapabilities, type DesktopRuntime } from '../../desktop/runtime';
+import { desktopRuntime, desktopOperationCapabilities, desktopOperationFailure, macPermissionFailure, macPermissionMessage,
+  macDriverPermissionReadError, macScreenLockedMessage, macSecureInputMessage, MacSecureInputActiveError,
+  unavailableDesktopCapabilities, type DesktopRuntime, type MacDesktopStatus } from '../../desktop/runtime';
 import type { MacDesktopPermission } from '../../desktop/macPermissions';
 import { captureIdentity } from '../../desktop/captureIdentity';
 import { bindDesktopActorToRun } from '../../desktop/desktopActorRun';
@@ -15,39 +16,51 @@ import { PreDispatchFailure } from '../../desktop/preDispatchFailure';
 import { normalizeWin32Keys } from '../../desktop/win32KeyNames';
 import { CuaWindowCaptureError } from '../../desktop/cuaSemanticSession';
 import { CuaDriverUnavailableError } from '../../desktop/cuaDriverPath';
+import { CUA_WINDOW_ID_PREFIX } from '../../desktop/cuaWindowList';
 
 type DesktopLookArgs = { surfaceId?: string; region?: DisplayCaptureRegion; waitForStable?: DisplayCaptureStability; windowOffset?: number;
   mode?: 'image' | 'semantic' | 'both'; windowId?: string; snapshotId?: string; offset?: number };
 type DesktopListArgs = { displayOffset?: number; windowOffset?: number; limit?: number; view?: 'metadata' | 'applications' | 'windows';
   query?: string; status?: 'all' | 'running' | 'installed_not_running'; snapshotId?: string; offset?: number };
 
-function operationCapabilities(ctx: AppContext, runtime: DesktopRuntime) {
+function operationCapabilities(ctx: AppContext, runtime: DesktopRuntime, mac = runtime === 'macos' ? ctx.desktopMac?.status() : undefined) {
   return desktopOperationCapabilities(runtime, { capture: !!ctx.desktopMetadata && !!ctx.desktopScreen,
     control: !!ctx.desktopControl || !!ctx.desktopVisibleControl || !!ctx.desktopMac,
     visible: !!ctx.desktopTargets && !!ctx.desktopVisibleControl && !!ctx.desktopTurns,
     semantic: !!(ctx.desktopTargets || ctx.desktopMac || ctx.desktopWindowList) && !!ctx.desktopSemanticControl && !!ctx.desktopTurns,
     windowCapture: !!ctx.desktopWindowList && !!ctx.desktopSemanticControl && !!ctx.desktopTurns && !!ctx.desktopScreen,
-    mac: runtime === 'macos' ? ctx.desktopMac?.status() : undefined });
+    mac });
 }
 
-function macPreflight(ctx: AppContext, action: string, required: readonly MacDesktopPermission[], signal?: AbortSignal, driver = false) {
+async function macCapabilityStatus(ctx: AppContext, signal?: AbortSignal): Promise<MacDesktopStatus | undefined> {
+  const mac = ctx.desktopMac;
+  if (!mac) return;
+  const status = mac.status();
+  if (!ctx.desktopTurns || status.driverError || status.targetError || status.sessionError || status.screenLocked ||
+      !status.permissions?.accessibility || !status.permissions.screenRecording) return status;
+  try { return { ...status, driverPermissions: await mac.checkDriverPermissions() }; }
+  catch (error) {
+    if (error instanceof CuaDriverUnavailableError) return { ...status, driverError: error.message };
+    console.warn('[desktop] Cua permission check failed:', error);
+    return { ...status, driverPermissionError: macDriverPermissionReadError };
+  } finally { signal?.throwIfAborted(); }
+}
+
+function macPreflight(ctx: AppContext, action: string, required: readonly MacDesktopPermission[], signal?: AbortSignal, driver = false, input = false) {
   uploadScope(ctx, undefined, 'Desktop').assertCurrent();
   signal?.throwIfAborted();
   const status = ctx.desktopMac?.status();
   if (!status || !ctx.desktopTurns) return desktopOperationFailure('macos', action, 'capability_unsupported',
     ctx.desktopUnavailableReason ?? unavailableDesktopCapabilities('macos').capture.remediation);
   if (driver && status.driverError) return desktopOperationFailure('macos', action, 'dependency_missing', status.driverError);
-  if (required.length) {
-    if (required.includes('accessibility') && status.targetError) return desktopOperationFailure('macos', action, 'capability_unsupported', status.targetError);
-    const permissions = status.permissions;
-    if (!permissions) return desktopOperationFailure('macos', action, 'permission_check_failed',
-      status.permissionError ?? 'Could not check macOS desktop permissions; restart Muster and try again.');
-    const missing = required.filter(permission => !permissions[permission]);
-    if (missing.length) return { ...desktopOperationFailure('macos', action, 'permission_required', macPermissionMessage(missing)), permissions: missing };
-  }
   if (driver && action !== 'listApplications') {
     if (status.screenLocked) return desktopOperationFailure('macos', action, 'screen_locked', macScreenLockedMessage);
     if (status.sessionError) return desktopOperationFailure('macos', action, 'desktop_session_unavailable', status.sessionError);
+  }
+  if (input && status.secureInput) return desktopOperationFailure('macos', action, 'secure_input_active', macSecureInputMessage);
+  if (required.length) {
+    if (required.includes('accessibility') && status.targetError) return desktopOperationFailure('macos', action, 'capability_unsupported', status.targetError);
+    return macPermissionFailure(action, required, 'host', status.permissions, status.permissionError);
   }
 }
 
@@ -108,7 +121,9 @@ async function listDesktopInternal(ctx: AppContext, args: { displayOffset?: numb
   } } : { ok: false as const, error: clean(result.windows.error, 300), errorTruncated: result.windows.error.length > 300,
     errorSanitized: hasControls(result.windows.error) };
   const displays = { surfaces, omitted: result.displays.omitted, nextOffset: null as number | null };
-  const response = { runtime, capabilities: operationCapabilities(ctx, runtime), displays, windows };
+  const macStatus = runtime === 'macos' ? await macCapabilityStatus(ctx, signal) : undefined;
+  scope.assertCurrent(); signal?.throwIfAborted();
+  const response = { runtime, capabilities: operationCapabilities(ctx, runtime, macStatus), displays, windows };
   const nextOffsets = (): void => {
     displays.nextOffset = displayOffset + displays.surfaces.length < result.displays.surfaces.length ? displayOffset + displays.surfaces.length : null;
     if (windows.ok && result.windows.ok) windows.data.nextOffset = windowOffset + windows.data.observations.length < result.windows.data.observations.length
@@ -328,6 +343,14 @@ export async function lookDesktop(ctx: AppContext, args: DesktopLookArgs,
       return image;
     } catch (error) {
       if (error instanceof CuaWindowCaptureError || error instanceof CuaDriverUnavailableError) {
+        if (runtime === 'macos' && active && !active.aborted && error instanceof CuaWindowCaptureError &&
+            error.code === 'window_capture_unavailable') {
+          const status = await macCapabilityStatus(ctx, active);
+          if (status?.driverPermissions) {
+            const failure = macPermissionFailure('look', ['screenRecording', 'accessibility'], 'driver', status.driverPermissions);
+            if (failure) return failure;
+          }
+        }
         return desktopOperationFailure(runtime, 'look', error.code, error.message);
       }
       throw error;
@@ -359,7 +382,7 @@ export async function controlDesktop(ctx: AppContext, action: 'act' | 'focus' | 
       return desktopOperationFailure(runtime, args.action, 'window_capture_required', 'Use look with mode=both and pass its windowId and captureId with the coordinates.');
     }
     if ((!semantic && !windowClick || args.surfaceId !== undefined) && (typeof args.surfaceId !== 'string' || !args.surfaceId.trim())) {
-      throw new Error('Display surfaceId is required for actions in display coordinates');
+      throw new Error('Display surfaceId is required for actions in display coordinates. Set params.surfaceId alongside params.target.');
     }
     if (windowClick) {
       if (semantic || !['click', 'double_click'].includes(args.action) ||
@@ -379,7 +402,7 @@ export async function controlDesktop(ctx: AppContext, action: 'act' | 'focus' | 
       }
       if (!ctx.desktopSemanticControl) return unsupported(ctx, 'semanticAct', signal, runtime);
     } else if (linux || mac && (args.action === 'move' || args.action === 'hover')) {
-      return unsupported(ctx, args.action, signal, runtime);
+      return { ...unsupported(ctx, args.action, signal, runtime), reason: 'unsupported_action' };
     } else if (!mac && args.target.axis === 'horizontal' && !ctx.desktopVisibleControl) {
       throw new Error('This desktop input action requires the visible desktop backend');
     }
@@ -389,11 +412,18 @@ export async function controlDesktop(ctx: AppContext, action: 'act' | 'focus' | 
     if (args.action === 'key') { if (runtime === 'windows') normalizedKeys = normalizeWin32Keys(args.target.keys); }
     else if (args.target.keys !== undefined) throw new Error('Desktop keys are only available for key actions');
   }
+  const displayWindowId = action === 'focus' ? args.surfaceId : action === 'act' && !semantic && !windowClick ? args.target.windowId : undefined;
+  if (displayWindowId?.startsWith(CUA_WINDOW_ID_PREFIX)) {
+    uploadScope(ctx, undefined, 'Desktop').assertCurrent(); signal?.throwIfAborted();
+    return desktopOperationFailure(runtime, action, 'display_window_required',
+      'This action needs a windowId from look with the display surfaceId. The windowId from list(view=windows) is for window screenshots, capture-bound clicks and semantic actions.');
+  }
   if (mac) {
-    const failure = macPreflight(ctx, action, action === 'launch' ? [] : ['screenRecording', 'accessibility'], signal, true);
+    const failure = macPreflight(ctx, action, action === 'launch' ? [] : ['screenRecording', 'accessibility'], signal, true, action !== 'launch');
     if (failure) return failure;
   } else if (!semantic && !windowClick && !ctx.desktopControl && !ctx.desktopVisibleControl) return unsupported(ctx, action, signal, runtime);
   return withDesktopActivity(ctx, true, signal, async (active, lease) => {
+    if (action !== 'launch' && mac?.secureInput?.()) return desktopOperationFailure(runtime, action, 'secure_input_active', macSecureInputMessage);
     let actor: Awaited<ReturnType<typeof captureIdentity>>;
     try { actor = bindDesktopActorToRun(await captureIdentity(ctx, active), lease); active?.throwIfAborted(); }
     catch (error) { throw new PreDispatchFailure(error); }
@@ -401,13 +431,18 @@ export async function controlDesktop(ctx: AppContext, action: 'act' | 'focus' | 
       if (!lease) throw new PreDispatchFailure('A visible desktop run is required');
       let bridge: ReturnType<NonNullable<AppContext['desktopSemanticControl']>>;
       try { bridge = ctx.desktopSemanticControl!(); } catch (error) { throw new PreDispatchFailure(error); }
-      if (windowClick) return bridge.act(actor, lease, args.surfaceId, args.target.windowId, {
-        snapshotId: args.target.captureId, requestId: args.requestId, action: 'click',
-        point: { x: args.target.x, y: args.target.y, count: args.action === 'double_click' ? 2 : 1, button: args.target.button }
-      }, active);
-      return bridge.act(actor, lease, args.surfaceId, args.target.windowId, { snapshotId: args.target.snapshotId, ref: args.target.ref,
-        requestId: args.requestId, action: args.action, ...(args.action === 'set_value' ? { value: args.target.value } : {}),
-        ...(args.target.delivery ? { delivery: args.target.delivery } : {}) }, active);
+      try {
+        if (windowClick) return await bridge.act(actor, lease, args.surfaceId, args.target.windowId, {
+          snapshotId: args.target.captureId, requestId: args.requestId, action: 'click',
+          point: { x: args.target.x, y: args.target.y, count: args.action === 'double_click' ? 2 : 1, button: args.target.button }
+        }, active);
+        return await bridge.act(actor, lease, args.surfaceId, args.target.windowId, { snapshotId: args.target.snapshotId, ref: args.target.ref,
+          requestId: args.requestId, action: args.action, ...(args.action === 'set_value' ? { value: args.target.value } : {}),
+          ...(args.target.delivery ? { delivery: args.target.delivery } : {}) }, active);
+      } catch (error) {
+        if (error instanceof MacSecureInputActiveError) return desktopOperationFailure(runtime, action, 'secure_input_active', macSecureInputMessage);
+        throw error;
+      }
     }
     if (mac) {
       if (!lease) throw new PreDispatchFailure('A visible desktop run is required');

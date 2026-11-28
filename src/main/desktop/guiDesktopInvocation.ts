@@ -1,4 +1,5 @@
 import type { AppContext } from '../context';
+import { t } from '../../shared/i18n';
 import { currentAgentSessionId, currentAgentWorkspaceId, currentGuiExecutionTurn, currentPtyDesktopTurn,
   currentSchedulerDesktopExecutionTurn, isSchedulerInvocation } from '../agent/agentScope';
 import { PreDispatchFailure } from './preDispatchFailure';
@@ -17,7 +18,12 @@ export async function withDesktopActivity<T>(ctx: AppContext, mutation: boolean,
         scheduler?.sessionId !== `orchestrator:${currentAgentWorkspaceId()}`)) {
     throw new Error('Desktop activity is not available for this execution context');
   }
-  const target = ctx.sessions.get(turn.sessionId)?.name ?? turn.sessionId;
+  const schedulerWorkspace = turn === scheduler
+    ? ctx.workspaces?.list().find(workspace => workspace.id === currentAgentWorkspaceId())?.name.trim()
+    : undefined;
+  const target = turn === scheduler
+    ? [t('调度'), schedulerWorkspace].filter(Boolean).join(' · ')
+    : ctx.sessions.get(turn.sessionId)?.name?.trim() || t('会话');
   const result = await ctx.desktopTurns().use(turn.sessionId, turn.desktopTurnId, target, async (activitySignal, delivery) => {
     const active = signal ? AbortSignal.any([signal, activitySignal]) : activitySignal;
     if (active.aborted) throw new PreDispatchFailure(active.reason);

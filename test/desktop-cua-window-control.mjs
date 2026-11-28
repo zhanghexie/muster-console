@@ -12,6 +12,8 @@ const load = name => import(pathToFileURL(compile(`main/desktop/${name}.ts`)));
 const { createCuaDesktopBackend } = await load('cuaDesktopBackend');
 const { createLinuxDesktopHost } = await load('linuxDesktopHost');
 const { createLocalDesktopDeliverySelector } = await load('localDesktopDeliverySelector');
+const { createIdempotentDesktopComposition } = await load('idempotentDesktopComposition');
+const { MacSecureInputActiveError } = await load('runtime');
 
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a+X0AAAAASUVORK5CYII=';
 const labels = { active: 'Active', stopping: 'Stopping', stop: 'Stop', unknown: 'Unknown', escape: 'Escape', escapeUnavailable: 'Use Stop' };
@@ -24,8 +26,11 @@ function fixture() {
       async call(name, args) {
         assert.equal(driver.closed, false);
         calls.push({ name, args, driver });
-        if (name === 'list_windows') return { structuredContent: { windows: [{ pid: 42, window_id: 9001, is_on_screen: true,
-          title: 'Example\u0000window', app_name: 'Fixture', bounds: { x: state.x, y: 0, width: 160, height: 100 } }] } };
+        if (name === 'list_windows') {
+          if (args.pid) state.onVerify?.();
+          return { structuredContent: { windows: [{ pid: 42, window_id: 9001, is_on_screen: true,
+            title: 'Example\u0000window', app_name: 'Fixture', bounds: { x: state.x, y: 0, width: 160, height: 100 } }] } };
+        }
         if (name === 'get_window_state') return {
           content: args.include_screenshot && !state.noFrame ? [{ type: 'image', mimeType: 'image/png', data: png }] : [],
           structuredContent: { pid: args.pid, window_id: args.window_id, elements_complete: true, snapshot_id: 's01234567',
@@ -108,6 +113,32 @@ try {
     await backend.close();
     assert.ok(f.connections.every(connection => connection.closed));
   }
+
+  const f = fixture(), lifetime = new AbortController();
+  const actor = { sessionId: 'mac-owner', taskId: 'mac-task', turnId: 'turn', lifetimeSignal: lifetime.signal, isCurrent: () => !lifetime.signal.aborted };
+  const lease = { owner: actor.sessionId, turnId: actor.turnId, signal: lifetime.signal, isCurrent: actor.isCurrent };
+  const composition = createIdempotentDesktopComposition(path.join(temp, 'secure-input-receipts'));
+  let secureInput = false;
+  const backend = createCuaDesktopBackend({ ...f, platform: 'darwin', dispatcher: composition.dispatcher,
+    assertInputAllowed: () => { if (secureInput) throw new MacSecureInputActiveError(); },
+    driverPath: () => assert.fail('private test connection should be used'),
+    activity: { visibilityEpoch: () => 1, stop: async () => assert.fail('protected input refusal has a known outcome') },
+    selector: createLocalDesktopDeliverySelector(), reportStopError: error => assert.fail(error) });
+  try {
+    const windowId = (await backend.windows.list(actor, 0, 8)).windows[0].windowId;
+    const bridge = backend.semanticControl();
+    const observation = await bridge.observe(actor, lease, undefined, windowId, undefined, true);
+    const request = { snapshotId: observation.snapshotId, requestId: 'secure-click', action: 'click', point: { x: 0, y: 0, count: 1 } };
+    f.state.onVerify = () => { secureInput = true; };
+    await assert.rejects(() => bridge.act(actor, lease, undefined, windowId, request), error => error instanceof MacSecureInputActiveError);
+    assert.equal(f.state.dispatches, 0);
+    f.state.onVerify = undefined;
+    secureInput = false;
+    const fresh = await bridge.observe(actor, lease, undefined, windowId, undefined, true);
+    assert.equal((await bridge.act(actor, lease, undefined, windowId, { ...request, snapshotId: fresh.snapshotId })).outcome, 'dispatched',
+      'a proven pre-dispatch pause does not reserve the request ID');
+    assert.equal(f.state.dispatches, 1);
+  } finally { await backend.close(); await composition.close(); }
 
   for (const [env, expectEscape] of [[{ DISPLAY: ':20', XDG_SESSION_TYPE: 'x11' }, true],
     [{ DISPLAY: ':20', XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0' }, false]]) {

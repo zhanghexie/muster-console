@@ -41,13 +41,9 @@ export class DesktopActivityRuntime {
   private visibilityGeneration = 0;
 
   constructor(private readonly options: Options) {
-    this.indicator = options.createIndicator(() => this.stop(), reason => {
-      this.visible = false;
-      this.visibilityGeneration++;
-      this.activity.unavailable(reason);
-      this.suspendMonitor();
-    });
-    this.activity = new DesktopActivity({ show: snapshot => this.show(snapshot), close: () => this.closeIndicator() },
+    this.indicator = options.createIndicator(() => this.stop(), reason => this.indicatorUnavailable(reason));
+    this.activity = new DesktopActivity({ show: snapshot => this.show(snapshot), close: () => this.closeIndicator(),
+      isCurrent: () => this.isVisible() },
       options.releaseAll, options.labels, options.theme, options.stopBackend?.bind(options), options.resumeState, error => this.report(error));
     this.turns = new DesktopTurns(this.activity);
   }
@@ -59,10 +55,7 @@ export class DesktopActivityRuntime {
       let current = false;
       try { current = this.indicator.isCurrent() === true; } catch { /* an unreliable indicator is unavailable */ }
       if (!current) {
-        this.visible = false;
-        this.visibilityGeneration++;
-        this.activity.unavailable('Desktop indicator is unavailable');
-        this.suspendMonitor();
+        this.indicatorUnavailable('Desktop indicator is unavailable');
         return false;
       }
     }
@@ -123,8 +116,18 @@ export class DesktopActivityRuntime {
     // The clickable stop must actually be mounted before listening or dispatch.
     const visibilityGeneration = this.visibilityGeneration;
     try { await this.indicator.show(snapshot); }
-    catch (error) { this.visible = false; this.visibilityGeneration++; this.suspendMonitor(); throw error; }
+    catch (error) {
+      if (visibilityGeneration === this.visibilityGeneration) {
+        this.visible = false;
+        this.visibilityGeneration++;
+        this.suspendMonitor('idle');
+      }
+      throw error;
+    }
     if (this.disposed || visibilityGeneration !== this.visibilityGeneration) throw new Error('Desktop indicator became unavailable');
+    // A replacement can display "stopping" or "unknown" without making the
+    // interrupted run eligible to dispatch or bringing back its Esc listener.
+    if (snapshot.state !== 'active') return;
     this.visible = true;
     if (!this.options.createEscapeMonitor || this.monitorState !== 'idle') return;
     const generation = this.monitorGeneration;
@@ -161,6 +164,14 @@ export class DesktopActivityRuntime {
     if (monitor) this.queueMonitorStop(monitor);
   }
 
+  private indicatorUnavailable(reason: string): void {
+    this.visible = false;
+    if (!this.activity.unavailable(reason)) return;
+    this.visibilityGeneration++;
+    // The next active render can supersede the queued close after recovery.
+    this.suspendMonitor('idle');
+  }
+
   private closeIndicator(): void {
     this.monitorGeneration++;
     this.visible = false;
@@ -175,11 +186,11 @@ export class DesktopActivityRuntime {
     }
   }
 
-  private suspendMonitor(): void {
+  private suspendMonitor(nextState: 'idle' | 'failed' = 'failed'): void {
     this.monitorGeneration++;
     const monitor = this.monitor;
     this.monitor = undefined;
-    this.monitorState = 'failed';
+    this.monitorState = nextState;
     this.activity.setEscapeAvailable(false);
     if (monitor) this.queueMonitorStop(monitor);
   }

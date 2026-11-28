@@ -18,6 +18,7 @@ vi.mock('electron', async () => {
     visible = false;
     showInactive = vi.fn(() => { this.visible = true; });
     isVisible = () => this.visible;
+    isMinimized = () => false;
     isDestroyed = () => this.destroyed;
     loadURL = async () => {};
     loadFile = async () => {};
@@ -83,8 +84,12 @@ it('accepts readiness and stop only from the current indicator main frame and re
   ready(event, 1);
   await shown;
   expect(win.showInactive).toHaveBeenCalledOnce();
-  await expect(stopHandler(event, 2)).rejects.toThrow(/revision/);
-  await stopHandler(event, 1);
+  const updated = indicator.show({ ...snapshot, revision: 2, escapeAvailable: false });
+  ready(event, 2);
+  await updated;
+  expect(win.showInactive).toHaveBeenCalledOnce();
+  await expect(stopHandler(event, 1)).rejects.toThrow(/revision/);
+  await stopHandler(event, 2);
   expect(stop).toHaveBeenCalledOnce();
   indicator.close();
   expect(unavailable).not.toHaveBeenCalled();
@@ -95,12 +100,29 @@ it.each(['hide', 'minimize'])('marks desktop use unavailable when the indicator 
   const unavailable = vi.fn();
   const indicator = new DesktopIndicatorWindow(async () => {}, unavailable, 'preload', 'renderer');
   indicator.registerIpc();
-  const shown = indicator.show({ revision: 1, state: 'active', escapeAvailable: false,
-    labels: { active: 'Using', stopping: 'Stopping', unknown: 'Unknown', escape: 'Esc', stop: 'Stop', escapeUnavailable: 'Use button' } });
+  const snapshot: DesktopIndicatorSnapshot = { revision: 1, state: 'active', escapeAvailable: false,
+    labels: { active: 'Using', stopping: 'Stopping', unknown: 'Unknown', escape: 'Esc', stop: 'Stop', escapeUnavailable: 'Use button' } };
+  const shown = indicator.show(snapshot);
   const win = state.last, event = { sender: win.webContents, senderFrame: win.webContents.mainFrame };
-  state.handlers.get('desktopIndicator:ready')!(event, 1);
+  const ready = state.handlers.get('desktopIndicator:ready')!;
+  ready(event, 1);
   await shown;
+  const interrupted = indicator.show({ ...snapshot, revision: 2 });
   win.emit(eventName);
+  await expect(interrupted).rejects.toThrow(/indicator.*(hidden|minimized)/i);
   expect(unavailable).toHaveBeenCalledWith(expect.stringMatching(/indicator.*(hidden|minimized)/i));
+  expect(indicator.isCurrent()).toBe(false);
+  expect(win.isDestroyed()).toBe(true);
+
+  const replacement = indicator.show({ ...snapshot, revision: 3 });
+  const next = state.last;
+  expect(next).not.toBe(win);
+  win.emit('hide');
+  win.webContents.emit('render-process-gone');
+  expect(() => ready(event, 3)).toThrow(/unavailable/);
+  ready({ sender: next.webContents, senderFrame: next.webContents.mainFrame }, 3);
+  await replacement;
+  expect(unavailable).toHaveBeenCalledOnce();
+  expect(indicator.isCurrent()).toBe(true);
   indicator.close();
 });

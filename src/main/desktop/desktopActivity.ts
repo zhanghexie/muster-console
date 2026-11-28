@@ -1,12 +1,15 @@
 import type { DesktopIndicatorSnapshot } from '../../shared/desktopIndicator';
 import type { HostDesktopContinuation, HostDesktopContinuationOrigin } from '../../shared/hostNotification';
+import { t } from '../../shared/i18n';
 import { DesktopCoordinator } from './desktopCoordinator';
 import type { DesktopRun } from './desktopRun';
 import type { DesktopResumeState } from './desktopResumeState';
+import { PreDispatchFailure } from './preDispatchFailure';
 
 type RunState = 'active' | 'finishing' | 'stopping' | 'stopped' | 'unknown';
-type Indicator = { show(snapshot: DesktopIndicatorSnapshot): Promise<void>; close(): void };
-type Entry = { owner: string; turnId: string; target: string; current(): boolean; state: RunState; run?: DesktopRun };
+type Indicator = { show(snapshot: DesktopIndicatorSnapshot): Promise<void>; close(): void; isCurrent?(): boolean };
+type Entry = { owner: string; turnId: string; target: string; current(): boolean; state: RunState; run?: DesktopRun;
+  visibilityFailure?: Error };
 export interface DesktopActivityHandle { readonly owner: string; readonly turnId: string; readonly run: DesktopRun }
 declare const desktopTurnBrand: unique symbol;
 export interface DesktopActivityTurn { readonly [desktopTurnBrand]: true }
@@ -50,17 +53,19 @@ export class DesktopActivity {
 
   async start(token: DesktopActivityTurn, target: string): Promise<DesktopActivityHandle> {
     const turn = this.turns.get(token);
-    if (!turn || turn.generation !== this.generation || !turn.current()) throw new Error('Desktop turn is unavailable or was stopped');
+    if (!turn || turn.generation !== this.generation || !turn.current()) {
+      throw this.visibilityFailure ?? new Error('Desktop turn is unavailable or was stopped');
+    }
     const { owner, turnId } = turn;
     if (this.resumeStateFailure) throw new Error('Desktop stop state is unavailable; inspect the previous stop before continuing', { cause: this.resumeStateFailure });
     if (turn.continuation) this.assertContinuation(owner, turn.workspaceId ?? '', turn.continuation);
     if (this.instructionRequired && this.resumedOwners.get(owner) !== this.generation) {
-      if (!this.ownerResumed(owner)) throw new Error('A new user instruction is required for this desktop session');
+      if (!this.ownerResumed(owner)) throw this.visibilityFailure ?? new Error('A new user instruction is required for this desktop session');
     }
     if (this.instructionRequired) {
       const accepted = turn.instruction && this.instructions.get(turn.instruction);
       if ((!accepted || accepted.owner !== owner || accepted.generation !== this.generation) && !turn.continuation) {
-        throw new Error('A new user instruction is required for this desktop session');
+        throw this.visibilityFailure ?? new Error('A new user instruction is required for this desktop session');
       }
     }
     const current = () => turn.generation === this.generation && turn.current() &&
@@ -76,7 +81,7 @@ export class DesktopActivity {
       const run = await this.coordinator.start(owner);
       entry.run = run;
       await this.rendered;
-      if (this.visibilityFailure) throw this.visibilityFailure;
+      if (entry.visibilityFailure) throw entry.visibilityFailure;
       if (!entry.current() || run.status !== 'active' || this.entries.get(owner) !== entry) throw new Error('Desktop turn ended before the indicator was ready');
       return Object.freeze({ owner, turnId, run });
     } catch (error) {
@@ -99,7 +104,21 @@ export class DesktopActivity {
     await this.rendered;
     if (this.visibilityFailure) throw this.visibilityFailure;
     if (!entry.current() || this.entries.get(handle.owner) !== entry) throw new Error('Desktop turn is no longer current');
-    return this.coordinator.execute(handle.owner, handle.run, action, mutation);
+    try {
+      const result = await this.coordinator.execute(handle.owner, handle.run, signal => {
+        // Check again after waiting for the desktop seat. The native hide event
+        // can arrive later than its synchronous visibility state changes.
+        if (this.indicator.isCurrent?.() === false) {
+          this.unavailable('Desktop indicator is unavailable');
+          throw new PreDispatchFailure(this.visibilityFailure);
+        }
+        return action(signal);
+      }, mutation);
+      if (entry.visibilityFailure) throw entry.visibilityFailure;
+      return result;
+    } catch (error) {
+      throw entry.visibilityFailure ?? error;
+    }
   }
 
   /** Host shutdown may wait for the current render chain; this is not a backend recovery receipt. */
@@ -219,9 +238,18 @@ export class DesktopActivity {
   }
 
   /** Called by the independent window when it crashes or fails to show. */
-  unavailable(reason: string): void {
-    this.visibilityFailure = new Error(reason || 'Desktop indicator is unavailable');
+  unavailable(reason: string): boolean {
+    // An OS event and the pending mount rejection may describe the same loss.
+    // Invalidate the turn generation and persist that stop only once.
+    if (this.visibilityFailure) return false;
+    const recovery = t('如有操作正在执行，请先核对结果。将 Muster Console 切到前台，再发送一条新指令继续。');
+    const failure = new Error(`${reason || 'Desktop indicator is unavailable'}. ${recovery}`);
+    this.visibilityFailure = failure;
+    for (const entry of this.entries.values()) {
+      if (entry.state !== 'stopped') entry.visibilityFailure = failure;
+    }
     void this.stop().catch(() => undefined);
+    return true;
   }
 
   private changed(owner: string, state: RunState): void {
@@ -245,8 +273,7 @@ export class DesktopActivity {
         escapeAvailable: this.escapeAvailable, labels: this.labels, ...(this.theme ? { theme: this.theme } : {}) });
     });
     this.rendered = update.catch(error => {
-      this.visibilityFailure = error instanceof Error ? error : new Error(String(error));
-      void this.stop().catch(() => undefined);
+      this.unavailable(error instanceof Error ? error.message : String(error));
     });
   }
 

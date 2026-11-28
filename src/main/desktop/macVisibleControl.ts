@@ -6,9 +6,11 @@ import type { DesktopDeliveryLease } from './desktopTurns';
 import type { TrustedDisplayActor } from './displayService';
 import { DESKTOP_SETUP_PERMISSIONS } from '../../shared/desktopSetup';
 import type { MacDesktopPermissions } from './macPermissions';
+import { createMacRunningApplicationsReader, type MacRunningApplication, type MacRunningApplicationsReader } from './macRunningApplications';
 import { macCapturePoint, sameMacBounds, type MacTargetRegistry } from './macTargetRegistry';
 import { PreDispatchFailure, PreDispatchRecoveryRequired } from './preDispatchFailure';
-import { desktopOperationFailure, macPermissionMessage, macScreenLockedMessage } from './runtime';
+import { desktopOperationFailure, macDriverPermissionReadError, macPermissionFailure, macScreenLockedMessage, macSecureInputMessage,
+  MacSecureInputActiveError } from './runtime';
 import { VisibleActionPreDispatchFailure } from './visibleActionCoordinator';
 import type { VisibleActionDispatcher } from './visibleActionDispatcher';
 
@@ -18,7 +20,8 @@ type ControlRequest = { action: 'launch'; appId: string } | { action: 'focus'; w
 type Point = { x: number; y: number };
 type Selection = ReturnType<MacTargetRegistry['resolve']>;
 type Call = { name: CuaTool; args: Record<string, unknown>; points?: Point[] };
-type Effect = ReturnType<typeof projectCuaActionResult>;
+type LaunchObservation = { status: 'started' | 'already_running' | 'unknown'; active: boolean | null };
+type Effect = ReturnType<typeof projectCuaActionResult> & { launch?: LaunchObservation };
 
 const aliases = new Map([
   ['command', 'cmd'], ['meta', 'cmd'], ['control', 'ctrl'], ['alt', 'option'], ['enter', 'return'], ['esc', 'escape'],
@@ -64,11 +67,11 @@ function actionCall(request: ControlRequest, selection?: Selection): Call {
     if (typeof target.text !== 'string' || !target.text.length || target.text.length > 1024 || target.text.includes('\0')) throw new Error('Invalid desktop text');
     return { name: 'type_text', args: { ...common, text: target.text } };
   }
-  const point = (x: unknown, y: unknown): Point => {
-    if (typeof x !== 'number' || typeof y !== 'number') throw new Error('A desktop capture point is required');
+  const point = (x: unknown, y: unknown, fields: string): Point => {
+    if (typeof x !== 'number' || typeof y !== 'number') throw new Error(`Provide ${fields} in pixels relative to the returned display image.`);
     return macCapturePoint(selection, x, y);
   };
-  const first = point(target.x, target.y);
+  const first = point(target.x, target.y, 'target.x and target.y');
   if (action === 'scroll') {
     const delta = target.delta;
     if (typeof delta !== 'number' || !Number.isSafeInteger(delta) || !delta || Math.abs(delta) > 12000 ||
@@ -78,7 +81,7 @@ function actionCall(request: ControlRequest, selection?: Selection): Call {
   }
   const button = target.button ?? 'left';
   if (button !== 'left' && button !== 'right' && button !== 'middle') throw new Error('Invalid desktop mouse button');
-  return { name: 'drag', args: { ...common, button }, points: [first, point(target.toX, target.toY)] };
+  return { name: 'drag', args: { ...common, button }, points: [first, point(target.toX, target.toY, 'target.toX and target.toY')] };
 }
 
 function structured(raw: unknown): { isError?: boolean; data: Record<string, unknown> } {
@@ -116,7 +119,17 @@ async function frameCall(driver: CuaConnection, call: Call, target: Selection, s
   return { ...call.args, ...(last ? { from_x: first!.x, from_y: first!.y, to_x: last.x, to_y: last.y } : first) };
 }
 
-function macEffect(call: Call, raw: unknown): Effect {
+function launchObservation(pid: number, before?: MacRunningApplication[], after?: MacRunningApplication[]): LaunchObservation {
+  const app = after?.find(item => item.pid === pid);
+  if (!app) return { status: 'unknown', active: null };
+  if (!before) return { status: 'unknown', active: app.active };
+  const prior = before.find(item => item.pid === pid);
+  if (!prior) return { status: 'started', active: app.active };
+  if (prior.launchDate === null || app.launchDate === null) return { status: 'unknown', active: app.active };
+  return { status: prior.launchDate === app.launchDate ? 'already_running' : 'started', active: app.active };
+}
+
+function macEffect(call: Call, raw: unknown, observeLaunch?: (pid: number) => LaunchObservation): Effect {
   const { data, isError } = structured(raw);
   if (call.name === 'bring_to_front' && !isError && data.pid === call.args.pid && data.window_id === call.args.window_id &&
       data.activated === true && data.status === 'activated') {
@@ -124,7 +137,9 @@ function macEffect(call: Call, raw: unknown): Effect {
   }
   if (call.name === 'launch_app' && !isError && data.bundle_id === call.args.bundle_id && Number.isSafeInteger(data.pid) &&
       (data.pid as number) > 0 && (data.launch_state as { process_running?: unknown } | undefined)?.process_running === true) {
-    return { ok: true, delivery: 'unknown', effect: 'confirmed', verification: 'not_performed' };
+    const launch = observeLaunch?.(data.pid as number) ?? { status: 'unknown', active: null };
+    return { ok: true, delivery: 'unknown', effect: launch.active === null ? 'unverifiable' : 'confirmed',
+      verification: 'not_performed', launch };
   }
   if (call.name === 'launch_app' && isError && data.error === 'APP_NOT_INSTALLED' && data.bundle_id === call.args.bundle_id) {
     return { ok: false, delivery: 'unknown', effect: 'refused', verification: 'not_performed', code: 'app_not_installed' };
@@ -139,17 +154,28 @@ export class MacVisibleControl {
 
   constructor(private readonly targets: () => MacTargetRegistry, private readonly connect: () => CuaConnection,
     private readonly visibilityEpoch: () => number | undefined, private readonly dispatcher: Pick<VisibleActionDispatcher, 'run'>,
-    private readonly screenLocked: () => boolean) {}
+    private readonly screenLocked: () => boolean, private readonly secureInput: () => boolean | undefined = () => undefined,
+    private runningApplications?: MacRunningApplicationsReader) {}
+
+  private observeRunningApplications(bundleId: string) {
+    // AppKit observation is supplementary. A failed read still permits a
+    // durable receipt for a successful provider response with unknown state.
+    try { return (this.runningApplications ??= createMacRunningApplicationsReader())(bundleId); }
+    catch { return undefined; }
+  }
 
   async execute(actor: TrustedDisplayActor, lease: DesktopDeliveryLease, request: ControlRequest, requestId: string, signal?: AbortSignal) {
     const active = AbortSignal.any([lease.signal, AbortSignal.timeout(20_000), ...(signal ? [signal] : [])]);
     const epoch = this.visibilityEpoch();
     const current = () => !active.aborted && actor.sessionId === lease.owner && actor.isCurrent() && lease.isCurrent();
+    const inputPaused = () => request.action !== 'launch' && this.secureInput() === true;
+    const secureInputFailure = () => desktopOperationFailure('macos', request.action, 'secure_input_active', macSecureInputMessage);
     let selection: Selection | undefined, call: Call, driver: CuaConnection;
     try {
       if (this.cleanupFailure) throw new PreDispatchRecoveryRequired(this.cleanupFailure);
       if (!current() || epoch === undefined) throw new Error('Desktop indicator or caller is unavailable');
       if (this.screenLocked()) return desktopOperationFailure('macos', request.action, 'screen_locked', macScreenLockedMessage);
+      if (inputPaused()) return secureInputFailure();
       if (request.action !== 'launch') selection = this.targets().resolve(actor, request.windowId);
       call = actionCall(request, selection);
       driver = this.connect();
@@ -164,14 +190,12 @@ export class MacVisibleControl {
       active.throwIfAborted();
       await driver.connect();
       if (request.action !== 'launch') {
-        let permissions: MacDesktopPermissions;
+        let permissions: MacDesktopPermissions | undefined;
         try { permissions = await readCuaMacPermissions(driver, active); }
-        catch {
-          active.throwIfAborted();
-          return desktopOperationFailure('macos', request.action, 'permission_check_failed', 'Cua could not check macOS desktop permissions; restart Muster and try again.');
-        }
-        const missing = DESKTOP_SETUP_PERMISSIONS.filter(permission => !permissions[permission]);
-        if (missing.length) return { ...desktopOperationFailure('macos', request.action, 'permission_required', macPermissionMessage(missing)), permissions: missing };
+        catch { active.throwIfAborted(); }
+        if (inputPaused()) return secureInputFailure();
+        const failure = macPermissionFailure(request.action, DESKTOP_SETUP_PERMISSIONS, 'driver', permissions, macDriverPermissionReadError);
+        if (failure) return failure;
       }
       const scopeCurrent = () => current() && this.visibilityEpoch() === epoch && !this.screenLocked();
       const targetCurrent = () => scopeCurrent() && (!selection || selection.isCurrent());
@@ -179,9 +203,11 @@ export class MacVisibleControl {
         active.throwIfAborted();
         if (!targetCurrent()) throw new Error('macOS window or desktop state changed; capture the display again');
         if (selection && call.points && !this.targets().pointsOnTarget(selection, call.points)) throw new Error('macOS target point is covered or outside the window; capture the display again');
+        if (inputPaused()) throw new MacSecureInputActiveError();
       };
       check();
       const args = call.points ? await frameCall(driver, call, selection!, active) : call.args;
+      if (inputPaused()) return secureInputFailure();
       check();
       const target = request.action === 'launch' ? request.appId : request.windowId;
       const fingerprint = createHash('sha256').update(JSON.stringify([call.name, call.args, call.points ?? null, selection?.frame.captureId ?? null])).digest('hex');
@@ -190,9 +216,12 @@ export class MacVisibleControl {
         indicatorEpoch: epoch, isIndicatorCurrent: value => this.visibilityEpoch() === value,
         isCurrent: () => focusConfirmed ? scopeCurrent() && selection!.isIdentityCurrent() : targetCurrent(), signal: active },
         requestId, fingerprint, async () => {
-          backendEntered = true;
           check();
-          const effect = macEffect(call, await driver.call(call.name, args, active));
+          backendEntered = true;
+          const launchAppId = request.action === 'launch' ? request.appId : undefined;
+          const before = launchAppId === undefined ? undefined : this.observeRunningApplications(launchAppId);
+          const effect = macEffect(call, await driver.call(call.name, args, active), launchAppId === undefined ? undefined
+            : pid => launchObservation(pid, before, this.observeRunningApplications(launchAppId)));
           // Activation can move an exact window between Stage Manager positions.
           // Its acknowledged focus does not renew the old pixel geometry.
           focusConfirmed = request.action === 'focus' && effect.ok && effect.effect === 'confirmed';
@@ -211,6 +240,8 @@ export class MacVisibleControl {
     } catch (error) {
       if (backendEntered) throw error;
       if (error instanceof VisibleActionPreDispatchFailure && error.recoveryRequired) throw new PreDispatchRecoveryRequired(error);
+      if (error instanceof MacSecureInputActiveError || error instanceof VisibleActionPreDispatchFailure &&
+          error.cause instanceof MacSecureInputActiveError) return secureInputFailure();
       throw new PreDispatchFailure(error);
     } finally {
       active.removeEventListener('abort', closeOnAbort);

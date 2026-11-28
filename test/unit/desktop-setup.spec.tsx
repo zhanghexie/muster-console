@@ -64,11 +64,52 @@ describe('电脑操作授权引导', () => {
     act(() => api.emit('ui:desktopSetup', { ...missing, macApp: 'muster' }));
     const card = within(await screen.findByRole('article', { name: '电脑操作状态' }));
     expect(await card.findByText(/请为 Muster Console\.app 勾选权限/)).toBeTruthy();
+    expect(card.getByText(/刚覆盖安装了临时签名版本/)).toBeTruthy();
     expect(api.mockOf('desktopSetup.status')).toHaveBeenCalledTimes(0);
     await user.click(card.getByRole('button', { name: '打开辅助功能设置' }));
     await waitFor(() => expect(card.getByRole('status').textContent).toMatch(/请手动进入「系统设置 → 隐私与安全性」/));
     await user.click(card.getByRole('button', { name: '关闭电脑操作提示' }));
     await waitFor(() => expect(screen.queryByRole('article', { name: '电脑操作状态' })).toBeNull());
+  });
+
+  it('只在用户点击后请求系统授权，并允许定位当前应用', async () => {
+    const user = userEvent.setup();
+    const api = currentApiMock();
+    const request = api.mockOf('desktopSetup.requestPermission')
+      .mockResolvedValueOnce({ ok: true, granted: false })
+      .mockResolvedValueOnce({ ok: false, code: 'request_failed' });
+    const reveal = api.mockOf('desktopSetup.revealApp').mockResolvedValue({ ok: true });
+    render(<DesktopSetupNotice />);
+    act(() => api.emit('ui:desktopSetup', missing));
+    const card = within(await screen.findByRole('article', { name: '电脑操作状态' }));
+    expect(request).not.toHaveBeenCalled();
+    const accessibility = card.getByRole('button', { name: '请求辅助功能授权' });
+    accessibility.focus();
+    await user.keyboard('{Enter}');
+    expect(request.mock.calls).toEqual([['accessibility']]);
+    await waitFor(() => expect(card.getByRole('status').textContent).toMatch(/已向 macOS 请求授权/));
+    expect(document.activeElement).toBe(accessibility);
+    await user.click(card.getByRole('button', { name: '请求屏幕录制授权' }));
+    expect(request.mock.calls).toEqual([['accessibility'], ['screenRecording']]);
+    await waitFor(() => expect(card.getByRole('status').textContent).toMatch(/无法发起系统授权请求/));
+    await user.click(card.getByRole('button', { name: '在 Finder 中显示当前应用' }));
+    expect(reveal.mock.calls).toEqual([[]]);
+  });
+
+  it('区分驱动缺权与安全输入，并只提供对应的恢复操作', async () => {
+    const api = currentApiMock();
+    render(<DesktopSetupNotice />);
+    act(() => api.emit('ui:desktopSetup', { macApp: 'muster', issues: [
+      { code: 'permission_required', source: 'driver', permissions: ['accessibility'] }
+    ] }));
+    const card = within(await screen.findByRole('article', { name: '电脑操作状态' }));
+    expect(card.getByRole('status').textContent).toBe('桌面驱动未检测到 macOS 授权');
+    expect(card.getByRole('button', { name: '打开辅助功能设置' })).toBeTruthy();
+    expect(card.queryByRole('button', { name: '请求辅助功能授权' })).toBeNull();
+    act(() => api.emit('ui:desktopSetup', { macApp: 'muster', issues: [{ code: 'secure_input_active' }] }));
+    expect(card.getByRole('status').textContent).toBe('macOS 安全输入正在使用');
+    expect(card.getByText(/关闭正在接收安全输入的窗口/)).toBeTruthy();
+    expect(card.queryByRole('button', { name: '打开辅助功能设置' })).toBeNull();
   });
 
   it.each([

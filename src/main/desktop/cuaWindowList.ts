@@ -4,6 +4,7 @@ import type { CuaConnection } from './cuaTransport';
 
 const TTL_MS = 60_000;
 const ROW_LIMIT = 2000;
+export const CUA_WINDOW_ID_PREFIX = 'cua-window:';
 type WindowListActor = Pick<CuaSemanticActor, 'sessionId' | 'turnId' | 'lifetimeSignal' | 'isCurrent'>;
 const clean = (value: unknown) => typeof value === 'string'
   ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').slice(0, 120) : '';
@@ -57,7 +58,7 @@ export class CuaWindowList {
     const owner = this.owner(actor), expiresAt = Date.now() + TTL_MS;
     const page = result.windows.slice(offset, offset + limit);
     const windows = page.map(row => {
-      const id = `cua-window:${randomUUID()}`;
+      const id = `${CUA_WINDOW_ID_PREFIX}${randomUUID()}`;
       const generation = createHash('sha256').update(JSON.stringify([row.pid, row.windowId, row.frame])).digest('hex');
       if (this.selections.size >= 512) this.selections.delete(this.selections.keys().next().value!);
       let valid = true;
@@ -77,7 +78,7 @@ export class CuaWindowList {
   }
 
   resolve(actor: CuaSemanticActor, id: string): CuaSemanticTarget | undefined {
-    if (!id.startsWith('cua-window:')) return undefined;
+    if (!id.startsWith(CUA_WINDOW_ID_PREFIX)) return undefined;
     this.assertClean();
     const target = this.selections.get(id);
     if (!target || target.owner !== this.owner(actor) || !target.isCurrent() || !actor.isCurrent()) {

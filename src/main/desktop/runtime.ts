@@ -1,4 +1,6 @@
 import type { MacDesktopPermission, MacDesktopPermissions } from './macPermissions';
+import type { DesktopPermissionSource } from '../../shared/desktopSetup';
+import { PreDispatchFailure } from './preDispatchFailure';
 
 export type DesktopRuntime = 'windows' | 'macos' | 'linux-x11' | 'linux-wayland' | 'linux-unknown' | 'unsupported';
 export type DesktopCapability = 'semanticRead' | 'semanticAct' | 'capture' | 'windowCapture' | 'foregroundInput' | 'backgroundInput' | 'activate';
@@ -8,26 +10,47 @@ export interface DesktopCapabilityStatus {
   grant: 'unknown' | 'not-required' | 'required' | 'granted' | 'denied';
   limitation: string;
   remediation: string;
+  source?: DesktopPermissionSource;
+  displayActions?: Record<'type' | 'key' | 'scroll' | 'drag' | 'move' | 'hover', boolean>;
 }
 
 export interface MacDesktopStatus {
   permissions?: MacDesktopPermissions;
   permissionError?: string;
+  driverPermissions?: MacDesktopPermissions;
+  driverPermissionError?: string;
   driverError?: string;
   targetError?: string;
   screenLocked?: boolean;
   sessionError?: string;
+  secureInput?: boolean;
 }
 
 export const macScreenLockedMessage = 'Wake and unlock the Mac, then capture the display again before using windows or input.';
+export const macSecureInputMessage = 'macOS Secure Input is active. Finish or dismiss the protected input prompt, then capture the display again before retrying. Use the visible Stop button if needed.';
+export const macDriverPermissionReadError = 'The embedded Cua driver could not check macOS permissions. Recheck in General settings, then fully quit and reopen the current app if the check still fails.';
+
+export class MacSecureInputActiveError extends PreDispatchFailure {
+  constructor() { super(macSecureInputMessage); }
+}
 
 const permissionNames: Record<MacDesktopPermission, string> = { screenRecording: 'Screen & System Audio Recording', accessibility: 'Accessibility' };
-export function macPermissionMessage(permissions: readonly MacDesktopPermission[]): string {
+export function macPermissionMessage(permissions: readonly MacDesktopPermission[], source: DesktopPermissionSource = 'host'): string {
+  if (source === 'driver') return `The embedded Cua driver reports missing ${permissions.map(permission => permissionNames[permission]).join(' and ')}. Check the grant for the current app bundle in System Settings → Privacy & Security, fully quit and reopen that copy, then recheck in General settings.`;
   return `Enable ${permissions.map(permission => permissionNames[permission]).join(' and ')} for the app running Muster in System Settings → Privacy & Security, then restart it if macOS requests a restart.`;
 }
 
 export function desktopOperationFailure(runtime: DesktopRuntime, action: string, code: string, message: string) {
   return { ok: false as const, runtime, action, code, message };
+}
+
+export function macPermissionFailure(action: string, required: readonly MacDesktopPermission[], source: DesktopPermissionSource,
+  permissions: MacDesktopPermissions | undefined, error?: string) {
+  if (!permissions) return { ...desktopOperationFailure('macos', action, 'permission_check_failed', error ??
+    'Could not check the current app’s macOS permissions; restart Muster and try again.'), source };
+  const missing = required.filter(permission => !permissions[permission]);
+  if (missing.length) return { ...desktopOperationFailure('macos', action, 'permission_required', macPermissionMessage(missing, source)),
+    permissions: missing, source };
 }
 
 /** Distinguish Wayland sessions from an XWayland DISPLAY; no OS permission is requested. */
@@ -66,30 +89,38 @@ export function desktopOperationCapabilities(runtime: DesktopRuntime, wired: { c
   const capabilities = unavailableDesktopCapabilities(runtime);
   if (runtime === 'macos' && wired.mac && wired.capture) {
     const mac = wired.mac;
-    const status = (backend: string, limitation: string, required: MacDesktopPermission[]): DesktopCapabilityStatus => {
+    const status = (backend: 'cua-driver' | 'electron', limitation: string, required: MacDesktopPermission[], input = false): DesktopCapabilityStatus => {
       if (backend === 'cua-driver' && (mac.driverError || mac.targetError)) {
         return { available: false, backend, grant: 'unknown', limitation: mac.driverError ? 'dependency_missing' : 'capability_unsupported',
           remediation: mac.driverError ?? mac.targetError! };
       }
-      if (!mac.permissions) return { available: false, backend, grant: 'unknown', limitation: 'permission_check_failed',
-        remediation: mac.permissionError ?? 'Could not check macOS desktop permissions; restart Muster and try again.' };
-      const missing = required.filter(permission => !mac.permissions?.[permission]);
-      if (!missing.length && backend === 'cua-driver' && (mac.screenLocked || mac.sessionError)) {
-        return { available: false, backend, grant: 'granted', limitation: mac.screenLocked ? 'screen_locked' : 'desktop_session_unavailable',
+      const hostFailure = macPermissionFailure('', required, 'host', mac.permissions, mac.permissionError);
+      if (hostFailure) return { available: false, backend, grant: 'permissions' in hostFailure ? 'required' : 'unknown',
+        source: hostFailure.source, limitation: hostFailure.code, remediation: hostFailure.message };
+      if (backend === 'cua-driver' && (mac.screenLocked || mac.sessionError)) {
+        return { available: false, backend, grant: 'unknown', limitation: mac.screenLocked ? 'screen_locked' : 'desktop_session_unavailable',
           remediation: mac.screenLocked ? macScreenLockedMessage : mac.sessionError! };
       }
-      return missing.length ? { available: false, backend, grant: 'required', limitation: 'permission_required', remediation: macPermissionMessage(missing) }
-        : { available: true, backend, grant: 'granted', limitation, remediation: 'Requires a visible desktop run and a current desktop target.' };
+      if (input && mac.secureInput) return { available: false, backend, grant: 'unknown', limitation: 'secure_input_active', remediation: macSecureInputMessage };
+      if (backend === 'cua-driver') {
+        if (!mac.driverPermissions && !mac.driverPermissionError) return { available: false, backend, grant: 'unknown', source: 'driver',
+          limitation: 'permission_not_checked', remediation: 'Run desktop.list or check computer control in General settings.' };
+        const driverFailure = macPermissionFailure('', required, 'driver', mac.driverPermissions, mac.driverPermissionError);
+        if (driverFailure) return { available: false, backend, grant: 'permissions' in driverFailure ? 'required' : 'unknown',
+          source: driverFailure.source, limitation: driverFailure.code, remediation: driverFailure.message };
+      }
+      return { available: true, backend, grant: 'granted', limitation, remediation: 'Requires a visible desktop run and a current desktop target.' };
     };
     capabilities.capture = status('electron', 'capture_reads_all_displays', ['screenRecording']);
     const targetPermissions: MacDesktopPermission[] = ['screenRecording', 'accessibility'];
     if (wired.control) {
-      capabilities.foregroundInput = status('cua-driver', 'requires_capture_window; move_and_hover_unavailable', targetPermissions);
-      capabilities.activate = status('cua-driver', 'requires_capture_window', targetPermissions);
+      capabilities.foregroundInput = { ...status('cua-driver', 'requires_capture_window; move_and_hover_unavailable', targetPermissions, true),
+        displayActions: { type: true, key: true, scroll: true, drag: true, move: false, hover: false } };
+      capabilities.activate = status('cua-driver', 'requires_capture_window', targetPermissions, true);
     }
     if (wired.semantic) {
       capabilities.semanticRead = status('cua-driver', 'bounded_tree; values_may_be_redacted', targetPermissions);
-      capabilities.semanticAct = status('cua-driver', 'requires_current_semantic_ref; backend_effect_may_be_unverifiable', targetPermissions);
+      capabilities.semanticAct = status('cua-driver', 'requires_current_semantic_ref; backend_effect_may_be_unverifiable', targetPermissions, true);
     }
     if (wired.windowCapture) capabilities.windowCapture = status('cua-driver', 'window_capture_and_click', targetPermissions);
     return capabilities;
@@ -106,7 +137,8 @@ export function desktopOperationCapabilities(runtime: DesktopRuntime, wired: { c
     }
     if (wired.windowCapture) {
       capabilities.windowCapture = status('cua-driver', 'requires_proven_window_capture');
-      capabilities.foregroundInput = status('cua-driver', 'capture_bound_click_only');
+      capabilities.foregroundInput = { ...status('cua-driver', 'capture_bound_click_only'),
+        displayActions: { type: false, key: false, scroll: false, drag: false, move: false, hover: false } };
     }
     return capabilities;
   }
@@ -132,5 +164,8 @@ export function desktopOperationCapabilities(runtime: DesktopRuntime, wired: { c
   }
   if (wired.windowCapture) capabilities.windowCapture = { available: true, backend: 'cua-driver', grant: 'not-required',
     limitation: 'window_capture_and_click', remediation: 'Requires the pinned Cua driver, a visible desktop run and a current window.' };
+  if (capabilities.foregroundInput.available) {
+    capabilities.foregroundInput.displayActions = { type: true, key: true, scroll: true, drag: true, move: true, hover: true };
+  }
   return capabilities;
 }

@@ -7,6 +7,9 @@ import { pathToFileURL } from 'node:url';
 type Fixture = typeof globalThis & { desktopSetupFixture: {
   permissions: { screenRecording: boolean; accessibility: boolean };
   opened: string[];
+  requested: string[];
+  revealed: string[];
+  resolveScreenRequest(): void;
   sendFailure(result: unknown): void;
 } };
 
@@ -18,7 +21,7 @@ test('desktop setup works through the local Electron preload and IPC', async ({}
   try {
     const main = path.join(directory, 'main.cjs');
     await build({ entryPoints: [path.join(__dirname, 'fixtures/desktop-setup-main.ts')], outfile: main,
-      bundle: true, platform: 'node', format: 'cjs', external: ['electron'], logLevel: 'silent' });
+      bundle: true, platform: 'node', format: 'cjs', external: ['electron', 'koffi'], logLevel: 'silent' });
     await build({ entryPoints: [path.join(__dirname, 'fixtures/desktop-setup-renderer.tsx')], outfile: path.join(directory, 'renderer.js'),
       bundle: true, platform: 'browser', format: 'iife', jsx: 'automatic', define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'silent' });
     const styles = ['base.css', 'settings.css'].map(file => {
@@ -51,6 +54,25 @@ test('desktop setup works through the local Electron preload and IPC', async ({}
       }
       const screenLink = card.getByRole('button', { name: '打开屏幕录制设置' });
       const accessibilityLink = card.getByRole('button', { name: '打开辅助功能设置' });
+      expect(await app.evaluate(() => (globalThis as Fixture).desktopSetupFixture.requested)).toEqual([]);
+      const accessibilityRequest = card.getByRole('button', { name: '请求辅助功能授权' });
+      await accessibilityRequest.focus();
+      await page.keyboard.press('Enter');
+      await expect(card.getByRole('status')).toContainText('已向 macOS 请求授权');
+      await expect(accessibilityRequest).toBeFocused();
+      await card.getByRole('button', { name: '请求屏幕录制授权' }).click();
+      await expect.poll(() => app!.evaluate(() => (globalThis as Fixture).desktopSetupFixture.requested))
+        .toEqual(['accessibility', 'screenRecording']);
+      await expect(card.getByRole('button', { name: '重新检测' })).toBeDisabled();
+      expect(await page.evaluate(() => window.api.desktopSetup.requestPermission('accessibility')))
+        .toEqual({ ok: false, code: 'request_in_progress' });
+      await app.evaluate(() => (globalThis as Fixture).desktopSetupFixture.resolveScreenRequest());
+      await expect(card.getByRole('status')).toContainText('已向 macOS 请求授权');
+      await card.getByRole('button', { name: '在 Finder 中显示当前应用' }).click();
+      const exe = await app.evaluate(({ app }) => app.getPath('exe'));
+      expect(await app.evaluate(() => (globalThis as Fixture).desktopSetupFixture.revealed)).toEqual([path.resolve(exe, '../../..')]);
+      expect(await page.evaluate(() => window.api.desktopSetup.requestPermission('custom:' as 'accessibility')))
+        .toEqual({ ok: false, code: 'invalid_permission' });
       await screenLink.click();
       await accessibilityLink.click();
       await expect.poll(() => app!.evaluate(() => (globalThis as Fixture).desktopSetupFixture.opened)).toEqual([
@@ -71,18 +93,28 @@ test('desktop setup works through the local Electron preload and IPC', async ({}
       await expect(recheck).toBeFocused();
       await expect(screenLink).toHaveCount(0);
       await app.evaluate(() => (globalThis as Fixture).desktopSetupFixture.sendFailure({
-        ok: false, code: 'permission_required', permissions: ['accessibility']
+        ok: false, code: 'permission_required', permissions: ['accessibility'], source: 'driver'
       }));
       const notice = page.locator('.desktop-setup-notice');
+      await expect(notice.getByRole('status')).toHaveText('桌面驱动未检测到 macOS 授权');
       await expect(notice.getByRole('button', { name: '打开辅助功能设置' })).toBeVisible();
       await expect(notice.getByRole('button', { name: '打开屏幕录制设置' })).toHaveCount(0);
+      await expect(notice.getByRole('button', { name: '请求辅助功能授权' })).toHaveCount(0);
+      const closeNotice = notice.getByRole('button', { name: '关闭电脑操作提示' });
+      await expect(closeNotice).toBeInViewport({ ratio: 1 });
+      await expect(notice.getByRole('button', { name: '重新检测' })).toBeInViewport({ ratio: 1 });
+      await expect.poll(() => notice.locator('.desktop-setup-content').evaluate(node => node.scrollHeight > node.clientHeight)).toBe(true);
       await notice.screenshot({ path: info.outputPath('desktop-setup-notice-dark-390.png'), animations: 'disabled' });
-      await notice.getByRole('button', { name: '关闭电脑操作提示' }).click();
+      await closeNotice.click();
       await expect(notice).toHaveCount(0);
     } else {
       await expect(card.getByRole('status')).toHaveText('缺少桌面驱动');
       await expect(card.getByRole('button', { name: /打开.+设置/ })).toHaveCount(0);
       expect(await page.evaluate(() => window.api.desktopSetup.openSettings('accessibility')))
+        .toEqual({ ok: false, code: 'unsupported_platform' });
+      expect(await page.evaluate(() => window.api.desktopSetup.requestPermission('accessibility')))
+        .toEqual({ ok: false, code: 'unsupported_platform' });
+      expect(await page.evaluate(() => window.api.desktopSetup.revealApp()))
         .toEqual({ ok: false, code: 'unsupported_platform' });
       expect(await app.evaluate(() => (globalThis as Fixture).desktopSetupFixture.opened)).toEqual([]);
     }
@@ -93,11 +125,15 @@ test('desktop setup works through the local Electron preload and IPC', async ({}
         await external.loadURL('about:blank');
         return await external.webContents.executeJavaScript(`Promise.all([
           window.api.desktopSetup.status(),
-          window.api.desktopSetup.openSettings('accessibility')
+          window.api.desktopSetup.openSettings('accessibility'),
+          window.api.desktopSetup.requestPermission('accessibility'),
+          window.api.desktopSetup.revealApp()
         ].map(request => request.then(() => '', error => error.message)))`);
       } finally { external.destroy(); }
     }, env.MUSTER_DESKTOP_SETUP_PRELOAD);
     expect(externalWindowErrors).toEqual([
+      expect.stringContaining('Desktop setup is only available in the local workbench'),
+      expect.stringContaining('Desktop setup is only available in the local workbench'),
       expect.stringContaining('Desktop setup is only available in the local workbench'),
       expect.stringContaining('Desktop setup is only available in the local workbench')
     ]);

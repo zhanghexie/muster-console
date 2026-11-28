@@ -11,7 +11,7 @@
   flex: none;
   margin: 4px 12px 8px;
   max-block-size: 50vh;
-  overflow: auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   padding: 12px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-card);
@@ -24,6 +24,11 @@
   --interaction-pressed: var(--raised-interaction-pressed);
   --interaction-selected: var(--raised-interaction-selected);
   --status-warning-fg: var(--raised-status-warning-fg);
+}
+
+.desktop-setup-notice > .desktop-setup-content {
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .desktop-setup-card :is(h3, p, ul) { margin: 0; }

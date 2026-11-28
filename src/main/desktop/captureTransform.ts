@@ -26,7 +26,9 @@ export function capturePointToInput(
   if (capture.coordinateSpace !== 'capture-pixel-v1' || capture.targetSpace !== 'platform-input-v1' ||
       !Number.isSafeInteger(capture.width) || capture.width <= 0 || !Number.isSafeInteger(capture.height) || capture.height <= 0 ||
       !Number.isFinite(point.x) || !Number.isFinite(point.y) || point.x < 0 || point.y < 0 ||
-      point.x >= capture.width || point.y >= capture.height) throw new Error('Invalid capture point or coordinate space');
+      point.x >= capture.width || point.y >= capture.height) {
+    throw new Error(`Invalid capture point or coordinate space. Use pixels from the top-left of the returned ${capture.width}×${capture.height} image, including when it is cropped.`);
+  }
   const { originX, originY, scaleX, scaleY } = capture.transform ?? {};
   if (typeof originX !== 'number' || typeof originY !== 'number' || typeof scaleX !== 'number' || typeof scaleY !== 'number' ||
       ![originX, originY, scaleX, scaleY].every(Number.isFinite) || scaleX <= 0 || scaleY <= 0) {

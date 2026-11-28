@@ -139,8 +139,86 @@ try {
   assert.equal(lost.isVisible(), false);
   await new Promise(resolve => setImmediate(resolve));
   await assert.rejects(lost.turns.use('worker', 'turn', 'window', async () => 2), /indicator crashed/);
+  lost.turns.noteUserInstruction('worker', 'continue-after-crash');
+  // The failed mount and its OS loss event can both report the same failure.
+  indicatorLost('late duplicate indicator failure');
+  lost.turns.begin('worker', 'after-crash', () => true, true, 'continue-after-crash');
+  assert.equal(await lost.turns.use('worker', 'after-crash', 'window', async () => 3), 3,
+    'a duplicate indicator error must not revoke a freshly accepted recovery instruction');
+  lost.turns.end('worker', 'after-crash');
   await lost.dispose();
-  assert.equal(retired, 1, 'indicator loss must also retire the physical-key listener');
+  assert.equal(retired, 2, 'indicator loss and later disposal must retire each physical-key listener once');
+
+  let loseIndicator, readInFlight, completeRead, showStopping, acknowledgeStopping;
+  const activeReadStarted = new Promise(resolve => { readInFlight = resolve; });
+  const completeActiveRead = new Promise(resolve => { completeRead = resolve; });
+  const stoppingShown = new Promise(resolve => { showStopping = resolve; });
+  const stoppingAcknowledged = new Promise(resolve => { acknowledgeStopping = resolve; });
+  let renderedState, closeCount = 0;
+  const listenerStarts = [];
+  const delayedRecovery = new DesktopActivityRuntime({ labels, releaseAll: async () => {},
+    createIndicator: (_stop, unavailable) => {
+      loseIndicator = unavailable;
+      return {
+        async show(snapshot) {
+          renderedState = snapshot.state;
+          if (snapshot.state === 'stopping') { showStopping(); await stoppingAcknowledged; }
+        },
+        close() { closeCount++; }
+      };
+    },
+    createEscapeMonitor: () => ({ start: async () => { listenerStarts.push(renderedState); }, stop: async () => {} })
+  });
+  delayedRecovery.turns.begin('worker', 'interrupted', () => true);
+  const interruptedRead = delayedRecovery.turns.use('worker', 'interrupted', 'window', async () => {
+    readInFlight();
+    await completeActiveRead;
+  }, false);
+  const interruptedResult = assert.rejects(interruptedRead, /indicator lost/);
+  await activeReadStarted;
+  loseIndicator('indicator lost');
+  await stoppingShown;
+  delayedRecovery.turns.noteUserInstruction('worker', 'message-during-cleanup');
+  delayedRecovery.turns.begin('worker', 'recovered', () => true, true, 'message-during-cleanup');
+  const recovered = delayedRecovery.turns.use('worker', 'recovered', 'window', async () => 'ready', false);
+  completeRead();
+  await interruptedResult;
+  await new Promise(resolve => setImmediate(resolve));
+  acknowledgeStopping();
+  assert.equal(await recovered, 'ready');
+  assert.equal(closeCount, 0, 'the pending close was superseded by the fresh active render');
+  assert.deepEqual(listenerStarts, ['active', 'active'], 'only the fresh active render restarts Escape monitoring');
+  delayedRecovery.turns.end('worker', 'recovered');
+  await delayedRecovery.dispose();
+
+  let readStarted, finishRead, stillVisible = true, queuedDispatches = 0;
+  const readEntered = new Promise(resolve => { readStarted = resolve; });
+  const reading = new Promise(resolve => { finishRead = resolve; });
+  const parallel = new DesktopActivityRuntime({ labels, releaseAll: async () => {},
+    createIndicator: () => ({ show: async () => {}, close() {}, isCurrent: () => stillVisible })
+  });
+  parallel.turns.begin('worker', 'parallel', () => true);
+  const look = parallel.turns.use('worker', 'parallel', 'window', async () => {
+    readStarted();
+    await reading;
+    return 'look finished';
+  }, false);
+  const blockedLook = assert.rejects(look, /Desktop indicator is unavailable.*Muster Console/);
+  const list = parallel.turns.use('worker', 'parallel', 'window', async () => ++queuedDispatches, false);
+  const blockedList = assert.rejects(list, /Desktop indicator is unavailable.*Muster Console/);
+  await readEntered;
+  // No OS hide event has arrived yet; the queued call must check health itself.
+  stillVisible = false;
+  finishRead();
+  await blockedLook;
+  await blockedList;
+  assert.equal(queuedDispatches, 0, 'the queued list must not start under an invisible indicator');
+  stillVisible = true;
+  parallel.turns.noteUserInstruction('worker', 'continue-after-hide');
+  parallel.turns.begin('worker', 'fresh', () => true, true, 'continue-after-hide');
+  assert.equal(await parallel.turns.use('worker', 'fresh', 'window', async () => ++queuedDispatches, false), 1);
+  parallel.turns.end('worker', 'fresh');
+  await parallel.dispose();
 
   let lateReady, lateLost, lateEntered;
   const lateGate = new Promise(resolve => { lateReady = resolve; });
